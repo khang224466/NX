@@ -1,0 +1,47 @@
+[
+  {
+    "rule_id": "RULE_PARALYSIS_SCORE",
+    "scope": "NATIONAL_MOET",
+    "rule_title": "Kiểm Tra Điểm Liệt",
+    "target_programs": "Toàn bộ ngành & phương thức xét tuyển",
+    "prerequisite_condition": "Mọi môn trong tổ hợp thi THPT phải > 1.00 điểm",
+    "tie_breaker_rule": "Thí sinh có bất kỳ môn nào <= 1.00 điểm bị loại trực tiếp",
+    "source_url": "https://moet.gov.vn"
+  },
+  {
+    "rule_id": "RULE_MOET_GENERAL_FLOOR",
+    "scope": "NATIONAL_MOET",
+    "rule_title": "Ngưỡng Nguồn Tuyển Chung Bộ GD&ĐT",
+    "target_programs": "Toàn bộ phương thức sử dụng điểm thi tốt nghiệp THPT",
+    "prerequisite_condition": "Tổng 3 môn trong tổ hợp xét tuyển >= 15.00/30 điểm",
+    "tie_breaker_rule": "Thí sinh có tổng 3 môn < 15.00 không đủ điều kiện xét tuyển đại học",
+    "source_url": "https://moet.gov.vn"
+  },
+  {
+    "rule_id": "RULE_HEALTHCARE_FLOOR",
+    "scope": "PROGRAM_GROUP",
+    "rule_title": "Ngưỡng Đảm Bảo Chất Lượng Đầu Vào Nhóm Sức Khỏe",
+    "target_programs": "Ngành Y khoa, Răng Hàm Mặt, Dược học, YHCT, Điều dưỡng, Kỹ thuật Y học",
+    "prerequisite_condition": "Y khoa & RHM >= 22.50; Dược & YHCT >= 21.00; Điều dưỡng & KTYH >= 19.00",
+    "tie_breaker_rule": "Không áp dụng điểm trúng tuyển dưới ngưỡng sàn này",
+    "source_url": "https://moet.gov.vn"
+  },
+  {
+    "rule_id": "RULE_TEACHER_ASPIRATION_LIMIT",
+    "scope": "PROGRAM_GROUP",
+    "rule_title": "Giới Hạn Nguyện Vọng Khối Ngành Đào Tạo Giáo Viên (Sư Phạm)",
+    "target_programs": "Tất cả các ngành Sư phạm & Giáo dục",
+    "prerequisite_condition": "Thí sinh bắt buộc phải đặt ngành Sư phạm ở vị trí từ NV1 đến NV5",
+    "tie_breaker_rule": "Nguyện vọng từ NV6 đến NV15 đối với ngành Sư phạm sẽ bị hệ thống Bộ từ chối",
+    "source_url": "https://moet.gov.vn"
+  },
+  {
+    "rule_id": "RULE_MERGED_INSTITUTION_REDIRECT",
+    "scope": "INSTITUTION",
+    "rule_title": "Điều Hướng Mã Trường Sáp Nhập & Đổi Tên",
+    "target_programs": "DNV (ĐH Nội Vụ), LBS (ĐH Nguyễn Huệ), SPK (ĐH Sư phạm Kỹ thuật TPHCM)",
+    "prerequisite_condition": "DNV sáp nhập vào HCH; LBS là mã trường Sĩ quan Lục quân 2 LBH; SPK đổi tên theo QĐ 2809/QĐ-TTg",
+    "tie_breaker_rule": "Tự động hiển thị mã trường kế thừa hợp pháp trên hệ thống tuyển sinh",
+    "source_url": "https://chinhphu.vn"
+  }
+]

@@ -1,0 +1,544 @@
+@import "tailwindcss";
+
+@layer base {
+  :root,
+  html.dark,
+  html.light {
+    /* =========================================================================
+       BẢNG MÀU THỐNG NHẤT: EDITORIAL & MODERN BLUE (MÀU XANH BÌNH THƯỜNG)
+       Không dùng màu neon, phong cách Brutalist-Minimalism hiện đại
+       ========================================================================= */
+    --bg-primary: #07080B;                     /* Đen Obsidian sâu theo Pier Gorelli */
+    --bg-secondary: #0F1017;                   /* Xám đen sâu / Kính mờ */
+    --bg-elevated: #161722;                    /* Xám đen phân cấp */
+    --text-primary: #F3F4F6;                   /* Trắng tinh gọn chống nhòe sáng */
+    --text-secondary: #8E929F;                 /* Xám bạc thanh lịch */
+    --accent-primary: #2563EB;                 /* Xanh dương chuẩn / Royal Blue */
+    --accent-primary-text: #FFFFFF;            /* Chữ trắng tinh khiết trên nền Xanh */
+    --accent-secondary: #3B82F6;               /* Xanh dương tươi */
+    --accent-cyan: #60A5FA;                    /* Xanh chuẩn, không dùng neon cyan */
+    --accent-tag-bg: rgba(37, 99, 235, 0.16);
+    --accent-tag-text: #60A5FA;
+    --border-color: #262630;                   /* Viền tối mảnh 1px */
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(22, 22, 29, 0.85);
+    --glass-elevated: rgba(31, 31, 40, 0.92);
+    --dot-grid-bg: #0B0B0E;
+    --dot-grid-dots: rgba(255, 255, 255, 0.08);
+    --glow-primary: rgba(37, 99, 235, 0.22);
+    --glow-secondary: rgba(59, 130, 246, 0.16);
+    --header-bg: rgba(11, 11, 14, 0.90);
+    --dock-bg: rgba(11, 11, 14, 0.92);
+    --card-surface: #16161D;
+    --card-border: #262630;
+    --card-inner-box: #0E0E14;
+    --accent: #C6F135;                         /* Neon lime Pier Gorelli */
+    --accent-glow: rgba(198, 241, 53, 0.25);
+    --selection-bg: var(--accent);
+    --selection-text: #0C0D0E;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+    transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .blueprint-fixed-backdrop {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-color: var(--bg-primary);
+    background-image: 
+      radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.09) 0%, transparent 45%),
+      radial-gradient(circle at 15% 75%, rgba(59, 130, 246, 0.05) 0%, transparent 35%),
+      radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 24px 24px, 96px 96px, 96px 96px;
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  /* Lenis smooth scroll standard styling */
+  html.lenis, html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+  }
+}
+
+/* =========================================================================
+   TWO-STATE CUSTOM CURSOR (State 1: Happy Star-Eyed | State 2: Shocked/Crying)
+   ========================================================================= */
+@media (pointer: fine) {
+  html.custom-cursor-enabled,
+  html.custom-cursor-enabled body,
+  html.custom-cursor-enabled a,
+  html.custom-cursor-enabled button,
+  html.custom-cursor-enabled [role="button"],
+  html.custom-cursor-enabled input,
+  html.custom-cursor-enabled select,
+  html.custom-cursor-enabled textarea {
+    cursor: none !important;
+  }
+}
+
+@keyframes wiggle {
+  0% { transform: scale(1.15) rotate(-3deg); }
+  100% { transform: scale(1.22) rotate(3deg); }
+}
+
+
+/* =========================================================================
+   STRICT ANTI-AI RULES
+   ========================================================================= */
+
+/* 1. CẤM dùng chữ chuyển sắc (gradient text) trên tiêu đề */
+h1, h2, h3, h4, h5, h6, .hero-title, .vibrant-blend-text {
+  -webkit-text-fill-color: initial !important;
+  color: var(--text-primary) !important;
+  background: none !important;
+}
+
+/* 2. CẤM dùng đổ bóng mờ (box-shadow, shadow-md, shadow-lg, shadow-xl) */
+*, ::before, ::after {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+/* 3. CẤM bo góc nửa vời (rounded-lg, rounded-xl, rounded-2xl, rounded-3xl).
+      Chỉ 2 thái cực: Vuông sắc cạnh 0px cho layout blocks, tròn 9999px cho nút bấm */
+[class*="rounded-xl"]:not([class*="rounded-full"]):not([class*="rounded-none"]),
+[class*="rounded-2xl"]:not([class*="rounded-full"]):not([class*="rounded-none"]),
+[class*="rounded-3xl"]:not([class*="rounded-full"]):not([class*="rounded-none"]),
+[class*="rounded-lg"]:not([class*="rounded-full"]):not([class*="rounded-none"]) {
+  border-radius: 0px !important;
+}
+
+/* =========================================================================
+   TYPOGRAPHY (EDITORIAL STYLE)
+   ========================================================================= */
+.font-syne {
+  font-family: 'Syne', 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-editorial-italic {
+  font-family: 'Cormorant Garamond', 'Italiana', Georgia, serif;
+  font-style: italic;
+}
+
+.font-tabular {
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+}
+
+/* Dot Matrix Background */
+.awwwards-dot-grid {
+  background-color: var(--dot-grid-bg);
+  background-image: radial-gradient(var(--dot-grid-dots) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center center;
+  transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* =========================================================================
+   CHUYỂN ĐỘNG & HOVER INVERSION (0.6s cubic-bezier(0.16, 1, 0.3, 1))
+   ========================================================================= */
+.editorial-transition {
+  transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Light Mode: Hover inversion (nền biến thành #1A1A1A, chữ đảo sang #F8F8F6) */
+html.light .interactive-theme-card {
+  background-color: #EFECE6;
+  border: 1px solid #E2DFD7;
+  color: #1A1A1A;
+  border-radius: 0px !important;
+  transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.light .interactive-theme-card:hover {
+  background-color: #1A1A1A !important;
+  color: #F8F8F6 !important;
+  border-color: #1A1A1A !important;
+}
+
+html.light .interactive-theme-card:hover h1,
+html.light .interactive-theme-card:hover h2,
+html.light .interactive-theme-card:hover h3,
+html.light .interactive-theme-card:hover h4,
+html.light .interactive-theme-card:hover p,
+html.light .interactive-theme-card:hover span:not(.accent-preserve),
+html.light .interactive-theme-card:hover div:not(.accent-preserve) {
+  color: #F8F8F6 !important;
+}
+
+html.light .interactive-theme-card:hover .accent-preserve {
+  color: #2563EB !important;
+}
+
+/* Unified Theme: Border light-up on hover */
+.interactive-theme-card {
+  background-color: #16161D;
+  border: 1px solid #262630;
+  color: #F3F4F6;
+  border-radius: 0px !important;
+  transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.interactive-theme-card:hover {
+  border-color: #2563EB !important;
+}
+
+/* =========================================================================
+   UNIVERSAL THEME ADAPTATION FOR INNER COMPONENTS (85-12-3 RULE)
+   ========================================================================= */
+
+/* Light Mode Overrides */
+html.light [class*="bg-[#0A0E15]"],
+html.light [class*="bg-[#0E131A]"],
+html.light [class*="bg-[#090D13]"],
+html.light [class*="bg-[#0F141C]"],
+html.light [class*="bg-[#0B0F16]"],
+html.light [class*="bg-[#0E131C]"],
+html.light [class*="bg-[#0F141D]"],
+html.light [class*="bg-[#192330]"],
+html.light [class*="bg-[#0F1B17]"] {
+  background-color: #EFECE6 !important;
+  border-color: #E2DFD7 !important;
+}
+
+html.light [class*="bg-[#141A24]"],
+html.light [class*="bg-[#080B10]"],
+html.light [class*="bg-[#090D14]"],
+html.light [class*="bg-[#0E141D]"] {
+  background-color: #F8F8F6 !important;
+  border-color: #E2DFD7 !important;
+}
+
+html.light [class*="text-[#ECEEF2]"],
+html.light [class*="text-[#F1F3F7]"],
+html.light [class*="text-[#D8DFEB]"] {
+  color: #1A1A1A !important;
+}
+
+html.light [class*="text-[#8E9BAE]"],
+html.light [class*="text-[#64748B]"],
+html.light [class*="text-[#94A3B8]"],
+html.light [class*="text-[#98C2B3]"] {
+  color: #71716A !important;
+}
+
+html.light [class*="text-[#C5A880]"] {
+  color: #FF4D00 !important;
+}
+
+html.light [class*="border-white/"] {
+  border-color: #E2DFD7 !important;
+}
+
+/* Dark Mode Overrides */
+html.dark [class*="bg-[#0A0E15]"],
+html.dark [class*="bg-[#0E131A]"],
+html.dark [class*="bg-[#090D13]"],
+html.dark [class*="bg-[#0F141C]"],
+html.dark [class*="bg-[#0B0F16]"],
+html.dark [class*="bg-[#0E131C]"],
+html.dark [class*="bg-[#0F141D]"],
+html.dark [class*="bg-[#192330]"] {
+  background-color: #16161D !important;
+  border-color: #262630 !important;
+}
+
+html.dark [class*="bg-[#141A24]"],
+html.dark [class*="bg-[#080B10]"],
+html.dark [class*="bg-[#090D14]"] {
+  background-color: #0E0E14 !important;
+  border-color: #262630 !important;
+}
+
+html.dark [class*="text-[#ECEEF2]"],
+html.dark [class*="text-[#F1F3F7]"],
+html.dark [class*="text-[#D8DFEB]"] {
+  color: #F3F4F6 !important;
+}
+
+html.dark [class*="text-[#8E9BAE]"],
+html.dark [class*="text-[#64748B]"],
+html.dark [class*="text-[#94A3B8]"] {
+  color: #8E929F !important;
+}
+
+html.dark [class*="border-white/"] {
+  border-color: #262630 !important;
+}
+
+/* =========================================================================
+   PIER GORELLI MOTION & MICRO-INTERACTIONS UTILITIES
+   ========================================================================= */
+
+/* 1. Blur Typewriter Token Stream */
+.token-stream-word {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(6px);
+  animation: tokenStreamFade 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes tokenStreamFade {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0);
+  }
+}
+
+.neon-cursor {
+  display: inline-block;
+  color: var(--accent, #C6F135);
+  font-weight: 700;
+  animation: neonBlink 0.75s step-end infinite;
+}
+
+@keyframes neonBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* 2. Code Line Flash for Live Reactive BRIEF.JSON */
+@keyframes flashGreen {
+  0% {
+    background-color: var(--accent-glow, rgba(198, 241, 53, 0.35));
+    border-left: 2px solid var(--accent, #C6F135);
+  }
+  100% {
+    background-color: transparent;
+    border-left: 2px solid transparent;
+  }
+}
+
+.flash-active-line {
+  animation: flashGreen 0.55s ease-out;
+}
+
+/* 3. Node Flow pulse */
+@keyframes nodePulseDash {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+
+.node-flow-pulse {
+  animation: nodePulseDash 2.4s linear infinite;
+}
+
+/* =========================================================================
+   PIER GORELLI PRELOADER (.preloader — Compile Intro) & MONOGRAM SHEET (.pt)
+   ========================================================================= */
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999999;
+  background: #EAEAE3;
+  color: #0C0D0E;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 1.5rem 2rem;
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 0.9s cubic-bezier(0.77, 0, 0.175, 1);
+  pointer-events: auto;
+  will-change: clip-path;
+  transform: translateZ(0);
+}
+
+.preloader.is-lifting {
+  clip-path: inset(0 0 100% 0);
+  pointer-events: none;
+}
+
+.preloader__meta {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.monogram {
+  width: 96px;
+  height: auto;
+  overflow: visible;
+}
+
+.monogram__p,
+.monogram__g,
+.monogram__n,
+.monogram__x,
+.monogram__r {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.8px;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: plotMonogram 0.85s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+}
+
+.monogram__x {
+  animation-delay: 0.14s;
+}
+
+.monogram__r {
+  animation-delay: 0.28s;
+}
+
+.monogram__g {
+  animation-delay: 0.15s;
+}
+
+.monogram__dot {
+  fill: var(--accent, #C6F135);
+  transform-origin: 93px 34px;
+  transform: scale(0);
+  animation: popMonogramDot 0.4s cubic-bezier(0.77, 0, 0.175, 1) 0.65s forwards;
+}
+
+@keyframes plotMonogram {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes popMonogramDot {
+  to { transform: scale(1); }
+}
+
+/* Page Transition (div.pt — Monogram Sheet & View Transitions) */
+.pt-shutter {
+  position: fixed;
+  inset: 0;
+  z-index: 9999999;
+  background: #0C0D0E;
+  color: #EAEAE3;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 1.5rem 2rem;
+  pointer-events: none;
+  transition: clip-path 0.65s cubic-bezier(0.77, 0, 0.175, 1);
+  will-change: clip-path;
+  transform: translateZ(0);
+}
+
+.pt-shutter.is-closed {
+  clip-path: inset(0% 0% 0% 0%);
+  pointer-events: auto;
+}
+
+.pt-shutter.is-open-top {
+  clip-path: inset(0% 0% 100% 0%);
+}
+
+.pt-shutter.is-open-bottom {
+  clip-path: inset(100% 0% 0% 0%);
+}
+
+.pt__cols {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  pointer-events: none;
+  padding: 0 2rem;
+}
+
+.pt__cols span {
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  height: 100%;
+  transform-origin: 50% 0%;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pt__stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.pt__guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pt__guide--h1 {
+  top: 35%;
+}
+
+.pt__guide--h2 {
+  bottom: 35%;
+}
+
+.pt__box {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 1.75rem 2.5rem;
+  background: rgba(12, 13, 14, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pt__to {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+  color: #FFFFFF;
+  text-transform: uppercase;
+}
+
+.pt__count {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent, #C6F135);
+}
+
+

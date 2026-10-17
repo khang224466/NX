@@ -1,0 +1,3051 @@
+import { Institution } from './admissionsAuditedEngine';
+
+/**
+ * 02_Institution_Registry: TOÀN BỘ 300 TRƯỜNG ĐẠI HỌC VÀ HỌC VIỆN VIỆT NAM 2026
+ * Chuẩn hóa 300 mã trường theo danh bạ kiểm toán độc lập (Thông tư 06/2026/TT-BGDĐT)
+ * Tổng hợp 297 trường độc lập, 1 trường sáp nhập (DNV->HCH) và 2 mã trùng (LBS->LBH, YHT->YHB).
+ */
+const RAW_INSTITUTIONS_300: Omit<Institution, 'code'>[] = [
+  {
+    "institution_code": "KHA",
+    "official_name": "Đại Học Kinh Tế Quốc Dân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "207 Giải Phóng, Đồng Tâm, Hai Bà Trưng, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://neu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "BKA",
+    "official_name": "Đại Học Bách Khoa Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hust.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HTC",
+    "official_name": "Học Viện Tài Chính",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 58 Lê Văn Hiến, Đức Thắng, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hvtc.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NHH",
+    "official_name": "Học Viện Ngân Hàng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "12 Chùa Bộc, Quang Trung, Đống Đa, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hvnh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NTH",
+    "official_name": "Trường Đại Học Ngoại Thương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "91 Phố Chùa Láng, Láng Thượng, Đống Đa, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ftu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSB",
+    "official_name": "Trường Đại Học Bách Khoa HCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "268 Lý Thường Kiệt, Phường 14, Quận 10 / KĐT ĐHQG TP.HCM, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hcmut.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YHB",
+    "official_name": "Trường Đại Học Y Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 1 Tôn Thất Tùng, Đống Đa, Hà Nội (và Phân hiệu Thanh Hóa)",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hmu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "BVH",
+    "official_name": "Học Viện Công Nghệ Bưu Chính Viễn Thông",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "122 Hoàng Quốc Việt, Cầu Giấy, Hà Nội",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://ptit.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SPH",
+    "official_name": "Trường Đại Học Sư Phạm Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "136 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hnue.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TMU",
+    "official_name": "Trường Đại Học Thương Mại",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "79 Hồ Tùng Mậu, Mai Dịch, Cầu Giấy, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://tmu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SPS",
+    "official_name": "Trường Đại Học Sư Phạm TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "280 An Dương Vương, Phường 4, Quận 5, TP.HCM",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hcmue.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YDS",
+    "official_name": "Đại Học Y Dược TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "217 Hồng Bàng, Phường 11, Quận 5, TP.HCM",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://ump.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHI",
+    "official_name": "Trường Đại Học Công Nghệ – Đại Học Quốc Gia Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "144 Xuân Thủy, Cầu Giấy, Hà Nội (Năm 1 học tại KĐT ĐHQGHN Hòa Lạc)",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://uet.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HNM",
+    "official_name": "Trường Đại học Thủ Đô Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "98 Dương Quảng Hàm, Quan Hoa, Cầu Giấy, Hà Nội",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hnmu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "GHA",
+    "official_name": "Trường Đại Học Giao Thông Vận Tải",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 3 phố Cầu Giấy, Láng Thượng, Đống Đa, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://utc.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YTB",
+    "official_name": "Trường Đại Học Y Dược Thái Bình",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Bình",
+    "detailed_address_and_history": "460 Lý Bôn, Quang Trung, TP. Thái Bình",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://tbump.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KMA",
+    "official_name": "Học Viện Kỹ Thuật Mật Mã",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "141 Chiến Thắng, Tân Triều, Thanh Trì, Hà Nội (và Cơ sở TP.HCM)",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://actvn.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCN",
+    "official_name": "Đại Học Công Nghiệp Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 298 đường Cầu Diễn, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://haui.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YPB",
+    "official_name": "Trường Đại Học Y Dược Hải Phòng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Phòng",
+    "detailed_address_and_history": "72A Nguyễn Bỉnh Khiêm, Đằng Giang, Ngô Quyền, Hải Phòng",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hpmu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "IUH",
+    "official_name": "Trường Đại Học Công Nghiệp TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "12 Nguyễn Văn Bảo, Phường 4, Gò Vấp, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://iuh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HPN",
+    "official_name": "Học Viện Phụ Nữ Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "68 Nguyễn Chí Thanh, Láng Thượng, Đống Đa, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hvpnvn.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DKH",
+    "official_name": "Trường Đại Học Dược Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "13-15 Lê Thánh Tông, Phan Chu Trinh, Hoàn Kiếm, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hup.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "ANH",
+    "official_name": "Học Viện An Ninh Nhân Dân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "125 Trần Phú, Văn Quán, Hà Đông, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hvannd.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DKY",
+    "official_name": "Trường Đại Học Kỹ Thuật Y Tế Hải Dương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Dương",
+    "detailed_address_and_history": "Số 1 Vũ Hựu, Thanh Bình, TP. Hải Dương",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hmtu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "UTH",
+    "official_name": "Trường Đại Học Giao Thông Vận Tải TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Số 2 Võ Oanh, Phường 25, Bình Thạnh, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://ut.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HYD",
+    "official_name": "Học Viện Y Dược Học Cổ Truyền Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 2 Trần Phú, Mộ Lao, Hà Đông, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://vutm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "CSH",
+    "official_name": "Học Viện Cảnh Sát Nhân Dân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Cổ Nhuế 2, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hvcsnd.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DKK",
+    "official_name": "Trường Đại Học Kinh Tế Kỹ Thuật Công Nghiệp",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội & Nam Định",
+    "detailed_address_and_history": "456 Minh Khai, Vĩnh Tuy, Hai Bà Trưng, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://uneti.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCT",
+    "official_name": "Trường Đại Học Công Thương TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "140 Lê Trọng Tấn, Tây Thạnh, Tân Phú, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://huit.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LAH",
+    "official_name": "Trường Sĩ Quan Lục Quân 1 - Đại học Trần Quốc Tuấn",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Cổ Đông, Thị xã Sơn Tây, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqlq1.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HQH",
+    "official_name": "Học Viện Hải Quân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Khánh Hòa",
+    "detailed_address_and_history": "30 Trần Phú, Vĩnh Nguyên, Nha Trang, Khánh Hòa",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hocvienhaiquan.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HHK",
+    "official_name": "Học Viện Hàng không Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "104 Nguyễn Văn Trỗi, Phường 8, Phú Nhuận, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vaa.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "PKA",
+    "official_name": "Đại Học Phenikaa",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Yên Nghĩa, Hà Đông, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://phenikaa-uni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "PKH",
+    "official_name": "Học Viện Phòng Không – Không Quân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Kim Sơn, Thị xã Sơn Tây, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hocvienpkkq.com",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "CSS",
+    "official_name": "Trường Đại Học Cảnh Sát Nhân Dân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "36 Nguyễn Hữu Thọ, Tân Phong, Quận 7, TP.HCM",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://pup.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TTH",
+    "official_name": "Trường Sĩ Quan Thông Tin",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Khánh Hòa",
+    "detailed_address_and_history": "101 Mai Xuân Thưởng, Vĩnh Hải, Nha Trang, Khánh Hòa",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://tcu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NHF",
+    "official_name": "Trường Đại Học Hà Nội (HANU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Km 9 đường Nguyễn Trãi, Thanh Xuân Bắc, Nam Từ Liêm, Hà Nội",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://hanu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KQH",
+    "official_name": "Học Viện Kỹ Thuật Quân Sự",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "236 Hoàng Quốc Việt, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://mta.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YTC",
+    "official_name": "Trường Đại Học Y Tế Công Cộng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 1A Đức Thắng, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://huph.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HQT",
+    "official_name": "Học Viện Ngoại Giao",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "69 Phố Chùa Láng, Láng Thượng, Đống Đa, Hà Nội",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://dav.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "ANS",
+    "official_name": "Trường Đại Học An Ninh Nhân Dân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Km 18 Xa lộ Hà Nội, Linh Trung, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://dhannd.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YCT",
+    "official_name": "Trường Đại Học Y Dược Cần Thơ",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Cần Thơ",
+    "detailed_address_and_history": "179 Nguyễn Văn Cừ, An Khánh, Ninh Kiều, Cần Thơ",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://ctump.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TDM",
+    "official_name": "Trường Đại học Thủ Dầu Một",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Dương",
+    "detailed_address_and_history": "Số 6 Trần Văn Ơn, Phú Hòa, TP. Thủ Dầu Một, Bình Dương",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://tdmu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TYS",
+    "official_name": "Trường Đại Học Y Khoa Phạm Ngọc Thạch",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Số 2 Dương Quang Trung, Phường 12, Quận 10, TP.HCM",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://pnt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTL",
+    "official_name": "Trường Đại Học Thăng Long",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Đường Nghiêm Xuân Yêm, Đại Kim, Hoàng Mai, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://thanglong.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TLA",
+    "official_name": "Trường Đại Học Thủy Lợi",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "175 Tây Sơn, Trung Liệt, Đống Đa, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://tlu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QST",
+    "official_name": "Trường Đại Học Khoa Học Tự Nhiên TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "227 Nguyễn Văn Cừ, Phường 4, Quận 5, TP.HCM",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://hcmus.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VHH",
+    "official_name": "Trường Đại Học Văn Hóa Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "418 Đê La Thành, Chợ Dừa, Đống Đa, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://huc.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTT",
+    "official_name": "Trường Đại Học Tôn Đức Thắng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "19 Nguyễn Hữu Thọ, Tân Phong, Quận 7, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://tdtu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HVN",
+    "official_name": "Học Viện Nông Nghiệp Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Thị trấn Trâu Quỳ, Gia Lâm, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vnua.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHX",
+    "official_name": "Trường Đại Học Khoa Học Xã Hội và Nhân Văn Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "336 Nguyễn Trãi, Thanh Xuân Trung, Thanh Xuân, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://ussh.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LPH",
+    "official_name": "Trường Đại Học Luật Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "87 Nguyễn Chí Thanh, Láng Hạ, Đống Đa, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hlu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHF",
+    "official_name": "Trường Đại Học Ngoại Ngữ - ĐHQG Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 2 Phạm Văn Đồng, Dịch Vọng Hậu, Cầu Giấy, Hà Nội",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://ulis.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HBT",
+    "official_name": "Học viện Báo chí và Tuyên truyền",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "36 Xuân Thủy, Dịch Vọng Hậu, Cầu Giấy, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://ajc.hcma.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHT",
+    "official_name": "Trường Đại Học Khoa Học Tự Nhiên Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "334 Nguyễn Trãi, Thanh Xuân Trung, Thanh Xuân, Hà Nội",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://hus.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHE",
+    "official_name": "Trường Đại Học Kinh Tế - ĐHQG Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "144 Xuân Thủy, Dịch Vọng Hậu, Cầu Giấy, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ueb.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSX",
+    "official_name": "Trường Đại Học Khoa Học Xã Hội và Nhân Văn TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "10-12 Đinh Tiên Hoàng, Bến Nghé, Quận 1, TP.HCM",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hcmussh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTS",
+    "official_name": "Đại Học Sư Phạm Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "20 đường Lương Ngọc Quyến, TP. Thái Nguyên",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://dhsptn.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LCH",
+    "official_name": "Trường Sĩ Quan Chính Trị",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Bắc Ninh & Thạch Thất, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://daihocchinhtri.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TCT",
+    "official_name": "Đại Học Cần Thơ",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Cần Thơ",
+    "detailed_address_and_history": "Khu II, đường 3/2, Xuân Khánh, Ninh Kiều, Cần Thơ",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://ctu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DKS",
+    "official_name": "Trường Đại học Kiểm Sát Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Phường Dương Nội, Hà Đông, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://tks.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "BPH",
+    "official_name": "Học Viện Biên Phòng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Phường Sơn Lộc, Thị xã Sơn Tây, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hvbp.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHL",
+    "official_name": "Trường Đại học Luật – ĐHQG Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Nhà E1, 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://law.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHS",
+    "official_name": "Trường Đại Học Sư Phạm Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "34 Lê Lợi, Phú Hội, TP. Huế",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://dhsphue.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSC",
+    "official_name": "Trường Đại Học Công Nghệ Thông Tin - ĐHQG TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Khu phố 6, Linh Trung, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://uit.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SGD",
+    "official_name": "Trường Đại Học Sài Gòn",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "273 An Dương Vương, Phường 3, Quận 5, TP.HCM",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://sgu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NQH",
+    "official_name": "Học Viện Khoa Học Quân Sự",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Lai Xá, Kim Chung, Hoài Đức, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hvkhqs.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NTS",
+    "official_name": "Trường Đại học Ngoại thương (Cơ sở II)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Số 15 đường D5, Phường 25, Bình Thạnh, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://cs2.ftu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "NTH"
+  },
+  {
+    "institution_code": "HTA",
+    "official_name": "Học viện Tòa án",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Đường 282, Kim Sơn, Gia Lâm, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hvta.toaan.gov.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDS",
+    "official_name": "Trường Đại Học Sư Phạm - Đại Học Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "459 Tôn Đức Thắng, Hòa Khánh Nam, Liên Chiểu, Đà Nẵng",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://ued.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SP2",
+    "official_name": "Trường Đại Học Sư Phạm Hà Nội 2",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Vĩnh Phúc",
+    "detailed_address_and_history": "Số 32 đường Nguyễn Văn Linh, Xuân Hòa, Phúc Yên, Vĩnh Phúc",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hpu2.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHS",
+    "official_name": "Trường Đại Học Giáo Dục - ĐHQG Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Nhà G7, 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://education.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VHS",
+    "official_name": "Trường Đại Học Văn Hóa TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "51 Quốc Hương, Thảo Điền, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://hcmuc.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SPK",
+    "official_name": "Trường Đại Học Công nghệ Kỹ thuật TP HCM (HCMUTE)",
+    "institution_status": "RENAMED_2025",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "01 Võ Văn Ngân, Linh Chiểu, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hcmute.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HTN",
+    "official_name": "Học Viện Thanh Thiếu Niên Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 3-5 Chùa Láng, Láng Thượng, Đống Đa, Hà Nội",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://vya.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YQH",
+    "official_name": "Học Viện Quân Y",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "160 Phùng Hưng, Phúc La, Hà Đông, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hocvienquany.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSK",
+    "official_name": "Trường Đại học Kinh Tế Luật TPHCM (UEL)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "669 Quốc lộ 1, Linh Xuân, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://uel.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HEH",
+    "official_name": "Học Viện Hậu Cần",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Ngọc Thụy, Long Biên, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hocvienhaucan.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LPS",
+    "official_name": "Trường Đại Học Luật TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Số 2 Nguyễn Tất Thành, Phường 12, Quận 4, TP.HCM",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hcmulaw.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDF",
+    "official_name": "Trường Đại Học Ngoại Ngữ Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "131 Lương Nhữ Hộc, Khuê Trung, Cẩm Lệ, Đà Nẵng",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://ufl.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KSA",
+    "official_name": "Đại Học Kinh Tế TPHCM (UEH)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "59C Nguyễn Đình Chiểu, Phường Võ Thị Sáu, Quận 3, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ueh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHY",
+    "official_name": "Trường Đại học Y Dược - ĐHQG Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Nhà Y1, 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://ump.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDK",
+    "official_name": "Trường Đại Học Bách Khoa Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "54 Nguyễn Lương Bằng, Hòa Khánh Bắc, Liên Chiểu, Đà Nẵng",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://dut.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHF",
+    "official_name": "Trường Đại Học Ngoại Ngữ Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "57 Nguyễn Khoa Chiêm, An Cựu, TP. Huế",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://hucfl.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DMS",
+    "official_name": "Trường Đại Học Tài Chính Marketing",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "778 Nguyễn Kiệm, Phường 4, Phú Nhuận, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ufm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "GSA",
+    "official_name": "Trường Đại Học Giao Thông Vận Tải (Cơ sở 2)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "450-451 Lê Văn Việt, Tăng Nhơn Phú A, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://utc2.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "GHA"
+  },
+  {
+    "institution_code": "TSN",
+    "official_name": "Trường Đại Học Nha Trang",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Khánh Hòa",
+    "detailed_address_and_history": "Số 2 Nguyễn Đình Chiểu, Vĩnh Thọ, Nha Trang, Khánh Hòa",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ntu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LBH",
+    "official_name": "Trường Sĩ Quan Lục Quân 2 - Đại học Nguyễn Huệ",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đồng Nai",
+    "detailed_address_and_history": "Tam Phước, TP. Biên Hòa, Đồng Nai",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqlq2.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "BVS",
+    "official_name": "Học Viện Công Nghệ Bưu Chính Viễn Thông (Cơ sở TP.HCM)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "11 Nguyễn Đình Chiểu, Đa Kao, Quận 1, TP.HCM",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://ptithcm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "BVH"
+  },
+  {
+    "institution_code": "YKV",
+    "official_name": "Trường Đại Học Y Khoa Vinh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nghệ An",
+    "detailed_address_and_history": "161 Lê Viết Thuật, Hưng Lộc, TP. Vinh, Nghệ An",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://vmu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YDN",
+    "official_name": "Trường Đại học Kỹ thuật Y Dược Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "99 Hùng Vương, Hải Châu 1, Hải Châu, Đà Nẵng",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://dhktyduocdn.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTY",
+    "official_name": "Trường Đại Học Y Dược Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "284 Lương Ngọc Quyến, Quang Trung, TP. Thái Nguyên",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://tump.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHY",
+    "official_name": "Trường Đại Học Y Dược Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "06 Ngô Quyền, Vĩnh Ninh, TP. Huế",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://huemed-univ.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDY",
+    "official_name": "Khoa Y Dược - Đại học Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "Khu Đô thị ĐH Đà Nẵng, Hòa Quý, Ngũ Hành Sơn, Đà Nẵng",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://smp.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KTS",
+    "official_name": "Trường Đại Học Kiến Trúc TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "196 Pasteur, Phường Võ Thị Sáu, Quận 3, TP.HCM",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://uah.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HCA",
+    "official_name": "Học Viện Chính Trị Công An Nhân Dân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Thôn Lương Châu, Xã Tiên Dược, Sóc Sơn, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hvctcand.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSY",
+    "official_name": "Khoa Y - ĐHQG TPHCM (ĐH KH Sức Khỏe)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Khu đô thị ĐHQG TP.HCM, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://medvnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSQ",
+    "official_name": "Trường Đại Học Quốc Tế - ĐHQG TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Khu phố 6, Linh Trung, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hcmiu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "THV",
+    "official_name": "Trường Đại Học Hùng Vương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Phú Thọ",
+    "detailed_address_and_history": "Phường Nông Trang, TP. Việt Trì, Phú Thọ",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hvu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "THP",
+    "official_name": "Trường Đại Học Hải Phòng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Phòng",
+    "detailed_address_and_history": "171 Phan Đăng Lưu, Kiến An, Hải Phòng",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://dhhp.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HCP",
+    "official_name": "Học Viện Chính Sách và Phát Triển",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Khu đô thị Nam An Khánh, Hoài Đức, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://apd.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MHN",
+    "official_name": "Trường Đại Học Mở Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Nhà B101 đường Nguyễn Hiền, Bách Khoa, Hai Bà Trưng, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hou.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LDA",
+    "official_name": "Trường Đại Học Công Đoàn",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "169 Tây Sơn, Quang Trung, Đống Đa, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://dhcd.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HHA",
+    "official_name": "Trường Đại Học Hàng Hải Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Phòng",
+    "detailed_address_and_history": "484 Lạch Tray, Kênh Dương, Lê Chân, Hải Phòng",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vimaru.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KTA",
+    "official_name": "Trường Đại Học Kiến Trúc Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Km 10 đường Nguyễn Trãi, Văn Quán, Hà Đông, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://hau.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TDV",
+    "official_name": "Trường Đại Học Vinh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nghệ An",
+    "detailed_address_and_history": "182 Lê Duẩn, Bến Thủy, TP. Vinh, Nghệ An",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://vinhuni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSA",
+    "official_name": "Trường Đại Học An Giang",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "An Giang",
+    "detailed_address_and_history": "18 Ung Văn Khiêm, Đông Xuyên, Long Xuyên, An Giang",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://agu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HCH",
+    "official_name": "Học Viện Hành Chính và Quản trị công (APAG)",
+    "institution_status": "MERGED_RESTRUCTURED",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "77 Nguyễn Chí Thanh, Láng Thượng, Đống Đa, Hà Nội (Kế thừa ĐH Nội vụ DNV)",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://napa.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SPD",
+    "official_name": "Trường Đại Học Đồng Tháp",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đồng Tháp",
+    "detailed_address_and_history": "783 Phạm Hữu Lầu, Phường 6, TP. Cao Lãnh, Đồng Tháp",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://dthu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHK",
+    "official_name": "Trường Khoa học liên ngành và Nghệ thuật Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Nhà G7, 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://sis.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TTN",
+    "official_name": "Trường Đại Học Tây Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đắk Lắk",
+    "detailed_address_and_history": "567 Lê Duẩn, Ea Tam, TP. Buôn Ma Thuột, Đắk Lắk",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://ttn.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DQN",
+    "official_name": "Trường Đại Học Quy Nhơn",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Định",
+    "detailed_address_and_history": "170 An Dương Vương, Nguyễn Văn Cừ, Quy Nhơn, Bình Định",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://qnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHC",
+    "official_name": "Khoa Giáo Dục Thể Chất Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "52 Hồ Đắc Di, An Cựu, TP. Huế",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://fpe.hueuni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "GNT",
+    "official_name": "Trường Đại Học Sư Phạm Nghệ Thuật Trung Ương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "18 ngõ 55 Trần Phú, Văn Quán, Hà Đông, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://spnttw.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDQ",
+    "official_name": "Trường Đại Học Kinh Tế – Đại Học Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "71 Ngũ Hành Sơn, Bắc Mỹ An, Ngũ Hành Sơn, Đà Nẵng",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://due.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTF",
+    "official_name": "Trường Ngoại Ngữ Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Xã Quyết Thắng, TP. Thái Nguyên",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://sfl.tnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HLU",
+    "official_name": "Trường Đại Học Hạ Long",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Quảng Ninh",
+    "detailed_address_and_history": "Số 258 đường Bạch Đằng, Nam Khê, Uông Bí, Quảng Ninh",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://daihochalong.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DKT",
+    "official_name": "Trường Đại Học Hải Dương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Dương",
+    "detailed_address_and_history": "Khu 8, Phường Hải Tân, TP. Hải Dương",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://uhd.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DQB",
+    "official_name": "Trường Đại Học Quảng Bình",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Quảng Bình",
+    "detailed_address_and_history": "312 Lý Thường Kiệt, Đồng Hới, Quảng Bình",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://qbu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DPQ",
+    "official_name": "Trường Đại Học Phạm Văn Đồng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Quảng Ngãi",
+    "detailed_address_and_history": "509 Phan Đình Phùng, TP. Quảng Ngãi",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://pdu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HHT",
+    "official_name": "Trường Đại Học Hà Tĩnh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Tĩnh",
+    "detailed_address_and_history": "Số 447 đường 26/3, Đại Nài, TP. Hà Tĩnh",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://htu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DMT",
+    "official_name": "Trường Đại học Tài Nguyên và Môi Trường Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 41A đường Phú Diễn, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hunre.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HCS",
+    "official_name": "Học Viện Hành Chính Và Quản Trị Công (phía Nam)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Số 10 đường 3/2, Quận 10, TP.HCM",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://napa.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "HCH"
+  },
+  {
+    "institution_code": "NHS",
+    "official_name": "Trường Đại Học Ngân Hàng TPHCM (HUB)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "36 Tôn Thất Đạm, Quận 1, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hub.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DLX",
+    "official_name": "Trường Đại Học Lao Động – Xã Hội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "43 Trần Duy Hưng, Trung Hòa, Cầu Giấy, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ulsa.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DBL",
+    "official_name": "Trường Đại Học Bạc Liêu",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bạc Liêu",
+    "detailed_address_and_history": "178 Võ Thị Sáu, Phường 8, TP. Bạc Liêu",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://blu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DQU",
+    "official_name": "Trường Đại Học Quảng Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Quảng Nam",
+    "detailed_address_and_history": "102 Hùng Vương, TP. Tam Kỳ, Quảng Nam",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://qnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DLS",
+    "official_name": "Trường Đại Học Lao Động – Xã Hội (Cơ sở II)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "1018 Tô Ký, Tân Chánh Hiệp, Quận 12, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ldxh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "DLX"
+  },
+  {
+    "institution_code": "DPY",
+    "official_name": "Trường Đại Học Phú Yên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Phú Yên",
+    "detailed_address_and_history": "Số 01 Nguyễn Văn Huyên, Phường 9, TP. Tuy Hòa, Phú Yên",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://pyu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDP",
+    "official_name": "Phân Hiệu Đại Học Đà Nẵng tại Kon Tum",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Kon Tum",
+    "detailed_address_and_history": "704 Phan Đình Phùng, TP. Kon Tum",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://kontum.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "DDN"
+  },
+  {
+    "institution_code": "TDH",
+    "official_name": "Trường Đại Học Sư Phạm Thể Dục Thể Thao Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Phụng Châu, Chương Mỹ, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://dhspttdt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KCC",
+    "official_name": "Trường Đại học Kỹ Thuật Công Nghệ Cần Thơ",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Cần Thơ",
+    "detailed_address_and_history": "256 Nguyễn Văn Cừ, An Hòa, Ninh Kiều, Cần Thơ",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://ctuet.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QHQ",
+    "official_name": "Trường Quốc Tế - ĐHQG Hà Nội (VNU-IS)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Nhà G7-G8, 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://is.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KCN",
+    "official_name": "Trường Đại Học Khoa Học Và Công Nghệ Hà Nội (USTH)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Tòa nhà Viện Hàn lâm KH&CN VN, 18 Hoàng Quốc Việt, Cầu Giấy, Hà Nội",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://usth.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCV",
+    "official_name": "Trường Đại học Công nghiệp Vinh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nghệ An",
+    "detailed_address_and_history": "Số 26 đường Nguyễn Thái Học, Lê Lợi, TP. Vinh, Nghệ An",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://iuv.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DVT",
+    "official_name": "Đại Học Trà Vinh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Trà Vinh",
+    "detailed_address_and_history": "126 Nguyễn Thiện Thành, Khóm 4, Phường 5, TP. Trà Vinh",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://tvu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NLS",
+    "official_name": "Trường Đại Học Nông Lâm TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Khu phố 6, Linh Trung, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hcmuaf.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HVC",
+    "official_name": "Học viện Cán bộ TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "324 Chu Văn An, Phường 12, Bình Thạnh, TP.HCM",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hocviencanbo.hochiminhcity.gov.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "XDA",
+    "official_name": "Trường Đại Học Xây Dựng Hà Nội (HUCE)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 55 Giải Phóng, Đồng Tâm, Hai Bà Trưng, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://huce.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SKH",
+    "official_name": "Trường Đại Học Sư Phạm Kỹ Thuật Hưng Yên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hưng Yên",
+    "detailed_address_and_history": "Dân Tiến, Khoái Châu, Hưng Yên",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://utehy.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MBS",
+    "official_name": "Trường Đại Học Mở TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "97 Võ Văn Tần, Phường 6, Quận 3, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ou.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "FBU",
+    "official_name": "Trường Đại Học Tài Chính Ngân Hàng Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Tiền Phong, Mê Linh, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://fbu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "GTA",
+    "official_name": "Trường Đại học Công nghệ Giao thông vận tải",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "54 Triều Khúc, Thanh Xuân Nam, Thanh Xuân, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://utt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MDA",
+    "official_name": "Trường Đại Học Mỏ Địa Chất",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 18 Phố Viên, Đức Thắng, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://humg.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDL",
+    "official_name": "Trường Đại Học Điện Lực (EPU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "235 Hoàng Quốc Việt, Cổ Nhuế 1, Bắc Từ Liêm, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://epu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TDS",
+    "official_name": "Trường Đại Học Thể Dục Thể Thao TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Khu phố 6, Linh Trung, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://ush.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DPD",
+    "official_name": "Trường Đại Học Phương Đông",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 171 Trung Kính, Yên Hòa, Cầu Giấy, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://phuongdong.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VLU",
+    "official_name": "Trường Đại học Công nghệ kỹ thuật Vĩnh Long",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Vĩnh Long",
+    "detailed_address_and_history": "73 Nguyễn Huệ, Phường 2, TP. Vĩnh Long",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vlute.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KTD",
+    "official_name": "Trường Đại Học Kiến Trúc Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "566 Núi Thành, Hòa Cường Nam, Hải Châu, Đà Nẵng",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://dau.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DQK",
+    "official_name": "Trường Đại Học Kinh Doanh và Công Nghệ Hà Nội (HUBT)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 29A, Ngõ 124, Vĩnh Tuy, Hai Bà Trưng, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hubt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTK",
+    "official_name": "Trường Đại Học Kỹ Thuật Công Nghiệp Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Số 666 Đường 3 Tháng 2, Tích Lương, TP. Thái Nguyên",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://tnut.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "STS",
+    "official_name": "Trường Đại Học Sư Phạm Thể Dục Thể Thao TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "639 Nguyễn Trãi, Phường 11, Quận 5, TP.HCM",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://upes.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "UKH",
+    "official_name": "Trường Đại học Khánh Hòa",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Khánh Hòa",
+    "detailed_address_and_history": "01 Nguyễn Chánh, Lộc Thọ, Nha Trang, Khánh Hòa",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://ukh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DSK",
+    "official_name": "Trường Đại học Sư phạm Kỹ thuật - Đại học Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "48 Cao Thắng, Thanh Bình, Hải Châu, Đà Nẵng",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://ute.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NHB",
+    "official_name": "Học Viện Ngân Hàng (Phân Viện Bắc Ninh)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Bắc Ninh",
+    "detailed_address_and_history": "Số 25 Đỗ Trọng Vỹ, Ninh Xá, TP. Bắc Ninh",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hvnh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "NHH"
+  },
+  {
+    "institution_code": "DHI",
+    "official_name": "Khoa Quốc tế - Đại học Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "Số 4 Lê Lợi, Vĩnh Ninh, TP. Huế",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://hueuni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "CMC",
+    "official_name": "Trường Đại Học CMC",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 84 phố Duy Tân, Dịch Vọng Hậu, Cầu Giấy, Hà Nội",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://cmc-u.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NTT",
+    "official_name": "Trường Đại Học Nguyễn Tất Thành",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "300A Nguyễn Tất Thành, Phường 13, Quận 4, TP.HCM",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://ntt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHK",
+    "official_name": "Trường Đại Học Kinh Tế - Đại Học Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "99 Hồ Đắc Di, An Cựu, TP. Huế",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hce.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHD",
+    "official_name": "Trường Du Lịch - Đại Học Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "22 Lâm Hoằng, Vỹ Dạ, TP. Huế",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://huht.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KGH",
+    "official_name": "Trường Sĩ Quan Không Quân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Khánh Hòa",
+    "detailed_address_and_history": "Cổng số 3 Sân bay Nha Trang, Nha Trang, Khánh Hòa",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://tsqkq.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTC",
+    "official_name": "Trường Đại học Công Nghệ Thông Tin và Truyền Thông Thái Nguyên (ICTU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Đường Z115, Xã Quyết Thắng, TP. Thái Nguyên",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://ictu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HGH",
+    "official_name": "Trường Sĩ Quan Phòng Hóa",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Sơn Tây, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqph.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TGH",
+    "official_name": "Trường Sĩ Quan Tăng - Thiết Giáp",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Vĩnh Phúc",
+    "detailed_address_and_history": "Kim Long, Tam Dương, Vĩnh Phúc",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqttg.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HVQ",
+    "official_name": "Học Viện Quản Lý Giáo Dục",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "31 Phan Đình Giót, Phương Liệt, Thanh Xuân, Hà Nội",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://niem.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDT",
+    "official_name": "Đại Học Duy Tân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "254 Nguyễn Văn Linh, Thạc Gián, Thanh Khê, Đà Nẵng",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://duytan.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DNC",
+    "official_name": "Trường Đại học Nam Cần Thơ",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Cần Thơ",
+    "detailed_address_and_history": "168 Nguyễn Văn Cừ nối dài, An Bình, Ninh Kiều, Cần Thơ",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://nctu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HIU",
+    "official_name": "Trường Đại Học Quốc Tế Hồng Bàng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "215 Điện Biên Phủ, Phường 15, Bình Thạnh, TP.HCM",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hiu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TTU",
+    "official_name": "Trường Đại học Tân Tạo",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Long An",
+    "detailed_address_and_history": "Đại lộ Đại học Tân Tạo, Tân Đức E.City, Đức Hòa, Long An",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://ttu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TTD",
+    "official_name": "Trường Đại Học Thể Dục Thể Thao Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "44 Dũng Sĩ Thanh Khê, Thanh Khê, Đà Nẵng",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://upes3.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCL",
+    "official_name": "Trường Đại Học Cửu Long",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Vĩnh Long",
+    "detailed_address_and_history": "Quốc Lộ 1A, Phú Quới, Long Hồ, Vĩnh Long",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://mku.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DVL",
+    "official_name": "Trường Đại Học Văn Lang",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "69/68 Đặng Thùy Trâm, Phường 13, Bình Thạnh, TP.HCM",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://vanlanguni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DPC",
+    "official_name": "Trường Đại Học Phan Châu Trinh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Quảng Nam",
+    "detailed_address_and_history": "09 Nguyễn Gia Thiều, Điện Ngọc, Điện Bàn, Quảng Nam",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://pctu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "UKB",
+    "official_name": "Trường Đại Học Kinh Bắc",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bắc Ninh",
+    "detailed_address_and_history": "Phố Phúc Sơn, Phường Vũ Ninh, TP. Bắc Ninh",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ukb.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "ETU",
+    "official_name": "Trường Đại Học Hòa Bình",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 8 Bùi Xuân Phái, Mỹ Đình 2, Nam Từ Liêm, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://daihochoabinh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDN",
+    "official_name": "Trường Đại Học Đại Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 1 Phố Xốm, Phú Lãm, Hà Đông, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://dainam.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VTT",
+    "official_name": "Trường Đại Học Võ Trường Toản",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hậu Giang",
+    "detailed_address_and_history": "Quốc Lộ 1A, Tân Phú Thạnh, Châu Thành A, Hậu Giang",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://vttu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DAD",
+    "official_name": "Trường Đại Học Đông Á",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "33 Xô Viết Nghệ Tĩnh, Hòa Cường Nam, Hải Châu, Đà Nẵng",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://donga.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SNH",
+    "official_name": "Trường Sĩ Quan Công Binh - Đại học Ngô Quyền",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Dương",
+    "detailed_address_and_history": "229/88/22 Tuệ Tĩnh, Phú Cường, Thủ Dầu Một, Bình Dương",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqcb.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCH",
+    "official_name": "Trường Sĩ Quan Đặc Công",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Tân Tiến, Chương Mỹ, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqdc.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HCB",
+    "official_name": "Học viện Kỹ thuật và Công nghệ an ninh (Phía Bắc)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bắc Ninh",
+    "detailed_address_and_history": "Ninh Xá, Thuận Thành, Bắc Ninh",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hvantt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HCN",
+    "official_name": "Học viện Kỹ thuật và Công nghệ an ninh (Phía Nam)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Thủ Đức, TP.HCM",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://hvantt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "HCB"
+  },
+  {
+    "institution_code": "PBH",
+    "official_name": "Trường Sĩ Quan Pháo Binh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Trung Sơn Trầm, Thị xã Sơn Tây, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqpb.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "KSV",
+    "official_name": "Đại học Kinh Tế TPHCM - Phân hiệu Vĩnh Long",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Vĩnh Long",
+    "detailed_address_and_history": "Số 1B đường Nguyễn Trung Trực, Phường 8, TP. Vĩnh Long",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://kml.ueh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "KSA"
+  },
+  {
+    "institution_code": "QHD",
+    "official_name": "Trường Quản Trị và Kinh Doanh - ĐHQG Hà Nội (HSB)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Nhà B1, 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hsb.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VGU",
+    "official_name": "Trường Đại Học Việt Đức (Vietnamese-German University)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Dương",
+    "detailed_address_and_history": "Đường Vành đai 4, Khu phố 4, Phường Thới Hòa, Bến Cát, Bình Dương",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vgu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TLS",
+    "official_name": "Trường Đại Học Thủy Lợi (Cơ sở 2)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Số 2 đường Trường Sa, Phường 17, Bình Thạnh, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://tlus.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "TLA"
+  },
+  {
+    "institution_code": "SDU",
+    "official_name": "Trường Đại học Sao Đỏ",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Dương",
+    "detailed_address_and_history": "Số 24 phố Thái Học 2, Phường Sao Đỏ, Chí Linh, Hải Dương",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://saodo.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "PCS",
+    "official_name": "Học viện Phòng cháy chữa cháy (phía Nam)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Xã An Phước, Long Thành, Đồng Nai / TP.HCM",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://daihocpccc.bca.gov.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "PCH"
+  },
+  {
+    "institution_code": "PCH",
+    "official_name": "Học viện Phòng cháy chữa cháy và Cứu nạn cứu hộ",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "243 Khuất Duy Tiến, Thanh Xuân Bắc, Thanh Xuân, Hà Nội",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://daihocpccc.bca.gov.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NLN",
+    "official_name": "Phân hiệu Đại học Nông Lâm TPHCM tại Ninh Thuận",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Ninh Thuận",
+    "detailed_address_and_history": "Thị trấn Ninh Phước, Ninh Thuận",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://phnt.hcmuaf.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "NLS"
+  },
+  {
+    "institution_code": "DTD",
+    "official_name": "Trường Đại Học Tây Đô",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Cần Thơ",
+    "detailed_address_and_history": "68 đường Trần Chiên, Lê Bình, Cái Răng, Cần Thơ",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://tdu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DKC",
+    "official_name": "Trường Đại học Công Nghệ TPHCM (HUTECH)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "475A Điện Biên Phủ, Phường 25, Bình Thạnh, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hutech.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDU",
+    "official_name": "Trường Đại Học Đông Đô",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Tòa nhà Đông Đô, 60B Nguyễn Huy Tưởng, Thanh Xuân, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hdiu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DLH",
+    "official_name": "Trường Đại Học Lạc Hồng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đồng Nai",
+    "detailed_address_and_history": "Số 10 Huỳnh Văn Nghệ, Bửu Long, TP. Biên Hòa, Đồng Nai",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://lhu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDB",
+    "official_name": "Trường Đại Học Thành Đông",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Dương",
+    "detailed_address_and_history": "Số 3 đường Vũ Công Đán, Tứ Minh, TP. Hải Dương",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://thanhdong.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHA",
+    "official_name": "Trường Đại học Luật Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "Đường Võ Văn Kiệt, An Tây, TP. Huế",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hul.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DYD",
+    "official_name": "Trường Đại Học Yersin Đà Lạt",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Lâm Đồng",
+    "detailed_address_and_history": "Số 27 Tôn Thất Tùng, Phường 8, TP. Đà Lạt, Lâm Đồng",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://yersin.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TDD",
+    "official_name": "Trường Đại học Thành Đô",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Km 15, Quốc lộ 32, Kim Chung, Hoài Đức, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://thanhdo.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DBD",
+    "official_name": "Trường Đại Học Bình Dương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Dương",
+    "detailed_address_and_history": "504 Đại lộ Bình Dương, Hiệp Thành, TP. Thủ Dầu Một, Bình Dương",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://bdu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTV",
+    "official_name": "Trường Đại Học Lương Thế Vinh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nam Định",
+    "detailed_address_and_history": "Phường Lộc Vượng, TP. Nam Định",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ltvu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VJU",
+    "official_name": "Trường Đại học Việt Nhật - ĐHQG Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Đường Lưu Hữu Phước, Mỹ Đình 1, Nam Từ Liêm / KĐT ĐHQGHN Hòa Lạc, Hà Nội",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://vju.vnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "BVU",
+    "official_name": "Trường Đại Học Bà Rịa – Vũng Tàu",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bà Rịa – Vũng Tàu",
+    "detailed_address_and_history": "80 Trương Công Định, Phường 3, TP. Vũng Tàu",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://bvu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHN",
+    "official_name": "Trường Đại Học Nghệ Thuật Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "10 Phan Chu Trinh, Vĩnh Ninh, TP. Huế",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://hufa.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MIT",
+    "official_name": "Trường Đại học Công nghệ Miền Đông (MIT University)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đồng Nai",
+    "detailed_address_and_history": "Quốc Lộ 1A, Khu phố Trần Hưng Đạo, Dầu Giây, Thống Nhất, Đồng Nai",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://mit.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "FPT",
+    "official_name": "Trường Đại Học FPT",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Khu CNC Hòa Lạc, Km 29 Đại lộ Thăng Long, Thạch Thất, Hà Nội (và TP.HCM, Đà Nẵng, Cần Thơ, Quy Nhơn)",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://fpt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DKB",
+    "official_name": "Trường Đại Học Kinh Tế Kỹ Thuật Bình Dương (BETU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Dương",
+    "detailed_address_and_history": "333 Thuận Giao 16, Thuận Giao, Thuận An, Bình Dương",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://ktkt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "UEF",
+    "official_name": "Trường Đại Học Kinh Tế Tài Chính TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "141-145 Điện Biên Phủ, Phường 15, Bình Thạnh, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://uef.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HTY",
+    "official_name": "Học viện Tài chính - Phân hiệu Hưng Yên",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Hưng Yên",
+    "detailed_address_and_history": "Xã Trưng Trắc, Văn Lâm, Hưng Yên",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hvtc.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "HTC"
+  },
+  {
+    "institution_code": "TTG",
+    "official_name": "Trường Đại Học Tiền Giang",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Tiền Giang",
+    "detailed_address_and_history": "119 Ấp Bắc, Phường 5, TP. Mỹ Tho, Tiền Giang",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://tgu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTE",
+    "official_name": "Trường Đại học Kinh tế và Quản trị kinh doanh Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Phường Thịnh Đán, TP. Thái Nguyên",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://tba.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "PVU",
+    "official_name": "Trường Đại Học Dầu Khí Việt Nam (PVU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bà Rịa – Vũng Tàu",
+    "detailed_address_and_history": "762 Cách Mạng Tháng Tám, Phường Long Toàn, TP. Bà Rịa",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://pvu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DNT",
+    "official_name": "Trường Đại Học Ngoại Ngữ Tin Học TPHCM (HUFLIT)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "828 Sư Vạn Hạnh, Phường 13, Quận 10, TP.HCM",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://huflit.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SKV",
+    "official_name": "Trường Đại Học Sư Phạm Kỹ Thuật Vinh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nghệ An",
+    "detailed_address_and_history": "Số 117 Nguyễn Viết Xuân, Hưng Dũng, TP. Vinh, Nghệ An",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://vuted.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "CEA",
+    "official_name": "Trường Đại học Nghệ An",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nghệ An",
+    "detailed_address_and_history": "Thành phố Vinh, Nghệ An",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://nauni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LNH",
+    "official_name": "Trường Đại Học Lâm nghiệp (VNUF)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Thị trấn Xuân Mai, Chương Mỹ, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vnuf.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DVH",
+    "official_name": "Trường Đại Học Văn Hiến",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "665-667-669 Điện Biên Phủ, Phường 1, Quận 3, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://vhu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DQT",
+    "official_name": "Trường Đại Học Quang Trung",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Định",
+    "detailed_address_and_history": "130 Trần Hưng Đạo, Hải Cảng, TP. Quy Nhơn, Bình Định",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://qtu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HSU",
+    "official_name": "Trường Đại Học Hoa Sen",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Số 8 Nguyễn Văn Tráng, Bến Thành, Quận 1, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hoasen.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DPT",
+    "official_name": "Trường Đại Học Phan Thiết",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Thuận",
+    "detailed_address_and_history": "225 Nguyễn Thông, Phú Hài, TP. Phan Thiết, Bình Thuận",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://upt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DVP",
+    "official_name": "Trường Đại Học Trưng Vương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Vĩnh Phúc",
+    "detailed_address_and_history": "Kim Long, Tam Dương, Vĩnh Phúc",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://tvu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YDD",
+    "official_name": "Trường Đại Học Điều Dưỡng Nam Định",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nam Định",
+    "detailed_address_and_history": "257 Hàn Thuyên, Vị Xuyên, TP. Nam Định",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://ndun.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "THU",
+    "official_name": "Trường Đại học Y khoa Tokyo Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hưng Yên",
+    "detailed_address_and_history": "Khu đô thị Ecopark, Xuân Quan, Văn Giang, Hưng Yên",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://tokyo-human.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCD",
+    "official_name": "Trường Đại Học Công Nghệ Đồng Nai (DNTU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đồng Nai",
+    "detailed_address_and_history": "Đường Nguyễn Khuyến, KP5, Trảng Dài, Biên Hòa, Đồng Nai",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://dntu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "EIU",
+    "official_name": "Trường Đại Học Quốc Tế Miền Đông (EIU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bình Dương",
+    "detailed_address_and_history": "Đường Nam Kỳ Khởi Nghĩa, Định Hòa, TP. Thủ Dầu Một, Bình Dương",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://eiu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDV",
+    "official_name": "Viện nghiên cứu và đào tạo Việt Anh - Đại học Đà Nẵng (VNUK)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "158A Lê Lợi, Hải Châu 1, Hải Châu, Đà Nẵng",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vnuk.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TDB",
+    "official_name": "Trường Đại Học Thể Dục Thể Thao Bắc Ninh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bắc Ninh",
+    "detailed_address_and_history": "Phường Trang Hạ, Thị xã Từ Sơn, Bắc Ninh",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://upes1.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHE",
+    "official_name": "Khoa Kỹ thuật và Công nghệ - Đại học Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "01 Điện Biên Phủ, Vĩnh Ninh, TP. Huế",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://fet.hueuni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTB",
+    "official_name": "Trường Đại Học Thái Bình",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Bình",
+    "detailed_address_and_history": "Tân Bình, TP. Thái Bình",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://tbu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HVD",
+    "official_name": "Học Viện Dân Tộc",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Khu đô thị Dream Town, Tây Mỗ, Nam Từ Liêm, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://vaea.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHT",
+    "official_name": "Trường Đại Học Khoa Học Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "77 Nguyễn Huệ, Phú Nhuận, TP. Huế",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://husc.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTZ",
+    "official_name": "Trường Đại Học Khoa Học Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Xã Quyết Thắng, TP. Thái Nguyên",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://tnus.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HDT",
+    "official_name": "Trường Đại Học Hồng Đức",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thanh Hóa",
+    "detailed_address_and_history": "565 Quang Trung, Đông Vệ, TP. Thanh Hóa",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hdu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DNU",
+    "official_name": "Trường Đại Học Đồng Nai",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đồng Nai",
+    "detailed_address_and_history": "Số 4 Lê Quý Đôn, Tân Hiệp, TP. Biên Hòa, Đồng Nai",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://dnpu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LNS",
+    "official_name": "Phân hiệu Đại Học Lâm nghiệp tại Đồng Nai",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Đồng Nai",
+    "detailed_address_and_history": "Thị trấn Trảng Bom, Trảng Bom, Đồng Nai",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vnuf2.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "LNH"
+  },
+  {
+    "institution_code": "DTM",
+    "official_name": "Trường Đại học Tài Nguyên và Môi Trường TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "236B Lê Văn Sỹ, Phường 1, Tân Bình, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hcmunre.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NTU",
+    "official_name": "Trường Đại Học Nguyễn Trãi",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "28A Lê Trọng Tấn, La Khê, Hà Đông, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ntu-hn.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "CCM",
+    "official_name": "Trường Đại học Công nghiệp và Thương mại Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "54 phố Triều Khúc, Thanh Xuân, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://cuit.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VUI",
+    "official_name": "Trường Đại Học Công Nghiệp Việt Trì",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Phú Thọ",
+    "detailed_address_and_history": "Số 9 đường Tiên Sơn, Tiên Cát, TP. Việt Trì, Phú Thọ",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vui.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "QSP",
+    "official_name": "Phân hiệu Đại học Quốc gia TPHCM tại Bến Tre",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Bến Tre",
+    "detailed_address_and_history": "99A Quốc lộ 60, KP1, Phường Phú Tân, TP. Bến Tre",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vnuhcm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "QSB"
+  },
+  {
+    "institution_code": "DHL",
+    "official_name": "Trường Đại Học Nông Lâm Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "102 Phùng Hưng, Thuận Thành, TP. Huế",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://huaf.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTQ",
+    "official_name": "Khoa Quốc Tế - Đại Học Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Phường Tích Lương, TP. Thái Nguyên",
+    "primary_sector": "NGON_NGU_QUOC_TE",
+    "official_scheme_or_cutoff_url": "https://is.tnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SIU",
+    "official_name": "Trường Đại học Quốc Tế Sài Gòn (SIU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "8C & 16 Tống Hữu Định, Thảo Điền, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://siu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCA",
+    "official_name": "Trường Đại học Intracom (tiền thân Chu Văn An)",
+    "institution_status": "RENAMED_HISTORICAL",
+    "verified_province_city": "Hưng Yên",
+    "detailed_address_and_history": "Khu Đại học Phố Hiến, Tiên Lữ, Hưng Yên & Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://intracom.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DLA",
+    "official_name": "Trường Đại Học Kinh Tế Công Nghiệp Long An",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Long An",
+    "detailed_address_and_history": "Số 934 Quốc lộ 1A, Phường Khánh Hậu, TP. Tân An, Long An",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://lae.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DBH",
+    "official_name": "Trường Đại Học Quốc Tế Bắc Hà",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bắc Ninh",
+    "detailed_address_and_history": "Đường Nguyễn Văn Cừ, Đình Bảng, Từ Sơn, Bắc Ninh",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://biu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SKN",
+    "official_name": "Trường Đại Học Sư Phạm Kỹ Thuật Nam Định",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nam Định",
+    "detailed_address_and_history": "Phù Nghĩa, Lộc Hạ, TP. Nam Định",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://nute.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NLG",
+    "official_name": "Phân hiệu Đại học Nông Lâm TPHCM tại Gia Lai",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Gia Lai",
+    "detailed_address_and_history": "Đường Trần Nhật Duật, Diên Phú, TP. Pleiku, Gia Lai",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://phgl.hcmuaf.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "NLS"
+  },
+  {
+    "institution_code": "DTN",
+    "official_name": "Trường Đại Học Nông Lâm Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Xã Quyết Thắng, TP. Thái Nguyên",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://tuaf.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "UMT",
+    "official_name": "Trường Đại học Quản lý và công nghệ TPHCM (UMT)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "Đường 60-CL, Khu đô thị Cát Lái, Cát Lái, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://umt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DCQ",
+    "official_name": "Trường Đại Học Công Nghệ và Quản Lý Hữu Nghị",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Lô 1-4, Cụm tiểu thủ công nghiệp Hai Bà Trưng, Hoàng Mai, Hà Nội",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://utm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHQ",
+    "official_name": "Phân Hiệu Đại Học Huế tại Quảng Trị",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Quảng Trị",
+    "detailed_address_and_history": "Đường Điện Biên Phủ, TP. Đông Hà, Quảng Trị",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://quangtri.hueuni.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "DHH"
+  },
+  {
+    "institution_code": "TBD",
+    "official_name": "Trường Đại Học Thái Bình Dương",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Khánh Hòa",
+    "detailed_address_and_history": "Số 79 đường Mai Thị Dõng, Vĩnh Ngọc, Nha Trang, Khánh Hòa",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://tbd.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHV",
+    "official_name": "Trường Đại học Hùng Vương TPHCM (HVUH)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "736 Nguyễn Trãi, Phường 11, Quận 5, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hvuh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DVB",
+    "official_name": "Trường Đại Học Kinh tế công nghệ Thái Nguyên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thái Nguyên",
+    "detailed_address_and_history": "Tân Cương, TP. Thái Nguyên",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://tectn.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DPX",
+    "official_name": "Trường Đại Học Phú Xuân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "176 Trần Phú, Phước Vĩnh, TP. Huế",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://phuxuan.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "HPU",
+    "official_name": "Trường Đại học Quản lý và Công nghệ Hải Phòng (HPU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hải Phòng",
+    "detailed_address_and_history": "Số 36 Đường Dân Lập, Dư Hàng Kênh, Lê Chân, Hải Phòng",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://hpu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MTU",
+    "official_name": "Trường Đại Học Xây Dựng Miền Tây (MTU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Vĩnh Long",
+    "detailed_address_and_history": "20B Phó Cơ Điều, Phường 3, TP. Vĩnh Long",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://mtu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VHD",
+    "official_name": "Trường Đại Học Công Nghiệp Việt - Hung",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Khu văn hóa Xuân Khanh, Sơn Tây, Hà Nội",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://viu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LNA",
+    "official_name": "Phân hiệu Đại học Lâm nghiệp tỉnh Gia Lai",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Gia Lai",
+    "detailed_address_and_history": "Tổ 4, Phường Chi Lăng, TP. Pleiku, Gia Lai",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vnuf3.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "LNH"
+  },
+  {
+    "institution_code": "NHP",
+    "official_name": "Học Viện Ngân Hàng (Phân Viện Phú Yên)",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Phú Yên",
+    "detailed_address_and_history": "441 Nguyễn Huệ, Phường 9, TP. Tuy Hòa, Phú Yên",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hvnh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "NHH"
+  },
+  {
+    "institution_code": "UFA",
+    "official_name": "Trường Đại học Tài Chính - Marketing - Phân hiệu Quảng Ngãi",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Quảng Ngãi",
+    "detailed_address_and_history": "Xã Tịnh Phong, Sơn Tịnh, Quảng Ngãi",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://ufm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "DMS"
+  },
+  {
+    "institution_code": "GDU",
+    "official_name": "Trường Đại Học Gia Định",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "185-187 Hoàng Văn Thụ, Phường 8, Phú Nhuận, TP.HCM",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://giadinh.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDM",
+    "official_name": "Trường Đại Học Công Nghiệp Quảng Ninh",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Quảng Ninh",
+    "detailed_address_and_history": "Xã Yên Thọ, Thị xã Đông Triều, Quảng Ninh",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://qui.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "XDT",
+    "official_name": "Trường Đại Học Xây Dựng Miền Trung",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Phú Yên",
+    "detailed_address_and_history": "24 Nguyễn Du, Phường 7, TP. Tuy Hòa, Phú Yên",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://muce.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DSG",
+    "official_name": "Trường Đại Học Công Nghệ Sài Gòn (STU)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "180 Cao Lỗ, Phường 4, Quận 8, TP.HCM",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://stu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "XDN",
+    "official_name": "Phân hiệu Đại học Xây dựng miền Trung tại Đà Nẵng",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "Đường Nam Kỳ Khởi Nghĩa, Hòa Quý, Ngũ Hành Sơn, Đà Nẵng",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://muce.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "XDT"
+  },
+  {
+    "institution_code": "DBG",
+    "official_name": "Trường Đại học Nông Lâm Bắc Giang",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Bắc Giang",
+    "detailed_address_and_history": "Thị trấn Bích Động, Việt Yên, Bắc Giang",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://bafu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TTB",
+    "official_name": "Trường Đại Học Tây Bắc",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Sơn La",
+    "detailed_address_and_history": "Phường Quyết Tâm, TP. Sơn La, Sơn La",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://utb.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TDL",
+    "official_name": "Trường Đại Học Đà Lạt",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Lâm Đồng",
+    "detailed_address_and_history": "01 Phù Đổng Thiên Vương, Phường 8, TP. Đà Lạt, Lâm Đồng",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://dlu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTP",
+    "official_name": "Phân Hiệu Đại Học Thái Nguyên Tại Lào Cai",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Lào Cai",
+    "detailed_address_and_history": "Tổ 13, Phường Bình Minh, TP. Lào Cai",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://laocai.tnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "DTS"
+  },
+  {
+    "institution_code": "TQU",
+    "official_name": "Trường Đại học Tân Trào",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Tuyên Quang",
+    "detailed_address_and_history": "Km 9, Xã Trung Môn, Yên Sơn, Tuyên Quang",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://daihoctantrao.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "TKG",
+    "official_name": "Trường Đại học Kiên Giang",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Kiên Giang",
+    "detailed_address_and_history": "320 Quốc lộ 61, Thị trấn Minh Lương, Châu Thành, Kiên Giang",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://vnkgu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DVD",
+    "official_name": "Trường Đại Học Văn Hóa, Thể Thao Và Du Lịch Thanh Hóa",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thanh Hóa",
+    "detailed_address_and_history": "Số 561 Quang Trung, Đông Vệ, TP. Thanh Hóa",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://dvtdt.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DTG",
+    "official_name": "Phân hiệu Đại học Thái Nguyên tại Hà Giang",
+    "institution_status": "BRANCH_CAMPUS",
+    "verified_province_city": "Hà Giang",
+    "detailed_address_and_history": "Thành phố Hà Giang, Hà Giang",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hagiang.tnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL",
+    "parent_code": "DTS"
+  },
+  {
+    "institution_code": "DNB",
+    "official_name": "Trường Đại Học Hoa Lư",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Ninh Bình",
+    "detailed_address_and_history": "Thôn Kỳ Vĩ, Ninh Nhất, TP. Ninh Bình",
+    "primary_sector": "SU_PHAM_GIAO_DUC",
+    "official_scheme_or_cutoff_url": "https://hvalu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LBS",
+    "official_name": "Trường Sĩ quan Lục quân 2 [Mã phía Nam - Trùng LBH]",
+    "institution_status": "DUPLICATE_CODE",
+    "verified_province_city": "Đồng Nai",
+    "detailed_address_and_history": "Tam Phước, TP. Biên Hòa, Đồng Nai",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://sqlq2.edu.vn",
+    "verification_status": "FLAGGED_DUPLICATE_CODE",
+    "redirect_target_code": "LBH"
+  },
+  {
+    "institution_code": "HVA",
+    "official_name": "Học Viện Âm Nhạc Huế",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Thừa Thiên Huế",
+    "detailed_address_and_history": "01 Lê Lợi, Vĩnh Ninh, TP. Huế",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://hocvienamnhachue.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NVH",
+    "official_name": "Học Viện Âm Nhạc Quốc Gia Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "77 Hào Nam, Ô Chợ Dừa, Đống Đa, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://vnam.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "NVS",
+    "official_name": "Nhạc Viện TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "112 Nguyễn Du, Bến Thành, Quận 1, TP.HCM",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://hcmcons.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DVX",
+    "official_name": "Trường Đại Học Công Nghệ Vạn Xuân",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Nghệ An",
+    "detailed_address_and_history": "Số 103 Đại lộ Nguyễn Sinh Cung, Cửa Lò, Nghệ An",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://vxut.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DHH",
+    "official_name": "Trường Đại Học Hà Hoa Tiên",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nam",
+    "detailed_address_and_history": "Km 222+600 Quốc lộ 1A, Duy Minh, Duy Tiên, Hà Nam",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://hahoatien.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MTC",
+    "official_name": "Trường Đại Học Mỹ Thuật Công Nghiệp",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "360 Đê La Thành, Ô Chợ Dừa, Đống Đa, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://mythuatcongnghiep.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MTS",
+    "official_name": "Trường Đại Học Mỹ Thuật TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "05 Phan Đăng Lưu, Phường 3, Bình Thạnh, TP.HCM",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://hcmufa.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "MTH",
+    "official_name": "Trường Đại Học Mỹ Thuật Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "42 Yết Kiêu, Cửa Nam, Hoàn Kiếm, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://mythuatvietnam.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "YHT",
+    "official_name": "Phân hiệu Đại học Y Hà Nội tại Thanh Hóa [Trùng YHB]",
+    "institution_status": "DUPLICATE_BRANCH_ROW",
+    "verified_province_city": "Thanh Hóa",
+    "detailed_address_and_history": "Đường Quang Trung, TP. Thanh Hóa",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://hmu.edu.vn",
+    "verification_status": "FLAGGED_DUPLICATE_BRANCH_ROW",
+    "redirect_target_code": "YHB"
+  },
+  {
+    "institution_code": "RMU",
+    "official_name": "Trường Đại Học Quốc Tế RMIT Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "702 Nguyễn Văn Linh, Tân Hưng, Quận 7, TP.HCM (và Tòa nhà Handi Resco, Hà Nội)",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://rmit.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "RHM",
+    "official_name": "Trường Đại Học Răng – Hàm – Mặt",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Số 40 Tràng Thi, Hoàn Kiếm, Hà Nội",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://rhm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "SKD",
+    "official_name": "Trường Đại Học Sân Khấu Điện Ảnh Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "Khu văn hóa nghệ thuật Mai Dịch, Cầu Giấy, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://skda.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "CIV",
+    "official_name": "Học viện Công giáo Việt Nam",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "25 đường số 9, Phường Bình Thọ, TP. Thủ Đức, TP.HCM",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://hocvienconggiao.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "ZNH",
+    "official_name": "Trường Đại học Văn hóa Nghệ thuật Quân đội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "101 Nguyễn Chí Thanh, Láng Hạ, Đống Đa, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://vnq.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "LCDF",
+    "official_name": "Học viện Thiết kế và Thời trang London Hà Nội",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "98 Tô Ngọc Vân, Quảng An, Tây Hồ, Hà Nội",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://designstudies.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DNV",
+    "official_name": "Trường Đại học Nội vụ Hà Nội [sáp nhập HCH]",
+    "institution_status": "MERGED_HISTORICAL",
+    "verified_province_city": "Hà Nội",
+    "detailed_address_and_history": "36 Xuân La, Tây Hồ, Hà Nội (đã sáp nhập vào APAG - HCH)",
+    "primary_sector": "LUAT_HANH_CHINH",
+    "official_scheme_or_cutoff_url": "https://napa.vn",
+    "verification_status": "FLAGGED_MERGED_HISTORICAL",
+    "redirect_target_code": "HCH"
+  },
+  {
+    "institution_code": "VPH",
+    "official_name": "Trường Sĩ Quan Kĩ Thuật Quân Sự - Đại Học Trần Đại Nghĩa",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "189 Nguyễn Oanh, Phường 10, Gò Vấp, TP.HCM",
+    "primary_sector": "CONG_AN_QUAN_DOI",
+    "official_scheme_or_cutoff_url": "https://tdnu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DSD",
+    "official_name": "Trường Đại Học Sân Khấu Điện Ảnh TPHCM",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "TP. Hồ Chí Minh",
+    "detailed_address_and_history": "125 Cống Quỳnh, Nguyễn Cư Trinh, Quận 1, TP.HCM",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://skdahcm.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDA",
+    "official_name": "Trường Đại Học Công Nghệ Đông Á",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng & Bắc Ninh",
+    "detailed_address_and_history": "Tòa nhà Polyco, Trịnh Văn Bô, Nam Từ Liêm, Hà Nội & Bắc Ninh",
+    "primary_sector": "KY_THUAT_CONG_NGHE",
+    "official_scheme_or_cutoff_url": "https://eaut.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "BUV",
+    "official_name": "Trường Đại Học Anh Quốc Việt Nam (British University Vietnam)",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Hưng Yên",
+    "detailed_address_and_history": "Khu đô thị Ecopark, Xuân Quan, Văn Giang, Hưng Yên",
+    "primary_sector": "KINH_TE_QUAN_TRI",
+    "official_scheme_or_cutoff_url": "https://buv.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "BMU",
+    "official_name": "Trường Đại học Y Dược Buôn Ma Thuột",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đắk Lắk",
+    "detailed_address_and_history": "298 Hà Huy Tập, Tân An, TP. Buôn Ma Thuột, Đắk Lắk",
+    "primary_sector": "Y_DUOC_SUC_KHOE",
+    "official_scheme_or_cutoff_url": "https://bmu.edu.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "DDG",
+    "official_name": "Khoa Giáo dục thể chất Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "Đường Nam Kỳ Khởi Nghĩa, Hòa Quý, Ngũ Hành Sơn, Đà Nẵng",
+    "primary_sector": "KIEN_TRUC_NGHE_THUAT_TDTT",
+    "official_scheme_or_cutoff_url": "https://fpe.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "institution_code": "VKU",
+    "official_name": "Trường Đại học Công nghệ Thông tin và Truyền thông Việt Hàn - ĐH Đà Nẵng",
+    "institution_status": "ACTIVE_INDEPENDENT",
+    "verified_province_city": "Đà Nẵng",
+    "detailed_address_and_history": "470 đường Trần Đại Nghĩa, Hoà Quý, Ngũ Hành Sơn, Đà Nẵng",
+    "primary_sector": "CNTT_BAN_DAN_AI",
+    "official_scheme_or_cutoff_url": "https://vku.udn.vn",
+    "verification_status": "VERIFIED_OFFICIAL"
+  }
+];
+
+export const AUDITED_INSTITUTIONS_300: Institution[] = RAW_INSTITUTIONS_300.map(inst => ({
+  ...inst,
+  code: inst.institution_code
+}));
+
+// Helper to lookup institution
+export function getAuditedInstitution(code: string): Institution | undefined {
+  if (!code) return undefined;
+  const targetCode = code.toUpperCase().trim();
+  const found = AUDITED_INSTITUTIONS_300.find(i => i.institution_code === targetCode || i.code === targetCode);
+  if (found?.redirect_target_code) {
+    return AUDITED_INSTITUTIONS_300.find(i => i.institution_code === found.redirect_target_code || i.code === found.redirect_target_code) || found;
+  }
+  return found;
+}

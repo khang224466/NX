@@ -1,0 +1,38 @@
+[
+  {
+    "norm_id": "NORM_SCALE_30_TO_100",
+    "source_scale": "THANG_30",
+    "source_max": 30,
+    "destination_scale": "THANG_100",
+    "formula_math": "(Score_30 / 30) * 100",
+    "legal_classification": "Chỉ số phân tích tham chiếu chuẩn hóa",
+    "limitations": "Dùng để đối chiếu mức độ cạnh tranh giữa các thang điểm khác nhau"
+  },
+  {
+    "norm_id": "NORM_SCALE_40_TO_100",
+    "source_scale": "THANG_40",
+    "source_max": 40,
+    "destination_scale": "THANG_100",
+    "formula_math": "(Score_40 / 40) * 100",
+    "legal_classification": "Chỉ số phân tích tham chiếu chuẩn hóa",
+    "limitations": "Chỉ số tham chiếu"
+  },
+  {
+    "norm_id": "NORM_SCALE_1200_TO_100",
+    "source_scale": "THANG_1200",
+    "source_max": 1200,
+    "destination_scale": "THANG_100",
+    "formula_math": "(Score_1200 / 1200) * 100",
+    "legal_classification": "Chỉ số phân tích tham chiếu chuẩn hóa",
+    "limitations": "Chỉ số tham chiếu"
+  },
+  {
+    "norm_id": "NORM_SCALE_10_TO_100",
+    "source_scale": "THANG_10",
+    "source_max": 10,
+    "destination_scale": "THANG_100",
+    "formula_math": "(Score_10 / 10) * 100",
+    "legal_classification": "Chỉ số phân tích tham chiếu chuẩn hóa",
+    "limitations": "Chỉ số tham chiếu"
+  }
+]

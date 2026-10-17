@@ -1,0 +1,436 @@
+import { LiveAdmissionRecord } from '../types/admissionCrawler';
+
+export const INITIAL_LIVE_ADMISSION_RECORDS: LiveAdmissionRecord[] = [
+  {
+    id: 'live-bka',
+    truong: 'Đại học Bách Khoa Hà Nội (HUST)',
+    ma_truong: 'BKA',
+    loai_truong: 'Đại học Công lập tự chủ',
+    khu_vuc: 'Bắc',
+    nam: 2026,
+    chi_tieu: 9280,
+    chi_tieu_nam_truoc: 9260,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Khoa học Máy tính (IT1)', to_hop: 'A00, A01', diem: 28.54, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Máy tính (IT2)', to_hop: 'A00, A01', diem: 28.05, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Điều khiển & Tự động hóa (EE2)', to_hop: 'A00, A01', diem: 27.65, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Vi điện tử & Công nghệ Nano (MS2 - Bán dẫn)', to_hop: 'A00, A01, D07', diem: 27.02, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Khoa học Máy tính (IT1)', to_hop: 'K01, A00, A01', diem: 28.60, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Thiết kế Vi mạch (Bán dẫn)', to_hop: 'K01, A00, A01', diem: 27.35, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Khoa học Máy tính (IT1 - Dự kiến)', to_hop: 'K01, A00, A01', diem: 28.55, thang_diem: 'Thang 30' },
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển tài năng (XTTN - Giải quốc gia/quốc tế, SAT/ACT, chứng chỉ quốc tế)',
+      'Phương thức 2: Xét kết quả thi Đánh giá tư duy ĐGTD (TSA) do ĐHBK Hà Nội tổ chức (tổ hợp K01)',
+      'Phương thức 3: Xét kết quả thi tốt nghiệp THPT 2026 (A00, A01, D07, B00)'
+    ],
+    hoc_phi: '24 – 35 triệu VNĐ/năm (Chương trình chuẩn); 38 – 70 triệu VNĐ/năm (Chương trình ELITECH / Tiếng Anh)',
+    dieu_kien: 'Điểm trung bình các môn văn hóa THPT ≥ 7.0; Không có môn nào trong tổ hợp xét tuyển dưới 5.0',
+    lich_tuyen_sinh: 'Đăng ký xét tuyển tài năng: 01/04 – 15/05/2026; Thi ĐGTD 6 đợt: Tháng 1 – Tháng 5/2026; Xét THPT: Theo lịch chung của Bộ GD&ĐT (Tháng 7/2026)',
+    nguon: [
+      'https://ts.hust.edu.vn/tin-tuc/de-an-tuyen-sinh-dai-hoc-chinh-quy-nam-2026',
+      'https://hust.edu.vn/vi/tuyen-sinh/tuyen-sinh-dai-hoc/phuong-thuc-tuyen-sinh-2026'
+    ],
+    cap_nhat_luc: '14/10/2026 14:30 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'ĐHBK Hà Nội bổ sung chuyên ngành Thiết kế Vi mạch Chuyên sâu, tăng tỷ lệ chỉ tiêu xét bằng bài thi ĐGTD TSA lên 50%.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '10/02/2026',
+        noi_dung: 'Công bố Đề án tuyển sinh chính thức 2026: giữ ổn định chỉ tiêu 9.280, tăng đợt thi ĐGTD',
+        gia_tri_cu: 'Chỉ tiêu 9.260 (2025)',
+        gia_tri_moi: 'Chỉ tiêu 9.280 (2026)',
+        nguon_url: 'https://ts.hust.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-qsb',
+    truong: 'Trường Đại học Bách Khoa - ĐHQG TP.HCM',
+    ma_truong: 'QSB',
+    loai_truong: 'Đại học Quốc gia',
+    khu_vuc: 'Nam',
+    nam: 2026,
+    chi_tieu: 5150,
+    chi_tieu_nam_truoc: 5000,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Khoa học Máy tính', to_hop: 'Tổng hợp Thang 100', diem: 85.45, thang_diem: 'Thang 100', ghi_chu: '70% ĐGNL + 20% THPT + 10% Học bạ' },
+      { nam: 2024, nganh: 'Kỹ thuật Máy tính', to_hop: 'Tổng hợp Thang 100', diem: 83.10, thang_diem: 'Thang 100' },
+      { nam: 2024, nganh: 'Kỹ thuật Điện - Điện tử (Bán dẫn)', to_hop: 'Tổng hợp Thang 100', diem: 78.50, thang_diem: 'Thang 100' },
+      { nam: 2025, nganh: 'Khoa học Máy tính', to_hop: 'Tổng hợp Thang 100', diem: 86.20, thang_diem: 'Thang 100' },
+      { nam: 2026, nganh: 'Khoa học Máy tính (Dự kiến)', to_hop: 'Tổng hợp Thang 100', diem: 86.00, thang_diem: 'Thang 100' },
+      { nam: 2026, nganh: 'Thiết kế Vi mạch (Dự kiến)', to_hop: 'Tổng hợp Thang 100', diem: 81.50, thang_diem: 'Thang 100' },
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức Kết hợp (Xét tuyển tổng hợp - Chiếm > 90% chỉ tiêu): ĐGNL ĐHQG-HCM (70%) + Điểm thi THPT (20%) + Điểm học tập THPT (10%) + Điểm năng lực khác',
+      'Phương thức Xét tuyển thẳng theo quy định của Bộ GD&ĐT và ĐHQG-HCM (1 - 5% chỉ tiêu)'
+    ],
+    hoc_phi: '30 – 35 triệu VNĐ/năm (Chương trình Tiếng Việt); 60 – 80 triệu VNĐ/năm (Chương trình Giảng dạy bằng Tiếng Anh / Tiên tiến)',
+    dieu_kien: 'Tối thiểu thí sinh phải tham gia kỳ thi ĐGNL của ĐHQG-HCM hoặc kỳ thi tốt nghiệp THPT, có hạnh kiểm Khá trở lên',
+    lich_tuyen_sinh: 'ĐGNL Đợt 1: Thi ngày 30/03/2026; ĐGNL Đợt 2: Thi ngày 01/06/2026; Đăng ký xét tuyển tổng hợp: Tháng 5 – Tháng 6/2026',
+    nguon: [
+      'https://tuyensinh.hcmut.edu.vn',
+      'https://hcmut.edu.vn/vi/tuyen-sinh/de-an-tuyen-sinh'
+    ],
+    cap_nhat_luc: '14/10/2026 14:15 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'CẢNH BÁO QUAN TRỌNG: ĐHBK TP.HCM xét tuyển theo THANG 100, không xét tuyển đơn thuần điểm thi THPT Thang 30!',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '15/01/2026',
+        noi_dung: 'Tăng trọng số ĐGNL ĐHQG-HCM và cập nhật công thức tính điểm tích hợp đa thành phần',
+        gia_tri_cu: 'Chỉ tiêu 5.000',
+        gia_tri_moi: 'Chỉ tiêu 5.150 (+150 chỉ tiêu ngành Vi mạch & AI)',
+        nguon_url: 'https://tuyensinh.hcmut.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-ftu',
+    truong: 'Trường Đại học Ngoại Thương (Cơ sở Hà Nội & TP.HCM)',
+    ma_truong: 'NTH',
+    loai_truong: 'Đại học Công lập tự chủ',
+    khu_vuc: 'Bắc',
+    nam: 2026,
+    chi_tieu: 4130,
+    chi_tieu_nam_truoc: 4100,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Kinh tế Đối ngoại', to_hop: 'A00, A01, D01, D07', diem: 28.50, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Logistics & Quản lý Chuỗi Cung ứng', to_hop: 'A00, A01, D01', diem: 28.30, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Tài chính - Ngân hàng', to_hop: 'A00, A01, D01', diem: 27.90, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Kinh tế Đối ngoại', to_hop: 'A00, A01, D01, D07', diem: 28.55, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Kinh tế Đối ngoại (Dự kiến)', to_hop: 'A00, A01, D01, D07', diem: 28.50, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Logistics số (Dự kiến)', to_hop: 'A00, A01, D01, X06', diem: 28.20, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển học sinh giỏi quốc gia, tỉnh/thành phố và hệ chuyên',
+      'Phương thức 2: Xét tuyển kết hợp chứng chỉ ngoại ngữ quốc tế (IELTS ≥ 6.5) và học bạ THPT',
+      'Phương thức 3: Xét tuyển kết hợp chứng chỉ quốc tế và điểm thi ĐGNL (ĐHQGHN, ĐHQG-HCM)',
+      'Phương thức 4: Xét tuyển dựa trên kết quả thi tốt nghiệp THPT 2026 (A00, A01, D01, D07)'
+    ],
+    hoc_phi: '25 – 30 triệu VNĐ/năm (Chương trình tiêu chuẩn); 45 – 55 triệu VNĐ/năm (Chất lượng cao); 70 – 85 triệu VNĐ/năm (Tiên tiến / Liên kết quốc tế)',
+    dieu_kien: 'Điểm trung bình học tập 3 năm THPT ≥ 7.0; Tiếng Anh tốt nghiệp THPT ≥ 7.5',
+    lich_tuyen_sinh: 'Đăng ký xét tuyển sớm: Tháng 4 – Tháng 5/2026; Công bố kết quả đủ điều kiện trúng tuyển sớm: 15/06/2026',
+    nguon: [
+      'https://tuyensinh.ftu.edu.vn',
+      'https://ftu.edu.vn/tuyen-sinh-dai-hoc'
+    ],
+    cap_nhat_luc: '14/10/2026 14:10 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'Bổ sung tổ hợp mới theo chương trình GDPT 2018 (X06 - Toán, Ngoại ngữ, Kinh tế Pháp luật).',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '20/01/2026',
+        noi_dung: 'Công bố phương án tuyển sinh 2026: giữ nguyên 6 phương thức xét tuyển, mở ngành Kinh tế Số',
+        gia_tri_cu: 'Chỉ tiêu 4.100',
+        gia_tri_moi: 'Chỉ tiêu 4.130',
+        nguon_url: 'https://tuyensinh.ftu.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-neu',
+    truong: 'Đại học Kinh tế Quốc dân (NEU)',
+    ma_truong: 'KHA',
+    loai_truong: 'Đại học Công lập tự chủ',
+    khu_vuc: 'Bắc',
+    nam: 2026,
+    chi_tieu: 6990,
+    chi_tieu_nam_truoc: 6990,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Logistics & Quản lý Chuỗi Cung ứng', to_hop: 'A00, A01, D01, D07', diem: 28.10, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kinh doanh Quốc tế', to_hop: 'A00, A01, D01, D07', diem: 28.00, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Khoa học Dữ liệu trong Kinh tế & Kinh doanh', to_hop: 'A00, A01, D01', diem: 27.50, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Logistics & Quản lý Chuỗi Cung ứng', to_hop: 'A00, A01, D01, D07', diem: 28.20, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Logistics & Quản lý Chuỗi Cung ứng (Dự kiến)', to_hop: 'A00, A01, D01, D07', diem: 28.15, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển thẳng theo quy chế của Bộ GD&ĐT (2%)',
+      'Phương thức 2: Xét tuyển kết hợp theo đề án riêng của trường (chiếm 80% chỉ tiêu) - SAT, ACT, HSA, TSA, APT, IELTS kết hợp',
+      'Phương thức 3: Xét tuyển theo kết quả thi tốt nghiệp THPT 2026 (18% chỉ tiêu)'
+    ],
+    hoc_phi: '22 – 32 triệu VNĐ/năm (Chuẩn); 40 – 65 triệu VNĐ/năm (POHE / Tiên tiến / Chất lượng cao)',
+    dieu_kien: 'Thí sinh có hạnh kiểm Khá trở lên, điểm tổng kết môn xét tuyển đạt yêu cầu đề án',
+    lich_tuyen_sinh: 'Đăng ký xét tuyển kết hợp: 01/05 – 10/06/2026; Xét tuyển THPT theo kế hoạch Bộ GD&ĐT',
+    nguon: [
+      'https://tuyensinh.neu.edu.vn',
+      'https://neu.edu.vn'
+    ],
+    cap_nhat_luc: '14/10/2026 14:05 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'Tỷ lệ chỉ tiêu thi tốt nghiệp THPT giảm xuống còn 18%, ưu tiên xét kết hợp chứng chỉ quốc tế và bài thi ĐGNL/ĐGTD.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '12/01/2026',
+        noi_dung: 'Ban hành thông báo tuyển sinh đại học chính quy năm 2026 với 6.990 chỉ tiêu',
+        gia_tri_cu: 'Chỉ tiêu thi THPT 25%',
+        gia_tri_moi: 'Chỉ tiêu thi THPT 18%',
+        nguon_url: 'https://tuyensinh.neu.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-hmu',
+    truong: 'Trường Đại học Y Hà Nội (HMU)',
+    ma_truong: 'YHB',
+    loai_truong: 'Trường Y Dược',
+    khu_vuc: 'Bắc',
+    nam: 2026,
+    chi_tieu: 1720,
+    chi_tieu_nam_truoc: 1680,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Y khoa', to_hop: 'B00', diem: 28.83, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Răng Hàm Mặt', to_hop: 'B00', diem: 28.25, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Xét nghiệm Y học', to_hop: 'B00, A00', diem: 25.40, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Y khoa', to_hop: 'B00', diem: 28.90, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Y khoa (Dự kiến)', to_hop: 'B00', diem: 28.85, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển thẳng thí sinh đạt giải quốc tế, quốc gia theo quy chế của Bộ GD&ĐT',
+      'Phương thức 2: Xét tuyển theo kết quả kỳ thi tốt nghiệp THPT năm 2026 (Tổ hợp B00: Toán - Hóa - Sinh; B08: Toán - Sinh - Anh)',
+      'Phương thức 3: Xét kết hợp điểm thi tốt nghiệp THPT với chứng chỉ tiếng Anh / tiếng Pháp quốc tế (IELTS ≥ 6.5)'
+    ],
+    hoc_phi: '20.9 – 55.2 triệu VNĐ/năm tùy ngành (Y khoa và RHM mức cao nhất theo lộ trình tự chủ nghị định 81/2021/NĐ-CP)',
+    dieu_kien: 'Điểm sàn khối ngành sức khỏe do Bộ GD&ĐT quy định; Không có môn xét tuyển nào dưới 5.0',
+    lich_tuyen_sinh: 'Đăng ký xét tuyển: Theo lịch chung của Bộ GD&ĐT (Tháng 7/2026); Xác nhận nhập học: Tháng 8/2026',
+    nguon: [
+      'https://hmu.edu.vn/tuyen-sinh-dai-hoc-2026',
+      'https://tuyensinh.hmu.edu.vn'
+    ],
+    cap_nhat_luc: '14/10/2026 14:00 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'Bổ sung tổ hợp B08 (Toán - Sinh - Anh) cho một số chuyên ngành cử nhân y khoa kỹ thuật cao.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '28/02/2026',
+        noi_dung: 'Tăng 40 chỉ tiêu ngành Kỹ thuật Y sinh và Tâm lý học lâm sàng',
+        gia_tri_cu: 'Chỉ tiêu 1.680',
+        gia_tri_moi: 'Chỉ tiêu 1.720',
+        nguon_url: 'https://hmu.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-hnue',
+    truong: 'Trường Đại học Sư phạm Hà Nội (HNUE)',
+    ma_truong: 'SPH',
+    loai_truong: 'Trường Sư phạm',
+    khu_vuc: 'Bắc',
+    nam: 2026,
+    chi_tieu: 4500,
+    chi_tieu_nam_truoc: 4400,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Sư phạm Lịch sử', to_hop: 'C00', diem: 28.83, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Sư phạm Ngữ văn', to_hop: 'C00, D01', diem: 28.50, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Sư phạm Toán học', to_hop: 'A00, A01', diem: 27.85, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Sư phạm Tiếng Anh', to_hop: 'D01 (Anh x2)', diem: 36.50, thang_diem: 'Thang 40' },
+      { nam: 2025, nganh: 'Sư phạm Lịch sử', to_hop: 'C00', diem: 28.95, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Sư phạm Lịch sử (Dự kiến)', to_hop: 'C00', diem: 28.90, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển thẳng học sinh giỏi và theo quy chế Bộ GD&ĐT',
+      'Phương thức 2: Xét tuyển theo kỳ thi Đánh giá năng lực của Trường ĐH Sư phạm Hà Nội',
+      'Phương thức 3: Xét kết quả thi tốt nghiệp THPT 2026 (A00, B00, C00, D01)',
+      'Phương thức 4: Xét tuyển kết hợp thi môn năng khiếu (Mầm non, Thể dục, Mỹ thuật)'
+    ],
+    hoc_phi: 'MIỄN 100% HỌC PHÍ cho sinh viên ngành đào tạo giáo viên + Hỗ trợ sinh hoạt phí 3.630.000 VNĐ/tháng (theo Nghị định 116/2020/NĐ-CP)',
+    dieu_kien: 'Hạnh kiểm 3 năm THPT xếp loại Tốt, học lực lớp 12 xếp loại Giỏi trở lên (đối với ngành sư phạm)',
+    lich_tuyen_sinh: 'Thi ĐGNL ĐHSP Hà Nội: Tháng 5/2026; Xét THPT: Theo quy định chung Bộ GD&ĐT',
+    nguon: [
+      'https://tuyensinh.hnue.edu.vn',
+      'https://hnue.edu.vn'
+    ],
+    cap_nhat_luc: '14/10/2026 13:50 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'CHÍNH SÁCH ĐẶC BIỆT: Nhà nước tiếp tục cấp bù kinh phí đào tạo và chi trả trực tiếp 3,63 triệu/tháng sinh hoạt phí cho sinh viên Sư phạm cam kết công tác.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '18/01/2026',
+        noi_dung: 'Mở rộng kỳ thi ĐGNL riêng cho 8 trường đại học sư phạm trên cả nước cùng sử dụng kết quả',
+        gia_tri_cu: 'Chỉ tiêu 4.400',
+        gia_tri_moi: 'Chỉ tiêu 4.500',
+        nguon_url: 'https://tuyensinh.hnue.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-uit',
+    truong: 'Trường ĐH Công nghệ Thông tin - ĐHQG TP.HCM',
+    ma_truong: 'QST',
+    loai_truong: 'Đại học Quốc gia',
+    khu_vuc: 'Nam',
+    nam: 2026,
+    chi_tieu: 2100,
+    chi_tieu_nam_truoc: 2000,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Trí tuệ Nhân tạo (AI)', to_hop: 'A00, A01', diem: 27.80, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Khoa học Máy tính', to_hop: 'A00, A01', diem: 27.50, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Phần mềm', to_hop: 'A00, A01', diem: 27.20, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Thiết kế Vi mạch (Bán dẫn)', to_hop: 'A00, A01', diem: 26.80, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Trí tuệ Nhân tạo (AI)', to_hop: 'A00, A01', diem: 28.00, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Trí tuệ Nhân tạo (AI - Dự kiến)', to_hop: 'A00, A01', diem: 27.90, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển thẳng và ưu tiên xét tuyển theo quy định Bộ GD&ĐT & ĐHQG-HCM',
+      'Phương thức 2: Xét tuyển dựa trên kết quả kỳ thi ĐGNL do ĐHQG-HCM tổ chức',
+      'Phương thức 3: Xét tuyển dựa trên kết quả kỳ thi tốt nghiệp THPT 2026 (A00, A01)',
+      'Phương thức 4: Xét tuyển chứng chỉ quốc tế (SAT, ACT, AP, IB)'
+    ],
+    hoc_phi: '35 – 45 triệu VNĐ/năm (Chương trình chuẩn); 60 – 80 triệu VNĐ/năm (Chương trình tiên tiến / Liên kết quốc tế)',
+    dieu_kien: 'Điểm sàn nhận hồ sơ theo thông báo chính thức của ĐHQG-HCM',
+    lich_tuyen_sinh: 'Đăng ký xét tuyển sớm: Tháng 4 – Tháng 5/2026; Xét tuyển THPT theo quy định',
+    nguon: [
+      'https://tuyensinh.uit.edu.vn',
+      'https://uit.edu.vn'
+    ],
+    cap_nhat_luc: '14/10/2026 13:45 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'Tăng 100 chỉ tiêu cho nhóm ngành Trí tuệ Nhân tạo và Vi mạch Bán dẫn theo chương trình quốc gia.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '22/01/2026',
+        noi_dung: 'Tăng chỉ tiêu chuyên ngành Vi mạch và Công nghệ bán dẫn đón sóng FDI',
+        gia_tri_cu: 'Chỉ tiêu 2.000',
+        gia_tri_moi: 'Chỉ tiêu 2.100',
+        nguon_url: 'https://tuyensinh.uit.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-ueh',
+    truong: 'Đại học Kinh tế TP. Hồ Chí Minh (UEH)',
+    ma_truong: 'KSA',
+    loai_truong: 'Đại học Công lập tự chủ',
+    khu_vuc: 'Nam',
+    nam: 2026,
+    chi_tieu: 7950,
+    chi_tieu_nam_truoc: 7900,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Logistics & Quản lý Chuỗi Cung ứng', to_hop: 'A00, A01, D01, D07', diem: 27.20, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kinh doanh Quốc tế', to_hop: 'A00, A01, D01, D07', diem: 27.00, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Công nghệ Tài chính (FinTech)', to_hop: 'A00, A01, D01', diem: 26.50, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Logistics & Quản lý Chuỗi Cung ứng', to_hop: 'A00, A01, D01, D07', diem: 27.40, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Logistics & Quản lý Chuỗi Cung ứng (Dự kiến)', to_hop: 'A00, A01, D01, D07', diem: 27.30, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển thẳng theo quy định Bộ GD&ĐT',
+      'Phương thức 2: Xét tuyển học sinh giỏi (PT2)',
+      'Phương thức 3: Xét tuyển quá trình học tập theo tổ hợp môn (PT3)',
+      'Phương thức 4: Xét tuyển kết quả thi ĐGNL ĐHQG-HCM (PT4)',
+      'Phương thức 5: Xét kết quả thi tốt nghiệp THPT 2026 (PT5)'
+    ],
+    hoc_phi: '30 – 40 triệu VNĐ/năm (Chương trình tiếng Việt); 50 – 70 triệu VNĐ/năm (Chương trình tiếng Anh toàn phần)',
+    dieu_kien: 'Điểm trung bình các môn tổ hợp xét tuyển đạt yêu cầu ngưỡng chất lượng đầu vào của UEH',
+    lich_tuyen_sinh: 'Đăng ký xét tuyển sớm trực tuyến: Tháng 3 – Tháng 5/2026; Công bố kết quả có điều kiện: Tháng 6/2026',
+    nguon: [
+      'https://tuyensinh.ueh.edu.vn',
+      'https://ueh.edu.vn'
+    ],
+    cap_nhat_luc: '14/10/2026 13:40 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'UEH mở rộng cơ sở đào tạo Phân hiệu Vĩnh Long với chính sách học bổng 100% cho thí sinh khu vực ĐBSCL.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '14/01/2026',
+        noi_dung: 'Tăng chỉ tiêu các ngành công nghệ kinh tế, FinTech và Trí tuệ Nhân tạo ứng dụng',
+        gia_tri_cu: 'Chỉ tiêu 7.900',
+        gia_tri_moi: 'Chỉ tiêu 7.950',
+        nguon_url: 'https://tuyensinh.ueh.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-dut',
+    truong: 'Trường Đại học Bách Khoa - Đại học Đà Nẵng',
+    ma_truong: 'DDK',
+    loai_truong: 'Đại học Công lập tự chủ',
+    khu_vuc: 'Trung',
+    nam: 2026,
+    chi_tieu: 3600,
+    chi_tieu_nam_truoc: 3500,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Công nghệ Thông tin (Đặc thù)', to_hop: 'A00, A01', diem: 25.80, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Điều khiển & Tự động hóa', to_hop: 'A00, A01', diem: 25.10, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Điện tử - Viễn thông (Vi mạch)', to_hop: 'A00, A01', diem: 24.60, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Công nghệ Thông tin (Đặc thù)', to_hop: 'A00, A01', diem: 26.00, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Thiết kế Vi mạch Bán dẫn (Dự kiến)', to_hop: 'A00, A01', diem: 25.20, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển thẳng theo quy chế Bộ GD&ĐT',
+      'Phương thức 2: Xét tuyển theo kết quả học tập THPT (Học bạ)',
+      'Phương thức 3: Xét kết quả kỳ thi ĐGNL của ĐHQG-HCM và ĐGTD ĐHBK Hà Nội',
+      'Phương thức 4: Xét theo kết quả thi tốt nghiệp THPT 2026 (A00, A01, B00)'
+    ],
+    hoc_phi: '22 – 28 triệu VNĐ/năm (Chương trình chuẩn); 35 – 45 triệu VNĐ/năm (Chương trình chất lượng cao / tiên tiến)',
+    dieu_kien: 'Điểm sàn theo thông báo chung của Đại học Đà Nẵng',
+    lich_tuyen_sinh: 'Đăng ký xét tuyển học bạ & ĐGNL: Tháng 4 – Tháng 6/2026',
+    nguon: [
+      'https://dut.udn.vn/tuyensinh',
+      'https://ts.udn.vn'
+    ],
+    cap_nhat_luc: '14/10/2026 13:30 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'Đà Nẵng trở thành trung tâm vi mạch bán dẫn miền Trung, trường DUT thành lập liên minh đào tạo 5.000 kỹ sư vi mạch với Synopsys.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '25/01/2026',
+        noi_dung: 'Tăng 100 chỉ tiêu nhóm ngành vi mạch bán dẫn và tự động hóa',
+        gia_tri_cu: 'Chỉ tiêu 3.500',
+        gia_tri_moi: 'Chỉ tiêu 3.600',
+        nguon_url: 'https://dut.udn.vn/tuyensinh'
+      }
+    ],
+    is_newly_updated: true
+  },
+  {
+    id: 'live-ctu',
+    truong: 'Trường Đại học Cần Thơ (CTU)',
+    ma_truong: 'TCT',
+    loai_truong: 'Đại học Công lập tự chủ',
+    khu_vuc: 'ĐBSCL',
+    nam: 2026,
+    chi_tieu: 7800,
+    chi_tieu_nam_truoc: 7600,
+    diem_chuan: [
+      { nam: 2024, nganh: 'Công nghệ Thông tin', to_hop: 'A00, A01', diem: 25.10, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kỹ thuật Phần mềm', to_hop: 'A00, A01', diem: 24.80, thang_diem: 'Thang 30' },
+      { nam: 2024, nganh: 'Kinh doanh Quốc tế', to_hop: 'A00, A01, D01', diem: 24.50, thang_diem: 'Thang 30' },
+      { nam: 2025, nganh: 'Công nghệ Thông tin', to_hop: 'A00, A01', diem: 25.30, thang_diem: 'Thang 30' },
+      { nam: 2026, nganh: 'Công nghệ Thông tin (Dự kiến)', to_hop: 'A00, A01', diem: 25.20, thang_diem: 'Thang 30' }
+    ],
+    phuong_thuc_xet_tuyen: [
+      'Phương thức 1: Xét tuyển thẳng và ưu tiên xét tuyển',
+      'Phương thức 2: Xét tuyển điểm kỳ thi V-SAT do Trường ĐH Cần Thơ tổ chức',
+      'Phương thức 3: Xét kết quả thi tốt nghiệp THPT 2026',
+      'Phương thức 4: Xét điểm học bạ THPT'
+    ],
+    hoc_phi: '19.5 – 26 triệu VNĐ/năm (Chương trình đại trà); 33 – 40 triệu VNĐ/năm (Chương trình chất lượng cao)',
+    dieu_kien: 'Tốt nghiệp THPT và đạt ngưỡng đảm bảo chất lượng đầu vào',
+    lich_tuyen_sinh: 'Đăng ký thi V-SAT: Tháng 3 – Tháng 5/2026; Xét tuyển THPT: Tháng 7/2026',
+    nguon: [
+      'https://tuyensinh.ctu.edu.vn',
+      'https://ctu.edu.vn'
+    ],
+    cap_nhat_luc: '14/10/2026 13:20 (Hệ thống Crawler Live)',
+    trang_thai: 'chinh_thuc',
+    canh_bao_thay_doi: 'Tăng cường kỳ thi đánh giá năng lực đầu vào đại học trên máy tính V-SAT cho khu vực ĐBSCL.',
+    lich_su_thay_doi: [
+      {
+        thoi_gian: '05/02/2026',
+        noi_dung: 'Tăng 200 chỉ tiêu nhóm ngành kỹ thuật số và nông nghiệp công nghệ cao thích ứng biến đổi khí hậu',
+        gia_tri_cu: 'Chỉ tiêu 7.600',
+        gia_tri_moi: 'Chỉ tiêu 7.800',
+        nguon_url: 'https://tuyensinh.ctu.edu.vn'
+      }
+    ],
+    is_newly_updated: true
+  }
+];

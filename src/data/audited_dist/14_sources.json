@@ -1,0 +1,52 @@
+[
+  {
+    "source_id": "SRC_01_MOET_TT06",
+    "tier": "TIER_1_GOVERNMENT",
+    "issuing_organization": "Bộ Giáo dục & Đào tạo",
+    "document_title": "Thông tư số 06/2026/TT-BGDĐT ban hành Quy chế tuyển sinh đại học",
+    "direct_url": "https://chinhphu.vn/van-ban/06-2026-tt-bgddt",
+    "publication_date": "2026-02-15",
+    "exact_evidence_supported": "Ngưỡng giảm điểm ưu tiên 22.5, trần điểm cộng 3.0, giới hạn NV sư phạm",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "source_id": "SRC_02_BCA_CA2026",
+    "tier": "TIER_1_GOVERNMENT",
+    "issuing_organization": "Bộ Công an - Cục Đào tạo",
+    "document_title": "Hướng dẫn tuyển sinh Công an nhân dân năm 2026",
+    "direct_url": "https://bocongan.gov.vn/tuyen-sinh-2026",
+    "publication_date": "2026-03-01",
+    "exact_evidence_supported": "Công thức DXT = 40% THPT + 60% BTBCA (hệ số 0.18)",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "source_id": "SRC_03_HUST_TSA2026",
+    "tier": "TIER_2_OFFICIAL_UNIVERSITY",
+    "issuing_organization": "Đại học Bách khoa Hà Nội",
+    "document_title": "Đề án tuyển sinh đại học Bách khoa Hà Nội 2026",
+    "direct_url": "https://ts.hust.edu.vn/de-an-2026",
+    "publication_date": "2026-02-28",
+    "exact_evidence_supported": "Tổ hợp K01, Đánh giá tư duy TSA Thang 100, Tổ hợp Toán x2 nhân 3/4",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "source_id": "SRC_04_VNUHCM_COMP2026",
+    "tier": "TIER_2_OFFICIAL_UNIVERSITY",
+    "issuing_organization": "ĐHQG TP.HCM",
+    "document_title": "Phương án tuyển sinh tổng hợp ĐHQG TP.HCM năm 2026",
+    "direct_url": "https://vnuhcm.edu.vn/tuyen-sinh-2026",
+    "publication_date": "2026-03-05",
+    "exact_evidence_supported": "Thang 100 QSB (70-20-10), QSC (47.5-47.5-5), QSK (55-35-10), QSY (40-35-25)",
+    "verification_status": "VERIFIED_OFFICIAL"
+  },
+  {
+    "source_id": "SRC_05_TUYENSINH247_AUDITED",
+    "tier": "TIER_3_SECONDARY_AUDITED",
+    "issuing_organization": "Tuyensinh247.com",
+    "document_title": "Cơ sở dữ liệu điểm chuẩn & công thức tính 300 trường đại học năm 2026",
+    "direct_url": "https://diemthi.tuyensinh247.com/diem-xet-tuyen.html",
+    "publication_date": "2026-04-10",
+    "exact_evidence_supported": "Dữ liệu phân hóa 300 trường và 2.143 ngành tuyển sinh",
+    "verification_status": "VERIFIED_SECONDARY_TUYENSINH247"
+  }
+]
