@@ -49,4 +49,6 @@ System Volume Information/
 /*.zip
 /*.stp
 /.agents/
-/.figma/
+/.figma/*
+!/.figma/make
+!/.figma/make/site.json

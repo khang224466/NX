@@ -3,12 +3,18 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-import siteConfiguration from './.figma/make/site.json'
+import { fileURLToPath } from 'node:url'
 
+// Fallback site configuration so build works seamlessly in clean environments without .figma directory
+const siteConfiguration = {
+  title: "NX Nexora | Website Hỗ Trợ Hướng Nghiệp",
+  description: "Bản thiết kế tổng thể nền tảng hướng nghiệp, lựa chọn ngành học và kết nối nhu cầu nhân lực Việt Nam theo mô hình rễ cây đa chiều (ROOT-LOOP).",
+  language: "vi"
+}
 
-// Vite config — https://vitejs.dev/config/
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 export default defineConfig(({ mode }) => {
-  // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
 
   return {
@@ -18,7 +24,7 @@ export default defineConfig(({ mode }) => {
       minify: !emitSourcemaps,
     },
     plugins: [
-react(),
+      react(),
       tailwindcss(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
