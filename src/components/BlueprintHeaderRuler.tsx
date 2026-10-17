@@ -38,7 +38,7 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
   onNavigate,
   savedCount
 }) => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, zoomLevel, zoomIn, zoomOut, setZoom } = useTheme();
   const isDarkMode = theme === 'dark';
   const progressFillRef = useRef<HTMLDivElement>(null);
   const progressBadgeRef = useRef<HTMLDivElement>(null);
@@ -189,7 +189,45 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             </button>
           )}
 
-          {/* 1. Theme toggle circle icon (◑) */}
+          {/* 1. Interactive UI Zoom Pill */}
+          <div 
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-[#262630] hover:border-[#3B82F6]/60 bg-[#121316] text-[#D1D5DB] text-[10px] font-mono transition-colors"
+            title="Tùy chỉnh tỷ lệ phóng to giao diện"
+          >
+            <button 
+              onClick={() => {
+                sfx.playUiClick();
+                zoomOut();
+              }}
+              title="Thu nhỏ giao diện (-5%)"
+              className="w-4 h-4 rounded flex items-center justify-center hover:bg-[#262630] hover:text-white transition-colors cursor-pointer select-none text-[12px] leading-none"
+            >
+              −
+            </button>
+            <button
+              onClick={() => {
+                sfx.playUiClick();
+                // Toggle between standard 125% and 135%
+                setZoom(Math.round(zoomLevel * 100) === 135 ? 1.25 : 1.35);
+              }}
+              title="Bấm để đổi nhanh giữa 125% và 135%"
+              className="px-1 font-semibold text-[#60A5FA] hover:underline cursor-pointer select-none text-[11px]"
+            >
+              {Math.round(zoomLevel * 100)}%
+            </button>
+            <button 
+              onClick={() => {
+                sfx.playUiClick();
+                zoomIn();
+              }}
+              title="Phóng to giao diện (+5%)"
+              className="w-4 h-4 rounded flex items-center justify-center hover:bg-[#262630] hover:text-white transition-colors cursor-pointer select-none text-[12px] leading-none"
+            >
+              +
+            </button>
+          </div>
+
+          {/* 2. Theme toggle circle icon (◑) */}
           <button
             onClick={() => {
               sfx.playUiClick();

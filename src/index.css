@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 html {
-  zoom: 1.25;
+  zoom: var(--nx-ui-zoom, 1.35);
 }
 
 @layer base {
   :root,
   html.dark {
-    zoom: 1.25;
+    zoom: var(--nx-ui-zoom, 1.35);
     /* =========================================================================
        BẢNG MÀU TỐI: OBSIDIAN BLUE & HIGH TECH
        ========================================================================= */
@@ -43,7 +43,7 @@ html {
 
   /* Universal Full-Page Inverted / Contrast Light Mode */
   html.light {
-    zoom: 1.25;
+    zoom: var(--nx-ui-zoom, 1.35);
     filter: invert(1) hue-rotate(180deg) contrast(1.04);
     background-color: #07080B !important;
   }
