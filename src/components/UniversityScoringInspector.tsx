@@ -31,6 +31,7 @@ import {
   VerifiedUniversity, 
   VerifiedProgramAdmission, 
   VERIFIED_COMBINATIONS_219,
+  VERIFIED_PROGRAMS_DATABASE,
   evaluateAdmissionSafety 
 } from '../data/verifiedAdmissionDatabase';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
@@ -101,7 +102,16 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
 
   // Active university & program selection
   const [selectedUni] = useState<VerifiedUniversity>(initialUniversity);
-  const [selectedProg, setSelectedProg] = useState<VerifiedProgramAdmission | undefined>(initialProgram);
+
+  // All verified programs of this university
+  const programsOfThisUni = useMemo(() => {
+    return VERIFIED_PROGRAMS_DATABASE.filter(p => p.universityCode === selectedUni.code);
+  }, [selectedUni]);
+
+  const [selectedProg, setSelectedProg] = useState<VerifiedProgramAdmission | undefined>(() => {
+    if (initialProgram) return initialProgram;
+    return programsOfThisUni[0];
+  });
 
   // Selected combination code for the active program
   const availableCombos = useMemo(() => {
@@ -205,7 +215,7 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
   // DYNAMIC SCALE DETECTION & CALCULATION ENGINE
   // ===========================================================================
   const uniCode = selectedUni.code;
-  const isScale100 = selectedProg?.scale === 'Thang 100' || selectedUni.primaryScale === 'Thang 100 Kép' || uniCode === 'QSB';
+  const isScale100 = selectedProg?.scale === 'Thang 100' || selectedProg?.scale?.includes('100') || selectedUni.primaryScale === 'Thang 100 Kép' || selectedUni.primaryScale?.includes('100') || uniCode === 'QSB';
   const isScale40 = selectedProg?.scale === 'Thang 40';
 
   let finalCalculatedScore = 0;
@@ -347,7 +357,7 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
 
   // Safety evaluation against selected program
   const safetyEval = selectedProg 
-    ? evaluateAdmissionSafety(finalCalculatedScore, selectedProg.benchmark2025, selectedProg.scale)
+    ? evaluateAdmissionSafety(finalCalculatedScore, selectedProg.benchmark2025, isScale100 ? 'Thang 100' : selectedProg.scale)
     : null;
 
   const handleScoreChange = (key: string, val: number) => {
@@ -446,6 +456,36 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
               </div>
             </div>
           </div>
+
+          {/* Program Switcher for University */}
+          {programsOfThisUni && programsOfThisUni.length > 1 && (
+            <div className="p-3.5 rounded-xl bg-[#101520] border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+              <span className="text-[#CCCCCC] font-semibold flex items-center gap-1.5 shrink-0">
+                <Building2 className="w-4 h-4 text-[#C6F135]" />
+                <span>Chọn ngành xét tuyển tại {selectedUni.shortName} ({programsOfThisUni.length} ngành):</span>
+              </span>
+              <select
+                value={selectedProg?.majorCodeTT09 || ''}
+                onChange={(e) => {
+                  const targetCode = e.target.value;
+                  const found = programsOfThisUni.find(p => p.majorCodeTT09 === targetCode);
+                  if (found) {
+                    setSelectedProg(found);
+                    if (found.combinations && found.combinations.length > 0) {
+                      setSelectedComboCode(found.combinations[0]);
+                    }
+                  }
+                }}
+                className="w-full sm:w-auto flex-1 bg-[#18202F] text-white border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-[#3B82F6]"
+              >
+                {programsOfThisUni.map(p => (
+                  <option key={p.majorCodeTT09} value={p.majorCodeTT09}>
+                    [{p.majorCodeTT74}] {p.majorName} — Thang {p.scale === 'Thang 100' ? '100' : p.scale === 'Thang 40' ? '40' : '30'} (Chuẩn: {p.benchmark2025}đ)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Program context & Major Code Badge (TT 74 & TT 09) */}
           {selectedProg && (

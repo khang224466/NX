@@ -299,9 +299,12 @@ export const AuditedAdmissionsSuite: React.FC = () => {
     return executeAdmissionsCalculation(
       activeRecord.formula_id,
       selectedUniCode,
-      profile
+      profile,
+      activeRecord.audited_official_scale,
+      activeRecord.scale_max,
+      activeRecord.subject_combinations?.[0] || 'A00'
     );
-  }, [activeRecord.formula_id, selectedUniCode, profile]);
+  }, [activeRecord, selectedUniCode, profile]);
 
   // ---------------------------------------------------------------------------
   // ASPIRATION OPTIMIZER LIST CALCULATION
@@ -320,7 +323,10 @@ export const AuditedAdmissionsSuite: React.FC = () => {
       const res = executeAdmissionsCalculation(
         rec.formula_id,
         rec.institution_code,
-        { ...profile, aspirationOrder: order }
+        { ...profile, aspirationOrder: order },
+        rec.audited_official_scale,
+        rec.scale_max,
+        rec.subject_combinations?.[0] || 'A00'
       );
 
       const scoreDiff = Number((res.officialAdmissionsScore - rec.audited_official_cutoff).toFixed(2));

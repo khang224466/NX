@@ -133,7 +133,7 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
 
       {/* Main Header Row (Matches Pier Gorelli top navigation in Image 1) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-4">
-        {/* Left: Brand Monogram & Role (PG. PIER GORELLI / WEB & AI DEV style) */}
+        {/* Left: Brand Monogram & Role */}
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {
@@ -142,29 +142,27 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             }}
             className="flex items-center gap-2 text-left group cursor-pointer"
           >
-            <span className="font-bold text-white text-base tracking-tight font-sans group-hover:text-[#60A5FA] transition-colors">
+            <span className="font-bold text-white text-base sm:text-lg tracking-tight font-sans group-hover:text-[#60A5FA] transition-colors">
               NX.
             </span>
-            <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#D1D5DB] tracking-wider uppercase">
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-mono text-[#D1D5DB] tracking-wider uppercase">
               <span className="font-semibold text-white">NEXORA</span>
               <span className="text-[#64748B]">/</span>
-              <span className="text-[#94A3B8] hidden sm:inline text-[10px]">CAREER & ADMISSION ARCHITECTURE</span>
+              <span className="text-[#94A3B8] hidden sm:inline text-[11px]">CỔNG TUYỂN SINH QUỐC GIA 2026</span>
             </div>
           </button>
         </div>
 
         {/* Center: Live Bounding Box Metrics */}
-        <div className="hidden xl:flex items-center gap-3 text-[#64748B] text-[10px]">
-          <span className="text-[#60A5FA]">
+        <div className="hidden xl:flex items-center gap-3 text-[#94A3B8] text-[10px] font-mono">
+          <span className="text-[#60A5FA] font-bold">
             [{String(currentSectionIndex).padStart(2, '0')}/{String(totalSections).padStart(2, '0')}]
           </span>
-          <span className="text-[#334155]">·</span>
-          <span>{windowWidth}×{viewportSize.height}px</span>
-          <span className="text-[#334155]">·</span>
-          <span className="text-[#94A3B8]">AUDIT 2026: THÔNG TƯ 06/2026/TT-BGDĐT</span>
+          <span className="text-[#475569]">·</span>
+          <span className="font-medium text-[#CBD5E1]">THÔNG TƯ 06 &amp; 74/2026/TT-BGDĐT</span>
         </div>
 
-        {/* Right Controls: Theme (◑), Audio Dot (●), ⌘K Badge, Let's talk White Pill Button */}
+        {/* Right Controls: Theme (◑), Audio Dot (●), and Signature White Pill Button */}
         <div className="flex items-center gap-3">
           {/* 1. Theme toggle circle icon (◑) */}
           <button
@@ -175,10 +173,10 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             {isDarkMode ? '◑' : '◐'}
           </button>
 
-          {/* 2. Interactive Audio Dot (Blue dot from Pier Gorelli screenshot) */}
+          {/* 2. Interactive Audio Dot */}
           <button
             onClick={handleToggleAudio}
-            title={isAudioMuted ? 'Bật âm thanh hiệu ứng (Web Audio Synth)' : 'Tắt âm thanh hiệu ứng'}
+            title={isAudioMuted ? 'Bật âm thanh hiệu ứng' : 'Tắt âm thanh hiệu ứng'}
             className="w-7 h-7 rounded-full border border-[#262630] hover:border-[#60A5FA] bg-[#121316] flex items-center justify-center transition-colors relative cursor-pointer group"
           >
             <span 
@@ -193,36 +191,7 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             )}
           </button>
 
-          {/* 3. Grid Toggle (⌥G) */}
-          <button
-            onClick={() => {
-              sfx.playUiHover();
-              onToggleGrid();
-            }}
-            title="Bật/tắt lưới kỹ thuật 12 cột (⌥G)"
-            className={`hidden md:flex px-2 py-1 text-[10px] border transition-colors items-center gap-1 cursor-pointer ${
-              isGridActive 
-                ? 'bg-[#3B82F6] text-white border-[#3B82F6] font-bold' 
-                : 'bg-[#121316] text-[#888888] hover:text-[#EAEAE3] border-[#262630]'
-            }`}
-          >
-            <span>LƯỚI</span>
-            <kbd className="text-[9px] opacity-75">⌥G</kbd>
-          </button>
-
-          {/* 4. Command Palette (⌘K) */}
-          <button
-            onClick={() => {
-              sfx.playUiSelect();
-              onOpenCommandPalette();
-            }}
-            title="Mở bảng lệnh tìm kiếm nhanh (⌘K)"
-            className="px-2.5 py-1 bg-[#121316] hover:bg-[#1a1b22] text-[#D1D5DB] border border-[#262630] hover:border-[#60A5FA] text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <span>⌘K</span>
-          </button>
-
-          {/* 5. Signature White Pill Button (Let's talk button in Image 1 reference) */}
+          {/* 3. Signature White Pill Button */}
           <button
             onClick={() => {
               sfx.playActionSuccess();

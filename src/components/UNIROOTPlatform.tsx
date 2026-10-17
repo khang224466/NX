@@ -651,88 +651,67 @@ const HomeView: React.FC<{
         {/* Foreground Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 relative z-10 w-full flex flex-col justify-between min-h-[580px]">
           <div>
-            {/* Top Breadcrumb & Section Label (Image reference: HOME / ABOUT with pill outline & [ABOUT / 03]) */}
-            <div className="flex items-center gap-2 text-[10px] font-mono text-[#8E929F] uppercase tracking-wider mb-2">
-              <span>HOME</span>
-              <span>/</span>
-              <span className="px-2.5 py-0.5 rounded-full border border-[#334155] text-white bg-white/5">NAVIGATOR</span>
-            </div>
-            <div className="text-[11px] font-mono text-[#60A5FA] mb-4 tracking-wider">
-              [NAVIGATOR / 01]
-            </div>
 
-            {/* Giant Bold Headline with Typewriter Reveal & Blinking Blue Cursor */}
-            <h1 className="text-4xl sm:text-6xl lg:text-[5.5rem] font-bold font-sans text-white tracking-tight max-w-5xl leading-[1.02]">
-              <span className="block text-white">Hi, I'm Nexora.</span>
-              <span className="block text-[#E4E4E7] font-normal text-2xl sm:text-4xl lg:text-[2.65rem] mt-3.5 leading-[1.18] min-h-[60px]">
-                {heroMachineTokens.slice(0, tokensVisible).map((token, i) => (
-                  <span 
-                    key={`${token}-${i}`} 
-                    className="token-stream-word mr-2"
-                    style={{ animationDelay: `${i * 0.03}s` }}
-                  >
-                    {token}
-                  </span>
-                ))}
-                <span className="inline-block w-[3px] h-[0.85em] bg-[#3B82F6] ml-1.5 align-middle animate-pulse" />
-              </span>
+            {/* Hero Main Headline */}
+            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black font-sans text-white tracking-tight max-w-5xl leading-[1.02]">
+              Hi, I'm Nexora
             </h1>
 
-            {/* Pier Gorelli machine metadata indicator (Image reference: ◆ MACHINE · GENERATED · 17 TOKENS · 1337 MS) */}
-            <div className="flex items-center gap-2 text-[10px] font-mono text-[#8E929F] tracking-wider uppercase mt-4">
-              <span className="text-[#3B82F6]">◆</span>
-              <span>MACHINE &middot; GENERATED &middot; 19 TOKENS &middot; {liveLatencyMs} MS &middot; AUDITED 2.158 RECORDS &middot; 100% VERIFIED</span>
-            </div>
-
-            <p className="mt-6 text-base sm:text-[18px] text-[#D1D5DB] max-w-2xl leading-relaxed">
-              Mô hình <span className="text-white font-semibold">Root-to-Leaf</span> cho phép bạn đi từ mã tổ hợp môn đến chính xác từng ngành học, công thức tính điểm riêng, điểm chuẩn lịch sử và địa chỉ cơ sở đào tạo thực tế.
-            </p>
-
-            {/* Quick Search Form */}
-            <form onSubmit={handleSearchSubmit} className="mt-8 max-w-2xl relative">
-              <div className="relative flex items-center">
-                <Search className="w-5 h-5 absolute left-4 text-[#3B82F6]" />
+            {/* Fast Unified Search Form */}
+            <form onSubmit={handleSearchSubmit} className="mt-6 max-w-3xl relative">
+              <div className="relative flex items-center shadow-lg">
+                <Search className="w-5 h-5 absolute left-4 text-[#C6F135]" />
                 <input
                   type="text"
                   value={searchVal}
                   onChange={(e) => setSearchVal(e.target.value)}
-                  placeholder="Thử nhập sở thích, kỹ năng hay bất kỳ thứ gì đó vào đây..."
-                  className="w-full bg-[#0F1017]/95 text-white pl-12 pr-32 py-4 border border-[#262630] focus:border-[#3B82F6] text-sm sm:text-base font-mono placeholder-[#777777] focus:outline-none transition-colors backdrop-blur-xs"
+                  placeholder="Tìm kiếm: Mã trường (BKA, NEU, QSB...), Ngành (CNTT, Y khoa...), hoặc Tổ hợp (A00, D01)..."
+                  className="w-full bg-[#0F1017]/95 text-white pl-12 pr-36 sm:pr-40 py-3.5 sm:py-4 border border-[#262630] focus:border-[#C6F135] text-xs sm:text-sm font-mono placeholder-[#777777] focus:outline-none transition-colors backdrop-blur-md rounded-xs"
                 />
                 <button
                   type="submit"
-                  className="absolute right-2.5 px-4.5 py-2.5 bg-[#2563EB] hover:bg-[#1d4ed8] text-white font-bold text-xs sm:text-sm transition-colors flex items-center gap-1.5 font-mono rounded-xs cursor-pointer"
+                  className="absolute right-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#C6F135] hover:bg-[#b5e02e] text-[#0C0D0E] font-bold text-xs font-mono transition-transform active:scale-95 flex items-center gap-1.5 rounded-xs cursor-pointer shadow-xs"
                 >
-                  <span>PHÂN TÍCH</span>
+                  <span>TRA CỨU NGAY</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-[13px] font-mono text-[#A1A1AA] mt-3 px-1 gap-2">
-                <span className="text-[#A1A1AA] hover:text-white transition-colors cursor-pointer leading-normal">
-                  thử nhập sở thích hay bất kỳ thứ gì đó vào đây, rồi phân tích ra hoặc đưa đến một trang
-                </span>
-                <span className="text-[#60A5FA] shrink-0 text-xs">19 tokens · {liveLatencyMs} ms</span>
+
+              {/* Fast Quick Links */}
+              <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-xs font-mono text-[#8E929F] mt-2.5 px-1">
+                <span className="text-[#666666]">Gợi ý tra nhanh:</span>
+                <button type="button" onClick={() => onNavigate('tinh-diem')} className="text-[#C6F135] font-semibold hover:underline cursor-pointer">Máy tính điểm Thang 100/30</button>
+                <span>·</span>
+                <button type="button" onClick={() => onNavigate('truong-detail', 'BKA')} className="text-[#60A5FA] font-semibold hover:underline cursor-pointer">Bách Khoa HN [BKA]</button>
+                <span>·</span>
+                <button type="button" onClick={() => onNavigate('truong-detail', 'QSB')} className="text-[#60A5FA] font-semibold hover:underline cursor-pointer">Bách Khoa TP.HCM [QSB]</button>
+                <span>·</span>
+                <button type="button" onClick={() => onNavigate('truong-detail', 'YDS')} className="text-[#60A5FA] font-semibold hover:underline cursor-pointer">ĐH Y Dược TP.HCM [YDS]</button>
+                <span>·</span>
+                <button type="button" onClick={() => onNavigate('to-hop-detail', 'A00')} className="text-white font-semibold hover:underline cursor-pointer">Tổ hợp A00</button>
+                <span>·</span>
+                <button type="button" onClick={() => onNavigate('to-hop-detail', 'D01')} className="text-white font-semibold hover:underline cursor-pointer">Tổ hợp D01</button>
               </div>
             </form>
           </div>
 
-          {/* Pier Gorelli Bottom 4-Column Metadata Grid (Exact replica of BASED, FROM, MODE, STATUS) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-[#262630]/80 pt-6 mt-12 gap-6 text-xs font-mono">
-            <div className="space-y-1.5 lg:pr-6 lg:border-r border-[#262630]/60">
-              <div className="text-[10px] text-[#8E929F] uppercase tracking-wider">BASED</div>
-              <div className="text-sm font-semibold text-white">Hà Nội & TP. Hồ Chí Minh</div>
+          {/* Bottom 4-Column Metadata Grid (-30% scaled) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-[#262630]/80 pt-6 mt-10 gap-5 font-mono">
+            <div className="space-y-1 lg:pr-5 lg:border-r border-[#262630]/60">
+              <div className="text-[10px] sm:text-[11px] text-[#8E929F] uppercase tracking-wider font-semibold">BASED</div>
+              <div className="text-xs sm:text-sm font-semibold text-white">Hà Nội & TP. Hồ Chí Minh</div>
             </div>
-            <div className="space-y-1.5 lg:px-6 lg:border-r border-[#262630]/60">
-              <div className="text-[10px] text-[#8E929F] uppercase tracking-wider">PHÁP LÝ</div>
-              <div className="text-sm font-semibold text-white">Thông tư 06/2026 · Bộ GD&ĐT</div>
+            <div className="space-y-1 lg:px-5 lg:border-r border-[#262630]/60">
+              <div className="text-[10px] sm:text-[11px] text-[#8E929F] uppercase tracking-wider font-semibold">PHÁP LÝ</div>
+              <div className="text-xs sm:text-sm font-semibold text-white">Thông tư 06/2026 · Bộ GD&ĐT</div>
             </div>
-            <div className="space-y-1.5 lg:px-6 lg:border-r border-[#262630]/60">
-              <div className="text-[10px] text-[#8E929F] uppercase tracking-wider">CƠ SỞ DỮ LIỆU</div>
-              <div className="text-sm font-semibold text-white">300 Trường · 2.158 Ngành</div>
+            <div className="space-y-1 lg:px-5 lg:border-r border-[#262630]/60">
+              <div className="text-[10px] sm:text-[11px] text-[#8E929F] uppercase tracking-wider font-semibold">CƠ SỞ DỮ LIỆU</div>
+              <div className="text-xs sm:text-sm font-semibold text-white">300 Trường · 2.158 Ngành</div>
             </div>
-            <div className="space-y-1.5 lg:pl-6">
-              <div className="text-[10px] text-[#8E929F] uppercase tracking-wider">TRẠNG THÁI</div>
-              <div className="text-sm font-semibold text-white flex items-center gap-2">
+            <div className="space-y-1 lg:pl-5">
+              <div className="text-[10px] sm:text-[11px] text-[#8E929F] uppercase tracking-wider font-semibold">TRẠNG THÁI</div>
+              <div className="text-xs sm:text-sm font-semibold text-white flex items-center gap-2">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3B82F6] opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#3B82F6]"></span>
