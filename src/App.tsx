@@ -35,7 +35,7 @@ export default function App() {
       <UserJourneyProvider>
         <SmoothScroll>
           <div className="min-h-screen bg-[#07080B] text-[#EAEAE3] flex flex-col relative selection:bg-[#C6F135] selection:text-[#0C0D0E]">
-            {/* Hardware-accelerated GPU Backdrop Layer (Pier Gorelli Dot & Linear Grid) */}
+            {/* Hardware-accelerated GPU Backdrop Layer (Pier Gorelli Dot & Linear Grid) - Live HMR Active */}
             <div className="blueprint-fixed-backdrop" aria-hidden="true" />
 
             {/* Authentic Pier Gorelli Topographic Contour Elevation Canvas (Full Page Fixed Background) */}

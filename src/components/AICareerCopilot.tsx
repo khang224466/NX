@@ -46,7 +46,15 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
     {
       id: 'welcome',
       role: 'model',
-      content: 'Xin chào bạn. Tôi là Chuyên gia Tư vấn Hướng nghiệp và Tuyển sinh Đại học Việt Nam 2026, kết nối trực tiếp CSDL Kiểm toán Tuyển sinh 2026 (300 trường, 2.158 bản ghi, 36 họ công thức, 39 quy tắc quy đổi).\n\nHệ thống tích hợp cơ chế Điều tiết Tốc độ Gọi API (Smart Request Pacing & Rate Limiting) giúp kiểm soát lưu lượng, tránh lỗi 429 và duy trì ổn định cao nhất.',
+      content: `Chào bạn! Mình là Nexora — Trợ lý AI Hướng nghiệp & Định hướng Tương lai 2026.
+
+Mình ở đây để đồng hành cùng bạn tìm ra lộ trình học tập và nghề nghiệp phù hợp nhất:
+1. 💡 **Thấu cảm & Phân tích thế mạnh**: Khám phá đam mê, tính cách và năng lực học tập tự nhiên.
+2. 🎯 **Đề xuất tổ hợp môn tối ưu**: Gợi ý các khối thi (A00, A01, D01, B00, C00...) mang lại lợi thế điểm số cao nhất.
+3. 💼 **Kết nối Trường — Ngành — Nghề**: Khám phá ngành học đón đầu xu hướng việc làm 2026–2030 và mức lương thực tế.
+4. 🏛️ **Ma trận trường đại học uy tín**: Định vị trường Top đầu và trường Vừa sức an toàn.
+
+Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở những môn học nào? Hãy chia sẻ với mình nhé!`,
       timestamp: 'Ngay bây giờ'
     }
   ]);
@@ -192,11 +200,11 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
   };
 
   const sampleQuestions = [
-    'Điểm chuẩn Bách khoa Hà Nội IT1, EE2, MS2 các năm gần đây là bao nhiêu?',
-    'Cách tính điểm Thang 100 ĐHBK TP.HCM (70% ĐGNL + 20% THPT + 10% HB)?',
-    'Mức lương P25 - P90 của Kỹ sư Thiết kế Vi mạch & Bán dẫn tại Việt Nam?',
-    'Với mức điểm 25.5 khối A01, em nên đặt ma trận nguyện vọng thế nào?',
-    'Nếu không đỗ Đại học Bách Khoa, học Cao đẳng Kỹ thuật Cao Thắng có tốt không?'
+    'Em thích công nghệ và máy tính nhưng ngại giao tiếp, nên chọn ngành gì?',
+    'Em học khá Toán và Tiếng Anh, thích kinh doanh thì nên chọn ngành nào?',
+    'Tổ hợp A01 (Toán, Lý, Anh) ra trường làm được những nghề gì và học trường nào?',
+    'Em muốn theo ngành Y Dược thì cần chuẩn bị điểm số và khối thi ra sao?',
+    'Lương và cơ hội việc làm của ngành Thiết kế Vi mạch & Bán dẫn tại Việt Nam?'
   ];
 
   if (!isOpen) return null;
@@ -213,15 +221,15 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
         <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0F141D]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-              <Cpu className="w-5 h-5" />
+              <Bot className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-syne text-lg font-bold text-white">
-                  NEXORA AI Copilot 2026
+                  Nexora AI Hướng Nghiệp
                 </h3>
                 <span className="text-[10px] font-mono bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 font-medium">
-                  {aiProvider === 'groq' ? 'Groq Console (Rate-Paced)' : 'Google Gemini (Search Grounded)'}
+                  Cố Vấn 2026
                 </span>
                 {pacingStatus?.isCoolingDown && (
                   <span className="text-[10px] font-mono bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1 animate-pulse">
@@ -231,7 +239,7 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
                 )}
               </div>
               <p className="text-[11px] text-[#A1A1AA]">
-                Trợ lý Hướng nghiệp & Tuyển sinh · Pacing {requestDelayMs}ms · Hàng đợi FIFO an toàn
+                Trợ lý AI Hướng nghiệp & Định hướng Tương lai · Kết nối Trường — Ngành — Nghề
               </p>
             </div>
           </div>
@@ -508,7 +516,7 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
           <input
             ref={inputRef}
             type="text"
-            placeholder="Hỏi về điểm chuẩn, tổ hợp, ngành học, mức lương thực tế..."
+            placeholder="Hỏi về sở thích, chọn tổ hợp môn, định hướng nghề nghiệp, mức lương..."
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
             onKeyDown={(e) => {

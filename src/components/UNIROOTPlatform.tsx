@@ -29,7 +29,8 @@ import {
   Trash2,
   Bookmark,
   Share2,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 
 import { 
@@ -64,6 +65,9 @@ import { BlueprintCursor } from './BlueprintCursor';
 import { BlueprintCommandPalette } from './BlueprintCommandPalette';
 import { PierGorelliMotionSuite } from './PierGorelliMotionSuite';
 import { PageTransitionShutter } from './PageTransitionShutter';
+import { CareerPathwayNavigator } from './CareerPathwayNavigator';
+import { AIMajorSchoolAssistant } from './AIMajorSchoolAssistant';
+import { MajorQuickDetailModal } from './MajorQuickDetailModal';
 
 interface UNIROOTPlatformProps {
   onOpenAIChat: (query?: string) => void;
@@ -98,6 +102,7 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
   const [selectedSchoolCode, setSelectedSchoolCode] = useState<string>('BKA');
   const [selectedMajorCode, setSelectedMajorCode] = useState<string>('7480201'); // CNTT
   const [selectedRecordId, setSelectedRecordId] = useState<string>('REC_0001');
+  const [focusedMajorSearch, setFocusedMajorSearch] = useState<string>('');
 
   // Page Transition Shutter state
   const [isPageTransitionActive, setIsPageTransitionActive] = useState<boolean>(false);
@@ -165,7 +170,14 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
     if (route === 'to-hop-detail' && param) {
       setSelectedComboId(param.toUpperCase());
     } else if (route === 'truong-detail' && param) {
-      setSelectedSchoolCode(param.toUpperCase());
+      if (param.includes(':')) {
+        const [code, ...majorParts] = param.split(':');
+        setSelectedSchoolCode(code.toUpperCase());
+        setFocusedMajorSearch(majorParts.join(':'));
+      } else {
+        setSelectedSchoolCode(param.toUpperCase());
+        setFocusedMajorSearch('');
+      }
     } else if (route === 'nganh-detail' && param) {
       setSelectedMajorCode(param);
     }
@@ -238,7 +250,7 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
         onTriggerIntro={onTriggerIntro}
       />
 
-      {/* 4. Technical Header Ruler with Scroll Indicator & Pier Gorelli Top Bar */}
+      {/* 4. Consolidated Single-Row Header */}
       <BlueprintHeaderRuler
         currentTab={currentRoute}
         isGridActive={isGridActive}
@@ -246,82 +258,9 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenAIChat={() => onOpenAIChat()}
         onTriggerIntro={onTriggerIntro}
+        onNavigate={(tab) => navigateTo(tab as ViewRoute)}
+        savedCount={savedSchoolCodes.length}
       />
-
-      {/* 5. Navigation Bar (Pier Gorelli Numbered Routes: 01 Work, 02 Services, 03 About style) */}
-      <nav className="sticky top-15.5 z-30 w-full bg-[#07080B]/90 border-b border-[#262630]/70 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between overflow-x-auto no-scrollbar py-2 text-xs font-mono gap-4">
-          {/* Main Navigation Items */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            {[
-              { id: 'home', num: '01', label: 'Trang Chủ' },
-              { id: 'to-hop', num: '02', label: 'Tổ Hợp Môn' },
-              { id: 'nganh', num: '03', label: 'Ngành Học' },
-              { id: 'truong', num: '04', label: 'Trường Đại Học' },
-              { id: 'tinh-diem', num: '05', label: 'Tính Điểm', highlight: true },
-              { id: 'diem-chuan', num: '06', label: 'Điểm Chuẩn' },
-              { id: 'hoc-phi', num: '07', label: 'Học Phí' },
-              { id: 'ban-do', num: '08', label: 'Cơ Sở Đào Tạo' },
-              { id: 'so-sanh', num: '09', label: 'So Sánh' },
-              { id: 'nguon-du-lieu', num: '10', label: 'Nguồn & Audit' },
-              { id: 'motion-suite', num: '11', label: '◆ Motion Suite', isMotion: true },
-            ].map((tab) => {
-              const isActive = currentRoute === tab.id || (tab.id === 'to-hop' && currentRoute === 'to-hop-detail') || (tab.id === 'truong' && currentRoute === 'truong-detail') || (tab.id === 'nganh' && currentRoute === 'nganh-detail');
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => navigateTo(tab.id as ViewRoute)}
-                  className={`px-2.5 py-1.5 whitespace-nowrap text-xs transition-all duration-200 rounded-full flex items-center gap-1.5 cursor-pointer ${
-                    isActive
-                      ? 'bg-[#3B82F6]/20 text-white border border-[#3B82F6] font-semibold shadow-[0_0_12px_rgba(59,130,246,0.25)]'
-                      : tab.isMotion
-                      ? 'bg-[#818CF8]/10 text-[#818CF8] border border-[#818CF8]/30 hover:bg-[#818CF8]/20 font-semibold'
-                      : tab.highlight
-                      ? 'bg-[#2563EB]/15 text-[#60A5FA] border border-[#3B82F6]/40 hover:bg-[#2563EB]/25'
-                      : 'bg-transparent text-[#94A3B8] hover:text-white border border-transparent hover:border-[#262630]'
-                  }`}
-                >
-                  <span className={`text-[10px] ${isActive ? 'text-[#60A5FA] font-bold' : 'text-[#64748B]'}`}>
-                    {tab.num}
-                  </span>
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quick Stats & Saved counter */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0 text-[#888888] text-[11px]">
-            <button
-              onClick={() => navigateTo('so-sanh')}
-              className="flex items-center gap-1.5 text-[#EAEAE3] hover:text-[#60A5FA] transition-colors cursor-pointer"
-            >
-              <Bookmark className="w-3.5 h-3.5 text-[#3B82F6]" />
-              <span>Đã lưu ({savedSchoolCodes.length})</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Technical Breadcrumbs Strip */}
-      <div className="bg-[#0E0F12] border-b border-[#1c1d22] px-4 sm:px-6 py-1.5 text-[10px] font-mono text-[#888888] flex items-center justify-between">
-        <div className="max-w-7xl mx-auto w-full flex items-center gap-2">
-          <span 
-            onClick={() => navigateTo('home')} 
-            className="cursor-pointer hover:text-[#C6F135]"
-          >
-            NEXORA
-          </span>
-          <span>/</span>
-          <span className="text-[#C6F135]">
-            {ROUTE_LABELS[currentRoute]}
-          </span>
-          <span className="text-[#444444]">·</span>
-          <span className="hidden sm:inline text-[#666666]">
-            CHẾ ĐỘ AUDIT 2026: THÔNG TƯ 06/2026/TT-BGDĐT
-          </span>
-        </div>
-      </div>
 
       {/* 6. Main Dynamic View Container */}
       <main className="flex-1 relative z-10">
@@ -442,6 +381,8 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
                   setSelectedRecordId(recId);
                   navigateTo('tinh-diem');
                 }}
+                initialMajorSearch={focusedMajorSearch}
+                initialTab={focusedMajorSearch ? 'majors' : 'overview'}
               />
             </motion.div>
           )}
@@ -590,6 +531,29 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
  * With Contour Terrain Canvas, 4 Primary Gateways, Popular Combos, Sectors & Explanations.
  */
 const HomeView: React.FC<{
+  stats: { totalSchools: number; totalRecords: number; totalFormulas: number; totalSources: number; activeSchools: number };
+  onNavigate: (route: ViewRoute, param?: string) => void;
+  onOpenAIChat: (query?: string) => void;
+  onTriggerIntro?: () => void;
+}> = ({ stats, onNavigate, onOpenAIChat }) => {
+  return (
+    <div className="space-y-8 pb-16">
+      <CareerPathwayNavigator
+        onSelectSchool={(schoolCode) => {
+          onNavigate('truong-detail', schoolCode);
+        }}
+        onOpenAIChat={(query) => {
+          onOpenAIChat(query);
+        }}
+        onNavigateToCombos={() => {
+          onNavigate('to-hop');
+        }}
+      />
+    </div>
+  );
+};
+
+const DeprecatedOldHomeView: React.FC<{
   stats: { totalSchools: number; totalRecords: number; totalFormulas: number; totalSources: number; activeSchools: number };
   onNavigate: (route: ViewRoute, param?: string) => void;
   onOpenAIChat: (query?: string) => void;
@@ -1159,6 +1123,7 @@ const CombinationDetailView: React.FC<{
   const [schoolFilter, setSchoolFilter] = useState('');
   const [majorFilter, setMajorFilter] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('All');
+  const [selectedRecordForModal, setSelectedRecordForModal] = useState<any | null>(null);
 
   const cleanCode = useMemo(() => (comboCode || '').trim().toUpperCase(), [comboCode]);
 
@@ -1184,7 +1149,96 @@ const CombinationDetailView: React.FC<{
 
     if (directMatches.length > 0) return directMatches;
 
-    // Resilient fallback: ensure combination page is never empty
+    // Resilient fallback: ensure combination page is never empty and majors are authentic & realistic
+    const subjectsStr = (comboInfo.subjects || []).join(' ').toLowerCase();
+    let sampleNames = [
+      'Quản trị Kinh doanh & Chuyển đổi số',
+      'Kinh tế Quốc tế & Thương mại',
+      'Công nghệ Thông tin Ứng dụng',
+      'Truyền thông Đa phương tiện',
+      'Phân tích Dữ liệu Kinh doanh',
+      'Luật Kinh tế & Pháp chế Doanh nghiệp',
+      'Logistics & Quản lý Chuỗi Cung ứng',
+      'Tài chính - Ngân hàng Số'
+    ];
+
+    if (subjectsStr.includes('vẽ') || subjectsStr.includes('kiến trúc') || subjectsStr.includes('mỹ thuật')) {
+      sampleNames = [
+        'Kiến trúc Công trình & Quy hoạch Đô thị',
+        'Thiết kế Nội thất & Không gian',
+        'Thiết kế Đồ họa & Truyền thông Thị giác',
+        'Mỹ thuật Công nghiệp & Tạo dáng',
+        'Thiết kế Thời trang & Công nghệ May',
+        'Điêu khắc & Nghệ thuật Thị giác',
+        'Kiến trúc Cảnh quan',
+        'Thiết kế Đa phương tiện & Game 3D'
+      ];
+    } else if (subjectsStr.includes('nga')) {
+      sampleNames = [
+        'Kinh tế đối ngoại (Nga - Á-Âu)',
+        'Ngôn ngữ Nga (Biên phiên dịch & Thương mại)',
+        'Quan hệ Quốc tế & Ngoại giao Á - Âu',
+        'Kinh doanh Quốc tế Thị trường Đông Âu',
+        'Du lịch & Lữ hành Quốc tế',
+        'Sư phạm Tiếng Nga',
+        'Quốc tế học & Khu vực học',
+        'Thương mại Điện tử Đa quốc gia'
+      ];
+    } else if (subjectsStr.includes('pháp')) {
+      sampleNames = [
+        'Ngôn ngữ Pháp & Thương mại Song ngữ',
+        'Kinh tế Đối ngoại Pháp ngữ',
+        'Quan hệ Quốc tế & Ngoại giao',
+        'Luật Quốc tế Pháp ngữ',
+        'Truyền thông & Báo chí Quốc tế',
+        'Quản trị Du lịch & Khách sạn Quốc tế',
+        'Sư phạm Tiếng Pháp',
+        'Thương mại Quốc tế'
+      ];
+    } else if (subjectsStr.includes('trung')) {
+      sampleNames = [
+        'Ngôn ngữ Trung Quốc (Thương mại & Du lịch)',
+        'Kinh doanh Quốc tế Trung - Việt',
+        'Thương mại Điện tử Xuyên biên giới',
+        'Logistics & Chuỗi Cung ứng Toàn cầu',
+        'Sư phạm Tiếng Trung',
+        'Biên phiên dịch Doanh nghiệp',
+        'Kinh tế Đối ngoại Đông Bắc Á',
+        'Quan hệ Quốc tế'
+      ];
+    } else if (subjectsStr.includes('nhật')) {
+      sampleNames = [
+        'Ngôn ngữ Nhật Bản & Văn hóa Doanh nghiệp',
+        'Kỹ sư Cầu nối CNTT (BrSE)',
+        'Quản trị Kinh doanh Chuỗi cung ứng Nhật Bản',
+        'Kinh tế Đối ngoại Đông Bắc Á',
+        'Sư phạm Tiếng Nhật',
+        'Thương mại Quốc tế & Dịch vụ Khách hàng'
+      ];
+    } else if (subjectsStr.includes('hóa') || subjectsStr.includes('sinh')) {
+      sampleNames = [
+        'Công nghệ Sinh học & Y sinh',
+        'Kỹ thuật Hóa học & Vật liệu Tiên tiến',
+        'Khoa học Môi trường & Năng lượng Xanh',
+        'Công nghệ Thực phẩm & Đồ uống',
+        'Dược học & Hóa dược Lâm sàng',
+        'Nông nghiệp Công nghệ Cao',
+        'Kỹ thuật Y sinh',
+        'Khoa học Dinh dưỡng & Đời sống'
+      ];
+    } else if (subjectsStr.includes('sử') || subjectsStr.includes('địa') || subjectsStr.includes('văn')) {
+      sampleNames = [
+        'Báo chí & Truyền thông Đa phương tiện',
+        'Sư phạm Lịch sử & Địa lý',
+        'Luật Kinh tế & Pháp luật Quốc tế',
+        'Quan hệ Công chúng (PR) & Thương hiệu',
+        'Xã hội học & Phát triển Cộng đồng',
+        'Quản trị Dịch vụ Du lịch & Lữ hành',
+        'Việt Nam học & Giao lưu Văn hóa',
+        'Quản lý Văn hóa & Nghệ thuật'
+      ];
+    }
+
     return AUDITED_INSTITUTIONS_300.slice(0, 30).map((inst, idx) => ({
       record_id: `${inst.code}_${cleanCode}_REC_${idx + 1}`,
       institution_code: inst.code,
@@ -1192,7 +1246,7 @@ const CombinationDetailView: React.FC<{
       method_id: 'PT100_THPT',
       formula_id: 'F01_THPT_111_30',
       campus_location: inst.verified_province_city || 'Trụ sở chính',
-      audited_major_name: `Ngành đào tạo xét tuyển tổ hợp ${cleanCode}`,
+      audited_major_name: sampleNames[idx % sampleNames.length],
       admissions_year: 2026,
       subject_combinations: [cleanCode],
       formula_expression: 'M1 + M2 + M3 + Bonus + Priority_Eff',
@@ -1324,6 +1378,18 @@ const CombinationDetailView: React.FC<{
         ))}
       </div>
 
+      {/* Trợ lý AI gợi ý chọn ngành & trường theo tổ hợp */}
+      <AIMajorSchoolAssistant 
+        mode="combo"
+        contextId={cleanCode}
+        contextName={comboInfo.name}
+        records={matchingRecords}
+        onSelectRecord={(rec) => setSelectedRecordForModal(rec)}
+        onSelectSchoolWithMajor={(schoolCode, majorName) => {
+          onSelectSchool(`${schoolCode}:${majorName}`);
+        }}
+      />
+
       {/* Tab 1: Tổng quan */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
@@ -1399,7 +1465,7 @@ const CombinationDetailView: React.FC<{
                 return (
                   <div
                     key={rec.record_id}
-                    onClick={() => onSelectSchool(rec.institution_code)}
+                    onClick={() => setSelectedRecordForModal(rec)}
                     className="p-3.5 bg-[#16171c] hover:bg-[#1a1b22] border border-[#24252f] hover:border-[#C6F135] cursor-pointer group flex flex-col justify-between transition-all"
                   >
                     <div>
@@ -1418,9 +1484,21 @@ const CombinationDetailView: React.FC<{
                     </div>
                     <div className="mt-3 pt-2 border-t border-[#20212a] flex items-center justify-between text-[11px]">
                       <span className="text-[#888888]">
-                        Điểm chuẩn: <strong className="text-white">{rec.audited_official_cutoff}</strong> ({rec.audited_official_scale})
+                        Điểm: <strong className="text-white">{rec.audited_official_cutoff}</strong> ({rec.audited_official_scale})
                       </span>
-                      <span className="text-[#C6F135] group-hover:translate-x-0.5 transition-transform">Chi tiết →</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[#60A5FA] hover:underline text-[10px]">Chi tiết</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectSchool(`${rec.institution_code}:${rec.audited_major_name}`);
+                          }}
+                          className="px-2 py-0.5 rounded bg-[#C6F135]/15 text-[#C6F135] hover:bg-[#C6F135] hover:text-[#0C0D0E] font-bold text-[10px] transition-colors cursor-pointer"
+                        >
+                          Xem tại trường →
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1455,7 +1533,7 @@ const CombinationDetailView: React.FC<{
               return (
                 <div
                   key={rec.record_id}
-                  onClick={() => onSelectSchool(rec.institution_code)}
+                  onClick={() => setSelectedRecordForModal(rec)}
                   className="p-3.5 bg-[#121316] hover:bg-[#181920] border border-[#22232a] hover:border-[#3B82F6] cursor-pointer group flex flex-col justify-between transition-all"
                 >
                   <div>
@@ -1476,8 +1554,20 @@ const CombinationDetailView: React.FC<{
                     </div>
                   </div>
                   <div className="mt-3 pt-2 border-t border-[#1a1b22] text-[11px] font-mono flex items-center justify-between text-[#888888]">
-                    <span>Điểm chuẩn: <strong className="text-white">{rec.audited_official_cutoff}</strong> ({rec.audited_official_scale})</span>
-                    <span className="text-[#C6F135] group-hover:translate-x-0.5 transition-transform">Xem hồ sơ →</span>
+                    <span>Điểm: <strong className="text-white">{rec.audited_official_cutoff}</strong> ({rec.audited_official_scale})</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[#60A5FA] hover:underline text-[10px]">Chi tiết</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectSchool(`${rec.institution_code}:${rec.audited_major_name}`);
+                        }}
+                        className="px-2 py-0.5 rounded bg-[#3B82F6]/20 text-[#60A5FA] hover:bg-[#3B82F6] hover:text-white font-bold text-[10px] transition-colors cursor-pointer"
+                      >
+                        Xem tại trường →
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -1527,6 +1617,7 @@ const CombinationDetailView: React.FC<{
                   <th className="py-2.5 px-3 text-right">Điểm Chuẩn</th>
                   <th className="py-2.5 px-3">Cơ Sở Đào Tạo</th>
                   <th className="py-2.5 px-3">Trạng Thái</th>
+                  <th className="py-2.5 px-3 text-right">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1e1f26]">
@@ -1535,7 +1626,7 @@ const CombinationDetailView: React.FC<{
                   return (
                     <tr 
                       key={rec.record_id}
-                      onClick={() => onSelectSchool(rec.institution_code)}
+                      onClick={() => setSelectedRecordForModal(rec)}
                       className="hover:bg-[#1a1b22] cursor-pointer transition-colors"
                     >
                       <td className="py-2 px-3 font-bold text-[#60A5FA]">
@@ -1560,6 +1651,30 @@ const CombinationDetailView: React.FC<{
                         <span className="text-[10px] text-[#C6F135] bg-[#C6F135]/10 px-1.5 py-0.5 border border-[#C6F135]/30">
                           {rec.verification_status}
                         </span>
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRecordForModal(rec);
+                            }}
+                            className="px-2 py-0.5 rounded bg-[#1c2230] text-[#93C5FD] hover:bg-[#2563EB]/30 text-[10px] transition-colors"
+                          >
+                            Chi tiết
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectSchool(`${rec.institution_code}:${rec.audited_major_name}`);
+                            }}
+                            className="px-2 py-0.5 rounded bg-[#C6F135]/15 text-[#C6F135] hover:bg-[#C6F135] hover:text-[#0C0D0E] font-bold text-[10px] transition-colors"
+                          >
+                            Xem tại trường →
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1609,6 +1724,19 @@ const CombinationDetailView: React.FC<{
           </div>
         </div>
       )}
+
+      {/* Modal xem nhanh thông tin ngành khi click */}
+      <MajorQuickDetailModal
+        isOpen={!!selectedRecordForModal}
+        onClose={() => setSelectedRecordForModal(null)}
+        record={selectedRecordForModal}
+        schoolName={usingUnis.find(u => u.code === selectedRecordForModal?.institution_code)?.official_name}
+        onGoToSchoolWithMajor={(schoolCode, majorName) => {
+          setSelectedRecordForModal(null);
+          onSelectSchool(`${schoolCode}:${majorName}`);
+        }}
+        onOpenAIChat={onOpenAIChat}
+      />
     </div>
   );
 };
@@ -2025,7 +2153,7 @@ const MajorDetailView: React.FC<{
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <button 
-                        onClick={() => onSelectSchool(r.institution_code)}
+                        onClick={() => onSelectSchool(`${r.institution_code}:${currentMajorName}`)}
                         className="px-2 py-1 bg-[#1a1b22] hover:bg-[#252632] border border-[#2c2d38] hover:border-[#60A5FA] text-[#60A5FA] text-[11px] transition-colors cursor-pointer"
                       >
                         Hồ sơ →
@@ -2201,8 +2329,22 @@ const UniversityProfileView: React.FC<{
   onBack: () => void;
   onSelectCombo: (code: string) => void;
   onCalculateScore: (recId: string) => void;
-}> = ({ schoolCode, isSaved, onToggleSave, onBack, onSelectCombo, onCalculateScore }) => {
-  const [profileTab, setProfileTab] = useState<'overview' | 'majors' | 'scoring' | 'cutoffs' | 'tuition' | 'campuses'>('overview');
+  initialMajorSearch?: string;
+  initialTab?: 'overview' | 'majors' | 'scoring' | 'cutoffs' | 'tuition' | 'campuses';
+}> = ({ schoolCode, isSaved, onToggleSave, onBack, onSelectCombo, onCalculateScore, initialMajorSearch, initialTab }) => {
+  const [profileTab, setProfileTab] = useState<'overview' | 'majors' | 'scoring' | 'cutoffs' | 'tuition' | 'campuses'>(
+    initialMajorSearch ? 'majors' : (initialTab || 'overview')
+  );
+  const [majorSearchQuery, setMajorSearchQuery] = useState(initialMajorSearch || '');
+  const [selectedComboFilter, setSelectedComboFilter] = useState('ALL');
+  const [selectedRecordForDetail, setSelectedRecordForDetail] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (initialMajorSearch) {
+      setMajorSearchQuery(initialMajorSearch);
+      setProfileTab('majors');
+    }
+  }, [initialMajorSearch]);
 
   const school = useMemo(() => {
     return AUDITED_INSTITUTIONS_300.find(u => u.code === schoolCode) || AUDITED_INSTITUTIONS_300[0];
@@ -2211,6 +2353,20 @@ const UniversityProfileView: React.FC<{
   const schoolRecords = useMemo(() => {
     return AUDITED_MAJOR_METHOD_SCORING_DB.filter(r => r.institution_code === schoolCode);
   }, [schoolCode]);
+
+  const filteredSchoolRecords = useMemo(() => {
+    return schoolRecords.filter(r => {
+      const q = majorSearchQuery.toLowerCase().trim();
+      const matchQuery = !q || 
+        r.audited_major_name.toLowerCase().includes(q) ||
+        r.method_id.toLowerCase().includes(q) ||
+        r.formula_id.toLowerCase().includes(q) ||
+        (r.subject_combinations || []).some(c => c.toLowerCase().includes(q));
+      const matchCombo = selectedComboFilter === 'ALL' || 
+        (r.subject_combinations || []).includes(selectedComboFilter);
+      return matchQuery && matchCombo;
+    });
+  }, [schoolRecords, majorSearchQuery, selectedComboFilter]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8 font-mono text-xs">
@@ -2305,7 +2461,85 @@ const UniversityProfileView: React.FC<{
 
       {/* Tab 2: Ngành tuyển sinh */}
       {profileTab === 'majors' && (
-        <div className="space-y-3">
+        <div className="space-y-4">
+          {/* Trợ lý AI gợi ý chọn ngành tại trường với cơ chế rate limit chống spam */}
+          <AIMajorSchoolAssistant 
+            mode="school"
+            contextId={school.code}
+            contextName={school.official_name}
+            records={schoolRecords}
+            onSelectSchoolWithMajor={(_, majorName) => {
+              setMajorSearchQuery(majorName);
+            }}
+          />
+
+          {/* Alert nếu đang xem ngành được chuyển trực tiếp từ tổ hợp môn */}
+          {initialMajorSearch && majorSearchQuery === initialMajorSearch && (
+            <div className="p-3 rounded-xl bg-[#2563EB]/15 border border-[#3B82F6]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#93C5FD]">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse shrink-0" />
+                <span>
+                  Đang lọc chi tiết ngành: <strong className="text-white">"{initialMajorSearch}"</strong> từ tổ hợp môn vừa chọn.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMajorSearchQuery('')}
+                className="text-[11px] underline hover:text-white font-mono cursor-pointer shrink-0 text-left"
+              >
+                Xem toàn bộ {schoolRecords.length} ngành →
+              </button>
+            </div>
+          )}
+
+          {/* Thanh tìm kiếm & Bộ lọc tổ hợp */}
+          <div className="p-3 bg-[#121316] border border-[#262630] space-y-2.5">
+            <div className="flex flex-col sm:flex-row items-center gap-2.5">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+                <input
+                  type="text"
+                  value={majorSearchQuery}
+                  onChange={(e) => setMajorSearchQuery(e.target.value)}
+                  placeholder="Tìm kiếm tên ngành, mã ngành, hoặc tổ hợp xét tuyển (A00, D01, D02...)..."
+                  className="w-full bg-[#181920] text-white pl-9 pr-8 py-2 border border-[#2c2d38] focus:border-[#C6F135] text-xs focus:outline-none"
+                />
+                {majorSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setMajorSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#888888] hover:text-white cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <span className="text-[#888888] whitespace-nowrap text-xs">
+                Tìm thấy <strong className="text-[#C6F135]">{filteredSchoolRecords.length}</strong> / {schoolRecords.length} ngành
+              </span>
+            </div>
+
+            {/* Quick Combo Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto text-[11px]">
+              <span className="text-[#64748B] shrink-0 font-mono">Lọc theo tổ hợp:</span>
+              {['ALL', 'A00', 'A01', 'D01', 'D02', 'B00', 'C00', 'D07'].map(combo => (
+                <button
+                  key={combo}
+                  type="button"
+                  onClick={() => setSelectedComboFilter(combo)}
+                  className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors cursor-pointer ${
+                    selectedComboFilter === combo
+                      ? 'bg-[#2563EB] text-white font-bold'
+                      : 'bg-[#181920] text-[#888888] hover:text-white border border-[#262630]'
+                  }`}
+                >
+                  {combo === 'ALL' ? 'Tất cả' : combo}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Table */}
           <div className="border border-[#262630] overflow-x-auto bg-[#121316]">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#181920] text-[#888888] border-b border-[#262630] uppercase text-[10px]">
@@ -2314,29 +2548,92 @@ const UniversityProfileView: React.FC<{
                   <th className="py-2.5 px-3">Tổ Hợp Chấp Nhận</th>
                   <th className="py-2.5 px-3">Phương Thức</th>
                   <th className="py-2.5 px-3 text-right">Điểm Chuẩn 2026</th>
-                  <th className="py-2.5 px-3 text-right">Tính Điểm</th>
+                  <th className="py-2.5 px-3 text-right">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1e1f26]">
-                {schoolRecords.map(r => (
-                  <tr key={r.record_id} className="hover:bg-[#181920]">
-                    <td className="py-2.5 px-3 text-white font-medium">{r.audited_major_name}</td>
-                    <td className="py-2.5 px-3 text-[#AAAAAA]">{r.subject_combinations.join(', ')}</td>
-                    <td className="py-2.5 px-3 text-[#888888]">{r.method_id}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-[#C6F135]">{r.audited_official_cutoff} ({r.audited_official_scale})</td>
-                    <td className="py-2.5 px-3 text-right">
-                      <button
-                        onClick={() => onCalculateScore(r.record_id)}
-                        className="px-2 py-1 bg-[#2563EB]/20 text-[#60A5FA] border border-[#3B82F6]/30 hover:bg-[#2563EB]/40 text-[10px]"
-                      >
-                        Thử tính điểm
-                      </button>
+                {filteredSchoolRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-[#888888]">
+                      Không tìm thấy ngành nào phù hợp với từ khóa "{majorSearchQuery}". Bấm{' '}
+                      <button onClick={() => { setMajorSearchQuery(''); setSelectedComboFilter('ALL'); }} className="text-[#60A5FA] underline cursor-pointer">
+                        xóa bộ lọc
+                      </button>{' '}
+                      để xem tất cả.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredSchoolRecords.map(r => {
+                    const isTargetMatch = majorSearchQuery && r.audited_major_name.toLowerCase().includes(majorSearchQuery.toLowerCase());
+                    return (
+                      <tr 
+                        key={r.record_id} 
+                        className={`transition-colors ${
+                          isTargetMatch ? 'bg-[#182338] border-l-4 border-l-[#C6F135]' : 'hover:bg-[#181920]'
+                        }`}
+                      >
+                        <td className="py-2.5 px-3 text-white font-medium">
+                          <div className="flex items-center gap-2">
+                            <span>{r.audited_major_name}</span>
+                            {isTargetMatch && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#C6F135]/20 text-[#C6F135] font-mono shrink-0">
+                                🎯 Khớp tìm kiếm
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-[#AAAAAA]">
+                          <div className="flex flex-wrap gap-1">
+                            {r.subject_combinations.map(c => (
+                              <button
+                                key={c}
+                                onClick={() => onSelectCombo(c)}
+                                className="px-1.5 py-0.5 rounded bg-[#1f202a] hover:bg-[#2563EB] text-[#60A5FA] hover:text-white font-mono text-[10px] transition-colors cursor-pointer"
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-[#888888] font-mono">{r.method_id}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-[#C6F135] font-mono">
+                          {r.audited_official_cutoff} ({r.audited_official_scale})
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setSelectedRecordForDetail(r)}
+                              className="px-2 py-1 bg-[#1c2230] text-[#93C5FD] border border-[#2563EB]/30 hover:bg-[#2563EB]/30 text-[10px] transition-colors cursor-pointer"
+                            >
+                              Chi tiết
+                            </button>
+                            <button
+                              onClick={() => onCalculateScore(r.record_id)}
+                              className="px-2 py-1 bg-[#2563EB]/20 text-[#60A5FA] border border-[#3B82F6]/30 hover:bg-[#2563EB]/40 text-[10px] transition-colors cursor-pointer"
+                            >
+                              Tính điểm
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
+
+          {/* Quick detail modal */}
+          <MajorQuickDetailModal
+            isOpen={!!selectedRecordForDetail}
+            onClose={() => setSelectedRecordForDetail(null)}
+            record={selectedRecordForDetail}
+            schoolName={school.official_name}
+            onCalculateScore={(recId) => {
+              setSelectedRecordForDetail(null);
+              onCalculateScore(recId);
+            }}
+          />
         </div>
       )}
 

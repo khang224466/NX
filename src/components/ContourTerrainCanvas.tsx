@@ -83,20 +83,21 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
     window.addEventListener('resize', resize);
 
     const handleMouseMove = (e: MouseEvent) => {
-      let clientX = e.clientX;
-      let clientY = e.clientY;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
 
-      if (!isFullPage) {
-        const rect = canvas.getBoundingClientRect();
-        clientX = e.clientX - rect.left;
-        clientY = e.clientY - rect.top;
-      }
+      // Perfectly normalize coordinates across any CSS zoom (1.25x), DPI, or viewport scaling
+      const scaleX = width / rect.width;
+      const scaleY = height / rect.height;
 
-      if (clientX >= 0 && clientX <= width && clientY >= 0 && clientY <= height) {
-        mouseRef.current.targetX = clientX;
-        mouseRef.current.targetY = clientY;
-        mouseRef.current.isHovered = true;
-      }
+      const clientX = (e.clientX - rect.left) * scaleX;
+      const clientY = (e.clientY - rect.top) * scaleY;
+
+      mouseRef.current.targetX = clientX;
+      mouseRef.current.targetY = clientY;
+      mouseRef.current.x = clientX;
+      mouseRef.current.y = clientY;
+      mouseRef.current.isHovered = true;
     };
 
     const handleMouseLeave = () => {
@@ -136,8 +137,13 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       const isMouseMoving = Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1;
       const isScrolling = Math.abs(scrollRef.current - lastScrollY.current) > 0.5;
 
-      mouseRef.current.x += dx * 0.09;
-      mouseRef.current.y += dy * 0.09;
+      if (!mouseRef.current.isHovered) {
+        mouseRef.current.x += dx * 0.08;
+        mouseRef.current.y += dy * 0.08;
+      } else {
+        mouseRef.current.x = mouseRef.current.targetX;
+        mouseRef.current.y = mouseRef.current.targetY;
+      }
       lastScrollY.current = scrollRef.current;
 
       const curX = mouseRef.current.x;

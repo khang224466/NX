@@ -1,26 +1,29 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { sfx } from '../services/soundEffects';
+import { useTheme } from '../context/ThemeContext';
+import { Bookmark } from 'lucide-react';
 
 interface BlueprintHeaderRulerProps {
   currentTab: string;
   totalSections?: number;
   currentSectionIndex?: number;
-  isGridActive: boolean;
-  onToggleGrid: () => void;
-  onOpenCommandPalette: () => void;
+  isGridActive?: boolean;
+  onToggleGrid?: () => void;
+  onOpenCommandPalette?: () => void;
   onOpenAIChat: () => void;
   onTriggerIntro?: () => void;
   viewportSize?: { width: number; height: number };
+  onNavigate?: (tab: any) => void;
+  savedCount?: number;
 }
 
 /**
- * Technical Blueprint Header Ruler (Exact Pier Gorelli Header Match)
- * - Monogram + Role: "NX. NEXORA / CAREER & ADMISSION ARCHITECTURE"
+ * Technical Blueprint Header Ruler
+ * - Monogram + Role: "NX. NEXORA / WEBSITE HỖ TRỢ HƯỚNG NGHIỆP"
  * - High-precision tick scroll ruler
- * - Theme toggle (◑)
- * - Interactive Web Audio synthesizer dot (blue pulse) with live audio clicks
- * - Command shortcut badge (⌘K)
- * - Signature white pill CTA button: "Tham vấn ngay" (Let's talk replica)
+ * - Real Theme toggle (◑)
+ * - Interactive Web Audio synthesizer dot
+ * - Signature white pill CTA button: "Tham vấn ngay"
  */
 export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
   currentTab,
@@ -31,13 +34,16 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
   onOpenCommandPalette,
   onOpenAIChat,
   onTriggerIntro,
-  viewportSize = { width: 1440, height: 900 }
+  viewportSize = { width: 1440, height: 900 },
+  onNavigate,
+  savedCount
 }) => {
+  const { theme, toggleTheme } = useTheme();
+  const isDarkMode = theme === 'dark';
   const progressFillRef = useRef<HTMLDivElement>(null);
   const progressBadgeRef = useRef<HTMLDivElement>(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1440);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
     let ticking = false;
@@ -89,18 +95,6 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
     }
   };
 
-  const handleToggleTheme = () => {
-    sfx.playUiHover();
-    const nextTheme = !isDarkMode;
-    setIsDarkMode(nextTheme);
-    if (nextTheme) {
-      document.documentElement.classList.remove('light');
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-  };
 
   return (
     <header className="w-full bg-[#07080B]/90 border-b border-[#262630]/80 backdrop-blur-md sticky top-0 z-50 text-[11px] font-mono select-none">
@@ -131,13 +125,14 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
         </div>
       </div>
 
-      {/* Main Header Row (Matches Pier Gorelli top navigation in Image 1) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-13 flex items-center justify-between gap-4">
+      {/* Consolidated 1 Single Header Row */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         {/* Left: Brand Monogram & Role */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <button 
             onClick={() => {
               sfx.playUiHover();
+              onNavigate?.('home');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className="flex items-center gap-2 text-left group cursor-pointer"
@@ -148,25 +143,58 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-mono text-[#D1D5DB] tracking-wider uppercase">
               <span className="font-semibold text-white">NEXORA</span>
               <span className="text-[#64748B]">/</span>
-              <span className="text-[#94A3B8] hidden sm:inline text-[11px]">CỔNG TUYỂN SINH QUỐC GIA 2026</span>
+              <span className="text-[#94A3B8] hidden sm:inline text-[11px]">WEBSITE HỖ TRỢ HƯỚNG NGHIỆP</span>
             </div>
           </button>
         </div>
 
-        {/* Center: Live Bounding Box Metrics */}
-        <div className="hidden xl:flex items-center gap-3 text-[#94A3B8] text-[10px] font-mono">
-          <span className="text-[#60A5FA] font-bold">
-            [{String(currentSectionIndex).padStart(2, '0')}/{String(totalSections).padStart(2, '0')}]
-          </span>
-          <span className="text-[#475569]">·</span>
-          <span className="font-medium text-[#CBD5E1]">THÔNG TƯ 06 &amp; 74/2026/TT-BGDĐT</span>
+        {/* Center: Consolidated Nav Tabs (01 Trang Chủ, 02 Tổ Hợp Môn) */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {[
+            { id: 'home', num: '01', label: 'Trang Chủ' },
+            { id: 'to-hop', num: '02', label: 'Tổ Hợp Môn' },
+          ].map((tab) => {
+            const isActive = currentTab === tab.id || (tab.id === 'to-hop' && (currentTab === 'to-hop-detail' || currentTab === 'to-hop'));
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  sfx.playUiSelect();
+                  onNavigate?.(tab.id);
+                }}
+                className={`px-3 py-1.5 whitespace-nowrap text-xs transition-all duration-200 rounded-full flex items-center gap-1.5 cursor-pointer ${
+                  isActive
+                    ? 'bg-[#3B82F6]/20 text-white border border-[#3B82F6] font-semibold shadow-[0_0_12px_rgba(59,130,246,0.25)]'
+                    : 'bg-transparent text-[#94A3B8] hover:text-white border border-transparent hover:border-[#262630]'
+                }`}
+              >
+                <span className={`text-[10px] ${isActive ? 'text-[#60A5FA] font-bold' : 'text-[#64748B]'}`}>
+                  {tab.num}
+                </span>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Right Controls: Theme (◑), Audio Dot (●), and Signature White Pill Button */}
-        <div className="flex items-center gap-3">
+        {/* Right Controls: Saved Counter, Theme (◑), Audio Dot (●), and Signature White Pill Button */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {savedCount !== undefined && savedCount > 0 && (
+            <button
+              onClick={() => onNavigate?.('so-sanh')}
+              className="hidden md:flex items-center gap-1.5 text-[11px] font-mono text-[#EAEAE3] hover:text-[#60A5FA] transition-colors cursor-pointer mr-1"
+            >
+              <Bookmark className="w-3.5 h-3.5 text-[#3B82F6]" />
+              <span>Đã lưu ({savedCount})</span>
+            </button>
+          )}
+
           {/* 1. Theme toggle circle icon (◑) */}
           <button
-            onClick={handleToggleTheme}
+            onClick={() => {
+              sfx.playUiClick();
+              toggleTheme();
+            }}
             title={isDarkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
             className="w-7 h-7 rounded-full border border-[#262630] hover:border-[#60A5FA] bg-[#121316] text-[#D1D5DB] hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
           >
@@ -197,7 +225,7 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
               sfx.playActionSuccess();
               onOpenAIChat();
             }}
-            className="px-4 py-1.5 rounded-full bg-white text-[#07080B] hover:bg-[#E4E4E7] font-sans font-semibold text-xs tracking-tight transition-transform duration-200 hover:scale-[1.04] active:scale-[0.98] shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+            className="px-3.5 sm:px-4 py-1.5 rounded-full bg-white text-[#07080B] hover:bg-[#E4E4E7] font-sans font-semibold text-xs tracking-tight transition-transform duration-200 hover:scale-[1.04] active:scale-[0.98] shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
           >
             <span>Tham vấn ngay</span>
           </button>

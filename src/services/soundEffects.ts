@@ -225,6 +225,10 @@ class SoundEffectsEngine {
     } catch {}
   }
 
+  public playUiClick() {
+    this.playUiSelect();
+  }
+
   // Convenient generic play dispatcher
   public play(name: string = 'click') {
     if (name === 'click' || name === 'select') {

@@ -1,14 +1,17 @@
 @import "tailwindcss";
 
+html {
+  zoom: 1.25;
+}
+
 @layer base {
   :root,
-  html.dark,
-  html.light {
+  html.dark {
+    zoom: 1.25;
     /* =========================================================================
-       BẢNG MÀU THỐNG NHẤT: EDITORIAL & MODERN BLUE (MÀU XANH BÌNH THƯỜNG)
-       Không dùng màu neon, phong cách Brutalist-Minimalism hiện đại
+       BẢNG MÀU TỐI: OBSIDIAN BLUE & HIGH TECH
        ========================================================================= */
-    --bg-primary: #07080B;                     /* Đen Obsidian sâu theo Pier Gorelli */
+    --bg-primary: #07080B;                     /* Đen Obsidian sâu */
     --bg-secondary: #0F1017;                   /* Xám đen sâu / Kính mờ */
     --bg-elevated: #161722;                    /* Xám đen phân cấp */
     --text-primary: #F3F4F6;                   /* Trắng tinh gọn chống nhòe sáng */
@@ -16,7 +19,7 @@
     --accent-primary: #2563EB;                 /* Xanh dương chuẩn / Royal Blue */
     --accent-primary-text: #FFFFFF;            /* Chữ trắng tinh khiết trên nền Xanh */
     --accent-secondary: #3B82F6;               /* Xanh dương tươi */
-    --accent-cyan: #60A5FA;                    /* Xanh chuẩn, không dùng neon cyan */
+    --accent-cyan: #60A5FA;                    /* Xanh chuẩn */
     --accent-tag-bg: rgba(37, 99, 235, 0.16);
     --accent-tag-text: #60A5FA;
     --border-color: #262630;                   /* Viền tối mảnh 1px */
@@ -36,6 +39,21 @@
     --accent-glow: rgba(198, 241, 53, 0.25);
     --selection-bg: var(--accent);
     --selection-text: #0C0D0E;
+  }
+
+  /* Universal Full-Page Inverted / Contrast Light Mode */
+  html.light {
+    zoom: 1.25;
+    filter: invert(1) hue-rotate(180deg) contrast(1.04);
+    background-color: #07080B !important;
+  }
+
+  html.light img,
+  html.light video,
+  html.light picture,
+  html.light iframe,
+  html.light [data-no-invert] {
+    filter: invert(1) hue-rotate(180deg);
   }
 
   body {
@@ -176,36 +194,6 @@ h1, h2, h3, h4, h5, h6, .hero-title, .vibrant-blend-text {
               transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Light Mode: Hover inversion (nền biến thành #1A1A1A, chữ đảo sang #F8F8F6) */
-html.light .interactive-theme-card {
-  background-color: #EFECE6;
-  border: 1px solid #E2DFD7;
-  color: #1A1A1A;
-  border-radius: 0px !important;
-  transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-              color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-html.light .interactive-theme-card:hover {
-  background-color: #1A1A1A !important;
-  color: #F8F8F6 !important;
-  border-color: #1A1A1A !important;
-}
-
-html.light .interactive-theme-card:hover h1,
-html.light .interactive-theme-card:hover h2,
-html.light .interactive-theme-card:hover h3,
-html.light .interactive-theme-card:hover h4,
-html.light .interactive-theme-card:hover p,
-html.light .interactive-theme-card:hover span:not(.accent-preserve),
-html.light .interactive-theme-card:hover div:not(.accent-preserve) {
-  color: #F8F8F6 !important;
-}
-
-html.light .interactive-theme-card:hover .accent-preserve {
-  color: #2563EB !important;
-}
 
 /* Unified Theme: Border light-up on hover */
 .interactive-theme-card {
@@ -226,48 +214,6 @@ html.light .interactive-theme-card:hover .accent-preserve {
    UNIVERSAL THEME ADAPTATION FOR INNER COMPONENTS (85-12-3 RULE)
    ========================================================================= */
 
-/* Light Mode Overrides */
-html.light [class*="bg-[#0A0E15]"],
-html.light [class*="bg-[#0E131A]"],
-html.light [class*="bg-[#090D13]"],
-html.light [class*="bg-[#0F141C]"],
-html.light [class*="bg-[#0B0F16]"],
-html.light [class*="bg-[#0E131C]"],
-html.light [class*="bg-[#0F141D]"],
-html.light [class*="bg-[#192330]"],
-html.light [class*="bg-[#0F1B17]"] {
-  background-color: #EFECE6 !important;
-  border-color: #E2DFD7 !important;
-}
-
-html.light [class*="bg-[#141A24]"],
-html.light [class*="bg-[#080B10]"],
-html.light [class*="bg-[#090D14]"],
-html.light [class*="bg-[#0E141D]"] {
-  background-color: #F8F8F6 !important;
-  border-color: #E2DFD7 !important;
-}
-
-html.light [class*="text-[#ECEEF2]"],
-html.light [class*="text-[#F1F3F7]"],
-html.light [class*="text-[#D8DFEB]"] {
-  color: #1A1A1A !important;
-}
-
-html.light [class*="text-[#8E9BAE]"],
-html.light [class*="text-[#64748B]"],
-html.light [class*="text-[#94A3B8]"],
-html.light [class*="text-[#98C2B3]"] {
-  color: #71716A !important;
-}
-
-html.light [class*="text-[#C5A880]"] {
-  color: #FF4D00 !important;
-}
-
-html.light [class*="border-white/"] {
-  border-color: #E2DFD7 !important;
-}
 
 /* Dark Mode Overrides */
 html.dark [class*="bg-[#0A0E15]"],
