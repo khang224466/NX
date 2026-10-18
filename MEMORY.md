@@ -71,6 +71,13 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Legally audited against Vietnam 2026 regulations: Thông tư 06/2026/TT-BGDĐT, Thông tư 74/2026/TT-BGDĐT (hiệu lực 12/10/2026), Nghị định 116 & Nghị định 60/2025/NĐ-CP (hiệu lực 20/04/2025 - hoàn trả bồi hoàn kinh phí sư phạm nếu làm trái ngành), Quyết định 1826/QĐ-BGDĐT & Nghị định 179/2026/NĐ-CP (học bổng 111 ngành STEM).
   - Formulated 5-layer software architecture: Assessment Engine, Career Matching Engine, Knowledge & Data Layer, Gate & Policy Engine, Conversation & Reporting Layer.
 
+- **Career Orientation From Scratch Transformation (Completed 2026-10-18)**:
+  - Transformed `CareerPathwayNavigator.tsx` from subject combo picker into **Định Hướng Nghề Nghiệp Từ Con Số 0 (Career Orientation From Scratch)** following the user's explicit directive.
+  - Enforced the strict EXORA sequence: **Bản Thân (Gate 0 & 1) ➔ Vị Trí Việc Làm Mục Tiêu (Gate 2) ➔ Chuyên Ngành Đào Tạo (Gate 3) ➔ Trường & Tổ Hợp Môn (Gate 4) ➔ Lộ Trình 4 Năm (Stage 5)**.
+  - Refactored Hero Section: Headline `Hi, I'm Nexora`, Pill Badge `HỆ THỐNG ĐỊNH HƯỚNG NGHỀ NGHIỆP & TUYỂN SINH 2026`, subtitle `Khám phá bản thân từ con số 0, kết nối chuẩn xác Bản Thân — Việc Làm — Ngành Học — Tuyển Sinh`, card title `Cố Vấn Định Hướng Nghề Nghiệp Từ Con Số 0`, placeholder inviting authentic băn khoăn from scratch, 5 career-first chips, and button `Bắt đầu định hướng ->`.
+  - Replaced immediate combo cards with **Top 3 Target Career Role Cards (Gate 2)** featuring Job Title, RIASEC code badge, Sector, Salary range, AI automation risk, Why fit explanation, Recommended majors, and action button `Khám phá nghề này: Cần học ngành gì? ➔` leading into Gate 3, 4, and Stage 5.
+  - Upgraded AI system prompt in `handleAnalyzeInput` to enforce human empathy, eliminate robot jargon, and generate structured `{ careers: [...] }` JSON.
+
 ## 3. Current Status & Git Branch
 - **Branch**: `main` (Dev server running on `http://localhost:8443` via `dev_server.mjs`).
 - **Build Status**: Verified with `tsc --noEmit` (clean 0 errors) and `vite build` (clean production build).

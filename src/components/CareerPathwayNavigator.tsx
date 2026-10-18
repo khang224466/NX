@@ -655,6 +655,19 @@ function useTypewriter(fullText: string, speedMs: number = 14) {
 // =========================================================================
 // 2.2 REAL AI PARSER & SMART SEMANTIC FALLBACK ENGINE
 // =========================================================================
+export interface SuggestedCareerItem {
+  id: string;
+  title: string;
+  sector: string;
+  riasecCode: string;
+  matchPercent: number;
+  salaryRange: string;
+  automationRisk: string;
+  whyFit: string;
+  linkedComboCode: string;
+  recommendedMajors: string[];
+}
+
 export interface SuggestedComboItem {
   code: string;
   matchPercent: number;
@@ -665,6 +678,96 @@ export interface SuggestedComboItem {
 export function cleanComboReason(reason: string): string {
   if (!reason) return '';
   return reason.replace(/^(?:Toán|Ngữ văn|Văn|Vật lý|Lý|Hóa học|Hóa|Sinh học|Sinh|Tiếng Anh|Ngoại ngữ|Tin học|Tin|Lịch sử|Sử|Địa lý|Địa|Giáo dục kinh tế|Vẽ mỹ thuật|Vẽ hình họa|Vẽ nghệ thuật|Năng khiếu)[^:]*:\s*/i, '').trim();
+}
+
+export function parseCareersFromAIResponse(text: string): SuggestedCareerItem[] {
+  // 1. Try parsing JSON code block with careers
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (jsonMatch && jsonMatch[1]) {
+    try {
+      const parsed = JSON.parse(jsonMatch[1]);
+      if (Array.isArray(parsed.careers) && parsed.careers.length > 0) {
+        return parsed.careers.slice(0, 3).map((c: any, idx: number) => ({
+          id: String(c.id || `c_ai_${idx}`),
+          title: String(c.title || 'Chuyên Viên Phân Tích Dữ Liệu'),
+          sector: String(c.sector || 'Kinh Tế Số & Dữ Liệu'),
+          riasecCode: String(c.riasecCode || 'IRC').toUpperCase(),
+          matchPercent: Number(c.matchPercent) || (96 - idx * 6),
+          salaryRange: String(c.salaryRange || '18 – 42 triệu/tháng'),
+          automationRisk: String(c.automationRisk || 'Thấp (12%)'),
+          whyFit: String(c.whyFit || 'Vị trí này được AI phân tích tối ưu với thiên hướng phát triển từ con số 0 của bạn.'),
+          linkedComboCode: String(c.linkedComboCode || (idx === 0 ? 'A01' : (idx === 1 ? 'D01' : 'A00'))).toUpperCase(),
+          recommendedMajors: Array.isArray(c.recommendedMajors) ? c.recommendedMajors.map(String) : ['Khoa học Máy tính', 'Kinh tế Số']
+        }));
+      }
+      // If AI returned legacy combos array, map to careers
+      if (Array.isArray(parsed.combos) && parsed.combos.length > 0) {
+        return parsed.combos.slice(0, 3).map((cb: any, idx: number) => {
+          const code = String(cb.code || 'A01').toUpperCase();
+          const pData = getOrSynthesizeComboData(code);
+          const cr = pData.careers[0] || {
+            id: `c_${code.toLowerCase()}_1`,
+            title: `Chuyên Viên Phân Tích [Tổ Hợp ${code}]`,
+            sector: 'Chuyên Môn & Quản Trị',
+            salaryRange: '18 – 42 triệu/tháng',
+            automationRisk: 'Thấp (12%)'
+          };
+          return {
+            id: cr.id,
+            title: cr.title,
+            sector: cr.sector,
+            riasecCode: code === 'A01' || code === 'A00' ? 'IRC' : (code === 'B00' ? 'IRS' : (code === 'C00' ? 'SAE' : 'ESA')),
+            matchPercent: Number(cb.matchPercent) || (95 - idx * 6),
+            salaryRange: cr.salaryRange,
+            automationRisk: cr.automationRisk,
+            whyFit: cb.reason || 'Định hướng phát triển bền vững theo năng lực của bạn.',
+            linkedComboCode: code,
+            recommendedMajors: pData.majors.slice(0, 2).map(m => m.name)
+          };
+        });
+      }
+    } catch {}
+  }
+
+  // 2. Fallback default 3 careers from scratch
+  return [
+    {
+      id: 'c_data_analyst',
+      title: 'Chuyên Viên Phân Tích Dữ Liệu & Kinh Doanh (Data/Business Analyst)',
+      sector: 'Kinh Tế Số & Dữ Liệu',
+      riasecCode: 'IRC',
+      matchPercent: 96,
+      salaryRange: '18 – 42 triệu/tháng',
+      automationRisk: 'Thấp (12%)',
+      whyFit: 'Điểm giao thoa lý tưởng cho người học đều: kết hợp tư duy số liệu logic và ứng dụng vào thực tiễn kinh doanh.',
+      linkedComboCode: 'A01',
+      recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
+    },
+    {
+      id: 'c_digital_growth',
+      title: 'Chuyên Viên Marketing Kỹ Thuật Số & Tăng Trưởng (Digital Growth)',
+      sector: 'Thương Mại & Truyền Thông',
+      riasecCode: 'ESA',
+      matchPercent: 90,
+      salaryRange: '15 – 38 triệu/tháng',
+      automationRisk: 'Thấp (15%)',
+      whyFit: 'Phát huy khả năng quan sát nhạy bén, thấu hiểu tâm lý hành vi con người và giao tiếp thị trường.',
+      linkedComboCode: 'D01',
+      recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
+    },
+    {
+      id: 'c_software_eng',
+      title: 'Kỹ Sư Phần Mềm & Ứng Dụng Đám Mây (Software Engineer)',
+      sector: 'Công Nghệ Thông Tin',
+      riasecCode: 'RIC',
+      matchPercent: 84,
+      salaryRange: '18 – 45 triệu/tháng',
+      automationRisk: 'Trung bình thấp (18%)',
+      whyFit: 'Môi trường làm việc kỹ thuật chuẩn mực, làm việc với sản phẩm công nghệ rõ ràng và cơ hội hội nhập cao.',
+      linkedComboCode: 'A01',
+      recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
+    }
+  ];
 }
 
 export function parseCombosFromAIResponse(text: string): SuggestedComboItem[] {
@@ -679,6 +782,14 @@ export function parseCombosFromAIResponse(text: string): SuggestedComboItem[] {
           matchPercent: Number(c.matchPercent) || 90,
           matchLabel: c.matchLabel || 'Khớp',
           reason: cleanComboReason(String(c.reason || 'Tổ hợp được AI đề xuất tối ưu theo câu hỏi của bạn.'))
+        }));
+      }
+      if (Array.isArray(parsed.careers) && parsed.careers.length > 0) {
+        return parsed.careers.slice(0, 3).map((c: any) => ({
+          code: String(c.linkedComboCode || 'A01').toUpperCase().trim(),
+          matchPercent: Number(c.matchPercent) || 90,
+          matchLabel: 'Đề xuất',
+          reason: String(c.whyFit || `Tổ hợp xét tuyển tương ứng cho nghề ${c.title}.`)
         }));
       }
     } catch {}
@@ -712,10 +823,14 @@ export function parseCombosFromAIResponse(text: string): SuggestedComboItem[] {
   ];
 }
 
-export function generateSmartSemanticAnalysis(text: string): { text: string; combos: SuggestedComboItem[] } {
+export function generateSmartSemanticAnalysis(text: string): { 
+  text: string; 
+  careers: SuggestedCareerItem[]; 
+  combos: SuggestedComboItem[]; 
+} {
   const lower = (text || '').toLowerCase().trim();
 
-  // 0A. Học lực đều các môn / Thắc mắc về việc gán D01
+  // 0A. Học lực đều các môn / Thắc mắc về việc gán D01 / Chưa biết giỏi gì / Bắt đầu từ con số 0
   if (
     lower.includes('học đều') || 
     (lower.includes('sao lại') && (lower.includes('d01') || lower.includes('cho khối') || lower.includes('bắt'))) || 
@@ -724,23 +839,56 @@ export function generateSmartSemanticAnalysis(text: string): { text: string; com
     lower.includes('chưa biết giỏi gì') ||
     lower.includes('không biết giỏi gì') ||
     lower.includes('cấu trúc phân tích') ||
-    lower.includes('thiên tài')
+    lower.includes('thiên tài') ||
+    lower.includes('con số 0')
   ) {
     return {
-      text: `Chào bạn! Bạn nhận xét rất đúng và thẳng thắn. Việc vội vàng gán khối D01 cho học sinh "học đều" là lối mòn tư vấn rất vội vã và thiếu chiều sâu.
+      text: `Chào bạn! Bạn nhận xét hoàn toàn chính xác và rất sâu sắc. Việc vội vàng gán khối D01 cho một bạn học sinh "học đều" hay "chưa biết giỏi gì" là một lối mòn tư vấn rất tai hại và thiếu chiều sâu.
 
-Học đều nghĩa là điểm số các môn đang sàn sàn nhau, bạn chưa thấy môn nào vượt trội hay đam mê rõ ràng. Nếu chọn đại D01 (Toán, Văn, Anh) chỉ vì "nhiều ngành", bạn rất dễ bị loãng, lên đại học thiếu động lực và nguy cơ ra trường làm trái ngành sau này là rất cao.
+Theo mô hình Cây Nghề Nghiệp (Career Tree - Phoenix Ho) và quy tắc định hướng EXORA Protocol:
+1. GỐC RỄ (Bản thân bạn): Khi điểm số các môn đang sàn sàn nhau, bạn không thể nhìn vào điểm trường để chọn ngành được. Cốt lõi nằm ở mức độ tiêu hao năng lượng não bộ: Khi ngồi một mình, bạn thấy mình thoải mái nhất với việc bóc tách quy luật, tư duy logic (hướng Tự nhiên/Kỹ thuật) hay thích đọc, viết, quan sát hành vi con người và thị trường (hướng Xã hội/Kinh doanh)?
+2. TÁN LÁ HOA QUẢ (Vị trí việc làm): Vội vàng ép bạn chọn tổ hợp môn thi hay chọn trường đại học ngay lúc này là đi ngược từ ngọn. Bạn phải nhìn thấy cụ thể ngoài xã hội có những vị trí nghề nghiệp nào, công việc 8 tiếng mỗi ngày ra sao, dải lương thế nào, rồi từ nghề mới truy ngược lại cần học ngành gì và thi khối nào.
+3. RỦI RO TRÁI NGÀNH: Nếu chọn đại D01 chỉ vì "nhiều ngành", bạn rất dễ bị loãng, lên đại học thiếu động lực và nguy cơ làm trái ngành sau tốt nghiệp lên tới 38%.
 
-Thay vì nhìn vào điểm số, mình khuyên bạn thử tự cảm nhận lại 2 điều thực tế này:
-1. Khi ngồi học hoặc tìm tòi một mình ở nhà, bạn thấy mình thích làm những việc logic, tính toán, máy tính, công nghệ (hướng Tự nhiên), hay bạn thích đọc, viết, tìm hiểu về con người, kinh doanh, truyền thông và xã hội?
-2. Trong cuộc sống hàng ngày, bạn muốn sau này làm công việc gắn với số liệu, kỹ thuật hay muốn được giao tiếp, kết nối với nhiều người?
-
-Từ thực tế tuyển sinh và thị trường việc làm, mình gợi ý bạn 3 hướng đi cân bằng để tham khảo:
-• Khối A01 (Toán, Lý, Anh): Dành cho bạn nếu thích tư duy logic, muốn hướng tới Công nghệ thông tin, AI hoặc Tài chính số (nhóm ngành này có tỷ lệ làm đúng chuyên ngành rất cao).
-• Khối D01 (Toán, Văn, Anh): Phù hợp nếu bạn nghiêng về kinh doanh, marketing, truyền thông hoặc ngoại ngữ (nhưng nên xác định sớm 1 kỹ năng mũi nhọn).
-• Khối A00 (Toán, Lý, Hóa): Dành cho bạn nếu thích kỹ thuật truyền thống, cơ điện tử, xây dựng.
-
-Bạn thấy bản thân mình đang có cảm tình hơn với hướng công nghệ/kỹ thuật hay hướng kinh doanh/xã hội? Bạn cứ chia sẻ thêm với mình nhé!`,
+Dưới đây là 3 VỊ TRÍ VIỆC LÀM MỤC TIÊU (Gate 2) được thiết kế riêng cho người có trí thông minh đa diện để bạn khám phá trước. Bạn thấy bản thân có cảm tình hơn với hướng phân tích dữ liệu hay hướng giao tiếp sáng tạo? Cứ thoải mái chia sẻ thêm với mình nhé!`,
+      careers: [
+        {
+          id: 'c_data_analyst',
+          title: 'Chuyên Viên Phân Tích Dữ Liệu & Kinh Doanh (Business/Data Analyst)',
+          sector: 'Kinh Tế Số & Dữ Liệu',
+          riasecCode: 'IRC',
+          matchPercent: 96,
+          salaryRange: '18 – 42 triệu/tháng',
+          automationRisk: 'Thấp (12%)',
+          whyFit: 'Điểm giao thoa lý tưởng cho người học đều: vừa dùng tư duy phân tích logic, vừa ứng dụng giải quyết bài toán thị trường thực tế.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
+        },
+        {
+          id: 'c_digital_growth',
+          title: 'Chuyên Viên Marketing Kỹ Thuật Số & Tăng Trưởng (Digital Growth)',
+          sector: 'Thương Mại & Truyền Thông',
+          riasecCode: 'ESA',
+          matchPercent: 90,
+          salaryRange: '15 – 38 triệu/tháng',
+          automationRisk: 'Thấp (15%)',
+          whyFit: 'Phát huy khả năng giao tiếp, nắm bắt xu hướng thị trường và tâm lý khách hàng đa kênh.',
+          linkedComboCode: 'D01',
+          recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
+        },
+        {
+          id: 'c_software_eng',
+          title: 'Kỹ Sư Phần Mềm & Phát Triển Hệ Thống (Software Engineer)',
+          sector: 'Công Nghệ Thông Tin',
+          riasecCode: 'RIC',
+          matchPercent: 84,
+          salaryRange: '18 – 45 triệu/tháng',
+          automationRisk: 'Trung bình thấp (18%)',
+          whyFit: 'Môi trường làm việc chuẩn mực, rõ ràng, tập trung xây dựng sản phẩm công nghệ thực tiễn.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
+        }
+      ],
       combos: [
         {
           code: 'A01',
@@ -764,7 +912,7 @@ Bạn thấy bản thân mình đang có cảm tình hơn với hướng công n
     };
   }
   
-  // 0B. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang
+  // 0B. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang, bắt đầu từ con số 0
   const isLostOrUnsure = 
     lower.includes('chưa biết') ||
     lower.includes('không biết') ||
@@ -784,16 +932,52 @@ Bạn thấy bản thân mình đang có cảm tình hơn với hướng công n
 
   if (isLostOrUnsure) {
     return {
-      text: `Chào bạn! Trước hết, bạn đừng quá lo lắng hay tự tạo áp lực cho mình nhé. Ở độ tuổi học sinh, việc "chưa biết mình muốn làm gì hay giỏi gì" là chuyện rất bình thường mà hầu như ai cũng từng trải qua.
+      text: `Chào bạn! Trước hết, bạn hãy thở phào nhẹ nhõm nhé. Ở độ tuổi học sinh, việc "chưa biết mình muốn làm gì hay giỏi gì" là chuyện hoàn toàn bình thường — thực tế hơn 70% các bạn trẻ đều trải qua cảm giác mông lung này.
 
-Quá trình từ chỗ "chưa biết gì" đến lúc chọn được ngành và trường phù hợp là một hành trình dài cần lắng nghe bản thân từng bước, không thể bắt ép chọn vội trong ngày một ngày hai được.
+Bắt đầu từ con số 0 chính là cơ hội tốt nhất để bạn xây dựng lộ trình chuẩn xác theo nguyên tắc hướng nghiệp khoa học:
+1. ÁP DỤNG NGUYÊN TẮC LOẠI TRỪ: Thay vì tự hỏi mình thích gì (thường rất mông lung), bạn hãy loại trừ trước những công việc bạn "chắc chắn ghét hoặc không bao giờ muốn làm" (như sợ máu, rất ngại viết văn dài, sợ tính toán số liệu phức tạp, hoặc ngại nói trước đám đông).
+2. XEM TRƯỚC VỊ TRÍ NGHỀ NGHIỆP CỤ THỂ (Gate 2): Đừng vội chọn khối thi hay chọn trường đại học. Chúng ta phải nhìn vào công việc thực tế ngoài đời, dải lương và rủi ro bị AI thay thế trước.
+3. TRUY HỒI NGÀNH VÀ KHỐI THI (Gate 3 & 4): Khi bạn đã chọn được 1 nghề nghiệp ưng ý, hệ thống sẽ tự động chỉ ra ngành đại học đào tạo và tổ hợp môn thi nhẹ nhàng nhất cho bạn.
 
-Để cùng nhau gỡ rối từng chút một, mình gợi ý bạn 3 cách nhìn nhận gần gũi:
-1. Thử loại trừ trước: Thay vì nghĩ mình thích gì (thường rất khó), bạn hãy nghĩ xem môn học nào hoặc dạng công việc nào bạn "ngại nhất" hoặc chắc chắn không muốn làm? (Ví dụ: rất sợ tính toán phức tạp, hoặc rất ngại viết văn dài, ngại giao tiếp đám đông...)
-2. Quan sát thói quen tự nhiên: Khi có thời gian rảnh, bạn hay thích xem hoặc làm gì nhất? Bạn thích tìm tòi máy tính, vẽ vời sáng tạo, xem tin tức kinh doanh, hay chơi thể thao vận động?
-3. Giữ lựa chọn an toàn: Trong lúc đang tìm hiểu bản thân, chọn các tổ hợp có độ phủ ngành rộng sẽ giúp bạn không bị thu hẹp cơ hội khi xét tuyển đại học.
-
-Dưới đây là 3 tổ hợp môn linh hoạt và phổ biến nhất toàn quốc để bạn tham khảo trước. Bạn cứ thoải mái chia sẻ thêm với mình về những điều bạn thích hoặc môn bạn thấy đỡ ngại nhất nhé!`,
+Dưới đây là 3 vị trí việc làm an toàn, đa năng và bền vững nhất để bạn bắt đầu tìm hiểu:`,
+      careers: [
+        {
+          id: 'c_data_analyst',
+          title: 'Chuyên Viên Phân Tích Dữ Liệu & Kinh Doanh (Business Analyst)',
+          sector: 'Kinh Tế Số & Dữ Liệu',
+          riasecCode: 'IRC',
+          matchPercent: 96,
+          salaryRange: '18 – 42 triệu/tháng',
+          automationRisk: 'Thấp (12%)',
+          whyFit: 'Lựa chọn an toàn cho người chưa rõ sở thích: kết hợp tư duy số liệu và giải quyết bài toán kinh doanh.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
+        },
+        {
+          id: 'c_digital_growth',
+          title: 'Chuyên Viên Marketing Kỹ Thuật Số & Truyền Thông (Digital Marketing)',
+          sector: 'Thương Mại & Truyền Thông',
+          riasecCode: 'ESA',
+          matchPercent: 90,
+          salaryRange: '15 – 38 triệu/tháng',
+          automationRisk: 'Thấp (15%)',
+          whyFit: 'Môi trường làm việc năng động, linh hoạt, mở rộng mạng lưới quan hệ và hiểu biết thị trường.',
+          linkedComboCode: 'D01',
+          recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
+        },
+        {
+          id: 'c_software_eng',
+          title: 'Kỹ Sư Phần Mềm & Ứng Dụng (Software Engineer)',
+          sector: 'Công Nghệ Thông Tin',
+          riasecCode: 'RIC',
+          matchPercent: 84,
+          salaryRange: '18 – 45 triệu/tháng',
+          automationRisk: 'Trung bình thấp (18%)',
+          whyFit: 'Kỹ năng chuyên môn cụ thể, nhu cầu tuyển dụng toàn cầu cao và không phụ thuộc vào độ khéo ăn nói.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
+        }
+      ],
       combos: [
         {
           code: 'D01',
@@ -834,15 +1018,50 @@ Dưới đây là 3 tổ hợp môn linh hoạt và phổ biến nhất toàn qu
     lower.includes('t00')
   ) {
     return {
-      text: `Chào bạn! Đam mê thể thao, vận động và bóng đá là một thế mạnh rất tuyệt vời. Ngành thể thao hiện nay không chỉ dừng lại ở thi đấu chuyên nghiệp, mà còn mở ra nhiều hướng đi nghề nghiệp rất hấp dẫn:
-• Quản lý thể thao & sự kiện: Vận hành CLB bóng đá chuyên nghiệp, quản lý giải đấu và thương mại hóa bản quyền hình ảnh.
-• Huấn luyện thể thao & đào tạo trẻ: Làm việc tại các học viện bóng đá (PVF, Viettel, HAGL...), chuyên gia thể lực hoặc trợ lý chiến thuật.
-• Y học thể thao & phục hồi chấn thương: Chuyên viên vật lý trị liệu, phục hồi thể lực và cơ bắp cho vận động viên.
-• Truyền thông & báo chí thể thao: Bình luận viên bóng đá, sáng tạo nội dung và quản trị hình ảnh vận động viên.
+      text: `Chào bạn! Đam mê thể thao, vận động và bóng đá là một thế mạnh rất tuyệt vời. Ngành thể thao hiện đại không chỉ dừng lại ở thi đấu chuyên nghiệp, mà đã phát triển thành nền kinh tế thể thao trị giá hàng tỷ đô với các vị trí nghề nghiệp rất thực tế:
+• Quản lý & Sự kiện thể thao: Vận hành CLB bóng đá chuyên nghiệp, quản lý giải đấu, bản quyền truyền thông.
+• Huấn luyện thể thao & Thể lực: Làm việc tại học viện bóng đá (PVF, Viettel, HAGL...), chuyên gia thể lực cá nhân.
+• Y học thể thao & Phục hồi chức năng: Chuyên viên vật lý trị liệu, chăm sóc cơ bắp cho vận động viên đỉnh cao.
 
-Các trường đào tạo trọng điểm gồm: ĐH Tôn Đức Thắng (DTT), ĐH TDTT TP.HCM (TDS), ĐH Sư Phạm TDTT Hà Nội (TDH - miễn 100% học phí theo NĐ 116), ĐH TDTT Bắc Ninh (TDB).
-
-Dưới đây là 3 tổ hợp môn xét tuyển phù hợp nhất cho bạn:`,
+Dưới đây là 3 vị trí việc làm mục tiêu tương thích với bạn:`,
+      careers: [
+        {
+          id: 'c_sports_mgr',
+          title: 'Chuyên Viên Quản Lý & Sự Kiện Thể Thao (Sports Management)',
+          sector: 'Kinh Doanh & Sự Kiện Thể Thao',
+          riasecCode: 'ESA',
+          matchPercent: 98,
+          salaryRange: '16 – 38 triệu/tháng',
+          automationRisk: 'Thấp (10%)',
+          whyFit: 'Giao thoa giữa đam mê thể thao và kỹ năng quản trị kinh doanh, điều hành sự kiện thi đấu.',
+          linkedComboCode: 'D01',
+          recommendedMajors: ['Quản Trị & Kinh Doanh Thể Thao', 'Quản Lý Sự Kiện & Thể Thao Giải Trí']
+        },
+        {
+          id: 'c_sports_coach',
+          title: 'Huấn Luyện Viên & Chuyên Gia Thể Lực Chuyên Nghiệp',
+          sector: 'Huấn Luyện & Đào Tạo Thể Chất',
+          riasecCode: 'RES',
+          matchPercent: 94,
+          salaryRange: '18 – 45 triệu/tháng',
+          automationRisk: 'Cực thấp (5%)',
+          whyFit: 'Trực tiếp rèn luyện kỹ chiến thuật, nâng cao thể lực cho vận động viên tại các trung tâm và CLB.',
+          linkedComboCode: 'T00',
+          recommendedMajors: ['Huấn Luyện Thể Thao Chuyên Nghiệp', 'Giáo Dục Thể Chất (Sư phạm TDTT)']
+        },
+        {
+          id: 'c_sports_rehab',
+          title: 'Chuyên Viên Y Học Thể Thao & Phục Hồi Chức Năng',
+          sector: 'Y Sinh Thể Thao & Vật Lý Trị Liệu',
+          riasecCode: 'RIS',
+          matchPercent: 88,
+          salaryRange: '18 – 42 triệu/tháng',
+          automationRisk: 'Cực thấp (6%)',
+          whyFit: 'Chăm sóc sức khỏe, phòng ngừa và điều trị chấn thương cơ xương khớp cho vận động viên.',
+          linkedComboCode: 'T00',
+          recommendedMajors: ['Y Học Thể Thao & Phục Hồi Chức Năng', 'Công nghệ Sinh học & Y sinh']
+        }
+      ],
       combos: [
         { code: 'T00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp chuẩn vàng cho Huấn luyện viên, Giáo dục Thể chất và Y học Thể thao.' },
         { code: 'D01', matchPercent: 94, matchLabel: 'Khớp', reason: 'Xét tuyển thẳng ngành Quản lý Thể thao & Sự kiện (DTT), Kinh doanh & Truyền thông Thể thao.' },
@@ -854,11 +1073,47 @@ Dưới đây là 3 tổ hợp môn xét tuyển phù hợp nhất cho bạn:`,
   // 2. Y Tế / Dược / Bác sĩ
   if (lower.includes('y ') || lower.includes('bác sĩ') || lower.includes('dược') || lower.includes('nha khoa') || lower.includes('chữa bệnh') || lower.includes('y tế') || lower.includes('b00')) {
     return {
-      text: `Chào bạn! Nguyện vọng theo học ngành Y Dược và chăm sóc sức khỏe là một lựa chọn rất đáng trân trọng. Khối ngành này đòi hỏi sự kiên trì, tỉ mỉ và nền tảng Sinh - Hóa vững vàng. Đổi lại, đây là ngành nghề có giá trị nhân văn cao, công việc luôn ổn định lâu dài và ít chịu rủi ro bị AI thay thế.
+      text: `Chào bạn! Nguyện vọng theo ngành Y Dược và chăm sóc sức khỏe con người là một lựa chọn rất cao quý. Khối ngành này đòi hỏi sự kiên trì, tỉ mỉ và nền tảng Sinh - Hóa vững vàng. Đổi lại, đây là ngành nghề có giá trị xã hội bền vững nhất, vị thế được trân trọng và rủi ro bị AI thay thế gần như bằng 0.
 
-Các trường đào tạo hàng đầu gồm: ĐH Y Hà Nội (HMU), ĐH Y Dược TP.HCM (YDS), ĐH Y Dược Cần Thơ (YCT), Học viện Quân Y (miễn 100% học phí và chi phí sinh hoạt).
-
-Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+Dưới đây là 3 vị trí nghề nghiệp mục tiêu để bạn tìm hiểu lộ trình đào tạo và cơ hội việc làm:`,
+      careers: [
+        {
+          id: 'c_b00_doctor',
+          title: 'Bác Sĩ Đa Khoa / Bác Sĩ Chuyên Khoa Lâm Sàng',
+          sector: 'Y Tế & Chăm Sóc Sức Khỏe',
+          riasecCode: 'IRS',
+          matchPercent: 99,
+          salaryRange: '25 – 80 triệu/tháng',
+          automationRisk: 'Cực thấp (3%)',
+          whyFit: 'Đòi hỏi sự tỉ mỉ, khả năng chẩn đoán lâm sàng và lòng trắc ẩn cứu chữa con người.',
+          linkedComboCode: 'B00',
+          recommendedMajors: ['Y khoa – Bác sĩ Đa khoa (Đào tạo 6 năm)']
+        },
+        {
+          id: 'c_b00_dentist',
+          title: 'Bác Sĩ Răng – Hàm – Mặt (Nha Sĩ Thẩm Mỹ)',
+          sector: 'Nha Khoa & Phục Hình Thẩm Mỹ',
+          riasecCode: 'RIS',
+          matchPercent: 94,
+          salaryRange: '30 – 90 triệu/tháng',
+          automationRisk: 'Cực thấp (4%)',
+          whyFit: 'Kết hợp giữa tay nghề phẫu thuật chuẩn xác, tư duy thẩm mỹ và cơ hội mở phòng khám riêng.',
+          linkedComboCode: 'B00',
+          recommendedMajors: ['Răng – Hàm – Mặt (Bác sĩ Nha khoa)']
+        },
+        {
+          id: 'c_b00_pharmacist',
+          title: 'Dược Sĩ Lâm Sàng & Quản Lý Dược Phẩm Quốc Tế',
+          sector: 'Dược Phẩm & Y Sinh',
+          riasecCode: 'ICR',
+          matchPercent: 88,
+          salaryRange: '18 – 45 triệu/tháng',
+          automationRisk: 'Thấp (12%)',
+          whyFit: 'Nghiên cứu bào chế thuốc, quản lý phân phối dược phẩm hoặc cố vấn dược lâm sàng bệnh viện.',
+          linkedComboCode: 'B00',
+          recommendedMajors: ['Dược học & Dược Lâm sàng', 'Công nghệ Sinh học & Y sinh']
+        }
+      ],
       combos: [
         { code: 'B00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp độc quyền vàng cho Bác sĩ Đa khoa, Dược học và Răng Hàm Mặt.' },
         { code: 'D07', matchPercent: 88, matchLabel: 'Khớp', reason: 'Mũi nhọn cho ngành Hóa Dược và Công nghệ Sinh học Y sinh quốc tế.' },
@@ -870,11 +1125,47 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
   // 3. Kinh doanh / Tài chính / Marketing / Logistics
   if (lower.includes('kinh doanh') || lower.includes('kinh tế') || lower.includes('tài chính') || lower.includes('marketing') || lower.includes('tiền') || lower.includes('đàm phán') || lower.includes('ngân hàng') || lower.includes('chứng khoán') || lower.includes('logistics')) {
     return {
-      text: `Chào bạn! Khối ngành Kinh doanh, Tài chính và Marketing luôn là một trong những lựa chọn năng động và nhiều cơ hội việc làm nhất. Lĩnh vực này rất phù hợp nếu bạn thích giao tiếp, nhạy bén với thị trường, thích quan sát cách dòng tiền và các doanh nghiệp vận hành.
+      text: `Chào bạn! Khối ngành Kinh doanh, Tài chính và Marketing luôn là môi trường năng động và nhiều cơ hội thăng tiến nhất. Lĩnh vực này rất phù hợp nếu bạn thích giao tiếp, nhạy bén với thị trường, thích quan sát dòng tiền và cách các doanh nghiệp vận hành.
 
-Các trường đào tạo hàng đầu gồm: ĐH Ngoại Thương (FTU), ĐH Kinh Tế Quốc Dân (NEU), ĐH Kinh Tế TP.HCM (UEH), Học viện Tài Chính (HTC).
-
-Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+Dưới đây là 3 vị trí việc làm mục tiêu dẫn đầu thị trường lao động hiện nay:`,
+      careers: [
+        {
+          id: 'c_fintech_analyst',
+          title: 'Chuyên Viên Công Nghệ Tài Chính & Đầu Tư (FinTech Analyst)',
+          sector: 'Tài Chính & Ngân Hàng Số',
+          riasecCode: 'ECR',
+          matchPercent: 98,
+          salaryRange: '20 – 48 triệu/tháng',
+          automationRisk: 'Thấp (12%)',
+          whyFit: 'Thiết kế sản phẩm tài chính số, quản trị rủi ro thanh toán và thuật toán đầu tư tự động.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Công nghệ Tài chính (FinTech)', 'Logistics & Quản lý Chuỗi Cung Ứng']
+        },
+        {
+          id: 'c_d01_trade_specialist',
+          title: 'Chuyên Viên Kinh Doanh Quốc Tế & Chuỗi Cung Ứng (Global Trade)',
+          sector: 'Xuất Nhập Khẩu & Thương Mại',
+          riasecCode: 'ECS',
+          matchPercent: 94,
+          salaryRange: '18 – 45 triệu/tháng',
+          automationRisk: 'Cực thấp (10%)',
+          whyFit: 'Đàm phán hợp đồng thương mại quốc tế, mở rộng thị trường xuất nhập khẩu toàn cầu.',
+          linkedComboCode: 'D01',
+          recommendedMajors: ['Kinh doanh Quốc tế & Ngoại thương', 'Logistics & Chuỗi Cung Ứng']
+        },
+        {
+          id: 'c_d01_digital_mkt',
+          title: 'Chuyên Viên Chiến Lược Digital Marketing & Tăng Trưởng',
+          sector: 'Thương Mại Điện Tử & Quảng Cáo',
+          riasecCode: 'ESA',
+          matchPercent: 88,
+          salaryRange: '15 – 38 triệu/tháng',
+          automationRisk: 'Thấp (15%)',
+          whyFit: 'Xây dựng chiến dịch quảng cáo đa kênh, đo lường dữ liệu chuyển đổi và quản trị thương hiệu.',
+          linkedComboCode: 'D01',
+          recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số']
+        }
+      ],
       combos: [
         { code: 'D01', matchPercent: 98, matchLabel: 'Khớp', reason: 'Tổ hợp đa năng số 1 cho Kinh doanh Quốc tế, Marketing và Quản trị Doanh nghiệp.' },
         { code: 'A01', matchPercent: 94, matchLabel: 'Khớp', reason: 'Lợi thế vượt trội vào FinTech, Logistics, Tài chính định lượng và Phân tích dữ liệu.' },
@@ -886,11 +1177,47 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
   // 4. Mỹ thuật / Kiến trúc / Thiết kế / Vẽ
   if (lower.includes('vẽ') || lower.includes('kiến trúc') || lower.includes('thiết kế') || lower.includes('mỹ thuật') || lower.includes('đồ họa') || lower.includes('nội thất')) {
     return {
-      text: `Chào bạn! Nếu bạn có năng khiếu thẩm mỹ, cảm thụ không gian và thích vẽ vời, các ngành Kiến trúc công trình, Thiết kế đồ họa và Thiết kế nội thất/game là môi trường rất tuyệt vời để bạn thỏa sức sáng tạo.
+      text: `Chào bạn! Nếu bạn có năng khiếu thẩm mỹ, cảm thụ không gian và thích vẽ vời sáng tạo, lĩnh vực Kiến trúc và Thiết kế sáng tạo là nơi bạn có thể biến trí tưởng tượng thành những công trình và sản phẩm trực quan thực tế.
 
-Các trường đào tạo trọng điểm gồm: ĐH Kiến Trúc Hà Nội (KTA), ĐH Kiến Trúc TP.HCM (KTS), ĐH Mỹ Thuật Công Nghiệp.
-
-Dưới đây là các tổ hợp môn xét tuyển phù hợp nhất cho bạn:`,
+Dưới đây là 3 vị trí việc làm mục tiêu giàu tiềm năng sáng tạo và thu nhập hấp dẫn:`,
+      careers: [
+        {
+          id: 'c_architect',
+          title: 'Kiến Trúc Sư Công Trình & Đô Thị Thông Minh (Architect)',
+          sector: 'Kiến Trúc & Quy Hoạch',
+          riasecCode: 'AIR',
+          matchPercent: 99,
+          salaryRange: '18 – 45 triệu/tháng',
+          automationRisk: 'Cực thấp (8%)',
+          whyFit: 'Chủ trì thiết kế không gian sống, công trình dân dụng và cảnh quan đô thị xanh bền vững.',
+          linkedComboCode: 'V00',
+          recommendedMajors: ['Kiến trúc Công trình & Quy hoạch', 'Thiết kế Nội thất & Không gian']
+        },
+        {
+          id: 'c_uiux_designer',
+          title: 'Nhà Thiết Kế Truyền Thông Thị Giác & Trải Nghiệm (UI/UX / Visual)',
+          sector: 'Công Nghệ & Thiết Kế Đồ Họa',
+          riasecCode: 'AES',
+          matchPercent: 94,
+          salaryRange: '16 – 40 triệu/tháng',
+          automationRisk: 'Thấp (15%)',
+          whyFit: 'Sáng tạo nhận diện thương hiệu, giao diện ứng dụng số và ấn phẩm truyền thông đa phương tiện.',
+          linkedComboCode: 'H00',
+          recommendedMajors: ['Thiết kế Đồ họa & Truyền thông Thị giác', 'Thiết kế Game & Hoạt hình 3D']
+        },
+        {
+          id: 'c_game_3d_artist',
+          title: 'Nghệ Sĩ Tạo Hình Game 3D & Kỹ Xảo Điện Ảnh (3D Artist)',
+          sector: 'Công Nghiệp Game & Giải Trí Số',
+          riasecCode: 'ARI',
+          matchPercent: 88,
+          salaryRange: '20 – 50 triệu/tháng',
+          automationRisk: 'Cực thấp (10%)',
+          whyFit: 'Dựng hình nhân vật 3D, phối cảnh môi trường ảo cho các studio game và phim hoạt hình quốc tế.',
+          linkedComboCode: 'H00',
+          recommendedMajors: ['Thiết kế Game & Hoạt hình 3D', 'Mỹ thuật Đô thị & Tạo dáng Công nghiệp']
+        }
+      ],
       combos: [
         { code: 'V00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp vàng chuẩn quốc gia cho Kiến trúc và Quy hoạch đô thị.' },
         { code: 'H00', matchPercent: 94, matchLabel: 'Khớp', reason: 'Chuyên sâu cho Thiết kế Đồ họa và Nội thất.' },
@@ -902,11 +1229,47 @@ Dưới đây là các tổ hợp môn xét tuyển phù hợp nhất cho bạn:
   // 5. Công nghệ / Lập trình / AI / Kỹ thuật
   if (lower.includes('máy tính') || lower.includes('cntt') || lower.includes('it') || lower.includes('lập trình') || lower.includes('code') || lower.includes('ai') || lower.includes('phần mềm') || lower.includes('bán dẫn') || lower.includes('robot') || lower.includes('kỹ thuật')) {
     return {
-      text: `Chào bạn! Định hướng theo Công nghệ thông tin, Lập trình và Trí tuệ nhân tạo (AI) là lựa chọn đón đầu xu thế rất mạnh mẽ. Nếu bạn có tư duy logic, thích tìm tòi máy tính hoặc giải quyết các bài toán kỹ thuật thì đây là môi trường rất phù hợp.
+      text: `Chào bạn! Định hướng theo Công nghệ thông tin, Lập trình và Trí tuệ nhân tạo (AI) là lựa chọn đón đầu tương lai mạnh mẽ nhất hiện nay. Nếu bạn có tư duy logic, thích tìm tòi máy tính hoặc bóc tách các bài toán kỹ thuật, đây là môi trường lý tưởng để bạn bứt phá.
 
-Các trường đào tạo trọng điểm gồm: ĐH Bách Khoa Hà Nội (BKA), ĐH Bách Khoa TP.HCM (QSB), ĐH Công Nghệ ĐHQGHN (QHI), ĐH CNTT ĐHQG-HCM (QST).
-
-Dưới đây là 3 tổ hợp môn xét tuyển hàng đầu:`,
+Dưới đây là 3 vị trí việc làm mục tiêu khát nhân lực chất lượng cao nhất:`,
+      careers: [
+        {
+          id: 'c_ai_engineer',
+          title: 'Kỹ Sư Trí Tuệ Nhân Tạo & Học Máy (AI / LLM Engineer)',
+          sector: 'Trí Tuệ Nhân Tạo & Dữ Liệu Lớn',
+          riasecCode: 'IRC',
+          matchPercent: 99,
+          salaryRange: '25 – 65 triệu/tháng',
+          automationRisk: 'Cực thấp (5%)',
+          whyFit: 'Huấn luyện các mô hình AI tạo sinh, ứng dụng Large Language Models và thị giác máy tính.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Trí tuệ Nhân tạo & Khoa học Dữ liệu', 'Khoa học Máy tính & Kỹ thuật Phần mềm']
+        },
+        {
+          id: 'c_chip_designer',
+          title: 'Kỹ Sư Thiết Kế Vi Mạch Bán Dẫn (VLSI / IC Design Engineer)',
+          sector: 'Bán Dẫn & Phần Cứng Công Nghệ Cao',
+          riasecCode: 'RIC',
+          matchPercent: 94,
+          salaryRange: '22 – 55 triệu/tháng',
+          automationRisk: 'Cực thấp (8%)',
+          whyFit: 'Thiết kế vi kiến trúc chip, kiểm thử mạch tích hợp bán dẫn VLSI cho làn sóng FDI toàn cầu.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Thiết kế Vi mạch Bán dẫn', 'Khoa học Máy tính & Kỹ thuật Phần mềm']
+        },
+        {
+          id: 'c_software_eng',
+          title: 'Kỹ Sư Phần Mềm & Kiến Trúc Hệ Thống (Software Engineer)',
+          sector: 'Công Nghệ Thông Tin & Điện Toán Đám Mây',
+          riasecCode: 'RIC',
+          matchPercent: 88,
+          salaryRange: '18 – 45 triệu/tháng',
+          automationRisk: 'Trung bình thấp (18%)',
+          whyFit: 'Xây dựng giải pháp web, mobile, kiến trúc microservices và nền tảng đám mây toàn cầu.',
+          linkedComboCode: 'A01',
+          recommendedMajors: ['Khoa học Máy tính & Kỹ thuật Phần mềm']
+        }
+      ],
       combos: [
         { code: 'A01', matchPercent: 98, matchLabel: 'Khớp', reason: 'Tổ hợp toàn diện nhất cho AI và Phần mềm với lợi thế ngoại ngữ.' },
         { code: 'A00', matchPercent: 92, matchLabel: 'Khớp', reason: 'Nền tảng tự nhiên kinh điển cho mọi chuyên ngành Kỹ thuật và Bán dẫn.' },
@@ -920,9 +1283,45 @@ Dưới đây là 3 tổ hợp môn xét tuyển hàng đầu:`,
     return {
       text: `Chào bạn! Các ngành Truyền thông, Báo chí, Luật và Sư phạm rất phù hợp nếu bạn yêu thích ngôn ngữ, viết lách, thích tìm hiểu về con người và các vấn đề xã hội. Đặc biệt, khối ngành Sư phạm hiện nay còn được Nhà nước miễn 100% học phí và hỗ trợ sinh hoạt phí 3,63 triệu/tháng theo Nghị định 116.
 
-Các trường đào tạo trọng điểm gồm: ĐH Sư Phạm Hà Nội (SPH), ĐH Sư Phạm TP.HCM (SPS), ĐH Luật Hà Nội, Học viện Báo chí & Tuyên truyền (HBT), ĐH KHXH&NV.
-
-Dưới đây là 3 tổ hợp môn xét tuyển thế mạnh cho bạn:`,
+Dưới đây là 3 vị trí việc làm mục tiêu phù hợp với thiên hướng của bạn:`,
+      careers: [
+        {
+          id: 'c_d01_legal_counsel',
+          title: 'Chuyên Viên Pháp Chế Doanh Nghiệp (Corporate Legal Counsel)',
+          sector: 'Pháp Lý & Quản Trị Tuân Thủ',
+          riasecCode: 'SEC',
+          matchPercent: 98,
+          salaryRange: '20 – 50 triệu/tháng',
+          automationRisk: 'Cực thấp (8%)',
+          whyFit: 'Soạn thảo điều khoản hợp đồng, bảo vệ quyền lợi pháp lý và phòng ngừa rủi ro cho doanh nghiệp.',
+          linkedComboCode: 'D01',
+          recommendedMajors: ['Luật Kinh tế & Thương mại Quốc tế', 'Báo chí & Truyền thông Đa phương tiện']
+        },
+        {
+          id: 'c_d01_pr_manager',
+          title: 'Chuyên Viên Quan Hệ Công Chúng & Quản Trị Thương Hiệu (PR & Media)',
+          sector: 'Báo Chí & Truyền Thông Đa Phương Tiện',
+          riasecCode: 'ASE',
+          matchPercent: 92,
+          salaryRange: '16 – 38 triệu/tháng',
+          automationRisk: 'Cực thấp (9%)',
+          whyFit: 'Tổ chức sự kiện báo chí, xử lý khủng hoảng truyền thông và định vị giá trị thương hiệu.',
+          linkedComboCode: 'D01',
+          recommendedMajors: ['Truyền thông Đa phương tiện & PR', 'Báo chí & Truyền thông Đa phương tiện']
+        },
+        {
+          id: 'c_c00_teacher',
+          title: 'Giáo Viên THPT / Giảng Viên Bộ Môn (Miễn 100% học phí theo NĐ 116)',
+          sector: 'Giáo Dục & Đào Tạo',
+          riasecCode: 'SAE',
+          matchPercent: 86,
+          salaryRange: '12 – 32 triệu/tháng',
+          automationRisk: 'Cực thấp (6%)',
+          whyFit: 'Được Nhà nước miễn 100% học phí + trợ cấp 3,63 triệu/tháng theo Nghị định 116, sự nghiệp ổn định lâu dài.',
+          linkedComboCode: 'C00',
+          recommendedMajors: ['Sư phạm Ngữ văn & Sư phạm Lịch sử']
+        }
+      ],
       combos: [
         { code: 'D01', matchPercent: 96, matchLabel: 'Khớp', reason: 'Tổ hợp linh hoạt số 1 cho Truyền thông, Marketing, Luật và Ngôn ngữ.' },
         { code: 'C00', matchPercent: 92, matchLabel: 'Khớp', reason: 'Ưu thế số 1 vào Sư phạm (Miễn học phí), Báo chí và Luật.' },
@@ -933,7 +1332,45 @@ Dưới đây là 3 tổ hợp môn xét tuyển thế mạnh cho bạn:`,
 
   // General fallback
   return {
-    text: `Chào bạn! Mình đã ghi nhận chia sẻ của bạn. Để giúp bạn có cái nhìn rõ ràng và thực tế hơn, mình gợi ý 3 tổ hợp môn có độ phủ tuyển sinh rộng và linh hoạt nhất hiện nay để bạn tham khảo trước. Bạn cứ thoải mái chia sẻ thêm bất kỳ suy nghĩ hay băn khoăn nào của mình nhé:`,
+    text: `Chào bạn! Mình đã lắng nghe chia sẻ của bạn. Để giúp bạn có cái nhìn rõ ràng và thực tế hơn, mình gợi ý 3 vị trí việc làm mục tiêu có độ an toàn và nhu cầu tuyển dụng bền vững nhất hiện nay để bạn tham khảo trước. Hãy xem bạn có cảm tình với công việc nào nhất nhé:`,
+    careers: [
+      {
+        id: 'c_data_analyst',
+        title: 'Chuyên Viên Phân Tích Dữ Liệu & Kinh Doanh (Business Analyst)',
+        sector: 'Kinh Tế Số & Dữ Liệu',
+        riasecCode: 'IRC',
+        matchPercent: 95,
+        salaryRange: '18 – 42 triệu/tháng',
+        automationRisk: 'Thấp (12%)',
+        whyFit: 'Vị trí đa năng kết hợp tư duy số liệu và giải quyết bài toán kinh doanh, ít rủi ro trái ngành.',
+        linkedComboCode: 'A01',
+        recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
+      },
+      {
+        id: 'c_digital_growth',
+        title: 'Chuyên Viên Marketing Kỹ Thuật Số & Tăng Trưởng (Digital Growth)',
+        sector: 'Thương Mại & Truyền Thông',
+        riasecCode: 'ESA',
+        matchPercent: 89,
+        salaryRange: '15 – 38 triệu/tháng',
+        automationRisk: 'Thấp (15%)',
+        whyFit: 'Môi trường làm việc năng động, phát huy khả năng giao tiếp và nắm bắt xu hướng thị trường.',
+        linkedComboCode: 'D01',
+        recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
+      },
+      {
+        id: 'c_software_eng',
+        title: 'Kỹ Sư Phần Mềm & Hệ Thống (Software Engineer)',
+        sector: 'Công Nghệ Thông Tin',
+        riasecCode: 'RIC',
+        matchPercent: 82,
+        salaryRange: '18 – 45 triệu/tháng',
+        automationRisk: 'Trung bình thấp (18%)',
+        whyFit: 'Công việc kỹ thuật rõ ràng, nhu cầu tuyển dụng toàn cầu cao và mức thu nhập bứt phá.',
+        linkedComboCode: 'A01',
+        recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
+      }
+    ],
     combos: [
       { code: 'D01', matchPercent: 95, matchLabel: 'Độ phủ', reason: 'Độ phủ rộng nhất toàn quốc, tuyển sinh hơn 1.200 ngành học đa lĩnh vực.' },
       { code: 'A01', matchPercent: 90, matchLabel: 'Linh hoạt', reason: 'Cân bằng hoàn hảo giữa tư duy logic kỹ thuật và hội nhập quốc tế.' },
@@ -1561,6 +1998,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
   // Analysis result for Step 1
   const [analysisText, setAnalysisText] = useState('');
+  const [suggestedCareers, setSuggestedCareers] = useState<SuggestedCareerItem[]>([]);
   const [suggestedCombos, setSuggestedCombos] = useState<SuggestedComboItem[]>([]);
 
   // Selected state
@@ -1589,12 +2027,13 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     return selectedComboCode ? getOrSynthesizeComboData(selectedComboCode) : null;
   }, [selectedComboCode]);
 
-  // Quick Prompt Chips (Exact 4 clean chips matching reference image)
+  // Quick Prompt Chips (5 career-first orientation chips from scratch)
   const promptChips = [
-    { label: '💡 Thích công nghệ, lập trình & AI', query: 'Em thích công nghệ, máy tính và tư duy logic, muốn học AI và phần mềm' },
-    { label: '🩺 Đam mê Y Dược & Sinh học', query: 'Em muốn làm bác sĩ chữa bệnh, học giỏi môn Sinh và Hóa, đam mê ngành y' },
-    { label: '📈 Giỏi Toán Anh, thích kinh doanh', query: 'Em học khá Toán và Tiếng Anh, thích kinh doanh, tài chính, đàm phán quốc tế' },
-    { label: '✍️ Yêu thích viết lách & truyền thông', query: 'Em thích viết lách, sáng tạo nội dung, truyền thông, báo chí và luật học' },
+    { label: '🧭 Em chưa biết mình thích gì hay giỏi gì', query: 'Em chưa biết mình thích gì hay giỏi gì, học lực đều các môn, đang rất hoang mang về tương lai' },
+    { label: '💡 Thích công nghệ, máy tính & logic', query: 'Em thích công nghệ, máy tính và tư duy logic, muốn tìm việc làm liên quan AI và phần mềm' },
+    { label: '📈 Thích kinh doanh, thị trường & giao tiếp', query: 'Em thích kinh doanh, quan sát thị trường, thích giao tiếp và đàm phán thương mại' },
+    { label: '🩺 Đam mê Y Dược & Sinh học cứu người', query: 'Em muốn làm việc trong ngành y tế chăm sóc sức khỏe, thích môn Sinh và Hóa' },
+    { label: '🎨 Yêu thích sáng tạo, thiết kế & nghệ thuật', query: 'Em có năng khiếu thẩm mỹ, thích vẽ, thiết kế sáng tạo hình ảnh và truyền thông' },
   ];
 
   // API Key Save & Test Handler
@@ -1658,22 +2097,62 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     if (currentKey) {
       // Call REAL AI via API Key!
       try {
-        const systemPrompt = `Bạn là Nexora — Chuyên viên Cố vấn Hướng nghiệp và Tuyển sinh Đại học tận tâm, giàu kinh nghiệm tại Việt Nam (xưng hô "mình" và gọi học sinh là "bạn" hoặc "em").
-Phong cách giao tiếp:
-1. NÓI CHUYỆN TỰ NHIÊN, ĐỜI THƯỜNG NHƯ MỘT CHATBOT CON NGƯỜI:
-   - Ấm áp, đồng cảm, lắng nghe và thấu hiểu tâm lý học sinh như một người thầy, người anh/chị đi trước.
-   - TUYỆT ĐỐI KHÔNG dùng các từ ngữ máy móc, robot như: "NEXORA SUPREME AI", "Hệ thống ghi nhận", "Báo cáo chẩn đoán", "MODE SUPREME", "Bán cầu não", "Ma trận đối soát", và không dùng các đường kẻ gạch '━━━━'.
-   - Trả lời trực tiếp vào câu hỏi hoặc thắc mắc của bạn học sinh.
-   - Nếu bạn ấy bối rối, chưa biết mình giỏi gì, hoặc thắc mắc vì sao học đều lại bị gán D01: Hãy giải thích nhẹ nhàng, thực tế, chỉ ra mặt trái của việc chọn vội D01 (loãng ngành, mất động lực, dễ làm trái ngành), và gợi ý cách tự khám phá bản thân qua sở thích thực tế, môn học ít ngại nhất.
-   - Cuối câu trả lời, hãy đặt 1 câu hỏi gợi mở thân thiện để bạn ấy thoải mái tâm sự tiếp.
+        const systemPrompt = `Bạn là Nexora — Chuyên gia Cố vấn Hướng nghiệp và Định vị Tương lai từ con số 0 (theo chuẩn EXORA Protocol kết hợp Holland RIASEC, Cây Nghề Nghiệp Phoenix Ho, Schein Career Anchors và Ikigai).
 
-2. BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ THỐNG HIỂN THỊ 3 THẺ TỔ HỢP GỢI Ý THAM KHẢO:
+NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
+1. ĐỊNH HƯỚNG NGHỀ NGHIỆP TỪ CON SỐ 0 — TUYỆT ĐỐI KHÔNG BẮT HỌC SINH CHỌN TỔ HỢP MÔN NGAY TỪ ĐẦU!
+   - Quá trình đi từ "chưa biết gì / học đều" đến chọn tổ hợp xét tuyển là một hành trình dài gồm:
+     [Gate 0: Hiểu bản thân] ➔ [Gate 1: Định vị cá nhân] ➔ [Gate 2: Vị trí nghề nghiệp mục tiêu] ➔ [Gate 3: Chuyên ngành đào tạo] ➔ [Gate 4: Chiến lược tuyển sinh & Tổ hợp môn].
+   - Trả lời tự nhiên, ấm áp, đồng cảm như một người thầy, người anh/chị đi trước (xưng hô "mình" và gọi học sinh là "bạn" hoặc "em").
+   - NÓI CHUYỆN TỰ NHIÊN NHƯ CON NGƯỜI, TUYỆT ĐỐI KHÔNG DÙNG TỪ NGỮ ROBOT MÁY MÓC:
+     + Không xưng là "AI", không nói "Hệ thống ghi nhận", "Báo cáo chẩn đoán", "MODE SUPREME", "Ma trận đối soát", không dùng các đường kẻ gạch '━━━━'.
+   - Nếu học sinh chia sẻ chưa biết giỏi gì, học đều, hoặc hoang mang:
+     + Trấn an học sinh: đó là tâm lý rất bình thường của học sinh THPT.
+     + Chỉ ra rõ sai lầm nếu vội vã chọn khối D01 (chọn vì đông người học, dẫn đến loãng ngành, thiếu động lực và nguy cơ làm trái ngành lên tới 38%).
+     + Phân tích gợi mở dựa trên Cây Nghề Nghiệp: Gốc rễ là bản thân (sở thích, tính cách, phản xạ học tập ít tốn năng lượng não bộ nhất) ➔ Thân cành là năng lực ➔ Tán lá hoa quả là Nghề nghiệp & Thu nhập.
+     + Đưa ra 3 VỊ TRÍ NGHỀ NGHIỆP CỤ THỂ TRONG XÃ HỘI (Gate 2) phù hợp để học sinh hình dung rõ công việc hàng ngày, dải thu nhập và mức độ ảnh hưởng của AI.
+     + Cuối câu trả lời, hãy đặt 1 câu hỏi gợi mở thân thiện để bạn ấy thoải mái tâm sự tiếp.
+
+2. BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ THỐNG HIỂN THỊ 3 VỊ TRÍ NGHỀ NGHIỆP MỤC TIÊU (GATE 2):
 \`\`\`json
 {
-  "combos": [
-    { "code": "MÃ_TỔ_HỢP_1", "matchPercent": 95, "matchLabel": "Phù hợp", "reason": "Lý do súc tích đời thường..." },
-    { "code": "MÃ_TỔ_HỢP_2", "matchPercent": 90, "matchLabel": "Lựa chọn 2", "reason": "Lý do súc tích đời thường..." },
-    { "code": "MÃ_TỔ_HỢP_3", "matchPercent": 85, "matchLabel": "Dự phòng", "reason": "Lý do súc tích đời thường..." }
+  "careers": [
+    {
+      "id": "c_career_1",
+      "title": "Tên Vị Trí Việc Làm Cụ Thể 1",
+      "sector": "Lĩnh Vực Ngành",
+      "riasecCode": "MÃ_RIASEC_3_CHỮ_CÁI",
+      "matchPercent": 96,
+      "salaryRange": "Dải lương P25 - P50 - P90 (VD: 18 – 45 triệu/tháng)",
+      "automationRisk": "Mức độ ảnh hưởng AI (VD: Rất thấp (8%))",
+      "whyFit": "Lý do súc tích vì sao nghề này vừa vặn với bản thân từ con số 0...",
+      "linkedComboCode": "A01",
+      "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
+    },
+    {
+      "id": "c_career_2",
+      "title": "Tên Vị Trí Việc Làm Cụ Thể 2",
+      "sector": "Lĩnh Vực Ngành",
+      "riasecCode": "MÃ_RIASEC_3_CHỮ_CÁI",
+      "matchPercent": 90,
+      "salaryRange": "Dải lương (VD: 16 – 40 triệu/tháng)",
+      "automationRisk": "Mức độ ảnh hưởng AI (VD: Thấp (12%))",
+      "whyFit": "Lý do súc tích...",
+      "linkedComboCode": "D01",
+      "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
+    },
+    {
+      "id": "c_career_3",
+      "title": "Tên Vị Trí Việc Làm Cụ Thể 3",
+      "sector": "Lĩnh Vực Ngành",
+      "riasecCode": "MÃ_RIASEC_3_CHỮ_CÁI",
+      "matchPercent": 84,
+      "salaryRange": "Dải lương (VD: 15 – 38 triệu/tháng)",
+      "automationRisk": "Mức độ ảnh hưởng AI (VD: Trung bình (18%))",
+      "whyFit": "Lý do súc tích...",
+      "linkedComboCode": "A00",
+      "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
+    }
   ]
 }
 \`\`\``;
@@ -1697,6 +2176,7 @@ Phong cách giao tiếp:
           rawResponse = res.text;
         }
 
+        const careers = parseCareersFromAIResponse(rawResponse);
         const combos = parseCombosFromAIResponse(rawResponse);
         const rawDisplayText = rawResponse.replace(/```(?:json)?\s*[\s\S]*?```/g, '').trim();
         const cleanDisplayText = rawDisplayText
@@ -1704,6 +2184,7 @@ Phong cách giao tiếp:
           .trim();
 
         setAnalysisText(cleanDisplayText);
+        setSuggestedCareers(careers);
         setSuggestedCombos(combos);
         setChatMessages([
           { role: 'user', content: text },
@@ -1721,6 +2202,7 @@ Phong cách giao tiếp:
     // Fallback if no key or API call failed:
     const fallback = generateSmartSemanticAnalysis(text);
     setAnalysisText(fallback.text);
+    setSuggestedCareers(fallback.careers);
     setSuggestedCombos(fallback.combos);
     setChatMessages([
       { role: 'user', content: text },
@@ -1986,7 +2468,79 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
             }
           ];
 
+      const p1 = getOrSynthesizeComboData(primaryComboCode);
+      const p2 = getOrSynthesizeComboData(secondaryComboCode);
+      const c1 = p1.careers[0] || {
+        id: `c_${primaryComboCode.toLowerCase()}_1`,
+        title: `Chuyên Viên Phân Tích & Phát Triển [Tổ Hợp ${primaryComboCode}]`,
+        sector: 'Chuyên Môn & Quản Trị',
+        desc: 'Hoạch định chiến lược và thực thi nghiệp vụ chuyên môn.',
+        salaryP50: '18 – 42 triệu',
+        salaryRange: 'Khởi điểm: 14M · P75: 38M · Chuyên gia: 60M+',
+        automationRisk: 'Thấp (12%)'
+      };
+      const c2 = p1.careers[1] || p2.careers[0] || {
+        id: `c_${primaryComboCode.toLowerCase()}_2`,
+        title: `Chuyên Viên Quản Trị Dự Án & Tăng Trưởng`,
+        sector: 'Kinh Tế Số & Ứng Dụng',
+        desc: 'Điều phối vận hành và tối ưu hóa hiệu quả công việc.',
+        salaryP50: '16 – 38 triệu',
+        salaryRange: 'Khởi điểm: 12M · P75: 35M · Trưởng phòng: 50M+',
+        automationRisk: 'Thấp (15%)'
+      };
+      const c3 = p2.careers[0] || {
+        id: `c_${secondaryComboCode.toLowerCase()}_1`,
+        title: `Chuyên Viên Đối Ngoại & Thị Trường [Tổ Hợp ${secondaryComboCode}]`,
+        sector: 'Hội Nhập & Phát Triển',
+        desc: 'Mở rộng đối tác và phát triển năng lực hội nhập.',
+        salaryP50: '15 – 35 triệu',
+        salaryRange: 'Khởi điểm: 12M · P75: 32M · Lead: 45M+',
+        automationRisk: 'Trung bình thấp (18%)'
+      };
+
+      const finalCareers: SuggestedCareerItem[] = [
+        {
+          id: c1.id,
+          title: c1.title,
+          sector: c1.sector,
+          riasecCode: inferredRiasec,
+          matchPercent: effectiveConfidence >= 90 ? 98 : 94,
+          salaryRange: c1.salaryRange || '18 – 45 triệu/tháng',
+          automationRisk: c1.automationRisk || 'Thấp (12%)',
+          whyFit: chosenSub.id === 'sub_neutral_balanced' && chosenEvenStyle
+            ? `Giải mã từ phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}].`
+            : `Khớp với định hướng môi trường ${chosenEnv.label} và động lực của bạn.`,
+          linkedComboCode: primaryComboCode,
+          recommendedMajors: p1.majors.slice(0, 2).map(m => m.name)
+        },
+        {
+          id: c2.id,
+          title: c2.title,
+          sector: c2.sector,
+          riasecCode: inferredRiasec.includes('R') ? 'RIC' : 'ESA',
+          matchPercent: 90,
+          salaryRange: c2.salaryRange || '16 – 40 triệu/tháng',
+          automationRisk: c2.automationRisk || 'Thấp (15%)',
+          whyFit: `Vị trí bổ trợ tương thích cao với nguyện vọng phân khúc trường ${chosenTier.label}.`,
+          linkedComboCode: primaryComboCode,
+          recommendedMajors: p1.majors.slice(1, 3).map(m => m.name)
+        },
+        {
+          id: c3.id,
+          title: c3.title,
+          sector: c3.sector,
+          riasecCode: 'ICE',
+          matchPercent: 84,
+          salaryRange: c3.salaryRange || '15 – 35 triệu/tháng',
+          automationRisk: c3.automationRisk || 'Trung bình thấp (18%)',
+          whyFit: `Phương án mở rộng an toàn giúp đa dạng hóa lựa chọn nghề nghiệp tương lai.`,
+          linkedComboCode: secondaryComboCode,
+          recommendedMajors: p2.majors.slice(0, 2).map(m => m.name)
+        }
+      ];
+
       setAnalysisText(fullAnalysis);
+      setSuggestedCareers(finalCareers);
       setSuggestedCombos(combos);
       setIsGeneratingAnalysis(false);
       setWorkflowStep('ANALYZED_COMBOS');
@@ -2008,6 +2562,16 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
   };
 
   // =========================================================================
+  // STEP 2.5: DIRECT CAREER SELECTION FROM HERO ORIENTATION
+  // =========================================================================
+  const handleSelectCareerDirectly = (career: SuggestedCareerItem) => {
+    sfx.playUiClick();
+    setSelectedCareerId(career.id);
+    setSelectedComboCode(career.linkedComboCode || 'A01');
+    handleGenerateDossier('career', career.id, career);
+  };
+
+  // =========================================================================
   // STEP 3: USER PICKS 1 OF 3 PATHWAYS -> CHOOSE SPECIFIC ITEM
   // =========================================================================
   const handleSelectPathway = (mode: 'school' | 'major' | 'career') => {
@@ -2022,7 +2586,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
   // =========================================================================
   // STEP 4: USER SELECTS AN ITEM -> GENERATE REVERSE LOOKUP DOSSIER
   // =========================================================================
-  const handleGenerateDossier = (type: 'school' | 'major' | 'career', id: string) => {
+  const handleGenerateDossier = (type: 'school' | 'major' | 'career', id: string, customCareer?: SuggestedCareerItem) => {
     sfx.playUiClick();
     if (!activeCombo) return;
 
@@ -2071,26 +2635,51 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
         `• Đặt nguyện vọng 2 vào các trường trọng điểm vùng có cùng mã ngành để đảm bảo cơ hội trúng tuyển.`;
     } else if (type === 'career') {
       setSelectedCareerId(id);
-      const career = activeCombo.careers.find(c => c.id === id) || activeCombo.careers[0];
-      const majors = activeCombo.majors.filter(m => career.requiredMajors.includes(m.id));
+      let career = activeCombo.careers.find(c => c.id === id);
+      if (!career && customCareer) {
+        career = {
+          id: customCareer.id,
+          title: customCareer.title,
+          sector: customCareer.sector,
+          desc: customCareer.whyFit,
+          salaryP50: customCareer.salaryRange,
+          salaryRange: customCareer.salaryRange,
+          automationRisk: customCareer.automationRisk,
+          requiredMajors: activeCombo.majors.slice(0, 2).map(m => m.id)
+        };
+      }
+      if (!career) {
+        career = activeCombo.careers[0];
+      }
+
+      let majors = activeCombo.majors.filter(m => career.requiredMajors.includes(m.id));
+      if (majors.length === 0) {
+        majors = activeCombo.majors.slice(0, 3);
+      }
       const schoolCodes = new Set<string>();
       majors.forEach(m => m.schools.forEach(s => schoolCodes.add(s)));
-      const schools = activeCombo.schools.filter(s => schoolCodes.has(s.code));
+      let schools = activeCombo.schools.filter(s => schoolCodes.has(s.code));
+      if (schools.length === 0) {
+        schools = activeCombo.schools.slice(0, 4);
+      }
 
       fullDossier = 
-        `💼 THÔNG TIN CHI TIẾT VỀ NGHỀ NGHIỆP: ${career.title.toUpperCase()}\n\n` +
-        `1. THỊ TRƯỜNG VIỆC LÀM & THU NHẬP THỰC TẾ:\n` +
+        `💼 HỒ SƠ ĐỊNH HƯỚNG NGHỀ NGHIỆP: ${career.title.toUpperCase()}\n\n` +
+        `1. THỊ TRƯỜNG LAO ĐỘNG & THU NHẬP THỰC TẾ (GATE 2: CAREER ROLE):\n` +
         `• Lĩnh vực: ${career.sector}\n` +
         `• Mô tả công việc: ${career.desc}\n` +
         `• Mức thu nhập tham khảo: ${career.salaryRange}\n` +
-        `• Mức độ tác động của AI/Tự động hóa: ${career.automationRisk}\n\n` +
-        `2. CHUYÊN NGÀNH ĐÀO TẠO PHÙ HỢP:\n` +
-        majors.map(m => `• [${m.code}] ${m.name} (Tổ hợp ${activeCombo.code}) — Khung điểm chuẩn: ${m.benchmark2026Est}`).join('\n') + '\n\n' +
-        `3. CÁC TRƯỜNG ĐẠI HỌC CÓ TỶ LỆ VIỆC LÀM CAO:\n` +
-        schools.map(s => `• [${s.code}] ${s.name} (${s.city}) — ${s.badge}`).join('\n') + '\n\n' +
-        `4. LỜI KHUYÊN PHÁT TRIỂN KỸ NĂNG:\n` +
-        `• Nắm vững kiến thức nền tảng trong tổ hợp ${activeCombo.code}.\n` +
-        `• Tích cực tham gia dự án thực tế, thực tập từ sớm để tích lũy kinh nghiệm làm việc ngay khi còn học đại học.`;
+        `• Mức độ tác động của AI/Tự động hóa: ${career.automationRisk}\n` +
+        `• Đặc tính Holland RIASEC: Tương thích cao với phong cách làm việc của bạn\n\n` +
+        `2. CHUYÊN NGÀNH ĐÀO TẠO ĐẠI HỌC DẪN ĐẾN NGHỀ NÀY (GATE 3: MAJORS):\n` +
+        majors.map(m => `• [${m.code}] ${m.name} (Tổ hợp ${activeCombo.code}) — Điểm chuẩn 2026 dự kiến: ${m.benchmark2026Est}\n  ↳ Mô tả: ${m.desc}`).join('\n') + '\n\n' +
+        `3. TRƯỜNG ĐẠI HỌC ĐÀO TẠO & TỔ HỢP XÉT TUYỂN (GATE 4: ADMISSION STRATEGY):\n` +
+        schools.map(s => `• [${s.code}] ${s.name} (${s.city}) — ${s.badge}\n  ↳ Học phí: ${s.tuitionYearEst} | Phương thức: ${s.admissionMethods}`).join('\n') + '\n\n' +
+        `4. LỘ TRÌNH 4 NĂM ĐẠI HỌC & HỒ SƠ NĂNG LỰC (STAGE 5: 4-YEAR ROADMAP):\n` +
+        `• Năm 1: Nắm chắc các môn cơ sở ngành, đạt chuẩn tiếng Anh (IELTS 6.0+), rèn luyện tác phong làm việc độc lập.\n` +
+        `• Năm 2: Học sâu kỹ năng chuyên môn mũi nhọn, tham gia nghiên cứu khoa học hoặc CLB học thuật.\n` +
+        `• Năm 3: Thực tập doanh nghiệp (OJT), xây dựng hồ sơ năng lực (portfolio / dự án thực tế).\n` +
+        `• Năm 4: Làm đồ án tốt nghiệp gắn với bài toán thực tế và đón đầu cơ hội tuyển dụng chính thức.`;
     }
 
     setDossierFullText(fullDossier);
@@ -2104,6 +2693,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
     setChatInput('');
     setActivePromptQuery('');
     setAnalysisText('');
+    setSuggestedCareers([]);
     setSuggestedCombos([]);
     setSelectedComboCode(null);
     setPathwayMode(null);
@@ -2130,7 +2720,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
         {/* Pill Badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1D4ED8]/10 border border-[#2563EB]/30 text-xs text-[#60A5FA] font-mono">
           <Compass className="w-3.5 h-3.5 text-[#3B82F6]" />
-          <span>HỆ THỐNG ĐỊNH HƯỚNG TƯƠNG LAI 2026</span>
+          <span>HỆ THỐNG ĐỊNH HƯỚNG NGHỀ NGHIỆP &amp; TUYỂN SINH 2026</span>
         </div>
 
         {/* Main Hero Headline */}
@@ -2140,7 +2730,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
 
         {/* 1 Single concise descriptive line */}
         <p className="text-sm sm:text-base md:text-lg text-[#94A3B8] dark:text-[#CBD5E1] font-medium max-w-2xl mx-auto leading-relaxed">
-          Website Hướng Nghiệp &amp; Định Hướng Tương Lai: Nhập sở thích để gợi ý tổ hợp môn, kết nối chuẩn xác <span className="text-[#3B82F6] dark:text-[#60A5FA] font-bold">Trường — Ngành — Nghề</span>.
+          Website Hướng Nghiệp &amp; Định Hướng Tương Lai: Khám phá bản thân từ con số 0, kết nối chuẩn xác <span className="text-[#3B82F6] dark:text-[#60A5FA] font-bold">Bản Thân — Việc Làm — Ngành Học — Tuyển Sinh</span>.
         </p>
       </section>
 
@@ -2151,8 +2741,8 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
         <div className="bg-[#121316] dark:bg-[#121316] border border-[#262630] dark:border-[#262630] p-4 sm:p-5 rounded-2xl shadow-2xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-mono text-[#60A5FA]">
-              <Sparkles className="w-4 h-4" />
-              <span className="font-semibold uppercase tracking-wider">Trợ Lý Phân Tích Chọn Tổ Hợp Môn</span>
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span className="font-semibold uppercase tracking-wider">Cố Vấn Định Hướng Nghề Nghiệp Từ Con Số 0</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -2201,7 +2791,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
             <textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Nhập sở thích, tính cách hoặc môn học tự tin nhất của bạn (Ví dụ: Em thích máy tính và tư duy logic, không thích học văn...)"
+              placeholder='Bạn đang băn khoăn điều gì về bản thân, sở thích hay tương lai? Hãy chia sẻ tự nhiên (Ví dụ: "Em chưa biết mình thích gì, học lực bình thường", hoặc "Em thích công nghệ nhưng ngại giao tiếp...")...'
               rows={2}
               className="w-full bg-[#07080B] dark:bg-[#07080B] text-white dark:text-white p-3.5 pr-28 rounded-xl border border-[#262630] dark:border-[#262630] focus:border-[#3B82F6] text-xs sm:text-sm placeholder-[#64748B] focus:outline-none transition-colors resize-none font-sans"
             />
@@ -2213,11 +2803,11 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
               {isGeneratingAnalysis ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Phân tích...</span>
+                  <span>Đang định hướng...</span>
                 </>
               ) : (
                 <>
-                  <span>Phân tích</span>
+                  <span>Bắt đầu định hướng</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
@@ -2709,7 +3299,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
                   <span className="text-xs font-mono font-bold text-[#60A5FA] uppercase tracking-wider">
-                    Cố Vấn Hướng Nghiệp Nexora: Lời Khuyên &amp; Gợi Ý Tổ Hợp
+                    Cố Vấn Hướng Nghiệp Nexora: Lời Khuyên &amp; Định Hướng Nghề Nghiệp
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2742,12 +3332,12 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
                 {!isAnalysisDone && <span className="inline-block w-2 h-4 ml-1 bg-[#60A5FA] animate-pulse" />}
               </div>
 
-              {/* Suggested Combos Revealed After Streaming or Immediately */}
-              {isAnalysisDone && suggestedCombos.length > 0 && (
+              {/* Target Career Roles Revealed (Gate 2: Career Orientation From Scratch) */}
+              {isAnalysisDone && (suggestedCareers.length > 0 || suggestedCombos.length > 0) && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="pt-3 border-t border-[#1E3A8A]/30 space-y-3"
+                  className="pt-3 border-t border-[#1E3A8A]/30 space-y-4"
                 >
                   {/* Discovery Triage Banner if user is undecided or lacks direction */}
                   {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput)) && (
@@ -2762,7 +3352,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">Đừng chọn vội!</span>
                           </div>
                           <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                            Không ai có thể chọn đúng tổ hợp nếu chưa thu thập đủ yếu tố (loại trừ môn ngại nhất, môi trường làm việc RIASEC, điều kiện tài chính). Hãy để AI hỏi thêm 3 câu để định vị chuẩn xác!
+                            Không ai có thể chọn đúng nghề nếu chưa thu thập đủ yếu tố (loại trừ việc ngại nhất, môi trường làm việc RIASEC, điều kiện tài chính). Hãy để AI hỏi thêm 4 câu để định vị chuẩn xác!
                           </p>
                         </div>
                       </div>
@@ -2776,69 +3366,118 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
                         className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 transition-transform active:scale-95 cursor-pointer"
                       >
                         <Sliders className="w-3.5 h-3.5" />
-                        <span>Mở 3 Bước Thăm Dò Năng Lực</span>
+                        <span>Mở 4 Bước Thăm Dò Năng Lực</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="text-[11px] font-mono text-[#94A3B8] uppercase tracking-wider font-semibold">
-                      {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput))
-                        ? 'Gợi ý 3 tổ hợp môn có độ phủ tuyển sinh an toàn số 1 toàn quốc:'
-                        : 'Hãy bấm chọn 1 tổ hợp môn phù hợp nhất với bạn để tiếp tục:'}
+                  {/* Header of Gate 2 Career Cards */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E3A8A]/30 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                        <Briefcase className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-mono font-bold text-white uppercase tracking-wider block">
+                          Top 3 Vị Trí Việc Làm Mục Tiêu Đề Xuất (Gate 2: Target Career Roles)
+                        </span>
+                        <span className="text-[11px] text-[#94A3B8] font-mono">
+                          Định hướng từ con số 0: Chọn việc làm trước ➔ Hệ thống truy hồi Ngành học &amp; Tuyển sinh
+                        </span>
+                      </div>
                     </div>
-                    {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput)) && (
-                      <span className="text-[10px] text-amber-400/90 font-mono italic">
-                        * Bạn có thể bấm xem thử lộ trình mà không bắt buộc phải chốt ngay!
-                      </span>
-                    )}
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#3B82F6]/20 text-[#60A5FA] border border-[#3B82F6]/30 self-start sm:self-auto">
+                      Holland RIASEC + EXORA Match
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {suggestedCombos.map((combo) => {
-                      const isSelected = selectedComboCode === combo.code;
-                      const cData = getOrSynthesizeComboData(combo.code);
-                      const isLost = (detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput));
+                  {/* 3 Target Career Role Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    {suggestedCareers.map((career) => {
+                      const isSelected = selectedCareerId === career.id;
                       return (
                         <div
-                          key={combo.code}
-                          onClick={() => handleSelectCombo(combo.code)}
-                          className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                          key={career.id}
+                          onClick={() => handleSelectCareerDirectly(career)}
+                          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
                             isSelected
-                              ? 'bg-[#2563EB] text-white border-[#60A5FA] shadow-[0_0_20px_rgba(37,99,235,0.4)] scale-[1.02]'
-                              : 'bg-[#10141D] border-[#222838] hover:border-[#3B82F6]'
+                              ? 'bg-[#182338] border-[#3B82F6] shadow-[0_0_20px_rgba(59,130,246,0.35)] ring-1 ring-[#3B82F6] scale-[1.02]'
+                              : 'bg-[#10141D] border-[#222838] hover:border-[#3B82F6] hover:bg-[#131926]'
                           }`}
                         >
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="font-black text-xl font-mono">{combo.code}</span>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                isSelected ? 'bg-white text-[#2563EB]' : 'bg-[#3B82F6]/20 text-[#60A5FA]'
-                              }`}>
-                                {combo.matchLabel ? `${combo.matchLabel} ${combo.matchPercent}%` : `Khớp ${combo.matchPercent}%`}
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#3B82F6]/20 text-[#60A5FA] font-bold border border-[#3B82F6]/30">
+                                RIASEC: {career.riasecCode}
+                              </span>
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                Khớp {career.matchPercent}%
                               </span>
                             </div>
-                            <div className={`text-xs font-mono font-medium mt-1 ${isSelected ? 'text-white/90' : 'text-[#94A3B8]'}`}>
-                              {cData ? cData.subjects : combo.code}
+
+                            <div>
+                              <span className="text-[10px] font-mono text-[#94A3B8] uppercase block">
+                                {career.sector}
+                              </span>
+                              <h4 className="font-bold text-sm sm:text-base text-white mt-0.5 leading-snug group-hover:text-[#60A5FA] transition-colors">
+                                {career.title}
+                              </h4>
                             </div>
-                            <p className={`text-[11px] mt-2 leading-relaxed ${isSelected ? 'text-white/85' : 'text-[#7A8699]'}`}>
-                              {cleanComboReason(combo.reason)}
+
+                            <div className="space-y-1.5 pt-1">
+                              <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#10B981] font-semibold bg-[#064E3B]/30 px-2 py-1 rounded border border-[#064E3B]/40">
+                                <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span>{career.salaryRange}</span>
+                              </div>
+                              <div className="text-[10px] text-[#CBD5E1] bg-white/5 px-2 py-1 rounded font-mono flex items-center justify-between">
+                                <span className="text-[#94A3B8]">Mức độ rủi ro AI:</span>
+                                <span className="text-emerald-400 font-bold">{career.automationRisk}</span>
+                              </div>
+                            </div>
+
+                            <p className="text-[11px] text-[#CBD5E1] leading-relaxed pt-1 line-clamp-3">
+                              {career.whyFit}
                             </p>
+
+                            {career.recommendedMajors && career.recommendedMajors.length > 0 && (
+                              <div className="text-[10px] font-mono text-[#94A3B8] pt-1 border-t border-[#1E293B]">
+                                <span className="text-[#64748B]">Ngành đào tạo: </span>
+                                <span className="text-white/90 font-medium">{career.recommendedMajors.join(' · ')}</span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
-                            <span className={`text-[11px] font-medium font-mono flex items-center gap-1 ${
-                              isSelected ? 'text-white font-bold' : 'text-[#60A5FA] group-hover:underline'
-                            }`}>
-                              <span>{isLost ? 'Xem thử lộ trình tổ hợp này' : 'Chọn tổ hợp này'}</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </span>
+                          <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs font-mono text-[#60A5FA] group-hover:underline">
+                            <span className="font-bold">Khám phá nghề này: Cần học ngành gì?</span>
+                            <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
                           </div>
                         </div>
                       );
                     })}
                   </div>
+
+                  {/* Optional Linked Combinations Preview */}
+                  {suggestedCombos.length > 0 && (
+                    <div className="p-3 rounded-xl bg-[#0B0F19] border border-[#1E293B] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                      <span className="text-[#94A3B8]">
+                        Tổ hợp môn xét tuyển liên đới (Gate 4):
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {suggestedCombos.map((cb) => (
+                          <button
+                            key={cb.code}
+                            type="button"
+                            onClick={() => handleSelectCombo(cb.code)}
+                            className="px-2.5 py-1 rounded-lg bg-[#161B26] hover:bg-[#2563EB] text-[#CBD5E1] hover:text-white border border-[#222838] transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span className="font-bold text-[#60A5FA] group-hover:text-white">{cb.code}</span>
+                            <span className="text-[10px] text-[#94A3B8]">({cb.matchPercent}%)</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
