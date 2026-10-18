@@ -662,6 +662,18 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       let combos: { code: string; matchPercent: number; reason: string }[] = [];
       let fullIntroText = '';
 
+      // Location detection from input
+      let detectedLocation = '';
+      if (lower.includes('hà nội') || lower.includes('ha noi') || lower.includes('miền bắc') || lower.includes('mien bac')) {
+        detectedLocation = 'Hà Nội (Miền Bắc)';
+      } else if (lower.includes('hồ chí minh') || lower.includes('tp.hcm') || lower.includes('tphcm') || lower.includes('sài gòn') || lower.includes('sai gon') || lower.includes('miền nam') || lower.includes('mien nam')) {
+        detectedLocation = 'TP. Hồ Chí Minh (Miền Nam)';
+      } else if (lower.includes('đà nẵng') || lower.includes('da nang') || lower.includes('huế') || lower.includes('hue') || lower.includes('miền trung') || lower.includes('mien trung')) {
+        detectedLocation = 'Đà Nẵng & Miền Trung';
+      } else if (lower.includes('cần thơ') || lower.includes('can tho') || lower.includes('miền tây') || lower.includes('dbscl') || lower.includes('đồng bằng sông cửu long')) {
+        detectedLocation = 'Cần Thơ & ĐBSCL';
+      }
+
       // 1. Direct Combo Match: If user entered an exact combo code (e.g. D02, D07, A02, C01, V00, etc.)
       const words = lower.split(/[\s,.;:!?/\\-]+/);
       const directCombo = VERIFIED_COMBINATIONS_219.find(c => 
@@ -675,6 +687,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
           `Nexora đã nhận diện chính xác mã tổ hợp [${cCode}] theo yêu cầu của bạn:\n` +
           `• Thành phần môn thi: ${directCombo.subjects.join(' · ')}.\n` +
           `• Định hướng đào tạo: ${directCombo.description || cData.highlights}\n` +
+          (detectedLocation ? `• Địa bàn tuyển sinh: Tập trung các trường tại ${detectedLocation}.\n` : '') +
           `• Khảo sát tuyển sinh 2026: Tổ hợp có ${cData.majors.length} chuyên ngành đào tạo trọng điểm tại ${cData.schools.length} trường đại học uy tín.\n` +
           `Dưới đây là các tổ hợp tối ưu tương ứng:`;
         combos = [
@@ -682,10 +695,76 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
           { code: cCode.startsWith('D') ? 'D01' : (cCode.startsWith('A') ? 'A01' : 'C00'), matchPercent: 88, reason: 'Lựa chọn thay thế linh hoạt có môn tương đồng để đăng ký song song.' },
           { code: 'A00', matchPercent: 80, reason: 'Phương án dự phòng mở rộng cơ hội trúng tuyển vào các trường kỹ thuật và kinh tế.' },
         ];
+      } else if ((lower.includes('toán') && lower.includes('lý') && lower.includes('hóa')) || lower.includes('toán lý hóa') || lower.includes('a00')) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
+          '• Môn trọng tâm: Toán – Vật lí – Hóa học (Khối A00 kinh điển).\n' +
+          '• Thiên hướng: Nền tảng khoa học tự nhiên vững chắc, tư duy phân tích định lượng và thực nghiệm kỹ thuật sâu sắc.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng 2026: Thích hợp nhất cho Kỹ thuật Ô tô, Bán dẫn, Tự động hóa, Vi mạch, CNTT và Hóa dầu.\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
+        combos = [
+          { code: 'A00', matchPercent: 99, reason: 'Tổ hợp chuẩn xác 100% gồm Toán - Vật lí - Hóa học.' },
+          { code: 'A01', matchPercent: 92, reason: 'Toán - Vật lí - Tiếng Anh: Lựa chọn song song mở rộng cơ hội quốc tế.' },
+          { code: 'D07', matchPercent: 85, reason: 'Toán - Hóa - Tiếng Anh: Tuyệt vời cho các chương trình kỹ thuật tiên tiến.' },
+        ];
+      } else if ((lower.includes('toán') && lower.includes('lý') && lower.includes('anh')) || lower.includes('toán lý anh') || lower.includes('a01')) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
+          '• Môn trọng tâm: Toán – Vật lí – Tiếng Anh (Tổ hợp A01).\n' +
+          '• Thiên hướng: Sự kết hợp hoàn hảo giữa tư duy logic kỹ thuật và năng lực hội nhập quốc tế.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng 2026: Tổ hợp có chỉ tiêu tuyển sinh lớn nhất vào Bách Khoa, CNTT, AI, Ngoại thương và Logistics.\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
+        combos = [
+          { code: 'A01', matchPercent: 99, reason: 'Tổ hợp chuẩn xác Toán - Vật lí - Tiếng Anh.' },
+          { code: 'A00', matchPercent: 90, reason: 'Toán - Vật lí - Hóa học: Phương án dự phòng kỹ thuật truyền thống.' },
+          { code: 'D01', matchPercent: 88, reason: 'Toán - Ngữ văn - Tiếng Anh: Chuyển hướng kinh tế và ngoại thương linh hoạt.' },
+        ];
+      } else if ((lower.includes('toán') && lower.includes('hóa') && lower.includes('sinh')) || lower.includes('toán hóa sinh') || lower.includes('b00')) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
+          '• Môn trọng tâm: Toán – Hóa học – Sinh học (Tổ hợp B00).\n' +
+          '• Thiên hướng: Đam mê khoa học sự sống, y học điều trị, nghiên cứu dược chất và công nghệ sinh học.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng 2026: Độc quyền cho các trường Y Dược hàng đầu (Y Hà Nội, Y Dược TP.HCM, Y Dược Cần Thơ, Y Huế).\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
+        combos = [
+          { code: 'B00', matchPercent: 99, reason: 'Tổ hợp chuẩn vàng cho Y khoa, Dược học, Răng Hàm Mặt.' },
+          { code: 'D07', matchPercent: 86, reason: 'Toán - Hóa - Tiếng Anh: Hóa Dược và Công nghệ Sinh học quốc tế.' },
+          { code: 'A00', matchPercent: 82, reason: 'Toán - Lý - Hóa: Mở rộng sang Kỹ thuật Y sinh và Thiết bị y tế.' },
+        ];
+      } else if ((lower.includes('văn') && lower.includes('sử') && lower.includes('địa')) || lower.includes('văn sử địa') || lower.includes('c00')) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
+          '• Môn trọng tâm: Ngữ văn – Lịch sử – Địa lí (Tổ hợp C00).\n' +
+          '• Thiên hướng: Trực giác ngôn ngữ sâu sắc, am hiểu văn hóa xã hội và tư duy lập luận chính luận.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng 2026: Ưu thế số 1 cho khối Sư phạm (miễn 100% học phí theo NĐ 116), Báo chí, Luật và An ninh quốc phòng.\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
+        combos = [
+          { code: 'C00', matchPercent: 99, reason: 'Tổ hợp truyền thống số 1 cho Sư phạm, Báo chí, Luật và Xã hội học.' },
+          { code: 'D01', matchPercent: 90, reason: 'Toán - Ngữ văn - Tiếng Anh: Mở rộng sang Truyền thông số và Quan hệ quốc tế.' },
+          { code: 'C19', matchPercent: 83, reason: 'Ngữ văn - Lịch sử - GD Kinh tế & Pháp luật: Khối ngành Luật pháp hiện đại.' },
+        ];
+      } else if ((lower.includes('toán') && lower.includes('văn') && lower.includes('anh')) || lower.includes('toán văn anh') || lower.includes('d01')) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
+          '• Môn trọng tâm: Toán – Ngữ văn – Tiếng Anh (Tổ hợp D01).\n' +
+          '• Thiên hướng: Cân bằng toàn diện giữa tư duy định lượng và khả năng diễn đạt ngôn ngữ hiện đại.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng 2026: Tổ hợp phổ biến nhất cả nước, áp dụng cho hơn 1.200 ngành kinh tế, luật, truyền thông, ngôn ngữ và quản trị.\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
+        combos = [
+          { code: 'D01', matchPercent: 99, reason: 'Tổ hợp đa năng số 1 cho mọi trường Kinh tế, Ngoại ngữ, Luật và Truyền thông.' },
+          { code: 'A01', matchPercent: 91, reason: 'Toán - Lý - Tiếng Anh: Cơ hội vào các ngành công nghệ và tài chính định lượng.' },
+          { code: 'D07', matchPercent: 85, reason: 'Toán - Hóa - Tiếng Anh: Tăng khả năng cạnh tranh các ngành xuất nhập khẩu và kinh doanh.' },
+        ];
       } else if (lower.includes('nga') || lower.includes('tiếng nga') || lower.includes('d02') || lower.includes('du học nga') || lower.includes('á âu') || lower.includes('eaeu')) {
         fullIntroText = 
           'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
           '• Thiên hướng: Bạn có năng khiếu ngoại ngữ đặc thù, quan tâm đến thị trường Liên minh Kinh tế Á – Âu (EAEU) và các đối tác truyền thống của Việt Nam.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
           '• Triển vọng thị trường 2026: Ngành Kinh tế đối ngoại (Nga - Á-Âu) và Ngôn ngữ Nga tại NEU, FTU, ULIS đang có nhu cầu nhân sự song ngữ cấp bách đón đầu hiệp định thương mại tự do VN-EAEU.\n' +
           'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
         combos = [
@@ -1004,6 +1083,65 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
                 {chip.label}
               </button>
             ))}
+          </div>
+
+          {/* Môn thế mạnh */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#1F242C]">
+            <span className="text-[11px] text-[#94A3B8] font-medium flex items-center gap-1 font-mono">
+              <BookOpen className="w-3 h-3 text-[#3B82F6]" />
+              Môn thế mạnh:
+            </span>
+            {['Toán', 'Vật lí', 'Hóa học', 'Sinh học', 'Ngữ văn', 'Lịch sử', 'Địa lí', 'Tiếng Anh', 'Tin học', 'Tiếng Nga', 'Tiếng Pháp', 'Tiếng Trung', 'Vẽ'].map((sub) => (
+              <button
+                key={sub}
+                type="button"
+                onClick={() => {
+                  const current = chatInput.trim();
+                  const updated = current ? `${current}, môn ${sub}` : `Em có thế mạnh môn ${sub}`;
+                  setChatInput(updated);
+                  handleAnalyzeInput(updated);
+                }}
+                className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-md bg-[#161B22] text-[#94A3B8] hover:text-white hover:bg-[#1D4ED8] hover:border-[#3B82F6] transition-colors cursor-pointer border border-[#262B34]"
+              >
+                +{sub}
+              </button>
+            ))}
+          </div>
+
+          {/* Khu vực & Tra cứu trực tiếp */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-[#94A3B8] font-medium flex items-center gap-1 font-mono">
+                <MapPin className="w-3 h-3 text-emerald-400" />
+                Khu vực:
+              </span>
+              {['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Cần Thơ'].map((loc) => (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => {
+                    const current = chatInput.trim();
+                    const updated = current ? `${current} tại ${loc}` : `Em muốn tìm trường tại ${loc}`;
+                    setChatInput(updated);
+                    handleAnalyzeInput(updated);
+                  }}
+                  className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-md bg-[#161B22] text-[#94A3B8] hover:text-emerald-300 hover:bg-emerald-950/40 hover:border-emerald-600/50 transition-colors cursor-pointer border border-[#262B34]"
+                >
+                  📍 {loc}
+                </button>
+              ))}
+            </div>
+
+            {onNavigateToCombos && (
+              <button
+                type="button"
+                onClick={onNavigateToCombos}
+                className="text-[11px] font-mono text-[#60A5FA] hover:text-white flex items-center gap-1 hover:underline transition-colors cursor-pointer ml-auto"
+              >
+                <Search className="w-3 h-3" />
+                <span>Tra cứu đa tiêu chí (219 tổ hợp, 300 trường) →</span>
+              </button>
+            )}
           </div>
         </div>
       </section>

@@ -68,6 +68,16 @@ import { PageTransitionShutter } from './PageTransitionShutter';
 import { CareerPathwayNavigator } from './CareerPathwayNavigator';
 import { AIMajorSchoolAssistant } from './AIMajorSchoolAssistant';
 import { MajorQuickDetailModal } from './MajorQuickDetailModal';
+import { 
+  searchCombinations, 
+  searchInstitutions, 
+  searchMajors,
+  HIGH_SCHOOL_SUBJECTS,
+  POPULAR_LOCATIONS,
+  VIETNAM_REGIONS,
+  removeVietnameseTones,
+  getRegionFromProvinceCity
+} from '../services/unifiedSearchEngine';
 
 interface UNIROOTPlatformProps {
   onOpenAIChat: (query?: string) => void;
@@ -292,6 +302,8 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
             >
               <CombinationsCatalogView 
                 onSelectCombo={(code) => navigateTo('to-hop-detail', code)}
+                onSelectSchool={(code) => navigateTo('truong-detail', code)}
+                onSelectMajor={(majorCode) => navigateTo('nganh-detail', majorCode)}
               />
             </motion.div>
           )}
@@ -945,165 +957,608 @@ const DeprecatedOldHomeView: React.FC<{
 };
 
 /**
- * 2. COMBINATIONS CATALOG VIEW (Trang Danh Mục Tổ Hợp)
- * Root-to-Leaf starting point with search, filters, and verified database counts.
+ * 2. COMBINATIONS & ADMISSION DISCOVERY VIEW (Tra Cứu Tuyển Sinh Đa Chiều)
+ * Tối ưu hóa toàn diện: Lọc theo Môn × Lọc theo Tên × Lọc theo Địa điểm
  */
 const CombinationsCatalogView: React.FC<{
   onSelectCombo: (code: string) => void;
-}> = ({ onSelectCombo }) => {
-  const [filterMode, setFilterMode] = useState<'all' | 'subject' | 'major' | 'school'>('all');
+  onSelectSchool?: (code: string) => void;
+  onSelectMajor?: (code: string) => void;
+}> = ({ onSelectCombo, onSelectSchool, onSelectMajor }) => {
+  // Search state
   const [searchWord, setSearchWord] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
+  const [selectedLocation, setSelectedLocation] = useState<string>('Tất cả');
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [subjectMatchMode, setSubjectMatchMode] = useState<'AND' | 'OR'>('AND');
+  const [activeTab, setActiveTab] = useState<'combos' | 'schools' | 'majors'>('combos');
   const [visibleCount, setVisibleCount] = useState<number>(36);
-
-  const subjectList = ['Tất cả', 'Toán', 'Vật lí', 'Hóa học', 'Sinh học', 'Ngữ văn', 'Lịch sử', 'Địa lí', 'Tiếng Anh', 'Tin học'];
 
   useEffect(() => {
     setVisibleCount(36);
-  }, [searchWord, selectedSubject, filterMode]);
+  }, [searchWord, selectedLocation, selectedSubjects, subjectMatchMode, activeTab]);
 
-  const filtered = useMemo(() => {
-    return VERIFIED_COMBINATIONS_219.filter(combo => {
-      const q = searchWord.toLowerCase().trim();
-      const matchSearch = !q || combo.code.toLowerCase().includes(q) || combo.name.toLowerCase().includes(q) || combo.subjects.some(s => s.toLowerCase().includes(q));
-      const matchSub = selectedSubject === 'Tất cả' || combo.subjects.some(s => s.toLowerCase().includes(selectedSubject.toLowerCase()));
-      return matchSearch && matchSub;
+  // Execute unified searches
+  const comboResults = useMemo(() => {
+    return searchCombinations({
+      searchQuery: searchWord,
+      selectedSubjects,
+      subjectMatchMode,
+      location: selectedLocation,
     });
-  }, [searchWord, selectedSubject]);
+  }, [searchWord, selectedSubjects, subjectMatchMode, selectedLocation]);
+
+  const schoolResults = useMemo(() => {
+    return searchInstitutions({
+      searchQuery: searchWord,
+      selectedSubjects,
+      location: selectedLocation,
+    });
+  }, [searchWord, selectedSubjects, selectedLocation]);
+
+  const majorResults = useMemo(() => {
+    return searchMajors({
+      searchQuery: searchWord,
+      selectedSubjects,
+      location: selectedLocation,
+    });
+  }, [searchWord, selectedSubjects, selectedLocation]);
+
+  const toggleSubject = (sub: string) => {
+    setSelectedSubjects(prev => 
+      prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
+    );
+  };
+
+  const clearAllFilters = () => {
+    setSearchWord('');
+    setSelectedLocation('Tất cả');
+    setSelectedSubjects([]);
+  };
+
+  const hasActiveFilters = searchWord.trim() !== '' || selectedLocation !== 'Tất cả' || selectedSubjects.length > 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-      {/* Page Title & Blueprint Breadcrumbs */}
-      <div>
-        <div className="flex items-center gap-2 text-xs font-mono text-[#888888] mb-1">
-          <span>DANH MỤC TỔ HỢP MÔN</span>
-          <span>·</span>
-          <span className="text-[#C6F135]">54+ MÃ CHUẨN HÓA</span>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#262630] pb-6">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-mono text-[#888888] mb-1.5">
+            <span className="text-[#3B82F6] font-bold">HỆ THỐNG TRA CỨU TUYỂN SINH 2026</span>
+            <span>·</span>
+            <span>300 ĐẠI HỌC</span>
+            <span>·</span>
+            <span>219 TỔ HỢP</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold font-sans text-white tracking-tight">
+            Tìm kiếm theo Môn, Tên trường &amp; Địa điểm
+          </h1>
+          <p className="text-xs sm:text-sm text-[#94A3B8] mt-1 max-w-2xl leading-relaxed">
+            Hệ thống phân tích ma trận dữ liệu tuyển sinh tự động: Kết hợp lọc theo nhiều môn học, tên ngành/trường không phân biệt dấu và khu vực địa lý trên toàn quốc.
+          </p>
         </div>
-        <h1 className="text-2xl sm:text-4xl font-bold font-sans text-white">
-          Tra cứu tổ hợp xét tuyển 2026
-        </h1>
-        <p className="text-xs sm:text-sm text-[#999999] mt-1 max-w-2xl">
-          Tìm theo mã tổ hợp, môn học hoặc trường sử dụng. Toàn bộ số lượng ngành và trường được tổng hợp từ dữ liệu kiểm toán đề án 2026.
-        </p>
+
+        {/* View Switcher Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-[#121316] border border-[#262630] rounded-xl shrink-0">
+          <button
+            onClick={() => setActiveTab('combos')}
+            className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'combos'
+                ? 'bg-[#2563EB] text-white font-bold shadow-md'
+                : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            <span>📋 Tổ hợp môn</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30">
+              {comboResults.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('schools')}
+            className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'schools'
+                ? 'bg-[#2563EB] text-white font-bold shadow-md'
+                : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            <span>🏛️ Trường ĐH</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30">
+              {schoolResults.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('majors')}
+            className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'majors'
+                ? 'bg-[#2563EB] text-white font-bold shadow-md'
+                : 'text-[#94A3B8] hover:text-white'
+            }`}
+          >
+            <span>🎓 Ngành đào tạo</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30">
+              {majorResults.length}
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Filter Mode Tabs & Search bar */}
-      <div className="p-4 bg-[#121316] border border-[#262630] space-y-4">
-        {/* 4 Tabs: Tất cả mã, Theo môn, Theo ngành, Theo trường */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#22232a] pb-3 text-xs font-mono">
-          <span className="text-[#888888] mr-2">CHẾ ĐỘ TÌM:</span>
-          {[
-            { id: 'all', label: 'Tất cả mã' },
-            { id: 'subject', label: 'Theo môn học' },
-            { id: 'major', label: 'Theo ngành học' },
-            { id: 'school', label: 'Theo trường' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setFilterMode(tab.id as any)}
-              className={`px-3 py-1 border transition-colors ${
-                filterMode === tab.id
-                  ? 'bg-[#C6F135] text-[#0C0D0E] border-[#C6F135] font-bold'
-                  : 'bg-[#181920] text-[#AAAAAA] hover:text-white border-[#2c2d38]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Search input + Subject quick pills */}
+      {/* Unified Multi-Criteria Filter Console */}
+      <div className="p-4 sm:p-5 bg-[#121316] border border-[#262630] rounded-2xl space-y-4 shadow-xl">
+        {/* Row 1: Search by Name / Keyword / Combo Code */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#C6F135]" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#3B82F6]" />
             <input
               type="text"
               value={searchWord}
               onChange={(e) => setSearchWord(e.target.value)}
-              placeholder="Nhập mã (A00, A01, X06...), môn học (Toán, Vật lí...), hoặc trường..."
-              className="w-full bg-[#181920] text-white pl-9 pr-4 py-2 border border-[#2c2d38] focus:border-[#C6F135] text-xs font-mono focus:outline-none"
+              placeholder="Nhập tên trường (Bách Khoa, NEU...), tên ngành (CNTT, Logistics, Y khoa...), mã tổ hợp (A00, D02...)"
+              className="w-full bg-[#181922] text-white pl-10 pr-9 py-2.5 rounded-xl border border-[#2E313D] focus:border-[#3B82F6] text-xs font-mono focus:outline-none transition-colors"
             />
+            {searchWord && (
+              <button
+                onClick={() => setSearchWord('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
-          {filterMode === 'subject' && (
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto text-xs font-mono">
-              {subjectList.map(sub => (
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="px-3.5 py-2.5 rounded-xl border border-rose-500/30 hover:border-rose-500 bg-rose-500/10 text-rose-400 hover:text-rose-300 text-xs font-mono transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Xóa bộ lọc</span>
+            </button>
+          )}
+        </div>
+
+        {/* Row 2: Location Filter (Theo Địa Điểm) */}
+        <div className="pt-2 border-t border-[#1F202A] space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-mono text-[#8E929F]">
+            <span className="flex items-center gap-1.5 font-bold text-[#E2E8F0]">
+              <MapPin className="w-3.5 h-3.5 text-[#3B82F6]" />
+              LỌC THEO ĐỊA ĐIỂM / TỈNH THÀNH:
+            </span>
+            <span className="text-[10px]">
+              Đang chọn: <strong className="text-[#60A5FA]">{selectedLocation}</strong>
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+            {POPULAR_LOCATIONS.map(loc => {
+              const isSelected = selectedLocation === loc;
+              return (
                 <button
-                  key={sub}
-                  onClick={() => setSelectedSubject(sub)}
-                  className={`px-2 py-1 whitespace-nowrap border text-[11px] ${
-                    selectedSubject === sub
-                      ? 'bg-[#2563EB] text-white border-[#3B82F6]'
-                      : 'bg-[#141518] text-[#888888] border-[#262630]'
+                  key={loc}
+                  onClick={() => setSelectedLocation(loc)}
+                  className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-[11px] ${
+                    isSelected
+                      ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-[0_0_10px_rgba(37,99,235,0.3)]'
+                      : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50'
                   }`}
                 >
-                  {sub}
+                  {loc}
                 </button>
-              ))}
+              );
+            })}
+
+            {/* Region quick switchers */}
+            <div className="h-4 w-px bg-[#262630] mx-1 hidden sm:block" />
+            {VIETNAM_REGIONS.filter(r => r.id !== 'ALL').map(reg => {
+              const isSelected = selectedLocation === reg.id;
+              return (
+                <button
+                  key={reg.id}
+                  onClick={() => setSelectedLocation(reg.id)}
+                  className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-[11px] ${
+                    isSelected
+                      ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-[0_0_10px_rgba(37,99,235,0.3)]'
+                      : 'bg-[#181922] text-[#8E929F] hover:text-white border-[#2A2B36]'
+                  }`}
+                >
+                  {reg.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Row 3: Subject Multi-Select Filter (Theo Môn Học) */}
+        <div className="pt-2 border-t border-[#1F202A] space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-[#8E929F]">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 font-bold text-[#E2E8F0]">
+                <BookOpen className="w-3.5 h-3.5 text-[#3B82F6]" />
+                LỌC THEO MÔN HỌC (CHỌN NHIỀU MÔN):
+              </span>
+              {selectedSubjects.length > 0 && (
+                <span className="text-[10px] text-[#60A5FA] font-bold px-1.5 py-0.5 rounded bg-[#2563EB]/20 border border-[#3B82F6]/40">
+                  {selectedSubjects.length} môn
+                </span>
+              )}
+            </div>
+
+            {/* AND / OR Match Mode Toggle */}
+            <div className="flex items-center gap-1 bg-[#181922] p-0.5 rounded-lg border border-[#2A2B36] text-[10px]">
+              <span className="text-[#64748B] px-1.5">Chế độ:</span>
+              <button
+                onClick={() => setSubjectMatchMode('AND')}
+                className={`px-2 py-0.5 rounded transition-colors ${
+                  subjectMatchMode === 'AND'
+                    ? 'bg-[#3B82F6] text-white font-bold'
+                    : 'text-[#94A3B8] hover:text-white'
+                }`}
+                title="Chỉ hiển thị các tổ hợp có chứa ĐỦ TẤT CẢ các môn bạn đã chọn"
+              >
+                Chứa đủ môn (AND)
+              </button>
+              <button
+                onClick={() => setSubjectMatchMode('OR')}
+                className={`px-2 py-0.5 rounded transition-colors ${
+                  subjectMatchMode === 'OR'
+                    ? 'bg-[#3B82F6] text-white font-bold'
+                    : 'text-[#94A3B8] hover:text-white'
+                }`}
+                title="Hiển thị các tổ hợp có chứa BẤT KỲ môn nào bạn đã chọn"
+              >
+                Chứa ít nhất 1 môn (OR)
+              </button>
+            </div>
+          </div>
+
+          {/* Subject Pills */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {HIGH_SCHOOL_SUBJECTS.map(sub => {
+              const isSelected = selectedSubjects.includes(sub);
+              return (
+                <button
+                  key={sub}
+                  onClick={() => toggleSubject(sub)}
+                  className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer flex items-center gap-1 ${
+                    isSelected
+                      ? 'bg-[#2563EB] text-white border-[#60A5FA] font-bold shadow-[0_0_8px_rgba(37,99,235,0.4)]'
+                      : 'bg-[#181922] text-[#A1A1AA] hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50'
+                  }`}
+                >
+                  <span>{sub}</span>
+                  {isSelected && <span className="text-[10px] text-white/80">✓</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active filter summary pill bar */}
+          {selectedSubjects.length > 0 && (
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-[10px] font-mono text-[#64748B]">Môn đang chọn:</span>
+              <div className="flex flex-wrap gap-1">
+                {selectedSubjects.map(sub => (
+                  <span
+                    key={sub}
+                    className="inline-flex items-center gap-1 text-[10px] font-mono bg-[#1E293B] text-[#93C5FD] px-2 py-0.5 rounded border border-[#3B82F6]/30"
+                  >
+                    {sub}
+                    <button
+                      onClick={() => toggleSubject(sub)}
+                      className="hover:text-white cursor-pointer"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={() => setSelectedSubjects([])}
+                className="text-[10px] font-mono text-rose-400 hover:underline cursor-pointer ml-auto"
+              >
+                Bỏ chọn môn
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Combinations List (Responsive Table / Card Layout) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs font-mono text-[#888888] px-1">
-          <span>Tìm thấy {filtered.length} tổ hợp xét tuyển</span>
-          <span>Năm xác minh: 2026 · TT06/2026/TT-BGDĐT</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.slice(0, visibleCount).map(combo => (
-            <div
-              key={combo.code}
-              onClick={() => onSelectCombo(combo.code)}
-              className="p-4 bg-[#121316] hover:bg-[#181920] border border-[#22232a] hover:border-[#C6F135] transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-mono font-bold text-lg text-[#C6F135]">
-                    {combo.code}
-                  </span>
-                  <span className="text-[10px] font-mono text-[#888888] bg-[#1a1b22] px-2 py-0.5 border border-[#262630]">
-                    VERIFIED_TIER1
-                  </span>
-                </div>
-
-                <div className="text-xs font-bold text-white mb-1">
-                  {combo.subjects.join(' · ')}
-                </div>
-
-                <p className="text-[11px] text-[#999999] line-clamp-2 leading-relaxed">
-                  {combo.description || `Tổ hợp xét tuyển tiêu chuẩn gồm các môn ${combo.subjects.join(', ')}.`}
-                </p>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-[#1e1f26] flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-3 text-[11px] text-[#888888]">
-                  <span>{combo.majorCount ?? 45} ngành</span>
-                  <span>·</span>
-                  <span className="text-[#60A5FA]">{combo.benchmarkRange ?? '18.0 - 28.5'}đ</span>
-                </div>
-                <span className="text-[#C6F135] group-hover:translate-x-1 transition-transform font-bold text-[11px]">
-                  Chi tiết →
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filtered.length > visibleCount && (
-          <div className="pt-2 flex justify-center">
-            <button
-              onClick={() => setVisibleCount(prev => prev + 36)}
-              className="px-6 py-2.5 bg-[#14151a] hover:bg-[#1c1d24] border border-[#262630] hover:border-[#C6F135] text-[#C6F135] font-bold text-xs font-mono transition-colors cursor-pointer"
-            >
-              Tải thêm tổ hợp ({visibleCount} / {filtered.length})
-            </button>
+      {/* =========================================================================
+          VIEW TAB 1: DANH SÁCH TỔ HỢP MÔN
+          ========================================================================= */}
+      {activeTab === 'combos' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-xs font-mono text-[#8E929F] px-1">
+            <span>
+              Tìm thấy <strong className="text-[#3B82F6]">{comboResults.length}</strong> tổ hợp xét tuyển phù hợp
+            </span>
+            <span>Chuẩn hóa 219 tổ hợp · TT06/2026/TT-BGDĐT</span>
           </div>
-        )}
-      </div>
+
+          {comboResults.length === 0 ? (
+            <div className="p-12 text-center bg-[#121316] border border-[#262630] rounded-2xl space-y-3">
+              <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+              <div className="text-sm font-bold text-white">Không tìm thấy tổ hợp nào phù hợp</div>
+              <p className="text-xs text-[#8E929F] max-w-md mx-auto">
+                Hãy thử đổi chế độ lọc môn sang &quot;Chứa ít nhất 1 môn (OR)&quot; hoặc chọn lại địa điểm khác.
+              </p>
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-mono rounded-xl cursor-pointer"
+              >
+                Khôi phục tất cả tổ hợp
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {comboResults.slice(0, visibleCount).map(({ combo, matchingSchoolsCount, sampleSchools, matchingMajorsCount, benchmarkRange }) => (
+                <div
+                  key={combo.code}
+                  onClick={() => onSelectCombo(combo.code)}
+                  className="p-4 bg-[#121316] hover:bg-[#161820] border border-[#22242D] hover:border-[#3B82F6] rounded-xl transition-all cursor-pointer group flex flex-col justify-between shadow-sm hover:shadow-lg"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono font-black text-xl text-[#60A5FA] group-hover:text-white transition-colors">
+                        {combo.code}
+                      </span>
+                      <span className="text-[10px] font-mono text-[#94A3B8] bg-[#1A1D27] px-2 py-0.5 rounded border border-[#2D313F]">
+                        {combo.category === 'KHTN_KY_THUAT' ? 'KHTN & Kỹ thuật' :
+                         combo.category === 'XA_HOI_NGOAI_NGU' ? 'Xã hội & Ngoại ngữ' :
+                         combo.category === 'GDPT_MOI' ? 'GDPT 2018 Mới' : 'Năng khiếu'}
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-bold text-white mb-1.5 flex flex-wrap gap-1">
+                      {combo.subjects.map(s => {
+                        const isHighlighted = selectedSubjects.some(sel => 
+                          removeVietnameseTones(s).includes(removeVietnameseTones(sel))
+                        );
+                        return (
+                          <span
+                            key={s}
+                            className={`px-1.5 py-0.5 rounded text-[11px] ${
+                              isHighlighted 
+                                ? 'bg-[#2563EB] text-white font-bold' 
+                                : 'bg-[#1C1F2B] text-[#D1D5DB]'
+                            }`}
+                          >
+                            {s}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <p className="text-[11px] text-[#8E929F] line-clamp-2 leading-relaxed mt-2">
+                      {combo.description || `Tổ hợp xét tuyển gồm các môn ${combo.subjects.join(', ')}.`}
+                    </p>
+
+                    {/* Sample Schools in location */}
+                    {sampleSchools.length > 0 && (
+                      <div className="mt-3 pt-2.5 border-t border-[#1F202A] text-[10px] font-mono text-[#64748B] space-y-1">
+                        <div className="flex items-center gap-1 text-[#94A3B8]">
+                          <Building2 className="w-3 h-3 text-[#3B82F6]" />
+                          <span>Trường tuyển sinh tiêu biểu:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {sampleSchools.map(sch => (
+                            <span 
+                              key={sch.code} 
+                              className="px-1.5 py-0.2 rounded bg-[#181922] text-[#93C5FD] border border-[#2A2B36]"
+                            >
+                              {sch.code} ({sch.city})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-[#1E202B] flex items-center justify-between text-xs font-mono">
+                    <div className="flex items-center gap-2 text-[11px] text-[#8E929F]">
+                      <span className="font-semibold text-white">{matchingSchoolsCount}</span> trường
+                      <span>·</span>
+                      <span className="text-[#3B82F6] font-semibold">{benchmarkRange}đ</span>
+                    </div>
+                    <span className="text-[#60A5FA] group-hover:translate-x-1 transition-transform font-bold text-[11px] flex items-center gap-1">
+                      Khám phá lộ trình →
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {comboResults.length > visibleCount && (
+            <div className="pt-2 flex justify-center">
+              <button
+                onClick={() => setVisibleCount(prev => prev + 36)}
+                className="px-6 py-2.5 bg-[#14151C] hover:bg-[#1E212D] border border-[#262834] hover:border-[#3B82F6] text-[#60A5FA] font-bold text-xs font-mono rounded-xl transition-colors cursor-pointer"
+              >
+                Tải thêm tổ hợp ({visibleCount} / {comboResults.length})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          VIEW TAB 2: DANH SÁCH TRƯỜNG ĐẠI HỌC
+          ========================================================================= */}
+      {activeTab === 'schools' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-xs font-mono text-[#8E929F] px-1">
+            <span>
+              Tìm thấy <strong className="text-[#3B82F6]">{schoolResults.length}</strong> trường đại học phù hợp
+            </span>
+            <span>Dữ liệu kiểm toán 300 trường · Thông tư 06/2026/TT-BGDĐT</span>
+          </div>
+
+          {schoolResults.length === 0 ? (
+            <div className="p-12 text-center bg-[#121316] border border-[#262630] rounded-2xl space-y-3">
+              <Building2 className="w-8 h-8 text-amber-400 mx-auto" />
+              <div className="text-sm font-bold text-white">Không tìm thấy trường nào phù hợp tiêu chí lọc</div>
+              <p className="text-xs text-[#8E929F] max-w-md mx-auto">
+                Hãy mở rộng địa điểm hoặc giảm bớt số môn lọc để xem nhiều cơ sở đào tạo hơn.
+              </p>
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-mono rounded-xl cursor-pointer"
+              >
+                Xem toàn bộ 300 trường
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {schoolResults.slice(0, visibleCount).map(school => (
+                <div
+                  key={school.code}
+                  onClick={() => onSelectSchool?.(school.code)}
+                  className="p-4 bg-[#121316] hover:bg-[#161820] border border-[#22242D] hover:border-[#3B82F6] rounded-xl transition-all cursor-pointer group flex flex-col justify-between shadow-sm hover:shadow-lg"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono font-black text-xl text-[#3B82F6] group-hover:text-white transition-colors">
+                        {school.code}
+                      </span>
+                      <span className="text-[10px] font-mono text-[#93C5FD] bg-[#1E293B] px-2 py-0.5 rounded border border-[#3B82F6]/30 flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5 text-[#3B82F6]" />
+                        {school.city}
+                      </span>
+                    </div>
+
+                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-[#60A5FA] transition-colors leading-snug">
+                      {school.officialName}
+                    </h3>
+
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-[#8E929F]">
+                      <span className="px-2 py-0.5 rounded bg-[#181922] border border-[#2A2B36]">
+                        {school.primarySector === 'KY_THUAT_CONG_NGHE' ? 'Kỹ thuật - Công nghệ' :
+                         school.primarySector === 'KINH_TE_QUAN_TRI' ? 'Kinh tế & Quản trị' :
+                         school.primarySector === 'Y_DUOC' ? 'Y Dược & Sức khỏe' :
+                         school.primarySector === 'SU_PHAM' ? 'Sư phạm' : 'Đa ngành'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-[#181922] border border-[#2A2B36]">
+                        Miền {school.region === 'BAC' ? 'Bắc' : school.region === 'NAM' ? 'Nam' : school.region === 'DBSCL' ? 'ĐBSCL' : 'Trung'}
+                      </span>
+                    </div>
+
+                    {/* Combinations badges */}
+                    <div className="mt-3 pt-2.5 border-t border-[#1F202A] text-[10px] font-mono text-[#64748B]">
+                      <div className="mb-1 text-[#94A3B8]">Tổ hợp xét tuyển tiêu biểu:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {school.matchingCombos.map(c => (
+                          <span
+                            key={c}
+                            className="px-1.5 py-0.2 rounded bg-[#1C1F2B] text-[#93C5FD] font-semibold border border-[#262834]"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-[#1E202B] flex items-center justify-between text-xs font-mono">
+                    <span className="text-[11px] text-[#8E929F]">Đề án tuyển sinh 2026</span>
+                    <span className="text-[#60A5FA] group-hover:translate-x-1 transition-transform font-bold text-[11px] flex items-center gap-1">
+                      Xem chi tiết trường →
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {schoolResults.length > visibleCount && (
+            <div className="pt-2 flex justify-center">
+              <button
+                onClick={() => setVisibleCount(prev => prev + 36)}
+                className="px-6 py-2.5 bg-[#14151C] hover:bg-[#1E212D] border border-[#262834] hover:border-[#3B82F6] text-[#60A5FA] font-bold text-xs font-mono rounded-xl transition-colors cursor-pointer"
+              >
+                Tải thêm trường ({visibleCount} / {schoolResults.length})
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          VIEW TAB 3: DANH SÁCH NGÀNH ĐÀO TẠO
+          ========================================================================= */}
+      {activeTab === 'majors' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-xs font-mono text-[#8E929F] px-1">
+            <span>
+              Tìm thấy <strong className="text-[#3B82F6]">{majorResults.length}</strong> chuyên ngành đào tạo
+            </span>
+            <span>Mã hóa TT74/2026/TT-BGDĐT</span>
+          </div>
+
+          {majorResults.length === 0 ? (
+            <div className="p-12 text-center bg-[#121316] border border-[#262630] rounded-2xl space-y-3">
+              <GraduationCap className="w-8 h-8 text-amber-400 mx-auto" />
+              <div className="text-sm font-bold text-white">Không tìm thấy ngành nào phù hợp</div>
+              <p className="text-xs text-[#8E929F] max-w-md mx-auto">
+                Hãy thử nhập từ khóa ngắn gọn hơn (ví dụ: &quot;kinh te&quot;, &quot;cntt&quot;, &quot;dien&quot;, &quot;y khoa&quot;).
+              </p>
+              <button
+                onClick={clearAllFilters}
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-mono rounded-xl cursor-pointer"
+              >
+                Khôi phục tìm kiếm
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {majorResults.map((item, idx) => (
+                <div
+                  key={`${item.institutionCode}-${item.majorName}-${idx}`}
+                  onClick={() => onSelectSchool?.(`${item.institutionCode}:${item.majorName}`)}
+                  className="p-4 bg-[#121316] hover:bg-[#161820] border border-[#22242D] hover:border-[#3B82F6] rounded-xl transition-all cursor-pointer group flex items-start justify-between gap-4"
+                >
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-xs text-[#60A5FA] bg-[#1E293B] px-2 py-0.5 rounded border border-[#3B82F6]/30">
+                        {item.institutionCode}
+                      </span>
+                      <span className="text-[11px] font-mono text-[#8E929F] flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5" />
+                        {item.city}
+                      </span>
+                      <span className="text-[10px] font-mono text-[#94A3B8] ml-auto">
+                        {item.scale}
+                      </span>
+                    </div>
+
+                    <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-[#60A5FA] transition-colors">
+                      {item.majorName}
+                    </h4>
+
+                    <div className="text-[11px] text-[#94A3B8]">
+                      {item.institutionName}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1 pt-1">
+                      <span className="text-[10px] font-mono text-[#64748B]">Tổ hợp:</span>
+                      {item.combinations.slice(0, 5).map(c => (
+                        <span 
+                          key={c}
+                          className="px-1.5 py-0.2 rounded bg-[#181922] text-[#93C5FD] text-[10px] font-mono border border-[#2A2B36]"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <span className="text-[#3B82F6] group-hover:translate-x-1 transition-transform shrink-0 pt-2 text-xs font-bold font-mono">
+                    Xem trường →
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -1844,10 +2299,15 @@ const MajorsExplorerView: React.FC<{
   }, []);
 
   const filteredMajors = useMemo(() => {
+    const q = removeVietnameseTones(searchMajor);
     return allAuditedMajors.filter(m => {
       const matchSec = selectedSector === 'All' || m.sector === selectedSector;
       const matchCombo = selectedCombo === 'All' || m.combos.includes(selectedCombo);
-      const matchSearch = !searchMajor || m.name.toLowerCase().includes(searchMajor.toLowerCase()) || m.code.includes(searchMajor);
+      const matchSearch = !q || 
+        removeVietnameseTones(m.name).includes(q) || 
+        m.code.toLowerCase().includes(q) ||
+        m.campuses.some(c => removeVietnameseTones(c).includes(q)) ||
+        m.schools.some(s => s.toLowerCase().includes(q));
       return matchSec && matchCombo && matchSearch;
     });
   }, [allAuditedMajors, selectedSector, selectedCombo, searchMajor]);
@@ -2181,21 +2641,37 @@ const UniversitiesListView: React.FC<{
   const [searchTerm, setSearchTerm] = useState('');
   const [sectorFilter, setSectorFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [locationFilter, setLocationFilter] = useState('All');
   const [visibleCount, setVisibleCount] = useState<number>(36);
 
   useEffect(() => {
     setVisibleCount(36);
-  }, [searchTerm, sectorFilter, statusFilter]);
+  }, [searchTerm, sectorFilter, statusFilter, locationFilter]);
 
   const filtered = useMemo(() => {
+    const q = removeVietnameseTones(searchTerm);
     return AUDITED_INSTITUTIONS_300.filter(u => {
-      const q = searchTerm.toLowerCase().trim();
-      const matchSearch = !q || u.code.toLowerCase().includes(q) || u.official_name.toLowerCase().includes(q) || u.verified_province_city.toLowerCase().includes(q);
+      const matchSearch = !q || 
+        u.code.toLowerCase().includes(q) || 
+        removeVietnameseTones(u.official_name).includes(q) || 
+        removeVietnameseTones(u.verified_province_city).includes(q);
       const matchSector = sectorFilter === 'All' || u.primary_sector === sectorFilter;
       const matchStatus = statusFilter === 'All' || u.institution_status === statusFilter;
-      return matchSearch && matchSector && matchStatus;
+      
+      let matchLocation = true;
+      if (locationFilter !== 'All') {
+        const uReg = getRegionFromProvinceCity(u.verified_province_city);
+        if (locationFilter === 'BAC') matchLocation = uReg === 'BAC';
+        else if (locationFilter === 'TRUNG') matchLocation = uReg === 'TRUNG';
+        else if (locationFilter === 'NAM') matchLocation = uReg === 'NAM' || uReg === 'DBSCL';
+        else if (locationFilter === 'DBSCL') matchLocation = uReg === 'DBSCL';
+        else {
+          matchLocation = removeVietnameseTones(u.verified_province_city).includes(removeVietnameseTones(locationFilter));
+        }
+      }
+      return matchSearch && matchSector && matchStatus && matchLocation;
     });
-  }, [searchTerm, sectorFilter, statusFilter]);
+  }, [searchTerm, sectorFilter, statusFilter, locationFilter]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8 font-mono text-xs">
@@ -2214,42 +2690,86 @@ const UniversitiesListView: React.FC<{
       </div>
 
       {/* Filter Controls */}
-      <div className="p-4 bg-[#121316] border border-[#262630] flex flex-col sm:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#C6F135]" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm theo mã trường (KHA, BKA, QSB...), tên trường, tỉnh thành..."
-            className="w-full bg-[#181920] text-white pl-9 pr-4 py-2 border border-[#2c2d38] focus:border-[#C6F135] focus:outline-none"
-          />
+      <div className="p-4 bg-[#121316] border border-[#262630] space-y-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#C6F135]" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm theo mã trường (KHA, BKA, QSB...), tên trường (Bách Khoa, Ngoại Thương...), tỉnh thành..."
+              className="w-full bg-[#181920] text-white pl-9 pr-4 py-2 border border-[#2c2d38] focus:border-[#C6F135] focus:outline-none"
+            />
+          </div>
+
+          <select
+            value={sectorFilter}
+            onChange={(e) => setSectorFilter(e.target.value)}
+            className="bg-[#181920] text-white border border-[#2c2d38] p-2 text-xs w-full sm:w-auto"
+          >
+            <option value="All">Tất cả khối ngành</option>
+            <option value="CNTT_BAN_DAN_AI">CNTT - Bán dẫn - AI</option>
+            <option value="KY_THUAT_CONG_NGHE">Kỹ thuật - Công nghệ</option>
+            <option value="KINH_TE_QUAN_TRI">Kinh tế - Quản trị</option>
+            <option value="Y_DUOC_SUC_KHOE">Y Dược - Sức khỏe</option>
+            <option value="SU_PHAM_GIAO_DUC">Sư phạm - Giáo dục</option>
+            <option value="CONG_AN_QUAN_DOI">Công an - Quân đội</option>
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-[#181920] text-white border border-[#2c2d38] p-2 text-xs w-full sm:w-auto"
+          >
+            <option value="All">Tất cả trạng thái</option>
+            <option value="ACTIVE_INDEPENDENT">Độc lập tuyển sinh</option>
+            <option value="BRANCH_CAMPUS">Phân hiệu tỉnh</option>
+            <option value="MERGED_HISTORICAL">Đã sáp nhập</option>
+          </select>
         </div>
 
-        <select
-          value={sectorFilter}
-          onChange={(e) => setSectorFilter(e.target.value)}
-          className="bg-[#181920] text-white border border-[#2c2d38] p-2 text-xs w-full sm:w-auto"
-        >
-          <option value="All">Tất cả khối ngành</option>
-          <option value="CNTT_BAN_DAN_AI">CNTT - Bán dẫn - AI</option>
-          <option value="KY_THUAT_CONG_NGHE">Kỹ thuật - Công nghệ</option>
-          <option value="KINH_TE_QUAN_TRI">Kinh tế - Quản trị</option>
-          <option value="Y_DUOC_SUC_KHOE">Y Dược - Sức khỏe</option>
-          <option value="SU_PHAM_GIAO_DUC">Sư phạm - Giáo dục</option>
-          <option value="CONG_AN_QUAN_DOI">Công an - Quân đội</option>
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-[#181920] text-white border border-[#2c2d38] p-2 text-xs w-full sm:w-auto"
-        >
-          <option value="All">Tất cả trạng thái</option>
-          <option value="ACTIVE_INDEPENDENT">Độc lập tuyển sinh</option>
-          <option value="BRANCH_CAMPUS">Phân hiệu tỉnh</option>
-          <option value="MERGED_HISTORICAL">Đã sáp nhập</option>
-        </select>
+        {/* Location Quick Switcher Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#1e1f26] text-[11px]">
+          <span className="text-[#888888] flex items-center gap-1 mr-1">
+            <MapPin className="w-3 h-3 text-[#3B82F6]" />
+            Địa điểm:
+          </span>
+          {['All', 'Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Cần Thơ', 'Hải Phòng', 'Thừa Thiên Huế'].map(loc => (
+            <button
+              key={loc}
+              type="button"
+              onClick={() => setLocationFilter(loc)}
+              className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                locationFilter === loc
+                  ? 'bg-[#2563EB] text-white font-bold'
+                  : 'bg-[#181920] text-[#94A3B8] hover:text-white hover:bg-[#20222a]'
+              }`}
+            >
+              {loc === 'All' ? 'Toàn quốc' : loc}
+            </button>
+          ))}
+          <div className="h-3 w-px bg-[#262630] mx-1" />
+          {[
+            { id: 'BAC', label: 'Miền Bắc' },
+            { id: 'TRUNG', label: 'Miền Trung' },
+            { id: 'NAM', label: 'Miền Nam' },
+            { id: 'DBSCL', label: 'ĐBSCL' },
+          ].map(reg => (
+            <button
+              key={reg.id}
+              type="button"
+              onClick={() => setLocationFilter(reg.id)}
+              className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                locationFilter === reg.id
+                  ? 'bg-[#2563EB] text-white font-bold'
+                  : 'bg-[#181920] text-[#888888] hover:text-white hover:bg-[#20222a]'
+              }`}
+            >
+              {reg.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Cards Grid */}
