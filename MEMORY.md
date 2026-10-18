@@ -60,12 +60,16 @@ Last Updated: 2026-10-18T17:42:00+07:00
     * Dimension 3: 3-Tier Admission Matrix (Dream >26.5đ, Target 22.5-25.5đ, Safe 19.0-22.0đ) & financial insurance (Nghị định 116 for pedagogy, Quyết định 1826 for 111 STEM majors).
     * Dimension 4: 4-year university roadmap & mismatch prevention strategies.
   - Updated `buildSmartAdvisorReply` and `generateSmartSemanticAnalysis` to empathetically acknowledge the flaw of assigning D01 blindly and articulate the scientific multi-stage diagnostic process.
-- **Conversational Chatbot Flow & Human Counselor Persona Refactor (Commit `main` - 2026-10-18)**:
-  - Addressed user feedback regarding artificiality, forced questionnaires, and robotic AI jargon.
-  - Removed query hijacking in `handleAnalyzeInput` that previously forced users into `INTERMEDIATE_DISCOVERY` survey mode instead of answering directly in chat.
-  - Transformed the interaction into a genuine two-way conversational chatbot (multi-turn chat) with instant responses, 3 contextual combo reference cards, and direct follow-up input.
-  - Eliminated all robotic jargon ("MODE SUPREME", "Bán cầu não", "Ma trận đối soát", ASCII divider lines `━━━━`) across both live LLM prompts and fallback engines in `CareerPathwayNavigator.tsx` and `geminiService.ts`.
-  - Replaced with a warm, empathetic, human counselor persona ("mình" - "bạn/em") that speaks practically, explains the nuances of "học đều" and career mismatch naturally, and ends with friendly exploratory questions.
+- **Nexora Protocol 2.0 Scientific Refactor (Master Plan Milestone - 2026-10-18)**:
+  - Addressed expert peer-review critique on measurement validity, arbitrary thresholds, and legal grounding in `CAREER_GUIDANCE_MASTER_PROTOCOL.md`.
+  - Replaced ad-hoc questionnaires with standardized instruments: **O*NET Interest Profiler Short Form (60 items) / Mini-IP (30 items)** ($\alpha = 0.81 - 0.85$) and **BFI-2** (Soto & John, 2017).
+  - Fixed inverted Neuroticism definition: $N$ strictly calibrated as Negative Emotionality (high $N$ = emotional vulnerability; low $N$ = emotional stability).
+  - Completely excised mathematically invalid Pearson $r \ge 0.65$ correlation between non-commensurate RIASEC and Big Five vectors, citing Larson et al. (2002) and Barrick et al. (2003).
+  - Replaced arbitrary 85% lock threshold with **Tricolor Evidence Accumulator FSM** (Red: Insufficient data -> Yellow: Exploratory hypotheses with uncertainty interval -> Green: Evidence-grounded convergence).
+  - Decomposed single Cosine similarity into 3 distinct explainable metrics: `Interest Fit` (profile shape), `Capability Evidence` (academic/task demonstration), and `Practical Feasibility` (financial/admission viability).
+  - Mandated statistical sample transparency for Vietnamese CV and job market data ($N \ge 30$ threshold, explicit uncertainty flags for niche roles, distinguishing task automation risk from disemployment risk).
+  - Legally audited against Vietnam 2026 regulations: Thông tư 06/2026/TT-BGDĐT, Thông tư 74/2026/TT-BGDĐT (hiệu lực 12/10/2026), Nghị định 116 & Nghị định 60/2025/NĐ-CP (hiệu lực 20/04/2025 - hoàn trả bồi hoàn kinh phí sư phạm nếu làm trái ngành), Quyết định 1826/QĐ-BGDĐT & Nghị định 179/2026/NĐ-CP (học bổng 111 ngành STEM).
+  - Formulated 5-layer software architecture: Assessment Engine, Career Matching Engine, Knowledge & Data Layer, Gate & Policy Engine, Conversation & Reporting Layer.
 
 ## 3. Current Status & Git Branch
 - **Branch**: `main` (Dev server running on `http://localhost:8443` via `dev_server.mjs`).
