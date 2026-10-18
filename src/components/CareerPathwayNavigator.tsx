@@ -27,12 +27,33 @@ import {
   Target,
   Check,
   Zap,
-  HelpCircle
+  HelpCircle,
+  KeyRound,
+  Send,
+  Bot,
+  User,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  ExternalLink,
+  X
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
 import { VERIFIED_COMBINATIONS_219 } from '../data/verifiedAdmissionDatabase';
+import { 
+  getStoredApiKey, 
+  setStoredApiKey, 
+  getStoredGroqKey, 
+  setStoredGroqKey, 
+  testGeminiApiKey, 
+  testGroqApiKey, 
+  callDirectGeminiAPI, 
+  callDirectGroqAPI, 
+  getStoredAiProvider, 
+  setStoredAiProvider 
+} from '../services/geminiService';
 
 export interface CareerPathwayNavigatorProps {
   onSelectSchool?: (schoolCode: string) => void;
@@ -631,8 +652,188 @@ function useTypewriter(fullText: string, speedMs: number = 14) {
 }
 
 // =========================================================================
-// 2.5 INTERMEDIATE PROGRESSIVE GUIDANCE ENGINE
+// 2.2 REAL AI PARSER & SMART SEMANTIC FALLBACK ENGINE
 // =========================================================================
+export function parseCombosFromAIResponse(text: string): { code: string; matchPercent: number; reason: string }[] {
+  // 1. Try parsing JSON code block
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (jsonMatch && jsonMatch[1]) {
+    try {
+      const parsed = JSON.parse(jsonMatch[1]);
+      if (Array.isArray(parsed.combos) && parsed.combos.length > 0) {
+        return parsed.combos.slice(0, 3).map((c: any) => ({
+          code: String(c.code || '').toUpperCase().trim(),
+          matchPercent: Number(c.matchPercent) || 90,
+          reason: String(c.reason || 'Tổ hợp được AI đề xuất tối ưu theo câu hỏi của bạn.')
+        }));
+      }
+    } catch {}
+  }
+
+  // 2. Fallback regex extraction of combo codes from text
+  const knownCombos = ['T00', 'D01', 'A01', 'A00', 'B00', 'C00', 'D07', 'X06', 'D02', 'D03', 'D04', 'D06', 'V00', 'H00', 'C19', 'A02'];
+  const foundCodes: string[] = [];
+  const words = text.toUpperCase().split(/[^A-Z0-9]+/);
+  for (const w of words) {
+    if (knownCombos.includes(w) && !foundCodes.includes(w)) {
+      foundCodes.push(w);
+      if (foundCodes.length >= 3) break;
+    }
+  }
+
+  if (foundCodes.length > 0) {
+    return foundCodes.map((code, idx) => ({
+      code,
+      matchPercent: idx === 0 ? 96 : (idx === 1 ? 89 : 82),
+      reason: `Tổ hợp [${code}] được AI phân tích tối ưu cho định hướng của bạn.`
+    }));
+  }
+
+  // 3. Fallback default
+  return [
+    { code: 'D01', matchPercent: 95, reason: 'Toán - Ngữ văn - Tiếng Anh: Tổ hợp đa năng linh hoạt số 1 toàn quốc.' },
+    { code: 'A01', matchPercent: 88, reason: 'Toán - Vật lý - Tiếng Anh: Cân bằng logic tự nhiên và ngoại ngữ.' },
+    { code: 'A00', matchPercent: 80, reason: 'Toán - Vật lý - Hóa học: Nền tảng khoa học tự nhiên kinh điển.' }
+  ];
+}
+
+export function generateSmartSemanticAnalysis(text: string): { text: string; combos: { code: string; matchPercent: number; reason: string }[] } {
+  const lower = (text || '').toLowerCase();
+  
+  // 1. Thể thao / Đá bóng / TDTT
+  if (
+    lower.includes('đá banh') || 
+    lower.includes('đá bóng') || 
+    lower.includes('bóng đá') || 
+    lower.includes('thể thao') || 
+    lower.includes('cầu thủ') || 
+    lower.includes('gym') || 
+    lower.includes('thể hình') || 
+    lower.includes('huấn luyện viên') || 
+    lower.includes('bơi lội') || 
+    lower.includes('vận động viên') || 
+    lower.includes('thể chất') ||
+    lower.includes('tdtt') ||
+    lower.includes('t00')
+  ) {
+    return {
+      text: `⚽ PHÂN TÍCH CHUYÊN SÂU LĨNH VỰC THỂ DỤC THỂ THAO & BÓNG ĐÁ:
+• Định vị năng lực (Mã Holland: R-S-E - Vận động, Xã hội, Quản trị): Bạn có thể lực tốt, tinh thần đồng đội cao, tư duy chiến thuật và đam mê môi trường thi đấu/huấn luyện thể thao.
+• 4 Hướng đi sự nghiệp thực tế đón đầu thị trường 2026:
+  1. Quản Lý Thể Thao & Sự Kiện (Sports Management): Vận hành CLB bóng đá chuyên nghiệp, quản lý giải đấu, đàm phán hợp đồng cầu thủ và thương mại hóa bản quyền giải đấu.
+  2. Huấn Luyện Thể Thao & Bóng Đá: Đào tạo cầu thủ trẻ tại các học viện bóng đá (PVF, Viettel, HAGL...), chuyên gia thể lực và trợ lý chiến thuật.
+  3. Y Học Thể Thao & Phục Hồi Chấn Thương: Bác sĩ/Chuyên viên vật lý trị liệu, phục hồi dây chằng và cơ bắp cho vận động viên thi đấu đỉnh cao.
+  4. Truyền Thông & Báo Chí Thể Thao: Bình luận viên bóng đá, biên tập viên thể thao và quản trị truyền thông hình ảnh cho các vận động viên.
+• Trường đào tạo trọng điểm: ĐH Tôn Đức Thắng (DTT - Số 1 về Quản lý Thể thao & Golf), ĐH TDTT TP.HCM (TDS), ĐH Sư Phạm TDTT Hà Nội (TDH - Miễn 100% học phí theo NĐ 116), ĐH TDTT Bắc Ninh (TDB).
+
+Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+      combos: [
+        { code: 'T00', matchPercent: 99, reason: 'Toán - Sinh - Năng khiếu TDTT: Tổ hợp chuẩn vàng cho Huấn luyện viên, Giáo dục Thể chất và Y học Thể thao.' },
+        { code: 'D01', matchPercent: 94, reason: 'Toán - Văn - Tiếng Anh: Xét tuyển thẳng ngành Quản lý Thể thao & Sự kiện (DTT), Kinh doanh & Truyền thông Thể thao.' },
+        { code: 'C00', matchPercent: 88, reason: 'Văn - Sử - Địa: Lợi thế vào Giáo dục Thể chất (Miễn 100% học phí NĐ 116) và Bình luận viên bóng đá.' }
+      ]
+    };
+  }
+
+  // 2. Y Tế / Dược / Bác sĩ
+  if (lower.includes('y ') || lower.includes('bác sĩ') || lower.includes('dược') || lower.includes('nha khoa') || lower.includes('chữa bệnh') || lower.includes('y tế') || lower.includes('b00')) {
+    return {
+      text: `🩺 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KHOA HỌC SỨC KHỎE & Y DƯỢC:
+• Định vị năng lực (Mã Holland: I-S-C - Nghiên cứu, Phục vụ xã hội, Chuẩn xác): Kiên nhẫn, đạo đức nghề nghiệp cao và tư duy ghi nhớ logic sinh học - hóa học sâu sắc.
+• Triển vọng thị trường 2026: Ngành Y Dược là ngành an toàn nhất trước làn sóng AI (AI không thể thay thế bàn tay bác sĩ lâm sàng và nha sĩ). Nhu cầu nhân lực chất lượng cao tại các bệnh viện công lập và quốc tế luôn đạt mức cao nhất.
+• Trường đào tạo trọng điểm: ĐH Y Hà Nội (HMU), ĐH Y Dược TP.HCM (YDS), ĐH Y Dược Cần Thơ (YCT), ĐH Y Dược Huế.
+
+Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+      combos: [
+        { code: 'B00', matchPercent: 99, reason: 'Toán - Hóa - Sinh: Tổ hợp độc quyền vàng cho Bác sĩ Đa khoa, Dược học và Răng Hàm Mặt.' },
+        { code: 'D07', matchPercent: 88, reason: 'Toán - Hóa - Tiếng Anh: Mũi nhọn cho ngành Hóa Dược và Công nghệ Sinh học Y sinh quốc tế.' },
+        { code: 'A00', matchPercent: 82, reason: 'Toán - Lý - Hóa: Mở rộng sang Kỹ thuật Y sinh và Thiết bị Y tế công nghệ cao.' }
+      ]
+    };
+  }
+
+  // 3. Kinh doanh / Tài chính / Marketing / Logistics
+  if (lower.includes('kinh doanh') || lower.includes('kinh tế') || lower.includes('tài chính') || lower.includes('marketing') || lower.includes('tiền') || lower.includes('đàm phán') || lower.includes('ngân hàng') || lower.includes('chứng khoán') || lower.includes('logistics')) {
+    return {
+      text: `📈 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KINH DOANH, TÀI CHÍNH & THƯƠNG MẠI:
+• Định vị năng lực (Mã Holland: E-C-S - Quản trị, Dữ liệu, Giao tiếp): Nhạy bén với thị trường, tư duy định lượng tốt và khả năng thuyết phục, thương lượng đối tác.
+• Triển vọng thị trường 2026: Bùng nổ nhu cầu nhân sự FinTech (Công nghệ Tài chính), Chuỗi cung ứng quốc tế và E-Commerce xuyên biên giới.
+• Trường đào tạo trọng điểm: ĐH Ngoại Thương (FTU), ĐH Kinh Tế Quốc Dân (NEU), ĐH Kinh Tế TP.HCM (UEH), Học viện Tài Chính (HTC).
+
+Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+      combos: [
+        { code: 'D01', matchPercent: 98, reason: 'Toán - Văn - Tiếng Anh: Tổ hợp đa năng số 1 cho Kinh doanh Quốc tế, Marketing và Quản trị Doanh nghiệp.' },
+        { code: 'A01', matchPercent: 94, reason: 'Toán - Lý - Tiếng Anh: Lợi thế vượt trội vào FinTech, Logistics, Tài chính định lượng và Phân tích dữ liệu.' },
+        { code: 'D07', matchPercent: 87, reason: 'Toán - Hóa - Tiếng Anh: Tổ hợp xét tuyển mới nổi bật cho khối Tài chính Doanh nghiệp và Thuế.' }
+      ]
+    };
+  }
+
+  // 4. Mỹ thuật / Kiến trúc / Thiết kế / Vẽ
+  if (lower.includes('vẽ') || lower.includes('kiến trúc') || lower.includes('thiết kế') || lower.includes('mỹ thuật') || lower.includes('đồ họa') || lower.includes('nội thất')) {
+    return {
+      text: `🎨 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KIẾN TRÚC & THIẾT KẾ SÁNG TẠO:
+• Định vị năng lực (Mã Holland: A-R-I - Nghệ thuật, Kỹ thuật, Trực giác): Cảm thụ thị giác vượt trội, tư duy không gian 3 chiều và khả năng phối trộn thẩm mỹ với giải pháp kỹ thuật.
+• Triển vọng thị trường 2026: Thiết kế Game 3D, Đồ họa truyền thông thị giác và Kiến trúc công trình sinh thái đang phát triển thần tốc.
+• Trường đào tạo trọng điểm: ĐH Kiến Trúc Hà Nội (KTA), ĐH Kiến Trúc TP.HCM (KTS), ĐH Mỹ Thuật Công Nghiệp.
+
+Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+      combos: [
+        { code: 'V00', matchPercent: 99, reason: 'Toán - Lý - Vẽ hình họa: Tổ hợp vàng chuẩn quốc gia cho Kiến trúc và Quy hoạch đô thị.' },
+        { code: 'H00', matchPercent: 94, reason: 'Văn - Vẽ nghệ thuật 1 - Vẽ nghệ thuật 2: Chuyên sâu cho Thiết kế Đồ họa và Nội thất.' },
+        { code: 'V01', matchPercent: 86, reason: 'Toán - Văn - Vẽ mỹ thuật: Phương án thay thế môn Lý giúp phát huy năng lực tư duy biểu đạt.' }
+      ]
+    };
+  }
+
+  // 5. Công nghệ / Lập trình / AI / Kỹ thuật
+  if (lower.includes('máy tính') || lower.includes('cntt') || lower.includes('it') || lower.includes('lập trình') || lower.includes('code') || lower.includes('ai') || lower.includes('phần mềm') || lower.includes('bán dẫn') || lower.includes('robot') || lower.includes('kỹ thuật')) {
+    return {
+      text: `💻 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH CÔNG NGHỆ, TRÍ TUỆ NHÂN TẠO & KỸ THUẬT SỐ:
+• Định vị năng lực (Mã Holland: I-R-C - Nghiên cứu, Kỹ thuật, Logic): Tư duy logic cấu trúc, khả năng trừu tượng hóa vấn đề và đam mê ứng dụng máy tính.
+• Triển vọng thị trường 2026: Trí tuệ nhân tạo (AI), Kỹ thuật Phần mềm và Thiết kế Vi mạch Bán dẫn là trụ cột ưu tiên số 1 của quốc gia.
+• Trường đào tạo trọng điểm: ĐH Bách Khoa Hà Nội (BKA), ĐH Bách Khoa TP.HCM (QSB), ĐH Công Nghệ ĐHQGHN (QHI), ĐH CNTT ĐHQG-HCM (QST).
+
+Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+      combos: [
+        { code: 'A01', matchPercent: 98, reason: 'Toán - Lý - Tiếng Anh: Tổ hợp toàn diện nhất cho AI và Phần mềm với lợi thế ngoại ngữ.' },
+        { code: 'A00', matchPercent: 92, reason: 'Toán - Lý - Hóa: Nền tảng tự nhiên kinh điển cho mọi chuyên ngành Kỹ thuật và Bán dẫn.' },
+        { code: 'X06', matchPercent: 88, reason: 'Toán - Tin học - Tiếng Anh: Tổ hợp xét tuyển mới phát huy tối đa thế mạnh Tin học của bạn.' }
+      ]
+    };
+  }
+
+  // 6. Ngôn ngữ / Xã hội / Sư phạm / Báo chí / Luật
+  if (lower.includes('văn') || lower.includes('sử') || lower.includes('địa') || lower.includes('báo') || lower.includes('truyền thông') || lower.includes('luật') || lower.includes('sư phạm') || lower.includes('xã hội')) {
+    return {
+      text: `📚 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KHOA HỌC XÃ HỘI, BÁO CHÍ, LUẬT & SƯ PHẠM:
+• Định vị năng lực (Mã Holland: S-A-E - Xã hội, Ngôn ngữ, Lập luận): Khả năng diễn đạt ngôn ngữ tinh tế, trực giác xã hội và tư duy phản biện.
+• Triển vọng thị trường 2026: Khối ngành Sư phạm được Miễn 100% học phí và trợ cấp sinh hoạt theo NĐ 116. Truyền thông số và Luật thương mại quốc tế có nhu cầu nhân sự rất cao.
+• Trường đào tạo trọng điểm: ĐH Sư Phạm Hà Nội (SPH), ĐH Sư Phạm TP.HCM (SPS), ĐH Luật Hà Nội, Học viện Báo chí & Tuyên truyền (HBT), ĐH KHXH&NV.
+
+Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+      combos: [
+        { code: 'D01', matchPercent: 96, reason: 'Toán - Văn - Tiếng Anh: Tổ hợp linh hoạt số 1 cho Truyền thông, Marketing, Luật và Ngôn ngữ.' },
+        { code: 'C00', matchPercent: 92, reason: 'Văn - Sử - Địa: Ưu thế số 1 vào Sư phạm (Miễn HP), Báo chí và Luật.' },
+        { code: 'A01', matchPercent: 84, reason: 'Toán - Lý - Tiếng Anh: Mở rộng vào Phân tích dữ liệu truyền thông và Quản trị thông tin.' }
+      ]
+    };
+  }
+
+  // General fallback
+  return {
+    text: `🧭 PHÂN TÍCH TOÀN DIỆN ĐỊNH HƯỚNG NĂNG LỰC:
+• Phân tích mong muốn: "${text}"
+• Lời khuyên chiến lược 2026: Bạn nên ưu tiên các tổ hợp môn có tính liên ngành và độ phủ lớn nhất (xét tuyển hơn 1.200 ngành) để giữ quyền chủ động tối đa cho tương lai.
+
+Dưới đây là 3 tổ hợp môn linh hoạt và toàn diện nhất đề xuất cho bạn:`,
+    combos: [
+      { code: 'D01', matchPercent: 95, reason: 'Toán - Ngữ văn - Tiếng Anh: Độ phủ rộng nhất toàn quốc, tuyển sinh hơn 1.200 ngành học.' },
+      { code: 'A01', matchPercent: 90, reason: 'Toán - Vật lý - Tiếng Anh: Cân bằng hoàn hảo giữa tư duy logic kỹ thuật và hội nhập quốc tế.' },
+      { code: 'A00', matchPercent: 82, reason: 'Toán - Vật lý - Hóa học: Nền tảng tự nhiên kinh điển cho mọi trường Kỹ thuật và Kinh tế.' }
+    ]
+  };
+}
 export interface IntermediateClarificationOption {
   id: string;
   label: string;
@@ -1018,6 +1219,27 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   const [selectedWorkEnvOption, setSelectedWorkEnvOption] = useState<string>('');
   const [selectedTargetTierOption, setSelectedTargetTierOption] = useState<string>('');
 
+  // API Key & Provider Management
+  const [apiKey, setApiKey] = useState<string>(() => getStoredApiKey() || getStoredGroqKey());
+  const [provider, setProvider] = useState<'gemini' | 'groq'>(() => getStoredAiProvider());
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [showKeyText, setShowKeyText] = useState(false);
+  const [testStatus, setTestStatus] = useState<{ loading: boolean; success?: boolean; message?: string } | null>(null);
+
+  // Follow-up Q&A conversation state
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model'; content: string }[]>([]);
+  const [followUpInput, setFollowUpInput] = useState('');
+  const [isAskingFollowUp, setIsAskingFollowUp] = useState(false);
+
+  // Sync API key if updated externally
+  useEffect(() => {
+    const k = getStoredApiKey() || getStoredGroqKey();
+    if (k && k !== apiKey) {
+      setApiKey(k);
+    }
+  }, []);
+
   const currentDomainConfig = useMemo(() => {
     return INTERMEDIATE_CONFIGS[detectedDomainType] || INTERMEDIATE_CONFIGS.GENERAL;
   }, [detectedDomainType]);
@@ -1070,10 +1292,50 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     { label: '✍️ Yêu thích viết lách & truyền thông', query: 'Em thích viết lách, sáng tạo nội dung, truyền thông, báo chí và luật học' },
   ];
 
+  // API Key Save & Test Handler
+  const handleSaveApiKey = async (keyToSave?: string) => {
+    const key = (keyToSave !== undefined ? keyToSave : apiKeyInput).trim();
+    if (!key) {
+      setStoredApiKey('');
+      setStoredGroqKey('');
+      setApiKey('');
+      setTestStatus({ loading: false, success: false, message: 'Đã xóa API Key' });
+      return;
+    }
+
+    setTestStatus({ loading: true });
+    const isGroq = key.startsWith('gsk_');
+    if (isGroq) {
+      const res = await testGroqApiKey(key);
+      if (res.success) {
+        setStoredGroqKey(key);
+        setStoredAiProvider('groq');
+        setApiKey(key);
+        setProvider('groq');
+        setTestStatus({ loading: false, success: true, message: 'Groq API Key hợp lệ và đã được lưu!' });
+        setTimeout(() => setShowApiKeyModal(false), 1000);
+      } else {
+        setTestStatus({ loading: false, success: false, message: res.message });
+      }
+    } else {
+      const res = await testGeminiApiKey(key);
+      if (res.success) {
+        setStoredApiKey(key);
+        setStoredAiProvider('gemini');
+        setApiKey(key);
+        setProvider('gemini');
+        setTestStatus({ loading: false, success: true, message: 'Google Gemini API Key hợp lệ và đã được lưu!' });
+        setTimeout(() => setShowApiKeyModal(false), 1000);
+      } else {
+        setTestStatus({ loading: false, success: false, message: res.message });
+      }
+    }
+  };
+
   // =========================================================================
-  // STEP 1: SMART LOCAL ANALYZER WITH INTERMEDIATE GUIDANCE
+  // STEP 1: REAL AI ANALYZER (API KEY DRIVEN + QUESTION ANSWERING)
   // =========================================================================
-  const handleAnalyzeInput = (textToAnalyze?: string) => {
+  const handleAnalyzeInput = async (textToAnalyze?: string) => {
     const text = (textToAnalyze || chatInput).trim();
     if (!text) return;
 
@@ -1081,20 +1343,138 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     setIsGeneratingAnalysis(true);
     sfx.playUiClick();
 
-    setTimeout(() => {
-      const domain = detectDomain(text);
-      setDetectedDomainType(domain);
-      const config = INTERMEDIATE_CONFIGS[domain];
+    const currentKey = apiKey || getStoredApiKey() || getStoredGroqKey();
 
-      // Pre-select smart defaults so user can immediately see recommendations or refine them
-      setSelectedSubjectOption(config.subjectQuestion.options[0]?.id || '');
-      setSelectedWorkEnvOption(config.workEnvQuestion.options[0]?.id || '');
-      setSelectedTargetTierOption(config.targetTierQuestion.options[0]?.id || '');
+    if (currentKey) {
+      // Call REAL AI via API Key!
+      try {
+        const systemPrompt = `Bạn là NEXORA SUPREME AI — Chuyên Gia Trưởng Ban Cố Vấn Tuyển Sinh & Hướng Nghiệp Đại Học 2026 tại Việt Nam.
+Nhiệm vụ của bạn:
+1. TRẢ LỜI TRỰC TIẾP, ĐÚNG TRỌNG TÂM câu hỏi hoặc sở thích của người dùng: "${text}".
+   - Nếu người dùng nói "thích đá bóng" -> hãy phân tích sâu các hướng đi thể thao: Quản lý Thể thao & Sự kiện (Sports Management), Huấn luyện Thể thao/Bóng đá chuyên nghiệp, Y học thể thao phục hồi chấn thương, Kinh doanh và Truyền thông thể thao. TUYỆT ĐỐI KHÔNG trả lời lạc đề sang ngành khác như CNTT.
+   - Tương tự cho bất kỳ ngành nghề hay môn học nào người dùng nhắc tới.
+2. ĐỊNH VỊ NĂNG LỰC & MÃ HOLLAND RIASEC (ví dụ: R-S-E cho thể thao vận động/quản lý).
+3. ĐỀ XUẤT CHÍNH XÁC TOP 3 TỔ HỢP MÔN THI THPT 2026 TỐI ƯU NHẤT (ví dụ: T00, D01, C00...) kèm tỷ lệ Match % và phân tích ngắn gọn lý do vì sao tổ hợp đó mở ra cơ hội vào các trường hàng đầu.
+4. ĐẶT 1-2 CÂU HỎI GỢI MỞ ĐỂ TIẾP TỤC HƯỚNG DẪN HỌC SINH LỰA CHỌN CỤ THỂ.
 
-      setIsGeneratingAnalysis(false);
-      setWorkflowStep('INTERMEDIATE_DISCOVERY');
+BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ THỐNG HIỂN THỊ CÁC THẺ TỔ HỢP TƯƠNG TÁC:
+\`\`\`json
+{
+  "combos": [
+    { "code": "MÃ_TỔ_HỢP_1", "matchPercent": 96, "reason": "Lý do ngắn gọn..." },
+    { "code": "MÃ_TỔ_HỢP_2", "matchPercent": 90, "reason": "Lý do ngắn gọn..." },
+    { "code": "MÃ_TỔ_HỢP_3", "matchPercent": 84, "reason": "Lý do ngắn gọn..." }
+  ]
+}
+\`\`\``;
+
+        let rawResponse = '';
+        if (currentKey.startsWith('gsk_')) {
+          const res = await callDirectGroqAPI(
+            currentKey,
+            [{ role: 'user', content: text }],
+            systemPrompt,
+            'llama-3.3-70b-versatile'
+          );
+          rawResponse = res.text;
+        } else {
+          const res = await callDirectGeminiAPI(
+            currentKey,
+            [{ role: 'user', content: text }],
+            systemPrompt,
+            'gemini-2.0-flash'
+          );
+          rawResponse = res.text;
+        }
+
+        const combos = parseCombosFromAIResponse(rawResponse);
+        const cleanDisplayText = rawResponse.replace(/```(?:json)?\s*[\s\S]*?```/g, '').trim();
+
+        setAnalysisText(cleanDisplayText);
+        setSuggestedCombos(combos);
+        setChatMessages([
+          { role: 'user', content: text },
+          { role: 'model', content: cleanDisplayText }
+        ]);
+        setIsGeneratingAnalysis(false);
+        setWorkflowStep('ANALYZED_COMBOS');
+        sfx.playActionSuccess();
+        return;
+      } catch (err: any) {
+        console.warn('Real AI API call failed, using smart semantic fallback:', err);
+      }
+    }
+
+    // Fallback if no key or API call failed:
+    const fallback = generateSmartSemanticAnalysis(text);
+    setAnalysisText(fallback.text);
+    setSuggestedCombos(fallback.combos);
+    setChatMessages([
+      { role: 'user', content: text },
+      { role: 'model', content: fallback.text }
+    ]);
+    setIsGeneratingAnalysis(false);
+    setWorkflowStep('ANALYZED_COMBOS');
+    sfx.playActionSuccess();
+  };
+
+  // =========================================================================
+  // FOLLOW-UP Q&A HANDLER (API KEY INTERACTIVE CHAT)
+  // =========================================================================
+  const handleSendFollowUp = async (customQuery?: string) => {
+    const q = (customQuery || followUpInput).trim();
+    if (!q || isAskingFollowUp) return;
+
+    setFollowUpInput('');
+    setIsAskingFollowUp(true);
+    sfx.playUiClick();
+
+    const newMessages = [...chatMessages, { role: 'user' as const, content: q }];
+    setChatMessages(newMessages);
+
+    const currentKey = apiKey || getStoredApiKey() || getStoredGroqKey();
+
+    if (!currentKey) {
+      setApiKeyInput('');
+      setShowApiKeyModal(true);
+      setIsAskingFollowUp(false);
+      return;
+    }
+
+    try {
+      const systemPrompt = `Bạn là NEXORA SUPREME AI — Cố Vấn Tuyển Sinh & Hướng Nghiệp 2026 tại Việt Nam.
+Hãy trả lời câu hỏi tiếp theo của học sinh một cách ngắn gọn, súc tích, thực tế, kèm số liệu trường học, điểm chuẩn hoặc học phí nếu có. Không lạc đề.`;
+
+      let reply = '';
+      if (currentKey.startsWith('gsk_')) {
+        const res = await callDirectGroqAPI(
+          currentKey,
+          newMessages,
+          systemPrompt,
+          'llama-3.3-70b-versatile'
+        );
+        reply = res.text;
+      } else {
+        const res = await callDirectGeminiAPI(
+          currentKey,
+          newMessages,
+          systemPrompt,
+          'gemini-2.0-flash'
+        );
+        reply = res.text;
+      }
+
+      setChatMessages([...newMessages, { role: 'model' as const, content: reply }]);
       sfx.playActionSuccess();
-    }, 350);
+    } catch (err: any) {
+      console.error('Follow-up AI failed:', err);
+      setChatMessages([
+        ...newMessages,
+        { role: 'model' as const, content: `Xin lỗi, có lỗi kết nối API: ${err?.message || 'Vui lòng kiểm tra lại API Key'}.` }
+      ]);
+    } finally {
+      setIsAskingFollowUp(false);
+    }
   };
 
   // =========================================================================
@@ -1323,6 +1703,9 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     setSelectedWorkEnvOption('');
     setSelectedTargetTierOption('');
     setDossierFullText('');
+    setChatMessages([]);
+    setFollowUpInput('');
+    setIsAskingFollowUp(false);
   };
 
   return (
@@ -1358,16 +1741,41 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
               <Sparkles className="w-4 h-4" />
               <span className="font-semibold uppercase tracking-wider">Trợ Lý Phân Tích Chọn Tổ Hợp Môn</span>
             </div>
-            {workflowStep !== 'INITIAL' && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleReset}
-                className="text-[11px] font-mono text-[#8E929F] hover:text-[#60A5FA] flex items-center gap-1 transition-colors cursor-pointer"
+                onClick={() => {
+                  setApiKeyInput(apiKey);
+                  setTestStatus(null);
+                  setShowApiKeyModal(true);
+                }}
+                className={`text-[11px] font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                  apiKey
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
+                }`}
+                title="Cấu hình Google Gemini hoặc Groq API Key"
               >
-                <RotateCcw className="w-3 h-3" />
-                <span>Bắt đầu lại</span>
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>
+                  {apiKey 
+                    ? (apiKey.startsWith('gsk_') ? 'Groq: Đã kết nối' : 'Gemini: Đã kết nối') 
+                    : 'Cấu hình API Key'}
+                </span>
+                <span className={`w-1.5 h-1.5 rounded-full ${apiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
               </button>
-            )}
+
+              {workflowStep !== 'INITIAL' && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="text-[11px] font-mono text-[#8E929F] hover:text-[#60A5FA] flex items-center gap-1 transition-colors cursor-pointer ml-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Bắt đầu lại</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <form 
@@ -1840,6 +2248,99 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
                     })}
                   </div>
                 </motion.div>
+              )}
+
+              {/* =========================================================================
+                  INTERACTIVE AI Q&A EXPANSION: HỎI ĐÁP TIẾP NỐI VỚI AI QUA API KEY
+                  ========================================================================= */}
+              {isAnalysisDone && (
+                <div className="pt-4 border-t border-[#1E3A8A]/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono text-[#60A5FA] flex items-center gap-1.5 font-semibold uppercase">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Hỏi Đáp Chuyên Sâu Cùng AI (Sử dụng API Key)
+                    </span>
+                    <span className="text-[10px] font-mono text-[#8E929F]">
+                      {apiKey ? (apiKey.startsWith('gsk_') ? 'Groq Llama-3.3' : 'Gemini 2.0 Flash') : 'Chưa có API Key'}
+                    </span>
+                  </div>
+
+                  {/* Follow-up chat history inside this card */}
+                  {chatMessages.length > 2 && (
+                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                      {chatMessages.slice(2).map((msg, i) => (
+                        <div
+                          key={i}
+                          className={`p-3 rounded-xl text-xs leading-relaxed ${
+                            msg.role === 'user'
+                              ? 'bg-[#1E293B] text-white ml-6 border border-[#334155]'
+                              : 'bg-[#10141D] text-[#CBD5E1] mr-4 border border-[#1E293B] whitespace-pre-line'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#94A3B8] mb-1">
+                            {msg.role === 'user' ? <User className="w-3 h-3 text-[#60A5FA]" /> : <Bot className="w-3 h-3 text-emerald-400" />}
+                            <span>{msg.role === 'user' ? 'Bạn' : 'Nexora AI'}</span>
+                          </div>
+                          <div>{msg.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Follow-up input form */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSendFollowUp();
+                    }}
+                    className="relative flex items-center gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={followUpInput}
+                      onChange={(e) => setFollowUpInput(e.target.value)}
+                      placeholder="Đặt câu hỏi tiếp theo cho AI (VD: Điểm chuẩn năm nay thế nào? Trường nào đào tạo tốt nhất?)..."
+                      className="flex-1 bg-[#10141D] border border-[#262D3D] focus:border-[#3B82F6] text-white px-3.5 py-2.5 text-xs rounded-xl placeholder-[#64748B] focus:outline-none transition-colors"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isAskingFollowUp || !followUpInput.trim()}
+                      className="px-3.5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer shrink-0"
+                    >
+                      {isAskingFollowUp ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>Đang trả lời...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Gửi</span>
+                          <Send className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {/* Contextual quick suggestion chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-[10px] text-[#64748B] font-mono">Gợi ý hỏi tiếp:</span>
+                    {[
+                      'Trường nào xét tuyển tổ hợp này tốt nhất?',
+                      'Học phí ngành này khoảng bao nhiêu một năm?',
+                      'Cơ hội việc làm và mức lương khởi điểm?',
+                      'Nguy cơ bị AI thay thế của ngành này thế nào?'
+                    ].map((sugg, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSendFollowUp(sugg)}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#161B26] text-[#94A3B8] hover:text-white hover:bg-[#2563EB] transition-colors border border-[#222838] cursor-pointer"
+                      >
+                        {sugg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </motion.section>
@@ -2346,6 +2847,130 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
               )}
             </div>
           </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* =========================================================================
+          API KEY CONFIGURATION MODAL
+          ========================================================================= */}
+      <AnimatePresence>
+        {showApiKeyModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md bg-[#0F1118] border border-[#262D3D] rounded-2xl p-5 shadow-2xl space-y-4 text-left"
+            >
+              <div className="flex items-center justify-between border-b border-[#222838] pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-[#2563EB]/20 text-[#60A5FA]">
+                    <KeyRound className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Cấu Hình API Key AI</h3>
+                    <p className="text-[11px] text-[#8E929F] font-mono">Google Gemini hoặc Groq API</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowApiKeyModal(false)}
+                  className="p-1 text-[#8E929F] hover:text-white rounded-lg hover:bg-[#1E2430] transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs text-[#CBD5E1] leading-relaxed">
+                  Dán API Key của bạn để kích hoạt Trí Tuệ Nhân Tạo trả lời trực tiếp mọi câu hỏi hướng nghiệp &amp; phân tích chọn tổ hợp môn theo thời gian thực:
+                </p>
+
+                <div className="relative">
+                  <input
+                    type={showKeyText ? 'text' : 'password'}
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    placeholder="Dán API Key (AIzaSy... hoặc gsk_...)"
+                    className="w-full bg-[#07080B] border border-[#2E3545] focus:border-[#3B82F6] text-white px-3.5 py-2.5 pr-10 rounded-xl text-xs font-mono placeholder-[#64748B] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKeyText(!showKeyText)}
+                    className="absolute right-3 top-2.5 text-[#64748B] hover:text-white cursor-pointer"
+                  >
+                    {showKeyText ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {testStatus && (
+                  <div className={`p-2.5 rounded-xl text-xs flex items-center gap-2 ${
+                    testStatus.success 
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
+                      : (testStatus.loading ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30')
+                  }`}>
+                    {testStatus.loading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    ) : testStatus.success ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    )}
+                    <span>{testStatus.message || (testStatus.loading ? 'Đang kiểm tra kết nối API...' : '')}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5 pt-1 text-[11px] font-mono">
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#60A5FA] hover:underline flex items-center gap-1"
+                  >
+                    <span>Lấy Google Gemini API Key miễn phí (Google AI Studio)</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <a
+                    href="https://console.groq.com/keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#94A3B8] hover:underline flex items-center gap-1"
+                  >
+                    <span>Lấy Groq API Key miễn phí (Groq Console)</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#222838]">
+                {apiKey && (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveApiKey('')}
+                    className="px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer mr-auto"
+                  >
+                    Xóa Key
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowApiKeyModal(false)}
+                  className="px-3.5 py-2 text-xs text-[#8E929F] hover:text-white rounded-xl border border-[#2E3545] hover:bg-[#181C26] transition-colors cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveApiKey()}
+                  disabled={testStatus?.loading || !apiKeyInput.trim()}
+                  className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white font-medium text-xs rounded-xl shadow-md transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {testStatus?.loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  <span>Kiểm Tra &amp; Lưu</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
