@@ -16,6 +16,8 @@ import {
   ExternalLink, 
   ArrowRight, 
   ChevronRight, 
+  ChevronLeft,
+  ChevronUp,
   Filter, 
   Sliders, 
   Sparkles, 
@@ -972,6 +974,14 @@ const CombinationsCatalogView: React.FC<{
   const [subjectMatchMode, setSubjectMatchMode] = useState<'AND' | 'OR'>('AND');
   const [activeTab, setActiveTab] = useState<'combos' | 'schools' | 'majors'>('combos');
   const [visibleCount, setVisibleCount] = useState<number>(36);
+  const [activeFilterDrawer, setActiveFilterDrawer] = useState<'location' | 'subject' | null>(null);
+
+  const scrollRow = (id: string, direction: 'left' | 'right') => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollBy({ left: direction === 'left' ? -280 : 280, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     setVisibleCount(36);
@@ -1115,150 +1125,279 @@ const CombinationsCatalogView: React.FC<{
           )}
         </div>
 
-        {/* Row 2: Location Filter (Theo Địa Điểm) */}
-        <div className="pt-2 border-t border-[#1F202A] space-y-2">
-          <div className="flex items-center justify-between text-[11px] font-mono text-[#8E929F]">
-            <span className="flex items-center gap-1.5 font-bold text-[#E2E8F0]">
+        {/* Row 2: Filter Tabs & Active Summary */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#1F202A]">
+          {/* Tab toggle buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Location Tab Toggle */}
+            <button
+              type="button"
+              onClick={() => setActiveFilterDrawer(prev => prev === 'location' ? null : 'location')}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeFilterDrawer === 'location'
+                  ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-md'
+                  : selectedLocation !== 'Tất cả'
+                  ? 'bg-[#1E293B] text-[#93C5FD] border-[#3B82F6]/50 font-medium'
+                  : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36]'
+              }`}
+            >
               <MapPin className="w-3.5 h-3.5 text-[#3B82F6]" />
-              LỌC THEO ĐỊA ĐIỂM / TỈNH THÀNH:
-            </span>
-            <span className="text-[10px]">
-              Đang chọn: <strong className="text-[#60A5FA]">{selectedLocation}</strong>
-            </span>
-          </div>
+              <span>Địa điểm: {selectedLocation === 'Tất cả' ? 'Toàn quốc' : selectedLocation}</span>
+              {activeFilterDrawer === 'location' ? (
+                <ChevronUp className="w-3 h-3 text-white/80" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-[#64748B]" />
+              )}
+            </button>
 
-          <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
-            {POPULAR_LOCATIONS.map(loc => {
-              const isSelected = selectedLocation === loc;
-              return (
-                <button
-                  key={loc}
-                  onClick={() => setSelectedLocation(loc)}
-                  className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-[11px] ${
-                    isSelected
-                      ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-[0_0_10px_rgba(37,99,235,0.3)]'
-                      : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50'
-                  }`}
-                >
-                  {loc}
-                </button>
-              );
-            })}
-
-            {/* Region quick switchers */}
-            <div className="h-4 w-px bg-[#262630] mx-1 hidden sm:block" />
-            {VIETNAM_REGIONS.filter(r => r.id !== 'ALL').map(reg => {
-              const isSelected = selectedLocation === reg.id;
-              return (
-                <button
-                  key={reg.id}
-                  onClick={() => setSelectedLocation(reg.id)}
-                  className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer text-[11px] ${
-                    isSelected
-                      ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-[0_0_10px_rgba(37,99,235,0.3)]'
-                      : 'bg-[#181922] text-[#8E929F] hover:text-white border-[#2A2B36]'
-                  }`}
-                >
-                  {reg.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Row 3: Subject Multi-Select Filter (Theo Môn Học) */}
-        <div className="pt-2 border-t border-[#1F202A] space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-[#8E929F]">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 font-bold text-[#E2E8F0]">
-                <BookOpen className="w-3.5 h-3.5 text-[#3B82F6]" />
-                LỌC THEO MÔN HỌC (CHỌN NHIỀU MÔN):
+            {/* Subject Tab Toggle */}
+            <button
+              type="button"
+              onClick={() => setActiveFilterDrawer(prev => prev === 'subject' ? null : 'subject')}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeFilterDrawer === 'subject'
+                  ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-md'
+                  : selectedSubjects.length > 0
+                  ? 'bg-[#1E293B] text-[#93C5FD] border-[#3B82F6]/50 font-medium'
+                  : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36]'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#3B82F6]" />
+              <span>
+                Môn học: {selectedSubjects.length > 0 ? `${selectedSubjects.length} môn (${subjectMatchMode})` : 'Tất cả môn'}
               </span>
-              {selectedSubjects.length > 0 && (
-                <span className="text-[10px] text-[#60A5FA] font-bold px-1.5 py-0.5 rounded bg-[#2563EB]/20 border border-[#3B82F6]/40">
-                  {selectedSubjects.length} môn
+              {activeFilterDrawer === 'subject' ? (
+                <ChevronUp className="w-3 h-3 text-white/80" />
+              ) : (
+                <ChevronDown className="w-3 h-3 text-[#64748B]" />
+              )}
+            </button>
+          </div>
+
+          {/* Quick Active Indicators & Clear */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono ml-auto">
+              <span className="text-[10px] text-[#64748B]">Đang chọn:</span>
+              {selectedLocation !== 'Tất cả' && (
+                <span className="inline-flex items-center gap-1 text-[11px] bg-[#1E293B] text-[#93C5FD] px-2 py-0.5 rounded border border-[#3B82F6]/40">
+                  📍 {selectedLocation}
+                  <button onClick={() => setSelectedLocation('Tất cả')} className="hover:text-white ml-0.5 cursor-pointer">×</button>
                 </span>
               )}
-            </div>
-
-            {/* AND / OR Match Mode Toggle */}
-            <div className="flex items-center gap-1 bg-[#181922] p-0.5 rounded-lg border border-[#2A2B36] text-[10px]">
-              <span className="text-[#64748B] px-1.5">Chế độ:</span>
+              {selectedSubjects.map(sub => (
+                <span key={sub} className="inline-flex items-center gap-1 text-[11px] bg-[#1E293B] text-[#93C5FD] px-2 py-0.5 rounded border border-[#3B82F6]/40">
+                  {sub}
+                  <button onClick={() => toggleSubject(sub)} className="hover:text-white ml-0.5 cursor-pointer">×</button>
+                </span>
+              ))}
               <button
-                onClick={() => setSubjectMatchMode('AND')}
-                className={`px-2 py-0.5 rounded transition-colors ${
-                  subjectMatchMode === 'AND'
-                    ? 'bg-[#3B82F6] text-white font-bold'
-                    : 'text-[#94A3B8] hover:text-white'
-                }`}
-                title="Chỉ hiển thị các tổ hợp có chứa ĐỦ TẤT CẢ các môn bạn đã chọn"
+                type="button"
+                onClick={clearAllFilters}
+                className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer ml-1"
               >
-                Chứa đủ môn (AND)
-              </button>
-              <button
-                onClick={() => setSubjectMatchMode('OR')}
-                className={`px-2 py-0.5 rounded transition-colors ${
-                  subjectMatchMode === 'OR'
-                    ? 'bg-[#3B82F6] text-white font-bold'
-                    : 'text-[#94A3B8] hover:text-white'
-                }`}
-                title="Hiển thị các tổ hợp có chứa BẤT KỲ môn nào bạn đã chọn"
-              >
-                Chứa ít nhất 1 môn (OR)
-              </button>
-            </div>
-          </div>
-
-          {/* Subject Pills */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {HIGH_SCHOOL_SUBJECTS.map(sub => {
-              const isSelected = selectedSubjects.includes(sub);
-              return (
-                <button
-                  key={sub}
-                  onClick={() => toggleSubject(sub)}
-                  className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer flex items-center gap-1 ${
-                    isSelected
-                      ? 'bg-[#2563EB] text-white border-[#60A5FA] font-bold shadow-[0_0_8px_rgba(37,99,235,0.4)]'
-                      : 'bg-[#181922] text-[#A1A1AA] hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50'
-                  }`}
-                >
-                  <span>{sub}</span>
-                  {isSelected && <span className="text-[10px] text-white/80">✓</span>}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active filter summary pill bar */}
-          {selectedSubjects.length > 0 && (
-            <div className="flex items-center gap-2 pt-1">
-              <span className="text-[10px] font-mono text-[#64748B]">Môn đang chọn:</span>
-              <div className="flex flex-wrap gap-1">
-                {selectedSubjects.map(sub => (
-                  <span
-                    key={sub}
-                    className="inline-flex items-center gap-1 text-[10px] font-mono bg-[#1E293B] text-[#93C5FD] px-2 py-0.5 rounded border border-[#3B82F6]/30"
-                  >
-                    {sub}
-                    <button
-                      onClick={() => toggleSubject(sub)}
-                      className="hover:text-white cursor-pointer"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <button
-                onClick={() => setSelectedSubjects([])}
-                className="text-[10px] font-mono text-rose-400 hover:underline cursor-pointer ml-auto"
-              >
-                Bỏ chọn môn
+                Xóa tất cả
               </button>
             </div>
           )}
         </div>
+
+        {/* Expandable Location Filter Drawer (Horizontal Scroll) */}
+        <AnimatePresence>
+          {activeFilterDrawer === 'location' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden pt-2 border-t border-[#1F202A]"
+            >
+              <div className="p-3 bg-[#0D0E12] rounded-xl border border-[#22242E] space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-mono text-[#8E929F]">
+                  <span className="flex items-center gap-1.5 text-white font-medium">
+                    <MapPin className="w-3.5 h-3.5 text-[#3B82F6]" />
+                    Chọn tỉnh thành hoặc vùng miền (cuộn ngang để xem thêm):
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => scrollRow('location-scroll-row', 'left')}
+                      className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                      title="Cuộn sang trái"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollRow('location-scroll-row', 'right')}
+                      className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                      title="Cuộn sang phải"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Horizontal Scrollable Row for Locations */}
+                <div
+                  id="location-scroll-row"
+                  className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 no-scrollbar scroll-smooth"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {POPULAR_LOCATIONS.map(loc => {
+                    const isSelected = selectedLocation === loc;
+                    return (
+                      <button
+                        key={loc}
+                        type="button"
+                        onClick={() => setSelectedLocation(loc)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-md'
+                            : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50'
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    );
+                  })}
+
+                  <div className="h-5 w-px bg-[#262630] mx-1 shrink-0" />
+
+                  {VIETNAM_REGIONS.filter(r => r.id !== 'ALL').map(reg => {
+                    const isSelected = selectedLocation === reg.id;
+                    return (
+                      <button
+                        key={reg.id}
+                        type="button"
+                        onClick={() => setSelectedLocation(reg.id)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-md'
+                            : 'bg-[#181922] text-[#8E929F] hover:text-white border-[#2A2B36]'
+                        }`}
+                      >
+                        {reg.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Expandable Subject Filter Drawer (Horizontal Scroll) */}
+        <AnimatePresence>
+          {activeFilterDrawer === 'subject' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden pt-2 border-t border-[#1F202A]"
+            >
+              <div className="p-3 bg-[#0D0E12] rounded-xl border border-[#22242E] space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-[#8E929F]">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 text-white font-medium">
+                      <BookOpen className="w-3.5 h-3.5 text-[#3B82F6]" />
+                      Chọn môn thi (cuộn ngang để chọn):
+                    </span>
+                    {selectedSubjects.length > 0 && (
+                      <span className="text-[10px] text-[#60A5FA] font-bold px-1.5 py-0.2 rounded bg-[#2563EB]/20 border border-[#3B82F6]/40">
+                        {selectedSubjects.length} môn
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Mode Toggle AND / OR */}
+                    <div className="flex items-center gap-1 bg-[#181922] p-0.5 rounded-lg border border-[#2A2B36] text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setSubjectMatchMode('AND')}
+                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                          subjectMatchMode === 'AND'
+                            ? 'bg-[#3B82F6] text-white font-bold'
+                            : 'text-[#94A3B8] hover:text-white'
+                        }`}
+                        title="Tổ hợp phải chứa ĐỦ TẤT CẢ các môn đã chọn"
+                      >
+                        Chứa đủ môn (AND)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSubjectMatchMode('OR')}
+                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                          subjectMatchMode === 'OR'
+                            ? 'bg-[#3B82F6] text-white font-bold'
+                            : 'text-[#94A3B8] hover:text-white'
+                        }`}
+                        title="Tổ hợp chứa BẤT KỲ môn nào đã chọn"
+                      >
+                        Chứa ít nhất 1 môn (OR)
+                      </button>
+                    </div>
+
+                    {selectedSubjects.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSubjects([])}
+                        className="text-[10px] text-rose-400 hover:underline cursor-pointer"
+                      >
+                        Bỏ chọn
+                      </button>
+                    )}
+
+                    {/* Scroll Chevrons */}
+                    <div className="flex items-center gap-1 ml-1">
+                      <button
+                        type="button"
+                        onClick={() => scrollRow('subject-scroll-row', 'left')}
+                        className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                        title="Cuộn sang trái"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => scrollRow('subject-scroll-row', 'right')}
+                        className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                        title="Cuộn sang phải"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Horizontal Scrollable Row for Subjects */}
+                <div
+                  id="subject-scroll-row"
+                  className="flex items-center gap-1.5 overflow-x-auto py-1 px-0.5 no-scrollbar scroll-smooth"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {HIGH_SCHOOL_SUBJECTS.map(sub => {
+                    const isSelected = selectedSubjects.includes(sub);
+                    return (
+                      <button
+                        key={sub}
+                        type="button"
+                        onClick={() => toggleSubject(sub)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-[#2563EB] text-white border-[#60A5FA] font-bold shadow-md'
+                            : 'bg-[#181922] text-[#A1A1AA] hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50'
+                        }`}
+                      >
+                        <span>{sub}</span>
+                        {isSelected && <span className="text-[10px] text-white/90">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* =========================================================================
