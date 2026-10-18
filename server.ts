@@ -208,6 +208,34 @@ app.get('/api/ai/gateway/metrics', (req, res) => {
   });
 });
 
+// AI Career Counselor Status & Chat Endpoints (P0)
+app.get('/api/ai/counselor/status', (req, res) => {
+  res.json({
+    success: true,
+    hasServerKey: Boolean(process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY),
+    provider: process.env.GEMINI_API_KEY ? 'gemini' : (process.env.GROQ_API_KEY ? 'groq' : 'none'),
+    model: process.env.GEMINI_API_KEY ? 'gemini-2.0-flash' : (process.env.GROQ_API_KEY ? 'llama-3.3-70b-versatile' : 'none')
+  });
+});
+
+app.post('/api/ai/counselor/chat', async (req, res) => {
+  try {
+    const { handleCounselorChatRequest } = await import('./scripts/counselor_backend.mjs');
+    const result = await handleCounselorChatRequest({
+      body: req.body,
+      headers: req.headers,
+      env: process.env
+    });
+    res.status(result.status).json(result.data);
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      code: 'SERVER_ERROR',
+      error: err.message || 'Lỗi xử lý yêu cầu hội thoại AI'
+    });
+  }
+});
+
 // Full Multi-Provider Gateway Chat with Circuit Breaker, Scoring Scheduler & Failover
 app.post('/api/ai/gateway/chat', async (req, res) => {
   const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'anonymous';

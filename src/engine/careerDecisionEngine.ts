@@ -277,8 +277,31 @@ export function updateProfileWithInput(profile: LearnerEvidenceProfile, text: st
   const clauses = splitIntoClauses(text);
   const fullLower = text.toLowerCase();
 
+  // Kiểm tra đổi ý toàn diện (Ví dụ: "Trước đây thích máy tính nhưng giờ không thích nữa")
+  const hasMindChangeRetraction = /(không thích .*?nữa|không còn thích|hết thích|nghĩ lại rồi|bỏ rồi|không muốn làm .*?nữa)/i.test(fullLower);
+  if (hasMindChangeRetraction) {
+    if (/(máy tính|công nghệ|cntt|it|lập trình|code)/i.test(fullLower)) {
+      updated.statedInterests = updated.statedInterests.filter(i => !i.includes('Công nghệ'));
+      if (!updated.rejectedActivities.includes('Công nghệ & Máy tính')) {
+        updated.rejectedActivities.push('Công nghệ & Máy tính');
+      }
+    }
+    if (/(kinh doanh|bán hàng|tài chính)/i.test(fullLower)) {
+      updated.statedInterests = updated.statedInterests.filter(i => !i.includes('Kinh doanh'));
+      if (!updated.rejectedActivities.includes('Kinh doanh & Bán hàng')) {
+        updated.rejectedActivities.push('Kinh doanh & Bán hàng');
+      }
+    }
+  }
+
   for (const c of clauses) {
     const l = c.lower;
+
+    // Bỏ qua các vế chỉ sở thích trong quá khứ đã bị từ bỏ
+    const isHistoricalPast = /(trước đây|hồi trước|trước kia|ngày xưa|trước đó)/i.test(l) && hasMindChangeRetraction;
+    if (isHistoricalPast) {
+      continue;
+    }
 
     // 1. Xử lý Đính chính & Đổi ý (Retraction)
     if (c.isRetraction) {
@@ -402,6 +425,48 @@ export function updateProfileWithInput(profile: LearnerEvidenceProfile, text: st
         updated.explicitTargetCareer = 'Bác sĩ';
       }
     }
+    if (
+      l.includes('địa lý') ||
+      l.includes('địa lí') ||
+      l.includes('địa chất') ||
+      l.includes('bản đồ') ||
+      l.includes('gis') ||
+      l.includes('trắc địa') ||
+      l.includes('quy hoạch') ||
+      l.includes('viễn thám') ||
+      l.includes('tài nguyên môi trường') ||
+      l.includes('quản lý đất đai')
+    ) {
+      if (!updated.statedInterests.includes('Địa lý, GIS & Khoa học Không gian / Trái đất')) {
+        updated.statedInterests.push('Địa lý, GIS & Khoa học Không gian / Trái đất');
+      }
+      if (l.includes('sư phạm địa')) {
+        updated.statedInterests.push('Sư phạm Địa lý');
+        updated.explicitTargetCareer = 'Giáo viên Địa lý';
+      } else if (l.includes('gis') || l.includes('viễn thám')) {
+        updated.explicitTargetCareer = 'Chuyên viên GIS & Viễn thám';
+      } else if (l.includes('trắc địa')) {
+        updated.explicitTargetCareer = 'Kỹ sư Trắc địa - Bản đồ số';
+      } else if (l.includes('quy hoạch')) {
+        updated.explicitTargetCareer = 'Chuyên viên Quy hoạch Đô thị';
+      }
+    }
+    if (
+      l.includes('động vật') ||
+      l.includes('thú y') ||
+      l.includes('chăm sóc thú') ||
+      l.includes('chăn nuôi') ||
+      l.includes('sinh thái') ||
+      l.includes('bảo tồn') ||
+      l.includes('thú cưng')
+    ) {
+      if (!updated.statedInterests.includes('Sinh học, Thú y & Chăm sóc động vật / Môi trường tự nhiên')) {
+        updated.statedInterests.push('Sinh học, Thú y & Chăm sóc động vật / Môi trường tự nhiên');
+      }
+      if (l.includes('thú y') || l.includes('bác sĩ thú y')) {
+        updated.explicitTargetCareer = 'Bác sĩ Thú y';
+      }
+    }
 
     // 5. Xử lý Năng lực học tập (Academic Strengths & Weaknesses)
     if (l.includes('toán nâng cao')) {
@@ -438,6 +503,12 @@ export function updateProfileWithInput(profile: LearnerEvidenceProfile, text: st
       }
     }
 
+    if (/(giỏi địa|thích địa|địa lý tốt|học tốt.*địa|học sinh giỏi địa|thế mạnh.*địa)/i.test(l)) {
+      if (!updated.academicStrengths.includes('Thế mạnh môn Địa lý & Tư duy phân tích không gian')) {
+        updated.academicStrengths.push('Thế mạnh môn Địa lý & Tư duy phân tích không gian');
+      }
+    }
+
     if (l.includes('học lực bình thường') || l.includes('học đều') || l.includes('không giỏi nổi trội')) {
       if (!updated.academicStrengths.includes('Học lực mức khá đều các môn')) {
         updated.academicStrengths.push('Học lực mức khá đều các môn');
@@ -445,6 +516,16 @@ export function updateProfileWithInput(profile: LearnerEvidenceProfile, text: st
     }
 
     // 6. Xử lý Môi trường & Giá trị làm việc (Work Environment & Values)
+    if (l.includes('bản đồ số') || l.includes('phòng lab') || l.includes('dữ liệu không gian') || l.includes('phân tích không gian') || l.includes('không gian đô thị')) {
+      if (!updated.workEnvironmentPrefs.includes('Môi trường phòng lab nghiên cứu & phân tích dữ liệu không gian bản đồ số')) {
+        updated.workEnvironmentPrefs.push('Môi trường phòng lab nghiên cứu & phân tích dữ liệu không gian bản đồ số');
+      }
+    }
+    if (l.includes('thực địa') || l.includes('khảo sát thực địa') || l.includes('đo đạc')) {
+      if (!updated.workEnvironmentPrefs.includes('Khảo sát thực địa ngoại nghiệp và đo đạc công trình')) {
+        updated.workEnvironmentPrefs.push('Khảo sát thực địa ngoại nghiệp và đo đạc công trình');
+      }
+    }
     if (l.includes('ổn định') || l.includes('công việc ổn định') || l.includes('ít rủi ro')) {
       if (!updated.personalValues.includes('Ưu tiên tính ổn định, rõ ràng lộ trình')) {
         updated.personalValues.push('Ưu tiên tính ổn định, rõ ràng lộ trình');
@@ -1114,8 +1195,11 @@ Thay vì đưa ra những danh xưng chung chung, dưới đây là **danh sách
 // 4. GENERATE GROUNDED CAREER PROPOSALS (CHỈ KHI ĐỦ BẰNG CHỨNG)
 // ============================================================================
 
-function generateGroundedCareerProposals(profile: LearnerEvidenceProfile): AdaptiveCareerProposal[] {
+export function generateGroundedCareerProposals(profile: LearnerEvidenceProfile): AdaptiveCareerProposal[] {
   const hasMedical = profile.statedInterests.some(i => i.includes('Y tế')) || Boolean(profile.explicitTargetCareer?.includes('Bác sĩ'));
+  const hasAnimal = profile.statedInterests.some(i => i.includes('Động vật') || i.includes('Thú y') || i.includes('Sinh học')) || Boolean(profile.explicitTargetCareer?.includes('Thú y'));
+  const hasGeography = profile.statedInterests.some(i => i.includes('Địa lý') || i.includes('Trái đất')) ||
+    Boolean(profile.explicitTargetCareer && /gis|trắc địa|bản đồ|quy hoạch|địa lý|địa chất/i.test(profile.explicitTargetCareer));
   const hasTech = profile.statedInterests.some(i => i.includes('Công nghệ'));
   const hasCreative = profile.statedInterests.some(i => i.includes('Sáng tạo'));
   const hasBusiness = profile.statedInterests.some(i => i.includes('Kinh doanh'));
@@ -1151,6 +1235,143 @@ function generateGroundedCareerProposals(profile: LearnerEvidenceProfile): Adapt
       automationNotes: 'AI hỗ trợ đọc hình ảnh CT/MRI và gợi ý phác đồ, nhưng quyết định lâm sàng và thấu cảm người bệnh vẫn hoàn toàn thuộc về bác sĩ.',
       linkedComboCode: 'B00',
       recommendedMajors: ['Y khoa (Bác sĩ Đa khoa)', 'Y học Cổ truyền', 'Răng - Hàm - Mặt']
+    });
+  }
+
+  // Case: Geography / GIS / Earth Sciences / Urban Planning (Trắc địa, GIS, Quy hoạch)
+  if (hasGeography) {
+    proposals.push({
+      id: 'c_gis_specialist',
+      title: 'Chuyên Viên GIS & Viễn Thám Dữ Liệu Không Gian (GIS & Remote Sensing Specialist)',
+      sector: 'Công Nghệ Không Gian & Dữ Liệu Địa Lý',
+      riasecCode: 'R-I-C (Thực tế · Nghiên cứu · Quy chuẩn)',
+      riasecBasis: 'Thu thập và phân tích dữ liệu không gian thực tế (R), xử lý thuật toán phân tích địa lý (I) và chuẩn hóa cơ sở dữ liệu bản đồ (C).',
+      matchPercent: 88,
+      evidenceBasis: [
+        'Người học có sự yêu thích rõ rệt với môn Địa lý và các bài toán phân tích không gian.',
+        'Định hướng kết hợp giữa khoa học địa lý và công nghệ xử lý dữ liệu bản đồ số.',
+        'Môi trường làm việc chuyên môn cao, ứng dụng cho giao thông thông minh, quy hoạch và cứu hộ môi trường.'
+      ],
+      unverifiedPrerequisites: [
+        'Khả năng làm quen với các phần mềm chuyên ngành (ArcGIS, QGIS, Google Earth Engine).',
+        'Kỹ năng phân tích số liệu không gian kết hợp tư duy đồ họa bản đồ.'
+      ],
+      whyFit: 'Là sự giao thoa hoàn hảo giữa đam mê môn Địa lý và làn sóng số hóa, mở ra cơ hội việc làm lớn tại các viện nghiên cứu, doanh nghiệp viễn thông và cơ quan quản lý.',
+      whyNotOthers: 'Chưa ưu tiên ngành Địa chất khai khoáng sâu do yêu cầu công tác dài ngày tại các mỏ khoáng sản vùng xa.',
+      selfVerificationTask: 'Hãy thử tải phần mềm QGIS (miễn phí), tải một lớp bản đồ địa giới hành chính Việt Nam và đổi màu các tỉnh theo mật độ dân số. Nếu bạn cảm thấy hào hứng khi nhìn thấy dữ liệu hiển thị trực quan trên bản đồ, bạn rất có tiềm năng với nghề này.',
+      salaryRange: 'Khởi điểm: 12 – 18 triệu · 3-5 năm: 22 – 40 triệu/tháng',
+      salarySource: 'Báo cáo Khảo sát Tuyển dụng Ngành Hệ thống Thông tin Địa lý & Viễn thám 2025/2026',
+      automationRisk: 'Thấp (11%)',
+      automationNotes: 'AI hỗ trợ tự động bóc tách ảnh vệ tinh nhưng tư duy phân tích không gian và hiệu chỉnh bản đồ địa chính vẫn cần chuyên viên chuyên môn.',
+      linkedComboCode: 'A01',
+      recommendedMajors: ['Hệ thống Thông tin Địa lý (GIS)', 'Kỹ thuật Trắc địa - Bản đồ', 'Khoa học Dữ liệu Không gian']
+    });
+
+    proposals.push({
+      id: 'c_urban_planner',
+      title: 'Chuyên Viên Quy Hoạch Vùng - Đô Thị & Quản Lý Tài Nguyên Đất Đai',
+      sector: 'Quy Hoạch & Quản Lý Đô Thị',
+      riasecCode: 'I-E-C (Nghiên cứu · Quản lý · Quy chuẩn)',
+      riasecBasis: 'Khảo sát nghiên cứu địa hình dân cư (I), hoạch định chiến lược phát triển vùng (E) và tuân thủ khung pháp lý đất đai (C).',
+      matchPercent: 84,
+      evidenceBasis: [
+        'Hứng thú với việc phân bố không gian kinh tế - xã hội và tài nguyên thiên nhiên.',
+        'Mong muốn làm việc trong lĩnh vực phát triển hạ tầng và môi trường sống bền vững.'
+      ],
+      unverifiedPrerequisites: [
+        'Kỹ năng đọc bản vẽ quy hoạch và nắm bắt các quy chuẩn xây dựng, luật đất đai.',
+        'Khả năng thuyết trình phương án quy hoạch trước hội đồng thẩm định.'
+      ],
+      whyFit: 'Vị trí then chốt định hình diện mạo các đô thị hiện đại, giải quyết bài toán phân bố dân cư và bảo vệ tài nguyên đất.',
+      whyNotOthers: 'Chưa ưu tiên Kiến trúc công trình dân dụng vì hướng đó đòi hỏi năng khiếu vẽ mỹ thuật hình họa tĩnh vật khắt khe.',
+      selfVerificationTask: 'Hãy quan sát một khu đô thị hoặc một tuyến đường đang bị kẹt xe gần nơi bạn sống: hãy vẽ phác thảo một giải pháp mở rộng đường hoặc phân luồng giao thông. Nếu bạn thích thú với việc tổ chức không gian sống, đây là nghề dành cho bạn.',
+      salaryRange: 'Khởi điểm: 11 – 16 triệu · 3-5 năm: 20 – 38 triệu/tháng',
+      salarySource: 'Thống kê thị trường lao động ngành Quy hoạch & Phát triển Đô thị',
+      automationRisk: 'Rất thấp (7%)',
+      automationNotes: 'Quy hoạch đòi hỏi sự cân nhắc đa yếu tố xã hội, văn hóa và chính sách của con người mà thuật toán không thể thay thế.',
+      linkedComboCode: 'D01',
+      recommendedMajors: ['Quy hoạch Vùng và Đô thị', 'Quản lý Đất đai', 'Địa lý học (chuyên ngành Địa lý Đô thị)']
+    });
+
+    proposals.push({
+      id: 'c_geodesy_engineer',
+      title: 'Kỹ Sư Trắc Địa - Bản Đồ Số & Đo Đạc Công Trình Hạ Tầng (Geomatics Engineer)',
+      sector: 'Kỹ Thuật Xây Dựng & Đo Đạc Công Trình',
+      riasecCode: 'R-I-C (Thực tế · Nghiên cứu · Quy chuẩn)',
+      riasecBasis: 'Vận hành thiết bị đo đạc quang học/vệ tinh (R), tính toán bình sai lưới tọa độ (I) và lập hồ sơ địa chính chuẩn xác (C).',
+      matchPercent: 80,
+      evidenceBasis: [
+        'Yêu thích sự chính xác số liệu kết hợp đo đạc thực tế tại hiện trường.',
+        'Không ngại di chuyển và làm việc với các đại công trình cầu đường, cao tốc, cảng biển.'
+      ],
+      unverifiedPrerequisites: [
+        'Sức khỏe thể lực dẻo dai để tham gia các đợt đo đạc ngoại nghiệp.',
+        'Tính kỷ luật cao, sai số đo đạc phải kiểm soát từng milimet.'
+      ],
+      whyFit: 'Nghề kỹ thuật nền móng: Bất kỳ công trình nào từ đường cao tốc, sân bay Long Thành đến nhà cao tầng đều phải bắt đầu từ kỹ sư trắc địa.',
+      whyNotOthers: 'Nếu bạn hoàn toàn không muốn ra ngoài thực địa dưới thời tiết nắng gió, bạn nên ưu tiên nhánh GIS văn phòng hơn.',
+      selfVerificationTask: 'Hãy tìm hiểu cách máy bay flycam không người lái (UAV) quét 3D địa hình một quả đồi. Nếu công nghệ đo đạc hiện đại này làm bạn hào hứng, bạn sẽ rất yêu thích ngành này.',
+      salaryRange: 'Khởi điểm: 12 – 17 triệu · 3-5 năm: 22 – 42 triệu/tháng',
+      salarySource: 'Thống kê tiền lương Kỹ sư Khảo sát & Đo đạc Hạ tầng 2025/2026',
+      automationRisk: 'Thấp (13%)',
+      automationNotes: 'Drone và máy quét laser tự động hóa khâu quét điểm, nhưng việc hiệu chỉnh và ký duyệt bản đồ địa chính pháp lý vẫn cần kỹ sư có chứng chỉ hành nghề.',
+      linkedComboCode: 'A00',
+      recommendedMajors: ['Kỹ thuật Trắc địa - Bản đồ', 'Kỹ thuật Địa không gian', 'Kỹ thuật Xây dựng Công trình Giao thông']
+    });
+  }
+
+  // Case: Animals / Veterinary / Ecology (Thú y & Khoa học Sinh thái Động vật)
+  if (hasAnimal) {
+    proposals.push({
+      id: 'c_veterinarian',
+      title: 'Bác Sĩ Thú Y & Chăm Sóc Động Vật / Thú Cưng (Veterinarian)',
+      sector: 'Y Sinh, Thú Y & Chăm Sóc Động Vật',
+      riasecCode: 'I-R-S (Nghiên cứu · Thực tế · Xã hội)',
+      riasecBasis: 'Khám chữa bệnh thực tế trên động vật (R), nghiên cứu bệnh lý (I) và gắn kết với chủ nuôi/cộng đồng (S).',
+      matchPercent: 91,
+      evidenceBasis: [
+        'Học sinh thể hiện tình yêu và khao khát làm việc trực tiếp với động vật/sinh học.',
+        'Sẵn sàng học tập và thực hành trong môi trường phòng khám thú y hoặc trang trại.',
+        'Mong muốn tạo ra giá trị bảo tồn sự sống và sức khỏe động vật.'
+      ],
+      unverifiedPrerequisites: [
+        'Năng lực học tốt các môn Sinh học, Hóa học cơ bản.',
+        'Khả năng chịu đựng áp lực khi tiếp xúc vết thương hoặc phẫu thuật động vật.'
+      ],
+      whyFit: 'Nhu cầu bác sĩ thú y và chăm sóc thú cưng tại các đô thị Việt Nam đang bùng nổ với tốc độ tăng trưởng trên 20%/năm.',
+      whyNotOthers: 'Chưa ưu tiên ngành Sinh học thuần lý thuyết vì ngành Thú y có đầu ra nghề nghiệp hành nghề lâm sàng rõ ràng hơn.',
+      selfVerificationTask: 'Hãy thử đến một trạm cứu hộ động vật hoặc phòng khám thú y gần nhà xin làm tình nguyện viên 1 buổi cuối tuần để trực tiếp trải nghiệm môi trường tiếp xúc chăm sóc thú cưng.',
+      salaryRange: 'Khởi điểm: 12 – 18 triệu · 3-5 năm: 25 – 45 triệu/tháng (hoặc mở phòng khám riêng 50M+)',
+      salarySource: 'Thống kê Hội Thú y Việt Nam & Khảo sát thị trường Pet Care 2025/2026',
+      automationRisk: 'Cực thấp (3%)',
+      automationNotes: 'Khám chữa bệnh lâm sàng và thao tác phẫu thuật động vật là kỹ năng thể chất và cảm xúc mà AI không thể tự động hóa.',
+      linkedComboCode: 'B00',
+      recommendedMajors: ['Bác sĩ Thú y', 'Chăn nuôi - Thú y', 'Công nghệ Sinh học Ứng dụng']
+    });
+
+    proposals.push({
+      id: 'c_bio_specialist',
+      title: 'Chuyên Viên Nghiên Cứu Công Nghệ Sinh Học & Sinh Thái Nông Nghiệp',
+      sector: 'Công Nghệ Sinh Học & Nông Nghiệp Công Nghệ Cao',
+      riasecCode: 'I-R-C (Nghiên cứu · Thực tế · Quy chuẩn)',
+      riasecBasis: 'Nghiên cứu giống loài (I), thử nghiệm phòng lab và cánh đồng (R) theo quy chuẩn kiểm nghiệm (C).',
+      matchPercent: 84,
+      evidenceBasis: [
+        'Quan tâm tới khoa học sự sống, động vật và cân bằng sinh thái.',
+        'Phù hợp môi trường nghiên cứu ứng dụng thực tiễn.'
+      ],
+      unverifiedPrerequisites: [
+        'Kiên nhẫn với các chu kỳ thí nghiệm sinh học kéo dài.'
+      ],
+      whyFit: 'Việt Nam đang chuyển dịch mạnh sang nông nghiệp công nghệ cao và vắc-xin sinh học thú y.',
+      whyNotOthers: 'Chưa ưu tiên Kỹ thuật hóa học vì nặng về công nghiệp nặng và vật liệu.',
+      selfVerificationTask: 'Hãy tìm hiểu quy trình sản xuất một loại vắc-xin thú y hoặc cách nhân giống mô sinh học trên các kênh khoa học uy tín để kiểm tra mức độ hào hứng.',
+      salaryRange: 'Khởi điểm: 11 – 15 triệu · 3-5 năm: 20 – 35 triệu/tháng',
+      salarySource: 'Báo cáo Khảo sát Doanh nghiệp Sinh học Nông nghiệp 2025/2026',
+      automationRisk: 'Thấp (10%)',
+      automationNotes: 'Nghiên cứu thí nghiệm và kiểm soát mẫu phẩm thực địa đòi hỏi thao tác của chuyên gia con người.',
+      linkedComboCode: 'B00',
+      recommendedMajors: ['Công nghệ Sinh học', 'Bảo vệ Thực vật', 'Khoa học Môi trường']
     });
   }
 
@@ -1310,8 +1531,8 @@ function generateGroundedCareerProposals(profile: LearnerEvidenceProfile): Adapt
 export function mapCareerToMajors(careerTitleOrId: string): MajorMappingPathway {
   const cLower = (careerTitleOrId || '').toLowerCase();
 
-  // 0. Phân nhánh Y Tế & Chăm sóc sức khỏe
-  if (cLower.includes('bác sĩ') || cLower.includes('y khoa') || cLower.includes('y tế') || cLower.includes('dược')) {
+  // 0. Phân nhánh Y Tế & Chăm sóc sức khỏe (ngoại trừ Thú y)
+  if (!cLower.includes('thú y') && !cLower.includes('động vật') && !cLower.includes('veterinar') && (cLower.includes('bác sĩ') || cLower.includes('y khoa') || cLower.includes('y tế') || cLower.includes('dược'))) {
     return {
       directMajors: [
         {
@@ -1346,6 +1567,94 @@ export function mapCareerToMajors(careerTitleOrId: string): MajorMappingPathway 
           pathTitle: 'Lộ trình Bác sĩ Nội trú & Chứng chỉ Hành nghề Y khoa (Residency & Medical Licensing)',
           description: 'Tốt nghiệp đại học 6 năm -> Thi tuyển Bác sĩ nội trú (3 năm) hoặc thực hành 18 tháng tại bệnh viện đa khoa để thi cấp chứng chỉ hành nghề theo Luật Khám chữa bệnh 2023.',
           targetCertifications: ['Bằng Bác sĩ Nội trú chuyên khoa', 'Chứng chỉ Hành nghề Khám chữa bệnh Quốc gia (Bộ Y tế)', 'Tiếng Anh Y khoa (OET / Medical English)']
+        }
+      ]
+    };
+  }
+
+  // 0B. Phân nhánh Địa Lý, GIS, Trắc Địa, Quy Hoạch & Dữ Liệu Không Gian
+  if (cLower.includes('gis') || cLower.includes('viễn thám') || cLower.includes('địa lý') || cLower.includes('trắc địa') || cLower.includes('quy hoạch') || cLower.includes('đất đai') || cLower.includes('địa chất') || cLower.includes('geomatics')) {
+    return {
+      directMajors: [
+        {
+          code: '7480205',
+          name: 'Hệ thống Thông tin Địa lý (GIS - Geographic Information Systems)',
+          coreDisciplines: ['Bản đồ số & Cơ sở dữ liệu Không gian', 'Viễn thám & Xử lý ảnh vệ tinh (Remote Sensing)', 'Phát triển ứng dụng WebGIS & Bản đồ thông minh', 'Phân tích không gian trong quản trị đô thị'],
+          entryCompetencies: ['Tư duy không gian và khả năng quan sát bản đồ', 'Kỹ năng sử dụng phần mềm máy tính (ArcGIS, QGIS)', 'Khả năng phân tích số liệu'],
+          studyDuration: '4 năm (Cử nhân) hoặc 4.5 năm (Kỹ sư)',
+          considerations: 'Ngành học có tính liên ngành cao, giao thoa giữa Địa lý, Công nghệ thông tin và Quy hoạch quản lý.',
+          dataSource: 'Chuẩn chương trình đào tạo ĐH Bách Khoa TP.HCM & ĐH Khoa học Tự nhiên 2025/2026'
+        },
+        {
+          code: '7520503',
+          name: 'Kỹ thuật Trắc địa - Bản đồ & Địa không gian (Geomatics)',
+          coreDisciplines: ['Trắc địa công trình & Đo đạc vệ tinh GNSS', 'Công nghệ bay chụp quét LiDAR & UAV', 'Bình sai lưới trắc địa & Bản đồ địa chính', 'Xây dựng mô hình thông tin công trình (BIM/GIS)'],
+          entryCompetencies: ['Tính cẩn thận, kỷ luật với sai số đo đạc', 'Sức khỏe tốt để tham gia các đợt khảo sát thực địa'],
+          studyDuration: '4.5 năm (Kỹ sư)',
+          considerations: 'Được săn đón tại các tập đoàn xây dựng hạ tầng, giao thông và sở tài nguyên môi trường các tỉnh thành.',
+          dataSource: 'Đề án đào tạo Trường ĐH Mỏ - Địa chất (HUMG) & ĐH Bách Khoa'
+        }
+      ],
+      adjacentMajors: [
+        {
+          code: '7580105',
+          name: 'Quy hoạch Vùng và Đô thị',
+          rationale: 'Tập trung vào hoạch định chiến lược không gian kiến trúc và phát triển bền vững các đô thị.',
+          transitionPivots: ['Rẽ nhánh làm Chuyên viên Thẩm định dự án bất động sản, Quản lý hạ tầng đô thị.']
+        },
+        {
+          code: '7850101',
+          name: 'Quản lý Đất đai & Bất động sản',
+          rationale: 'Chuyên sâu về khung pháp lý đất đai, cấp giấy chứng nhận và định giá đất.',
+          transitionPivots: ['Rẽ nhánh làm Chuyên viên Địa chính, Định giá tài sản hoặc Tư vấn đầu tư bất động sản.']
+        }
+      ],
+      skillsPathways: [
+        {
+          pathTitle: 'Lộ trình Chứng chỉ GIS Chuyên nghiệp & Kỹ năng Dữ liệu Không gian (GIS Specialist Path)',
+          description: 'Học ngành gần kết hợp tích lũy chứng chỉ Esri ArcGIS và kỹ năng lập trình Python phân tích dữ liệu không gian.',
+          targetCertifications: ['Esri ArcGIS Desktop Associate / Professional', 'Chứng chỉ Đo đạc Bản đồ & Khảo sát công trình (Bộ Xây dựng)', 'Python for Geospatial Data Analysis']
+        }
+      ]
+    };
+  }
+
+  // 0C. Phân nhánh Bác sĩ Thú y, Động vật & Khoa học Sinh thái
+  if (cLower.includes('thú y') || cLower.includes('động vật') || cLower.includes('veterinar') || cLower.includes('chăn nuôi') || cLower.includes('sinh thái')) {
+    return {
+      directMajors: [
+        {
+          code: '7640101',
+          name: 'Thú y (Veterinary Medicine)',
+          coreDisciplines: ['Giải phẫu & Sinh lý động vật', 'Dược lý & Độc chất học thú y', 'Nội khoa & Ngoại khoa thú y', 'Chẩn đoán hình ảnh & Xét nghiệm thú y', 'Dịch tễ học & Bệnh truyền nhiễm'],
+          entryCompetencies: ['Tình yêu thương và kiên nhẫn với động vật', 'Khả năng quan sát tinh tế', 'Tư duy Hóa học - Sinh học'],
+          studyDuration: '5 năm (Bác sĩ Thú y)',
+          considerations: 'Cơ hội việc làm rộng mở tại các bệnh viện thú cưng thành phố, trang trại công nghệ cao và viện dịch tễ.',
+          dataSource: 'Chuẩn chương trình đào tạo Học viện Nông nghiệp Việt Nam & ĐH Nông Lâm TP.HCM 2025/2026'
+        },
+        {
+          code: '7420201',
+          name: 'Công nghệ Sinh học (Biotechnology)',
+          coreDisciplines: ['Vi sinh học ứng dụng', 'Sinh học phân tử & Di truyền', 'Công nghệ vắc-xin và men sinh học', 'Nuôi cấy mô và tế bào'],
+          entryCompetencies: ['Tính cẩn trọng với thao tác phòng lab', 'Kiên trì với quy trình thí nghiệm'],
+          studyDuration: '4 năm (Cử nhân) hoặc 4.5 năm (Kỹ sư)',
+          considerations: 'Lĩnh vực công nghệ cao mũi nhọn, cơ hội làm việc trong ngành dược thú y, nông nghiệp sạch và y sinh.',
+          dataSource: 'Đề án tuyển sinh Trường ĐH Khoa học Tự nhiên & ĐH Nông Lâm'
+        }
+      ],
+      adjacentMajors: [
+        {
+          code: '7620115',
+          name: 'Chăn nuôi (Animal Science)',
+          rationale: 'Tập trung vào dinh dưỡng, kỹ thuật chọn giống và quản trị trang trại chăn nuôi công nghiệp hiện đại.',
+          transitionPivots: ['Rẽ nhánh làm Chuyên gia Dinh dưỡng vật nuôi, Quản lý trang trại chăn nuôi tự động hóa.']
+        }
+      ],
+      skillsPathways: [
+        {
+          pathTitle: 'Lộ trình Chứng chỉ Hành nghề Thú y & Kỹ năng Lâm sàng Pet Care (Veterinary Practice)',
+          description: 'Tốt nghiệp bác sĩ thú y 5 năm -> Thực tập thực tế 12 tháng tại phòng khám/bệnh viện thú y để được cấp Chứng chỉ hành nghề thú y theo Luật Thú y.',
+          targetCertifications: ['Chứng chỉ Hành nghề Thú y (Chi cục Chăn nuôi & Thú y cấp)', 'Chứng chỉ Chẩn đoán Siêu âm / X-Quang Thú nhỏ', 'Chứng chỉ Phẫu thuật Ngoại khoa Thú y Thực hành']
         }
       ]
     };
@@ -1514,6 +1823,46 @@ export function mapMajorToAdmissions(majorCode: string, studentProfile?: Learner
       admissionMethods: ['Điểm thi tốt nghiệp THPT', 'Xét tuyển kết hợp IELTS $\ge 6.5$'],
       verificationNote: 'Thông tin kiểm toán từ Cổng thông tin Tuyển sinh UMP 2025/2026.'
     });
+  } else if (majorCode === '7480205' || majorCode.startsWith('752') || majorCode.startsWith('758') || majorCode.startsWith('785')) {
+    // Nhóm Kỹ thuật Trắc địa - Bản đồ, GIS, Quy hoạch đô thị, Quản lý đất đai
+    options.push({
+      schoolCode: 'MDA',
+      schoolName: 'Trường Đại học Mỏ - Địa chất (HUMG)',
+      city: 'Hà Nội',
+      majorName: 'Kỹ thuật Trắc địa - Bản đồ / Địa tin học (GIS)',
+      majorCode,
+      admissionCombinations: ['A00 (Toán - Lý - Hóa)', 'A01 (Toán - Lý - Anh)', 'B00 (Toán - Hóa - Sinh)', 'D01 (Toán - Văn - Anh)'],
+      tuitionPerYear: 'Khoảng 16 – 20 triệu đồng/năm (Mức học phí công lập tiết kiệm)',
+      historicalBenchmarkNote: 'Điểm trúng tuyển THPT các năm trước dao động từ 18.0 đến 22.5/30 điểm.',
+      admissionMethods: ['Điểm thi tốt nghiệp THPT', 'Xét học bạ THPT', 'Điểm thi ĐGTD TSA Bách Khoa'],
+      verificationNote: 'Cái nôi đào tạo ngành Trắc địa và Dữ liệu không gian uy tín hàng đầu miền Bắc.'
+    });
+
+    options.push({
+      schoolCode: 'DMT',
+      schoolName: 'Trường Đại học Tài nguyên và Môi trường Hà Nội (HUNRE)',
+      city: 'Hà Nội',
+      majorName: 'Quản lý Đất đai / Hệ thống Thông tin Địa lý (GIS)',
+      majorCode,
+      admissionCombinations: ['A00', 'A01', 'B00', 'D01'],
+      tuitionPerYear: 'Khoảng 18 – 22 triệu đồng/năm',
+      historicalBenchmarkNote: 'Điểm chuẩn THPT các năm gần nhất từ 19.5 đến 23.0/30 điểm.',
+      admissionMethods: ['Điểm thi THPT', 'Xét học bạ THPT kết hợp'],
+      verificationNote: 'Trường trực thuộc Bộ Tài nguyên & Môi trường, cơ hội thực tập địa phương đa dạng.'
+    });
+
+    options.push({
+      schoolCode: 'QSB',
+      schoolName: 'Trường Đại học Bách Khoa – ĐHQG TP.HCM',
+      city: 'TP. Hồ Chí Minh',
+      majorName: 'Hệ thống Thông tin Địa lý (GIS) / Kỹ thuật Trắc địa',
+      majorCode,
+      admissionCombinations: ['A00 (Toán - Lý - Hóa)', 'A01 (Toán - Lý - Anh)'],
+      tuitionPerYear: 'Khoảng 30 – 35 triệu đồng/năm',
+      historicalBenchmarkNote: 'Điểm chuẩn xét tuyển tổng hợp kết hợp ĐGNL ĐHQG-HCM và THPT từ 23.5 đến 25.5 điểm.',
+      admissionMethods: ['Phương thức xét tuyển tổng hợp ĐHQG-HCM', 'Thi ĐGNL ĐHQG TP.HCM'],
+      verificationNote: 'Đơn vị đào tạo kỹ thuật công nghệ không gian hàng đầu phía Nam.'
+    });
   } else if (majorCode.startsWith('748') || majorCode.includes('480')) {
     // Nhóm Công nghệ & Kỹ thuật
     options.push({
@@ -1580,6 +1929,60 @@ export function mapMajorToAdmissions(majorCode: string, studentProfile?: Learner
       historicalBenchmarkNote: 'Điểm chuẩn THPT các năm trước từ 25.5 đến 27.2/30 điểm.',
       admissionMethods: ['Phương thức xét tuyển kết hợp điểm học tập và ngoại ngữ', 'Điểm thi ĐGNL', 'Điểm thi THPT'],
       verificationNote: 'Tham chiếu từ Đề án Tuyển sinh Đại học UEH.'
+    });
+  } else if (majorCode.startsWith('714')) {
+    // Nhóm Sư phạm (Hưởng Nghị định 116)
+    options.push({
+      schoolCode: 'SPH',
+      schoolName: 'Trường Đại học Sư phạm Hà Nội (HNUE)',
+      city: 'Hà Nội',
+      majorName: 'Sư phạm Địa lý / Khoa học Xã hội',
+      majorCode,
+      admissionCombinations: ['C00 (Văn - Sử - Địa)', 'D01 (Toán - Văn - Anh)', 'C19'],
+      tuitionPerYear: '0 VNĐ (Miễn 100% học phí + trợ cấp 3,63 triệu/tháng theo Nghị định 116)',
+      historicalBenchmarkNote: 'Điểm chuẩn các năm gần nhất dao động từ 25.5 đến 27.8/30 điểm.',
+      admissionMethods: ['Điểm thi tốt nghiệp THPT', 'Bài thi Đánh giá năng lực ĐHSPHN', 'Xét học sinh giỏi quốc gia/tỉnh'],
+      verificationNote: 'Sinh viên cam kết sau tốt nghiệp công tác trong ngành giáo dục theo Nghị định 116.'
+    });
+
+    options.push({
+      schoolCode: 'SPS',
+      schoolName: 'Trường Đại học Sư phạm TP. Hồ Chí Minh (HCMUE)',
+      city: 'TP. Hồ Chí Minh',
+      majorName: 'Sư phạm Địa lý',
+      majorCode,
+      admissionCombinations: ['C00 (Văn - Sử - Địa)', 'D01 (Toán - Văn - Anh)'],
+      tuitionPerYear: '0 VNĐ (Miễn 100% học phí + trợ cấp 3,63 triệu/tháng theo Nghị định 116)',
+      historicalBenchmarkNote: 'Điểm chuẩn trúng tuyển THPT các năm trước từ 25.0 đến 27.2/30 điểm.',
+      admissionMethods: ['Điểm thi tốt nghiệp THPT', 'Kỳ thi ĐGNL chuyên biệt HCMUE'],
+      verificationNote: 'Trọng điểm đào tạo sư phạm chất lượng cao khu vực phía Nam.'
+    });
+  } else if (majorCode.startsWith('764') || majorCode.startsWith('742') || majorCode.startsWith('762')) {
+    // Nhóm Thú Y, Công nghệ Sinh học & Chăn nuôi
+    options.push({
+      schoolCode: 'HVN',
+      schoolName: 'Học viện Nông nghiệp Việt Nam (VNUA)',
+      city: 'Hà Nội',
+      majorName: majorCode.startsWith('764') ? 'Bác sĩ Thú y' : 'Công nghệ Sinh học',
+      majorCode,
+      admissionCombinations: ['B00 (Toán - Hóa - Sinh)', 'A00 (Toán - Lý - Hóa)', 'D08 (Toán - Sinh - Anh)'],
+      tuitionPerYear: 'Khoảng 16.5 – 22 triệu đồng/năm',
+      historicalBenchmarkNote: 'Điểm chuẩn các năm gần nhất dao động từ 21.0 đến 24.5/30 điểm; sở hữu Bệnh viện Thú y tiêu chuẩn quốc tế lớn nhất miền Bắc.',
+      admissionMethods: ['Điểm thi tốt nghiệp THPT', 'Xét học bạ THPT kết hợp'],
+      verificationNote: 'Thông tin đối chiếu từ Cổng thông tin Tuyển sinh Học viện Nông nghiệp Việt Nam.'
+    });
+
+    options.push({
+      schoolCode: 'NLS',
+      schoolName: 'Trường Đại học Nông Lâm TP. Hồ Chí Minh (NLU)',
+      city: 'TP. Hồ Chí Minh',
+      majorName: majorCode.startsWith('764') ? 'Bác sĩ Thú y' : 'Công nghệ Sinh học',
+      majorCode,
+      admissionCombinations: ['B00 (Toán - Hóa - Sinh)', 'A00 (Toán - Lý - Hóa)', 'D07 (Toán - Hóa - Anh)'],
+      tuitionPerYear: 'Khoảng 18 – 25 triệu đồng/năm',
+      historicalBenchmarkNote: 'Điểm trúng tuyển THPT các năm trước từ 23.0 đến 25.5/30 điểm (hoặc kết quả ĐGNL ĐHQG-HCM từ 750/1200 điểm).',
+      admissionMethods: ['Điểm thi tốt nghiệp THPT', 'Điểm thi ĐGNL ĐHQG-HCM'],
+      verificationNote: 'Trọng điểm đào tạo Thú y và Y sinh động vật chất lượng cao khu vực phía Nam.'
     });
   } else {
     // Nhóm Xã hội, Báo chí, Ngôn ngữ

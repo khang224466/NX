@@ -36,7 +36,12 @@ import {
   EyeOff,
   AlertCircle,
   ExternalLink,
-  X
+  X,
+  History,
+  Plus,
+  Trash2,
+  Clock,
+  MessageSquare
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
@@ -62,6 +67,9 @@ import {
   getStoredLearnerProfile,
   saveLearnerProfile,
   clearStoredLearnerProfile,
+  createInitialProfile,
+  updateProfileWithInput,
+  generateGroundedCareerProposals,
   LearnerEvidenceProfile,
   AdaptiveCareerProposal,
   MajorMappingPathway,
@@ -1376,6 +1384,7 @@ export type IntermediateDomainType =
   | 'SOCIAL_MEDIA' 
   | 'ARTS_DESIGN' 
   | 'CULINARY_TOURISM' 
+  | 'GEOGRAPHY_EARTH'
   | 'UNDECIDED'
   | 'GENERAL';
 
@@ -1404,6 +1413,23 @@ export function detectDomain(text: string): IntermediateDomainType {
     return 'UNDECIDED';
   }
 
+  // 1. Khối Địa Lý, GIS, Trắc Địa, Quy Hoạch Không Gian & Trái Đất
+  if (
+    l.includes('địa lý') ||
+    l.includes('địa lí') ||
+    l.includes('địa chất') ||
+    l.includes('bản đồ') ||
+    l.includes('gis') ||
+    l.includes('trắc địa') ||
+    l.includes('khí tượng') ||
+    l.includes('viễn thám') ||
+    l.includes('quy hoạch đô thị') ||
+    l.includes('tài nguyên môi trường') ||
+    l.includes('quản lý đất đai')
+  ) {
+    return 'GEOGRAPHY_EARTH';
+  }
+
   if (l.includes('đá banh') || l.includes('đá bóng') || l.includes('bóng đá') || l.includes('thể thao') || l.includes('cầu thủ') || l.includes('gym') || l.includes('thể hình') || l.includes('huấn luyện viên') || l.includes('bơi lội') || l.includes('vận động viên') || l.includes('thể chất') || l.includes('tdtt') || l.includes('t00')) {
     return 'SPORTS';
   }
@@ -1422,7 +1448,7 @@ export function detectDomain(text: string): IntermediateDomainType {
   if (l.includes('nấu ăn') || l.includes('đầu bếp') || l.includes('ẩm thực') || l.includes('làm bánh') || l.includes('du lịch') || l.includes('khách sạn') || l.includes('lữ hành') || l.includes('hàng không') || l.includes('phi công') || l.includes('tiếp viên')) {
     return 'CULINARY_TOURISM';
   }
-  if (l.includes('viết') || l.includes('văn') || l.includes('báo') || l.includes('truyền thông') || l.includes('luật') || l.includes('sử') || l.includes('địa') || l.includes('xã hội') || l.includes('sư phạm') || l.includes('c00') || l.includes('d01')) {
+  if (l.includes('viết') || l.includes('văn') || l.includes('báo') || l.includes('truyền thông') || l.includes('luật') || l.includes('sử') || l.includes('xã hội') || l.includes('sư phạm') || l.includes('c00') || l.includes('d01')) {
     return 'SOCIAL_MEDIA';
   }
   return 'GENERAL';
@@ -1717,6 +1743,42 @@ export const INTERMEDIATE_CONFIGS: Record<IntermediateDomainType, IntermediateDo
       ]
     }
   },
+  GEOGRAPHY_EARTH: {
+    domainKey: 'GEOGRAPHY_EARTH',
+    domainName: 'Địa Lý, GIS, Trắc Địa & Quy Hoạch Không Gian',
+    badge: 'Khối Ngành Dữ Liệu Không Gian & Trái Đất',
+    initialAcknowledgment: 'Nexora ghi nhận bạn có hứng thú với Địa lý và khoa học không gian. Lĩnh vực này mở ra các hướng đi hiện đại từ Bản đồ số GIS, Quy hoạch đô thị, Quản lý đất đai đến Sư phạm Địa lý:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Tổ hợp môn thi bạn tự tin đạt điểm cao nhất?',
+      description: 'Lựa chọn tổ hợp môn quyết định chuyên ngành Kỹ thuật GIS, Đo đạc hay Quy hoạch.',
+      options: [
+        { id: 'sub_a01', label: 'Toán · Vật lý · Tiếng Anh (Tổ hợp A01)', comboCode: 'A01', tag: 'Kỹ thuật GIS & Đo đạc', desc: 'Rất mạnh cho Hệ thống Thông tin Địa lý (GIS), Bản đồ số vệ tinh và Viễn thám tại ĐH Bách Khoa, KHTN.' },
+        { id: 'sub_a00', label: 'Toán · Vật lý · Hóa học (Tổ hợp A00)', comboCode: 'A00', tag: 'Trắc địa & Công trình', desc: 'Xét tuyển Kỹ thuật Trắc địa - Bản đồ, Địa kỹ thuật xây dựng tại ĐH Mỏ - Địa chất, GTVT.' },
+        { id: 'sub_c00', label: 'Ngữ văn · Lịch sử · Địa lý (Tổ hợp C00)', comboCode: 'C00', tag: 'Sư phạm & Xã hội', desc: 'Lợi thế số 1 cho Sư phạm Địa lý (Miễn 100% học phí theo NĐ 116), Địa lý học nhân văn & Du lịch.' },
+        { id: 'sub_d01', label: 'Toán · Ngữ văn · Tiếng Anh (Tổ hợp D01)', comboCode: 'D01', tag: 'Quy hoạch & Đất đai', desc: 'Linh hoạt cho Quản lý đất đai, Quy hoạch đô thị và Bất động sản.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Môi trường làm việc bạn muốn gắn bó lâu dài?',
+      description: 'Định hình vai trò công nghệ không gian, khảo sát thực địa hay quản lý công sở.',
+      options: [
+        { id: 'env_gis', label: 'Phòng Lab Dữ Liệu Không Gian & Bản Đồ Số (GIS / Viễn thám)', tag: 'Công nghệ GIS', desc: 'Làm việc với phần mềm ArcGIS, QGIS, xử lý ảnh vệ tinh cho giao thông thông minh, phòng chống thiên tai.' },
+        { id: 'env_survey', label: 'Khảo Sát Thực Địa Ngoài Trời & Đo Đạc Công Trình Hạ Tầng (Trắc địa)', tag: 'Thực địa', desc: 'Sử dụng flycam (LIDAR), máy toàn đạc điện tử khảo sát địa hình các đại công trình cầu đường, cao tốc.' },
+        { id: 'env_planning', label: 'Quy Hoạch Đô Thị, Quản Lý Đất Đai & Tài Nguyên Môi Trường', tag: 'Quy hoạch', desc: 'Hoạch định sử dụng đất, thẩm định dự án quy hoạch phát triển vùng tại cơ quan nhà nước và tập đoàn.' },
+        { id: 'env_teaching', label: 'Giảng Dạy Môn Địa Lý & Khoa Học Trái Đất (Miễn Học Phí NĐ 116)', tag: 'Sư phạm', desc: 'Giảng dạy tại các trường THPT công lập/chuyên, trường quốc tế hoặc làm nghiên cứu tại Viện Địa lý.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu điểm số & Nhóm trường kỳ vọng?',
+      description: 'Lựa chọn cơ sở đào tạo chuyên sâu về Địa lý, GIS hoặc Sư phạm.',
+      options: [
+        { id: 'tier_top1', label: 'Trọng Điểm Kỹ Thuật & ĐHQG (> 24.0 – 26.5 điểm)', tag: 'Top Tier', desc: 'ĐH Bách Khoa ĐHQG-HCM, ĐH Khoa học Tự nhiên, ĐH Kiến Trúc.' },
+        { id: 'tier_top2', label: 'Khối Trường Sư Phạm Chuẩn Quốc Gia (22.5 – 26.0 điểm)', tag: 'Miễn học phí NĐ 116', desc: 'ĐH Sư phạm Hà Nội (HNUE), ĐH Sư phạm TP.HCM (HCMUE) — Trợ cấp 3,63 tr/tháng.' },
+        { id: 'tier_safe', label: 'Khối ĐH Chuyên Ngành Mỏ - Địa Chất & Tài Nguyên (18.5 – 22.0 điểm)', tag: 'Safe 100%', desc: 'ĐH Mỏ - Địa chất (HUMG), ĐH Tài nguyên & Môi trường Hà Nội/TP.HCM (HUNRE).' },
+        { id: 'tier_budget', label: 'ĐH Vùng Đa Ngành: Cần Thơ, Huế, Đà Nẵng, Thái Nguyên', tag: 'Tiết kiệm', desc: 'Chi phí sinh hoạt thấp, chỉ tiêu ổn định, nhiều học bổng từ các sở ban ngành địa phương.' }
+      ]
+    }
+  },
   UNDECIDED: {
     domainKey: 'UNDECIDED',
     domainName: 'Tiến Trình Gỡ Rối & Định Vị Năng Lực (Thu Thập Đủ Yếu Tố)',
@@ -1994,6 +2056,58 @@ const ChatMessageMarkdownView: React.FC<{
 };
 
 // =========================================================================
+// 2.5. COUNSELOR SESSION TYPES & PERSISTENCE (P0 REQUIREMENT)
+// =========================================================================
+export interface CounselorSession {
+  sessionId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: Array<{ role: 'user' | 'model'; content: string }>;
+  profile: LearnerEvidenceProfile | null;
+  workflowStep: 'INITIAL' | 'REALITY_CHECK' | 'INTERMEDIATE_DISCOVERY' | 'ANALYZED_COMBOS' | 'CHOOSE_DIRECTION' | 'SELECT_ITEM' | 'REVERSE_DOSSIER';
+  suggestedCareers: SuggestedCareerItem[];
+  suggestedCombos: SuggestedComboItem[];
+  realityCheckAnswer?: string;
+  adaptiveQuickReplies?: string[];
+  activePromptQuery?: string;
+  analysisText?: string;
+}
+
+const SESSIONS_STORAGE_KEY = 'nexora_counselor_sessions_v2';
+const ACTIVE_SESSION_STORAGE_KEY = 'nexora_active_session_id_v2';
+
+export function getStoredSessions(): CounselorSession[] {
+  try {
+    const raw = localStorage.getItem(SESSIONS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function saveStoredSessions(sessions: CounselorSession[]): void {
+  try {
+    localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
+  } catch {}
+}
+
+export function getStoredActiveSessionId(): string {
+  try {
+    return localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY) || '';
+  } catch {}
+  return '';
+}
+
+export function setStoredActiveSessionId(id: string): void {
+  try {
+    localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, id);
+  } catch {}
+}
+
+// =========================================================================
 // 3. MAIN COMPONENT: CAREER PATHWAY NAVIGATOR
 // =========================================================================
 export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
@@ -2052,6 +2166,167 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model'; content: string }[]>([]);
   const [followUpInput, setFollowUpInput] = useState('');
   const [isAskingFollowUp, setIsAskingFollowUp] = useState(false);
+
+  // Session Management State (P0 Requirement)
+  const [sessions, setSessions] = useState<CounselorSession[]>(() => getStoredSessions());
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    const stored = getStoredActiveSessionId();
+    const all = getStoredSessions();
+    if (stored && all.some(s => s.sessionId === stored)) return stored;
+    if (all.length > 0) return all[0].sessionId;
+    const freshId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    return freshId;
+  });
+  const [showSessionModal, setShowSessionModal] = useState(false);
+
+  // Khôi phục phiên làm việc gần nhất từ localStorage khi tải lại trang (P0 Requirement)
+  useEffect(() => {
+    const all = getStoredSessions();
+    const curr = all.find(s => s.sessionId === activeSessionId);
+    if (curr) {
+      if (curr.messages && curr.messages.length > 0) {
+        setChatMessages(curr.messages);
+      }
+      if (curr.profile) {
+        setLearnerEvidenceProfile(curr.profile);
+      }
+      if (curr.workflowStep && curr.workflowStep !== 'INITIAL') {
+        setWorkflowStep(curr.workflowStep);
+      }
+      if (curr.suggestedCareers) {
+        setSuggestedCareers(curr.suggestedCareers);
+      }
+      if (curr.suggestedCombos) {
+        setSuggestedCombos(curr.suggestedCombos);
+      }
+      if (curr.adaptiveQuickReplies) {
+        setAdaptiveQuickReplies(curr.adaptiveQuickReplies);
+      }
+      if (curr.activePromptQuery) {
+        setActivePromptQuery(curr.activePromptQuery);
+      }
+      if (curr.analysisText) {
+        setAnalysisText(curr.analysisText);
+      }
+      if (curr.realityCheckAnswer) {
+        setLearnerProfile(prev => ({ ...prev, realityCheckAnswer: curr.realityCheckAnswer }));
+      }
+    }
+  }, []);
+
+  const saveSessionSnapshot = (updates: Partial<CounselorSession>) => {
+    setSessions(prevSessions => {
+      const all = [...prevSessions];
+      const idx = all.findIndex(s => s.sessionId === activeSessionId);
+      const now = Date.now();
+      const currentTitle = updates.title || (activePromptQuery ? activePromptQuery.slice(0, 45) : (chatMessages[0]?.content ? chatMessages[0].content.slice(0, 45) : 'Phiên tư vấn mới'));
+      
+      const updatedItem: CounselorSession = idx >= 0
+        ? {
+            ...all[idx],
+            ...updates,
+            title: all[idx].title && all[idx].title !== 'Phiên tư vấn mới' ? all[idx].title : currentTitle,
+            updatedAt: now
+          }
+        : {
+            sessionId: activeSessionId,
+            title: currentTitle,
+            createdAt: now,
+            updatedAt: now,
+            messages: chatMessages,
+            profile: learnerEvidenceProfile,
+            workflowStep,
+            suggestedCareers,
+            suggestedCombos,
+            adaptiveQuickReplies,
+            activePromptQuery,
+            analysisText,
+            realityCheckAnswer: learnerProfile.realityCheckAnswer,
+            ...updates
+          };
+
+      if (idx >= 0) {
+        all[idx] = updatedItem;
+      } else {
+        all.unshift(updatedItem);
+      }
+      saveStoredSessions(all);
+      return all;
+    });
+    setStoredActiveSessionId(activeSessionId);
+  };
+
+  const handleCreateNewSession = () => {
+    sfx.playUiClick();
+    if (chatMessages.length > 0 || learnerEvidenceProfile) {
+      saveSessionSnapshot({});
+    }
+
+    const freshId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    setActiveSessionId(freshId);
+    setStoredActiveSessionId(freshId);
+
+    setChatMessages([]);
+    setChatInput('');
+    setFollowUpInput('');
+    setActivePromptQuery('');
+    setAnalysisText('');
+    setSuggestedCareers([]);
+    setSuggestedCombos([]);
+    setAdaptiveQuickReplies([]);
+    setLearnerProfile({});
+    setLearnerEvidenceProfile(null);
+    clearStoredLearnerProfile();
+    setWorkflowStep('INITIAL');
+    setAnalysisError(null);
+    setShowSessionModal(false);
+  };
+
+  const handleSwitchSession = (targetSessionId: string) => {
+    sfx.playUiClick();
+    saveSessionSnapshot({});
+
+    const all = getStoredSessions();
+    const target = all.find(s => s.sessionId === targetSessionId);
+    if (!target) return;
+
+    setActiveSessionId(target.sessionId);
+    setStoredActiveSessionId(target.sessionId);
+
+    setChatMessages(target.messages || []);
+    setLearnerEvidenceProfile(target.profile || null);
+    if (target.profile) saveLearnerProfile(target.profile);
+    setWorkflowStep(target.workflowStep || 'INITIAL');
+    setSuggestedCareers(target.suggestedCareers || []);
+    setSuggestedCombos(target.suggestedCombos || []);
+    setAdaptiveQuickReplies(target.adaptiveQuickReplies || []);
+    setActivePromptQuery(target.activePromptQuery || '');
+    setAnalysisText(target.analysisText || '');
+    if (target.realityCheckAnswer) {
+      setLearnerProfile(prev => ({ ...prev, realityCheckAnswer: target.realityCheckAnswer }));
+    }
+    setAnalysisError(null);
+    setShowSessionModal(false);
+  };
+
+  const handleDeleteSession = (sessionIdToDelete: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const confirmDelete = window.confirm('Bạn có chắc chắn muốn xóa phiên tư vấn này khỏi lịch sử không?');
+    if (!confirmDelete) return;
+
+    sfx.playUiClick();
+    const remaining = sessions.filter(s => s.sessionId !== sessionIdToDelete);
+    setSessions(remaining);
+    saveStoredSessions(remaining);
+
+    if (activeSessionId === sessionIdToDelete) {
+      if (remaining.length > 0) {
+        handleSwitchSession(remaining[0].sessionId);
+      } else {
+        handleCreateNewSession();
+      }
+    }
+  };
 
   // Sync API key if updated externally
   useEffect(() => {
@@ -2213,7 +2488,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   };
 
   // =========================================================================
-  // STEP 1: ADAPTIVE DECISION ANALYZER (EVIDENCE-GROUNDED ADAPTIVE ENGINE)
+  // STEP 1: ADAPTIVE DECISION ANALYZER (AI CAREER COUNSELOR BACKEND INTEGRATION)
   // =========================================================================
   const handleAnalyzeInput = async (textToAnalyze?: string, realityAnswer?: string) => {
     const text = (textToAnalyze || chatInput).trim();
@@ -2232,56 +2507,101 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       ? `Băn khoăn ban đầu: "${text}"\nCâu trả lời tự vấn thực tế: "${rAnswer}"`
       : text;
 
-    try {
-      // Run through adaptive decision engine to determine proper state & action
-      const decision = processDecisionTurn(text, learnerEvidenceProfile, rAnswer);
-      setLearnerEvidenceProfile(decision.updatedProfile);
-      saveLearnerProfile(decision.updatedProfile);
+    // Tích lũy bằng chứng song song qua Decision Engine
+    const initialProfile = createInitialProfile(text, rAnswer);
+    const decision = processDecisionTurn(text, learnerEvidenceProfile || initialProfile);
+    let updatedProfile = decision.updatedProfile;
+    setLearnerEvidenceProfile(decision.updatedProfile);
+    saveLearnerProfile(decision.updatedProfile);
 
-      // If decision is to ask a question or explore interests, DO NOT force 3 career cards!
-      if (decision.action === 'ASK_QUESTION' || decision.action === 'EXPLORE_INTERESTS') {
-        setAnalysisText(decision.replyText);
-        setSuggestedCareers([]);
-        setSuggestedCombos([]);
-        setChatMessages([
-          { role: 'user', content: userPromptContent },
-          { role: 'model', content: decision.replyText }
-        ]);
-        if (decision.quickReplies && decision.quickReplies.length > 0) {
-          setAdaptiveQuickReplies(decision.quickReplies);
-        }
+    try {
+      // P0: Gửi yêu cầu tới backend AI Career Counselor
+      const response = await fetch('/api/ai/counselor/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-gemini-key': apiKey } : {})
+        },
+        body: JSON.stringify({
+          sessionId: activeSessionId,
+          message: text,
+          history: [],
+          profile: updatedProfile,
+          realityAnswer: rAnswer
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        // Lỗi backend (hết quota, mất mạng, chưa có key...)
+        const errMsg = data.error || 'Máy chủ AI tạm thời gián đoạn kết nối. Bạn vui lòng thử lại nhé.';
+        setAnalysisError(errMsg);
         setIsGeneratingAnalysis(false);
-        setWorkflowStep('ANALYZED_COMBOS');
-        sfx.playActionSuccess();
+        // Không ép hiển thị nghề giả lập, giữ nguyên giao diện để người học thử lại
         return;
       }
 
-      // If decision is CAREER_SHORTLIST (enough evidence accumulated)
-      setAnalysisText(decision.replyText);
-      setSuggestedCareers((decision.suggestedCareers || []) as SuggestedCareerItem[]);
-      setSuggestedCombos((decision.suggestedCombos || []) as SuggestedComboItem[]);
-      setChatMessages([
-        { role: 'user', content: userPromptContent },
-        { role: 'model', content: decision.replyText }
-      ]);
-      if (decision.quickReplies && decision.quickReplies.length > 0) {
-        setAdaptiveQuickReplies(decision.quickReplies);
+      // Nhận phản hồi thành công từ AI
+      const aiReply = data.replyText;
+      const aiQuickReplies = data.quickReplies || [];
+
+      // Đồng bộ các bằng chứng mới phát hiện nếu có
+      if (data.detectedUpdates?.statedInterests) {
+        for (const item of data.detectedUpdates.statedInterests) {
+          if (!updatedProfile.statedInterests.includes(item)) {
+            updatedProfile.statedInterests.push(item);
+          }
+        }
       }
+
+      const readiness = evaluateEvidenceReadiness(updatedProfile);
+      setLearnerEvidenceProfile(updatedProfile);
+      saveLearnerProfile(updatedProfile);
+
+      setAnalysisText(aiReply);
+      setAdaptiveQuickReplies(aiQuickReplies);
+
+      const newMessages = [
+        { role: 'user' as const, content: userPromptContent },
+        { role: 'model' as const, content: aiReply }
+      ];
+      setChatMessages(newMessages);
+
+      let newCareers: SuggestedCareerItem[] = [];
+      if (readiness.isReadyForCareers) {
+        newCareers = generateGroundedCareerProposals(updatedProfile) as SuggestedCareerItem[];
+        setSuggestedCareers(newCareers);
+      } else {
+        setSuggestedCareers([]);
+      }
+
       setIsGeneratingAnalysis(false);
       setWorkflowStep('ANALYZED_COMBOS');
       sfx.playActionSuccess();
-    } catch (error) {
-      console.error('[Nexora Decision Engine Error]:', error);
+
+      // Lưu lại snapshot vào phiên hội thoại hiện tại
+      saveSessionSnapshot({
+        title: text.slice(0, 45),
+        messages: newMessages,
+        profile: updatedProfile,
+        workflowStep: 'ANALYZED_COMBOS',
+        analysisText: aiReply,
+        suggestedCareers: newCareers,
+        adaptiveQuickReplies: aiQuickReplies,
+        activePromptQuery: text,
+        realityCheckAnswer: rAnswer
+      });
+
+    } catch (err: any) {
+      console.error('[Nexora AI Counselor Call Error]:', err);
       setIsGeneratingAnalysis(false);
-      // Không lưu profile dở dang, không chuyển workflow sang ANALYZED_COMBOS
-      // Không tự tạo nghề hoặc tổ hợp môn dự phòng không căn cứ
-      // Giữ nguyên hồ sơ và hiển thị thông báo tiếng Việt tự nhiên cho phép thử lại
-      setAnalysisError('Hệ thống cố vấn Nexora vừa gặp gián đoạn tạm thời khi phân tích. Hồ sơ của bạn vẫn được bảo toàn nguyên vẹn, bạn vui lòng thử lại nhé.');
+      setAnalysisError(`Lỗi kết nối tới máy chủ AI: ${err.message || 'Mất kết nối mạng'}. Bạn vui lòng kiểm tra kết nối và thử lại nhé.`);
     }
   };
 
   // =========================================================================
-  // FOLLOW-UP Q&A HANDLER (EVIDENCE-ACCUMULATING ADAPTIVE INTERACTIVE CHAT)
+  // FOLLOW-UP Q&A HANDLER (EVIDENCE-ACCUMULATING AI INTERACTIVE CHAT)
   // =========================================================================
   const handleSendFollowUp = async (customQuery?: string) => {
     const q = (customQuery || followUpInput).trim();
@@ -2289,44 +2609,102 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
     setFollowUpInput('');
     setIsAskingFollowUp(true);
+    setAnalysisError(null);
     sfx.playUiClick();
 
     const newMessages = [...chatMessages, { role: 'user' as const, content: q }];
     setChatMessages(newMessages);
 
+    // Tích lũy bằng chứng song song qua Decision Engine
+    const decision = processDecisionTurn(q, learnerEvidenceProfile);
+    let updatedProfile = decision.updatedProfile;
+    setLearnerEvidenceProfile(decision.updatedProfile);
+    saveLearnerProfile(decision.updatedProfile);
+
     try {
-      // Process this turn through adaptive decision engine with accumulated evidence
-      const decision = processDecisionTurn(q, learnerEvidenceProfile);
-      setLearnerEvidenceProfile(decision.updatedProfile);
-      saveLearnerProfile(decision.updatedProfile);
+      // P0: Gửi yêu cầu tới backend AI Career Counselor
+      const response = await fetch('/api/ai/counselor/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-gemini-key': apiKey } : {})
+        },
+        body: JSON.stringify({
+          sessionId: activeSessionId,
+          message: q,
+          history: newMessages,
+          profile: updatedProfile,
+          realityAnswer: learnerProfile.realityCheckAnswer
+        })
+      });
 
-      // If this turn accumulated enough evidence to reveal careers:
-      if (decision.action === 'CAREER_SHORTLIST' && decision.suggestedCareers && decision.suggestedCareers.length > 0) {
-        setSuggestedCareers(decision.suggestedCareers as SuggestedCareerItem[]);
-        setSuggestedCombos((decision.suggestedCombos || []) as SuggestedComboItem[]);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data.success) {
+        setIsAskingFollowUp(false);
+        const errMsg = data.error || 'Dịch vụ AI đang gặp gián đoạn tạm thời. Dữ liệu của bạn được bảo toàn.';
+        setAnalysisError(errMsg);
+        setChatMessages([
+          ...newMessages,
+          {
+            role: 'model' as const,
+            content: `⚠️ ${errMsg} Bạn hãy bấm vào gợi ý bên dưới để thử lại hoặc hỏi theo cách khác nhé.`
+          }
+        ]);
+        setAdaptiveQuickReplies([q, 'Chia sẻ thêm về trải nghiệm học tập của bạn']);
+        return;
       }
 
-      if (decision.quickReplies && decision.quickReplies.length > 0) {
-        setAdaptiveQuickReplies(decision.quickReplies);
+      // Phản hồi AI thành công
+      const aiReply = data.replyText;
+      const aiQuickReplies = data.quickReplies || [];
+
+      // Đồng bộ bằng chứng mới phát hiện
+      if (data.detectedUpdates?.statedInterests) {
+        for (const item of data.detectedUpdates.statedInterests) {
+          if (!updatedProfile.statedInterests.includes(item)) {
+            updatedProfile.statedInterests.push(item);
+          }
+        }
       }
 
-      setChatMessages([...newMessages, { role: 'model' as const, content: decision.replyText }]);
+      const readiness = evaluateEvidenceReadiness(updatedProfile);
+      setLearnerEvidenceProfile(updatedProfile);
+      saveLearnerProfile(updatedProfile);
+
+      const finalMessages = [...newMessages, { role: 'model' as const, content: aiReply }];
+      setChatMessages(finalMessages);
+      setAdaptiveQuickReplies(aiQuickReplies);
+
+      let newCareers: SuggestedCareerItem[] = suggestedCareers;
+      if (readiness.isReadyForCareers) {
+        newCareers = generateGroundedCareerProposals(updatedProfile) as SuggestedCareerItem[];
+        setSuggestedCareers(newCareers);
+      }
+
       setIsAskingFollowUp(false);
       sfx.playActionSuccess();
-    } catch (error) {
-      console.error('[Nexora Follow-Up Error]:', error);
+
+      // Lưu snapshot vào phiên
+      saveSessionSnapshot({
+        messages: finalMessages,
+        profile: updatedProfile,
+        suggestedCareers: newCareers,
+        adaptiveQuickReplies: aiQuickReplies
+      });
+
+    } catch (err: any) {
+      console.error('[Nexora AI Follow-Up Error]:', err);
       setIsAskingFollowUp(false);
-      // Không lưu profile dở dang, không xóa profile hiện có
-      // Không tự tạo nghề hoặc tổ hợp môn dự phòng không căn cứ
-      // Hiển thị thông báo tiếng Việt tự nhiên và cho phép thử lại
+      setAnalysisError(`Lỗi kết nối tới máy chủ AI: ${err.message || 'Mất kết nối mạng'}.`);
       setChatMessages([
         ...newMessages,
-        { 
-          role: 'model' as const, 
-          content: 'Xin lỗi bạn, hệ thống cố vấn vừa gặp gián đoạn tạm thời khi phân tích câu hỏi này. Dữ liệu đã thu thập của bạn vẫn an toàn. Bạn hãy bấm vào gợi ý bên dưới để thử lại hoặc diễn đạt theo cách khác nhé.' 
+        {
+          role: 'model' as const,
+          content: '⚠️ Lỗi kết nối mạng khi liên lạc với máy chủ AI. Dữ liệu của bạn được bảo toàn nguyên vẹn. Bạn vui lòng thử lại nhé.'
         }
       ]);
-      setAdaptiveQuickReplies([q, 'Chia sẻ thêm về trải nghiệm học tập của bạn']);
+      setAdaptiveQuickReplies([q, 'Thử lại câu hỏi này']);
     }
   };
 
@@ -2474,60 +2852,122 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
         automationRisk: 'Trung bình thấp (18%)'
       };
 
-      const finalCareers: SuggestedCareerItem[] = [
-        {
-          id: c1.id,
-          title: c1.title,
-          sector: c1.sector,
-          riasecCode: inferredRiasec,
-          matchPercent: effectiveConfidence >= 90 ? 98 : (effectiveConfidence >= 75 ? 92 : 86),
-          salaryRange: c1.salaryRange || '18 – 45 triệu/tháng',
-          automationRisk: c1.automationRisk || 'Thấp (12%)',
-          whyFit: chosenSub
-            ? (chosenSub.id === 'sub_neutral_balanced' && chosenEvenStyle
-                ? `Giải mã từ phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}].`
-                : `Khớp với định hướng môn ${chosenSub.label} và môi trường ${chosenEnv ? chosenEnv.label : 'thực tế'}.`)
-            : `Định hướng sơ bộ theo mong muốn ban đầu: "${text}".`,
-          whyNotOthers: 'Chưa ưu tiên các ngành y tế hoặc năng khiếu đặc thù do đòi hỏi cam kết thực hành hoặc học chế 6 năm.',
-          linkedComboCode: primaryComboCode,
-          recommendedMajors: p1.majors.slice(0, 2).map(m => m.name)
-        },
-        {
-          id: c2.id,
-          title: c2.title,
-          sector: c2.sector,
-          riasecCode: inferredRiasec.includes('R') ? 'RIC' : 'ESA',
-          matchPercent: effectiveConfidence >= 90 ? 90 : 84,
-          salaryRange: c2.salaryRange || '16 – 40 triệu/tháng',
-          automationRisk: c2.automationRisk || 'Thấp (15%)',
-          whyFit: chosenTier
-            ? `Vị trí bổ trợ tương thích cao với nguyện vọng phân khúc trường ${chosenTier.label}.`
-            : `Phương án cân bằng giữa cơ hội việc làm và khả năng phát triển kỹ năng mềm.`,
-          whyNotOthers: 'Chưa ưu tiên khối kỹ thuật nặng do yêu cầu thực hành xưởng và máy móc chuyên sâu.',
-          linkedComboCode: primaryComboCode,
-          recommendedMajors: p1.majors.slice(1, 3).map(m => m.name)
-        },
-        {
-          id: c3.id,
-          title: c3.title,
-          sector: c3.sector,
-          riasecCode: 'ICE',
-          matchPercent: effectiveConfidence >= 90 ? 84 : 78,
-          salaryRange: c3.salaryRange || '15 – 35 triệu/tháng',
-          automationRisk: c3.automationRisk || 'Trung bình thấp (18%)',
-          whyFit: `Phương án mở rộng an toàn giúp đa dạng hóa lựa chọn nghề nghiệp tương lai.`,
-          whyNotOthers: 'Chưa ưu tiên khối nghiên cứu hàn lâm do người học hướng tới môi trường ứng dụng thực tế.',
-          linkedComboCode: secondaryComboCode,
-          recommendedMajors: p2.majors.slice(0, 2).map(m => m.name)
+      let finalCareers: SuggestedCareerItem[] = [];
+
+      if (
+        detectedDomainType === 'GEOGRAPHY_EARTH' ||
+        lower.includes('địa lý') ||
+        lower.includes('địa lí') ||
+        lower.includes('gis') ||
+        lower.includes('trắc địa') ||
+        lower.includes('bản đồ') ||
+        lower.includes('quy hoạch') ||
+        lower.includes('đất đai')
+      ) {
+        if (!primaryComboCode) {
+          primaryComboCode = lower.includes('sư phạm') ? 'C00' : 'A01';
         }
-      ];
+        finalCareers = [
+          {
+            id: 'c_gis_specialist',
+            title: 'Chuyên Viên GIS & Viễn Thám Dữ Liệu Không Gian (GIS Specialist)',
+            sector: 'Công Nghệ Không Gian & Dữ Liệu Địa Lý',
+            riasecCode: 'RIC',
+            matchPercent: effectiveConfidence >= 90 ? 96 : (effectiveConfidence >= 75 ? 90 : 84),
+            salaryRange: '14 – 35 triệu/tháng',
+            automationRisk: 'Thấp (11%)',
+            whyFit: chosenSub
+              ? `Khớp với định hướng môn ${chosenSub.label} và thế mạnh tư duy địa lý không gian.`
+              : `Định hướng chuẩn xác theo đam mê Địa lý & Dữ liệu không gian của bạn.`,
+            whyNotOthers: 'Chưa ưu tiên khảo sát mỏ địa chất sâu do yêu cầu làm việc dài ngày tại hiện trường hiểm trở.',
+            linkedComboCode: primaryComboCode === 'C00' ? 'C00' : 'A01',
+            recommendedMajors: ['Hệ thống Thông tin Địa lý (GIS)', 'Kỹ thuật Trắc địa - Bản đồ', 'Khoa học Dữ liệu Không gian']
+          },
+          {
+            id: 'c_urban_planner',
+            title: 'Chuyên Viên Quy Hoạch Vùng - Đô Thị & Quản Lý Tài Nguyên Đất Đai',
+            sector: 'Quy Hoạch & Quản Lý Đô Thị',
+            riasecCode: 'IEC',
+            matchPercent: effectiveConfidence >= 90 ? 90 : 84,
+            salaryRange: '15 – 38 triệu/tháng',
+            automationRisk: 'Rất thấp (7%)',
+            whyFit: chosenEnv
+              ? `Phù hợp với mong muốn môi trường ${chosenEnv.label} và hoạch định tài nguyên.`
+              : `Cơ hội phát triển trong lĩnh vực quy hoạch đô thị và quản lý đất đai.`,
+            whyNotOthers: 'Chưa ưu tiên kiến trúc công trình do yêu cầu thi vẽ tĩnh vật mỹ thuật.',
+            linkedComboCode: 'D01',
+            recommendedMajors: ['Quy hoạch Vùng và Đô thị', 'Quản lý Đất đai', 'Địa lý học']
+          },
+          {
+            id: 'c_geodesy_engineer',
+            title: 'Kỹ Sư Trắc Địa - Bản Đồ Số & Đo Đạc Công Trình Hạ Tầng',
+            sector: 'Kỹ Thuật Xây Dựng & Đo Đạc',
+            riasecCode: 'RIC',
+            matchPercent: effectiveConfidence >= 90 ? 84 : 78,
+            salaryRange: '13 – 30 triệu/tháng',
+            automationRisk: 'Thấp (13%)',
+            whyFit: 'Lựa chọn kỹ thuật thực địa chuẩn xác cho các đại công trình hạ tầng quốc gia.',
+            whyNotOthers: 'Cần thể lực tốt cho các đợt đo đạc ngoại nghiệp thực tế.',
+            linkedComboCode: 'A00',
+            recommendedMajors: ['Kỹ thuật Trắc địa - Bản đồ', 'Kỹ thuật Xây dựng', 'Kỹ thuật Địa không gian']
+          }
+        ];
+      } else {
+        finalCareers = [
+          {
+            id: c1.id,
+            title: c1.title,
+            sector: c1.sector,
+            riasecCode: inferredRiasec,
+            matchPercent: effectiveConfidence >= 90 ? 98 : (effectiveConfidence >= 75 ? 92 : 86),
+            salaryRange: c1.salaryRange || '18 – 45 triệu/tháng',
+            automationRisk: c1.automationRisk || 'Thấp (12%)',
+            whyFit: chosenSub
+              ? (chosenSub.id === 'sub_neutral_balanced' && chosenEvenStyle
+                  ? `Giải mã từ phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}].`
+                  : `Khớp với định hướng môn ${chosenSub.label} và môi trường ${chosenEnv ? chosenEnv.label : 'thực tế'}.`)
+              : `Định hướng sơ bộ theo mong muốn ban đầu: "${text}".`,
+            whyNotOthers: 'Chưa ưu tiên các ngành y tế hoặc năng khiếu đặc thù do đòi hỏi cam kết thực hành hoặc học chế 6 năm.',
+            linkedComboCode: primaryComboCode,
+            recommendedMajors: p1.majors.slice(0, 2).map(m => m.name)
+          },
+          {
+            id: c2.id,
+            title: c2.title,
+            sector: c2.sector,
+            riasecCode: inferredRiasec.includes('R') ? 'RIC' : 'ESA',
+            matchPercent: effectiveConfidence >= 90 ? 90 : 84,
+            salaryRange: c2.salaryRange || '16 – 40 triệu/tháng',
+            automationRisk: c2.automationRisk || 'Thấp (15%)',
+            whyFit: chosenTier
+              ? `Vị trí bổ trợ tương thích cao với nguyện vọng phân khúc trường ${chosenTier.label}.`
+              : `Phương án cân bằng giữa cơ hội việc làm và khả năng phát triển kỹ năng mềm.`,
+            whyNotOthers: 'Chưa ưu tiên khối kỹ thuật nặng do yêu cầu thực hành xưởng và máy móc chuyên sâu.',
+            linkedComboCode: primaryComboCode,
+            recommendedMajors: p1.majors.slice(1, 3).map(m => m.name)
+          },
+          {
+            id: c3.id,
+            title: c3.title,
+            sector: c3.sector,
+            riasecCode: 'ICE',
+            matchPercent: effectiveConfidence >= 90 ? 84 : 78,
+            salaryRange: c3.salaryRange || '15 – 35 triệu/tháng',
+            automationRisk: c3.automationRisk || 'Trung bình thấp (18%)',
+            whyFit: `Phương án mở rộng an toàn giúp đa dạng hóa lựa chọn nghề nghiệp tương lai.`,
+            whyNotOthers: 'Chưa ưu tiên khối nghiên cứu hàn lâm do người học hướng tới môi trường ứng dụng thực tế.',
+            linkedComboCode: secondaryComboCode,
+            recommendedMajors: p2.majors.slice(0, 2).map(m => m.name)
+          }
+        ];
+      }
 
       const combos: SuggestedComboItem[] = [
         {
           code: primaryComboCode,
           matchPercent: effectiveConfidence >= 90 ? 96 : 90,
           matchLabel: 'Mũi nhọn',
-          reason: chosenSub ? `Phù hợp với môn thế mạnh (${chosenSub.label}) của bạn.` : `Tổ hợp đòn bẩy cho nghề ${c1.title}.`
+          reason: chosenSub ? `Phù hợp với môn thế mạnh (${chosenSub.label}) của bạn.` : `Tổ hợp đòn bẩy cho nghề ${finalCareers[0]?.title || c1.title}.`
         },
         {
           code: secondaryComboCode,
@@ -2563,11 +3003,53 @@ ${chosenSub?.id === 'sub_neutral_balanced'
   : `Dựa trên thông tin đã chia sẻ, bạn có thiên hướng phù hợp với môi trường ứng dụng và làm việc có quy trình rõ ràng. Việc tiếp cận từ vị trí công việc cụ thể (Gate 2) sẽ giúp bạn nhìn thấy rõ con đường trước khi chốt ngành hay khối thi.`}
 
 📊 **[BẰNG CHỨNG THỰC CHỨNG 2026 (THỐNG KÊ TUYỂN DỤNG & TUYỂN SINH)]**:
-• Mức độ rủi ro tự động hóa AI của các nghề đề xuất dao động từ 12% đến 18% (mức an toàn cao).
-• Dải thu nhập P50 sau 3-5 năm đạt từ 18 – 45 triệu/tháng tại các doanh nghiệp và tập đoàn lớn.
-• Chính sách hỗ trợ: Khối Sư phạm miễn 100% học phí theo NĐ 116/2020/NĐ-CP; Khối Công nghệ hỗ trợ học bổng 111 ngành STEM theo QĐ 1826/QĐ-BGDĐT.
+• Mức độ rủi ro tự động hóa AI của các nghề đề xuất dao động từ 7% đến 18% (mức an toàn cao).
+• Dải thu nhập P50 sau 3-5 năm đạt từ 14 – 40 triệu/tháng tại các cơ quan, viện nghiên cứu và doanh nghiệp.
+• Chính sách hỗ trợ: Khối Sư phạm miễn 100% học phí theo NĐ 116/2020/NĐ-CP; Khối Kỹ thuật & Không gian được ưu tiên tuyển dụng theo chuẩn quy hoạch số quốc gia.
 
 💡 **3 Vị trí việc làm mục tiêu (Gate 2)** đã được cập nhật phía dưới để bạn khám phá lộ trình chi tiết.`;
+
+      // Cập nhật bằng chứng vào LearnerEvidenceProfile để thanh trạng thái phản ánh chính xác
+      setLearnerEvidenceProfile(prev => {
+        const base = prev || createInitialProfile(text, learnerProfile.realityCheckAnswer);
+        const next: LearnerEvidenceProfile = {
+          ...base,
+          statedInterests: [...base.statedInterests],
+          academicStrengths: [...base.academicStrengths],
+          workEnvironmentPrefs: [...base.workEnvironmentPrefs],
+          personalValues: [...base.personalValues],
+          realConstraints: [...base.realConstraints],
+          verifiedEvidence: [...base.verifiedEvidence],
+          unverifiedHypotheses: [...base.unverifiedHypotheses],
+          missingEvidence: [...base.missingEvidence],
+          rejectedActivities: [...base.rejectedActivities],
+          untestedInterests: [...base.untestedInterests],
+          unresolvedContradictions: [...base.unresolvedContradictions],
+          rawInputs: [...base.rawInputs],
+          turnsCount: base.turnsCount + 1
+        };
+        if (chosenSub && !next.academicStrengths.includes(chosenSub.label)) {
+          next.academicStrengths.push(chosenSub.label);
+        }
+        if (chosenEnv && !next.workEnvironmentPrefs.includes(chosenEnv.label)) {
+          next.workEnvironmentPrefs.push(chosenEnv.label);
+        }
+        if (chosenTier && !next.realConstraints.includes(chosenTier.label)) {
+          next.realConstraints.push(chosenTier.label);
+        }
+        if (chosenIkigai && !next.personalValues.includes(chosenIkigai.label)) {
+          next.personalValues.push(chosenIkigai.label);
+        }
+        saveLearnerProfile(next);
+        return next;
+      });
+
+      const counselorSummaryMsg = `Cảm ơn bạn đã hoàn thành khảo sát 4 trụ cột định hướng! Qua các lựa chọn của bạn về thế mạnh môn học (${chosenSub?.label || 'Đã xác nhận'}), môi trường làm việc (${chosenEnv?.label || 'Đã xác nhận'}) và nhóm trường kỳ vọng, hồ sơ của bạn đã đạt độ tin cậy **${effectiveConfidence}%**. Dưới đây là 3 vị trí việc làm mục tiêu (Gate 2) tương thích nhất:`;
+
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'model', content: counselorSummaryMsg }
+      ]);
 
       setAnalysisText(fullAnalysis);
       setSuggestedCareers(finalCareers);
@@ -2796,6 +3278,29 @@ ${chosenSub?.id === 'sub_neutral_balanced'
               <span className="font-semibold uppercase tracking-wider">Cố Vấn Định Hướng Nghề Nghiệp Từ Con Số 0</span>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setShowSessionModal(true);
+                }}
+                className="text-[11px] font-mono px-2.5 py-1 rounded-lg border border-[#3B82F6]/30 bg-[#162238] hover:bg-[#2563EB] text-[#60A5FA] hover:text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Lịch sử các phiên tư vấn định hướng"
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Lịch sử ({sessions.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCreateNewSession}
+                className="text-[11px] font-mono px-2 py-1 rounded-lg border border-slate-700 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1 cursor-pointer"
+                title="Bắt đầu phiên tư vấn mới"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Phiên mới</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -3487,12 +3992,12 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                 type="button"
                 onClick={() => {
                   sfx.playUiClick();
-                  setWorkflowStep('INITIAL');
+                  setWorkflowStep(analysisText ? 'ANALYZED_COMBOS' : 'INITIAL');
                 }}
-                className="w-full sm:w-auto px-4 py-2.5 text-xs font-mono text-[#8E929F] hover:text-white rounded-xl border border-[#262D3D] hover:bg-[#1F242C] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 text-xs font-mono text-slate-300 hover:text-white rounded-xl border border-[#262D3D] hover:bg-[#1F242C] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Nhập lại mong muốn</span>
+                <span>{analysisText ? 'Quay lại cuộc trò chuyện' : 'Nhập lại mong muốn'}</span>
               </button>
 
               <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
@@ -3560,17 +4065,43 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-auto">
+                <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap justify-end">
                   <button
                     type="button"
                     onClick={() => {
                       sfx.playUiClick();
+                      setShowSessionModal(true);
+                    }}
+                    title="Xem lịch sử các phiên tư vấn đã lưu"
+                    className="text-[11px] font-mono text-slate-300 hover:text-white flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg border border-slate-700 transition-all cursor-pointer shadow-sm"
+                  >
+                    <History className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Lịch sử ({sessions.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCreateNewSession}
+                    title="Bắt đầu phiên tư vấn mới"
+                    className="text-[11px] font-mono text-slate-300 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1.5 rounded-lg border border-white/10 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Phiên mới</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sfx.playUiClick();
+                      const latestInput = activePromptQuery || chatInput;
+                      if (latestInput) {
+                        setDetectedDomainType(detectDomain(latestInput));
+                      }
                       setWorkflowStep('INTERMEDIATE_DISCOVERY');
                     }}
+                    title="Khảo sát nhanh 4 trụ cột: Sở thích · Môn học · Môi trường · Mục tiêu"
                     className="text-[11px] font-mono text-[#60A5FA] hover:text-white flex items-center gap-1.5 bg-[#162238] hover:bg-[#2563EB] px-3 py-1.5 rounded-lg border border-[#3B82F6]/30 transition-all cursor-pointer shadow-sm"
                   >
                     <Sliders className="w-3.5 h-3.5" />
-                    <span>Thăm dò 4 bước</span>
+                    <span>Khảo sát 4 trụ cột</span>
                   </button>
                   <button
                     type="button"
@@ -3728,7 +4259,7 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                           className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 transition-transform active:scale-95 cursor-pointer"
                         >
                           <Sliders className="w-3.5 h-3.5" />
-                          <span>Mở 4 Bước Thăm Dò Năng Lực</span>
+                          <span>Khảo sát 4 trụ cột định hướng</span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -4558,6 +5089,173 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                 >
                   {testStatus?.loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   <span>Kiểm Tra &amp; Lưu</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* =========================================================================
+          COUNSELOR SESSION MANAGEMENT MODAL (P0 Requirement)
+          ========================================================================= */}
+      <AnimatePresence>
+        {showSessionModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-lg bg-[#0F1118] border border-[#262D3D] rounded-2xl p-5 shadow-2xl space-y-4 text-left max-h-[85vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between border-b border-[#222838] pb-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-[#2563EB]/20 text-[#60A5FA]">
+                    <History className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Lịch Sử Các Phiên Tư Vấn</h3>
+                    <p className="text-[11px] text-slate-400 font-mono">
+                      {sessions.length} phiên đã lưu · Khôi phục mọi thời điểm
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCreateNewSession}
+                    className="text-[11px] font-mono px-2.5 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white flex items-center gap-1 shadow-sm transition-transform active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Phiên mới</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSessionModal(false)}
+                    className="p-1 text-[#8E929F] hover:text-white rounded-lg hover:bg-[#1E2430] transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto space-y-2.5 pr-1 flex-1">
+                {sessions.length === 0 ? (
+                  <div className="text-center py-8 px-4 rounded-xl border border-dashed border-[#262D3D] space-y-2">
+                    <MessageSquare className="w-8 h-8 text-slate-600 mx-auto" />
+                    <p className="text-xs text-slate-400">Chưa có phiên tư vấn nào trong lịch sử.</p>
+                    <p className="text-[11px] text-slate-500">Mỗi cuộc hội thoại với Cố vấn Nexora sẽ được tự động lưu lại tại đây.</p>
+                  </div>
+                ) : (
+                  sessions.map((sess) => {
+                    const isActive = sess.sessionId === activeSessionId;
+                    const dateFormatted = new Date(sess.updatedAt).toLocaleString('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    });
+                    const msgCount = sess.messages ? sess.messages.length : 0;
+                    const interestCount = sess.profile?.statedInterests?.length || 0;
+                    const abilityCount = sess.profile?.academicStrengths?.length || 0;
+
+                    return (
+                      <div
+                        key={sess.sessionId}
+                        onClick={() => {
+                          if (!isActive) handleSwitchSession(sess.sessionId);
+                        }}
+                        className={`p-3 rounded-xl border transition-all text-left flex flex-col gap-2 ${
+                          isActive
+                            ? 'bg-[#162238]/80 border-[#3B82F6] ring-1 ring-[#3B82F6]/50'
+                            : 'bg-[#121316] border-[#222838] hover:border-[#3B82F6]/40 hover:bg-[#161B26] cursor-pointer'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              {isActive && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  Đang mở
+                                </span>
+                              )}
+                              <h4 className="text-xs font-semibold text-white truncate">
+                                {sess.title || 'Phiên tư vấn'}
+                              </h4>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-slate-500" />
+                                {dateFormatted}
+                              </span>
+                              <span>·</span>
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3 text-slate-500" />
+                                {msgCount} lượt trao đổi
+                              </span>
+                              {(interestCount > 0 || abilityCount > 0) && (
+                                <>
+                                  <span>·</span>
+                                  <span className="text-blue-400">
+                                    {interestCount + abilityCount} bằng chứng
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {!isActive && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSwitchSession(sess.sessionId);
+                                }}
+                                className="px-2.5 py-1 text-[11px] font-mono text-[#60A5FA] hover:text-white bg-[#2563EB]/20 hover:bg-[#2563EB] rounded-lg border border-[#3B82F6]/30 transition-all cursor-pointer"
+                              >
+                                Mở lại
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteSession(sess.sessionId, e)}
+                              className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                              title="Xóa phiên này"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {sess.suggestedCareers && sess.suggestedCareers.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-white/5">
+                            <span className="text-[10px] text-slate-500 font-mono">Đã đề xuất:</span>
+                            {sess.suggestedCareers.map((c, i) => (
+                              <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-300 font-mono">
+                                {c.title.split(' ')[0]}...
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-[#222838] shrink-0">
+                <span className="text-[11px] text-slate-500 font-mono">
+                  Dữ liệu lưu an toàn trên trình duyệt này
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowSessionModal(false)}
+                  className="px-3.5 py-2 text-xs text-[#8E929F] hover:text-white rounded-xl border border-[#2E3545] hover:bg-[#181C26] transition-colors cursor-pointer"
+                >
+                  Đóng
                 </button>
               </div>
             </motion.div>

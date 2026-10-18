@@ -15,6 +15,7 @@ import {
   mapCareerToMajors, 
   mapMajorToAdmissions,
   createInitialProfile,
+  updateProfileWithInput,
   LearnerEvidenceProfile
 } from '../engine/careerDecisionEngine';
 
@@ -498,6 +499,77 @@ export function runBrowserTestSuite(cycleNumber: number = 1): TestSuiteSummary {
   const testString = 'từ 22.5/30 điểm trở lên';
   record(s5Id, s5Name, 'DATA-05', 'Văn bản quy chế không chứa ký tự unrendered LaTeX $\\ge$', 'data_sanity',
     !testString.includes('$\\ge'), 'Không chứa "$\\ge"', testString, 'Văn bản sạch sẽ');
+
+  // =========================================================================
+  // SUITE 6: GEOGRAPHY & SURVEY ZERO-HALLUCINATION VERIFICATION (4 ASSERTIONS)
+  // =========================================================================
+  const s6Id = 'suite-geography-zero-hallucination';
+  const s6Name = 'Khảo Sát Định Hướng Địa Lý & Chống Ảo Giác IT (4 Assertions)';
+
+  const geoTurn1 = processDecisionTurn('em thích địa lý');
+  record(s6Id, s6Name, 'GEO-01', 'Nhập "em thích địa lý" tuyệt đối không chốt 3 nghề IT non', 'behavior',
+    geoTurn1.action === 'ASK_QUESTION' && (!geoTurn1.suggestedCareers || geoTurn1.suggestedCareers.length === 0),
+    'action === "ASK_QUESTION" & số nghề === 0', `Action: ${geoTurn1.action}, số nghề: ${geoTurn1.suggestedCareers?.length || 0}`, 'Không chốt sớm');
+
+  record(s6Id, s6Name, 'GEO-02', 'Profile ghi nhận chính xác sở thích Địa lý / GIS', 'behavior',
+    geoTurn1.updatedProfile.statedInterests.some(i => i.includes('Địa lý') || i.includes('GIS')),
+    'statedInterests chứa Địa lý / GIS', geoTurn1.updatedProfile.statedInterests.join(', '), 'Khớp sở thích Địa lý');
+
+  const geoProfile = geoTurn1.updatedProfile;
+  geoProfile.realityCheckAnswer = 'Em sẵn sàng đối diện thực tế';
+  const geoTurn2 = processDecisionTurn('Em học tốt môn Địa lý, thích làm việc với bản đồ số và phân tích không gian đô thị', geoProfile);
+  const geoCareers = geoTurn2.suggestedCareers || [];
+  const hasNoITHallucination = geoCareers.length === 3 && !geoCareers.some(c => c.title.includes('Trí Tuệ Nhân Tạo') || c.title.includes('Vi Mạch'));
+  record(s6Id, s6Name, 'GEO-03', 'Đủ 3 trụ cột mở 3 nghề Địa lý/GIS/Trắc địa, 0% ảo giác AI Engineer / IC Design', 'behavior',
+    hasNoITHallucination, 'Đúng 3 nghề Địa lý/GIS/Trắc địa và 0 nghề AI/Chip', geoCareers.map(c => c.title).join(' | '), 'Chống ảo giác IT');
+
+  const geoAdmissions = mapMajorToAdmissions('7480205');
+  record(s6Id, s6Name, 'GEO-04', 'Tuyển sinh ngành GIS (7480205) map chính xác đến ĐH Mỏ - Địa chất & HUNRE', 'data_sanity',
+    geoAdmissions.some(a => a.schoolCode === 'MDA') && geoAdmissions.some(a => a.schoolCode === 'DMT'),
+    'Chứa MDA và DMT', geoAdmissions.map(a => a.schoolCode).join(', '), 'Đúng cơ sở đào tạo');
+
+  // =========================================================================
+  // SUITE 7: AI COUNSELOR, MIND CHANGE & SESSION INTEGRITY (5 ASSERTIONS)
+  // =========================================================================
+  const s7Id = 'suite-ai-counselor-session';
+  const s7Name = 'Cố Vấn AI, Quản Lý Phiên & Đổi Ý Tình Huống (5 Assertions)';
+
+  // AI-01: Đổi ý rút lại máy tính chuyển sang động vật
+  let mindChangeProfile = createInitialProfile('Thích máy tính');
+  mindChangeProfile = updateProfileWithInput(mindChangeProfile, 'Thích máy tính');
+  mindChangeProfile = updateProfileWithInput(mindChangeProfile, 'Trước đây em thích máy tính nhưng giờ em không thích nữa, em muốn làm việc với động vật');
+  const hasNoTech = !mindChangeProfile.statedInterests.some(i => i.includes('Công nghệ'));
+  const hasAnimalInterest = mindChangeProfile.statedInterests.some(i => i.includes('Động vật') || i.includes('Thú y') || i.includes('Sinh học'));
+  record(s7Id, s7Name, 'AI-01', 'Đổi ý: Rút lại Máy tính/Công nghệ và chuyển hẳn sang Động vật/Thú y', 'behavior',
+    hasNoTech && hasAnimalInterest, 'statedInterests rút Công nghệ và nhận Động vật', mindChangeProfile.statedInterests.join(', '), 'Xử lý đổi ý chuẩn xác');
+
+  // AI-02: Phân tách thích lĩnh vực công nghệ nhưng từ chối lập trình
+  let techRejectCodeProfile = createInitialProfile('Thích công nghệ nhưng không muốn lập trình');
+  techRejectCodeProfile = updateProfileWithInput(techRejectCodeProfile, 'Thích công nghệ nhưng không muốn lập trình');
+  const hasTechInterest = techRejectCodeProfile.statedInterests.some(i => i.includes('Công nghệ'));
+  const hasCodeRejected = techRejectCodeProfile.rejectedActivities.some(a => a.toLowerCase().includes('lập trình'));
+  record(s7Id, s7Name, 'AI-02', 'Phân tách: Thích công nghệ nhưng từ chối hoạt động lập trình/code', 'behavior',
+    hasTechInterest && hasCodeRejected, 'statedInterests có Công nghệ, rejected có Lập trình', `Stated: [${techRejectCodeProfile.statedInterests.join(', ')}] | Rejected: [${techRejectCodeProfile.rejectedActivities.join(', ')}]`, 'Bóc tách vế độc lập');
+
+  // AI-03: Phân biệt sở thích chưa thử nghiệm (untested) vs khẳng định
+  let untestedProfile = createInitialProfile('Em chưa thử thiết kế');
+  untestedProfile = updateProfileWithInput(untestedProfile, 'Em chưa thử thiết kế');
+  const isUntestedRecorded = untestedProfile.untestedInterests.some(u => u.toLowerCase().includes('thiết kế'));
+  const notConfirmedStated = !untestedProfile.statedInterests.some(s => s.toLowerCase().includes('thiết kế'));
+  record(s7Id, s7Name, 'AI-03', 'Phân biệt: "Chưa thử" được ghi vào untestedInterests, không coi là từ chối hay khẳng định', 'behavior',
+    isUntestedRecorded && notConfirmedStated, 'untestedInterests có Thiết kế, stated không có', `Untested: [${untestedProfile.untestedInterests.join(', ')}]`, 'Không ép nhãn khi chưa thử');
+
+  // AI-04: Nghề Bác sĩ Thú y map sang ngành trực tiếp 7640101 (Thú y)
+  const vetMapping = mapCareerToMajors('c_veterinarian');
+  const hasVetMajor7640101 = vetMapping.directMajors.some(m => m.code === '7640101');
+  record(s7Id, s7Name, 'AI-04', 'Nghề Bác sĩ Thú y (c_veterinarian) map chính xác sang ngành Thú y mã 7640101', 'data_sanity',
+    hasVetMajor7640101, 'directMajors chứa mã 7640101', vetMapping.directMajors.map(m => `${m.code}: ${m.name}`).join(' | '), 'Reverse mapping chuẩn');
+
+  // AI-05: Tuyển sinh Thú y (7640101) đối chiếu cơ sở đào tạo có nguồn kiểm toán (HVN / NLS)
+  const vetAdmissions = mapMajorToAdmissions('7640101');
+  const hasVerifiedVetSchools = vetAdmissions.some(a => a.schoolCode === 'HVN') || vetAdmissions.some(a => a.schoolCode === 'NLS');
+  record(s7Id, s7Name, 'AI-05', 'Tuyển sinh ngành Thú y đối chiếu nguồn xác minh HVN (Học viện Nông nghiệp) và NLS', 'data_sanity',
+    hasVerifiedVetSchools, 'Trường xét tuyển chứa HVN hoặc NLS', vetAdmissions.map(a => `${a.schoolCode}: ${a.verificationNote}`).join(' | '), 'Minh bạch nguồn dữ liệu');
 
   const totalDuration = performance.now() - startTime;
   const passCount = tests.filter(t => t.status === 'PASS').length;

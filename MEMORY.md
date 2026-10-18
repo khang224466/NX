@@ -205,19 +205,86 @@ Last Updated: 2026-10-18T17:42:00+07:00
     * `run_browser_suite_check.mjs`: 66/66 PASSED (100% in 18ms).
     * `verify_audit_points.mjs`: 7/7 PASSED.
 
+- **Geography Domain & 4-Pillar Survey Overhaul (Completed 2026-10-18)**:
+  - Addressed user feedback: "phần thăm dò 4 bước này quá ngu, fix" (accompanied by screenshot showing "em thích địa lý" hallucinating AI Engineer & IC Design cards).
+  - Root Cause Analysis:
+    * `detectDomain` in `CareerPathwayNavigator.tsx` had substring `'địa'` matching `SOCIAL_MEDIA`, which misclassified `"địa lý"`.
+    * When users skipped or completed without choosing a combination, `handleFinalizeAnalysis` blindly defaulted to `primaryComboCode = 'A01'`, pulling `c1 = AI Engineer` and `c2 = IC Design` directly from `CAREER_PATHWAY_DATABASE['A01']`.
+    * In `careerDecisionEngine.ts`, "địa lý" was only recognized as a geographic constraint (location), not an academic interest or career domain.
+    * The 4-step survey was isolated from the chat context, wiped conversation state, and failed to record user answers into `LearnerEvidenceProfile`.
+  - Comprehensive Solution:
+    * **Engine Level (`careerDecisionEngine.ts`)**:
+      - Added positive interest extraction for `địa lý`, `địa lí`, `địa chất`, `bản đồ`, `gis`, `trắc địa`, `quy hoạch`, `viễn thám`, `tài nguyên môi trường`, `quản lý đất đai`.
+      - Added academic strength: `Thế mạnh môn Địa lý & Tư duy phân tích không gian`.
+      - Added work environment: `Môi trường phòng lab nghiên cứu & phân tích dữ liệu không gian bản đồ số` & `Khảo sát thực địa ngoại nghiệp và đo đạc công trình`.
+      - Added grounded career roles: `c_gis_specialist` (Chuyên Viên GIS & Viễn Thám Dữ Liệu Không Gian), `c_urban_planner` (Chuyên Viên Quy Hoạch Vùng - Đô Thị & Quản Lý Tài Nguyên Đất Đai), `c_geodesy_engineer` (Kỹ Sư Trắc Địa - Bản Đồ Số & Đo Đạc Công Trình Hạ Tầng).
+      - Added major mapping: `7480205` (Hệ thống thông tin địa lý - GIS) and `7520503` (Kỹ thuật Trắc địa - Bản đồ & Địa không gian).
+      - Added audited admissions: HUMG (MDA), HUNRE (DMT), ĐH Bách Khoa TP.HCM (QSB), HNUE (SPH), HCMUE (SPS).
+    * **UI/UX & Survey Overhaul (`CareerPathwayNavigator.tsx`)**:
+      - Renamed header button `[ ☷ Thăm dò 4 bước ]` -> `[ 🧭 Khảo sát 4 trụ cột ]` with dynamic domain auto-detection.
+      - Added `GEOGRAPHY_EARTH` domain configuration to `INTERMEDIATE_CONFIGS` with 4 tailored stages: Môn học (A01 GIS, A00 Trắc địa, C00 Sư phạm Địa, D01 Đất đai), Môi trường (Lab GIS, Ngoại nghiệp/LiDAR/UAV, Quy hoạch/Đất đai, Sư phạm), Trường (Top 1 ĐHQG/BK, Sư phạm HNUE/HCMUE, Chuyên ngành HUMG/HUNRE, ĐH Vùng).
+      - Added "Quay lại cuộc trò chuyện" button to preserve context without losing chat state.
+      - Synchronized survey answers directly into `LearnerEvidenceProfile` and appended counselor confirmation message to `chatMessages`.
+  - Verification:
+    * Created `scripts/test_geography_flow.mjs`: 5/5 PASSED (100%).
+    * Added Suite 6 (4 assertions) to `src/services/realtimeBrowserTestSuite.ts`: 70/70 PASSED (100% in 20.4ms).
+    * `tsc --noEmit`: Clean (0 errors).
+    * `vite build`: Succeeded in 3.23s.
+- **Real AI Career Counselor Transformation (Master Prompt Upgrade - 2026-10-19)**:
+  - Addressed core user directive: Upgraded Nexora from a rigid rule-based state machine with canned question templates into an authentic, context-aware AI Career Counselor.
+  - **P0: Real AI Conversation Backend (`scripts/counselor_backend.mjs`, `dev_server.mjs`, `server.ts`, `api/ai/counselor.ts`, `vercel.json`)**:
+    * Created dedicated backend counselor service executing real LLM models (Gemini 2.0 Flash / Groq Llama-3.3-70b-versatile) via server-side API keys (`GEMINI_API_KEY` / `GROQ_API_KEY`) or client BYOK modal.
+    * Added 15s timeout via `AbortSignal.timeout(15000)`.
+    * Implemented structured JSON extraction (`replyText`, `quickReplies`, `detectedUpdates`) with markdown code-fence sanitization.
+    * Handled HTTP 429 (rate-limit), 401 (auth), 500, and timeout with clear, empathetic Vietnamese error explanations without locking the chat input or falling back to canned static templates.
+    * Synchronized routes across development server (`dev_server.mjs`), production server (`server.ts`), and Vercel Serverless Function (`api/ai/counselor.ts` via `vercel.json`).
+  - **P0: Dynamic Situational AI Questions & Multi-Pillar Gating**:
+    * AI actively decides next turns: empathetic acknowledgment, situational exploration, clarifying questions, or evidence synthesis.
+    * Stated interests, capabilities, work environment, and real constraints are continuously tracked in `LearnerEvidenceProfile`.
+    * Career shortlist is gated by strict 3-pillar readiness score ($\ge 75/100$ and 0 unresolved contradictions) rather than turn count.
+  - **P0: Multi-Session Management (`CareerPathwayNavigator.tsx`)**:
+    * Built full `CounselorSession` data model: `sessionId`, `createdAt`, `updatedAt`, `title`, `messages`, `profile`, `workflowStep`, `suggestedCareers`, `suggestedCombos`, `adaptiveQuickReplies`.
+    * Implemented `getStoredSessions`, `saveStoredSessions`, `saveSessionSnapshot`, `handleCreateNewSession`, `handleSwitchSession`, `handleDeleteSession`.
+    * Added "Lịch sử" pill button in Hero Section and Chatbot Terminal header with session counter badge.
+    * Designed high-contrast glassmorphic session management modal with session cards, active session pulsing indicator, switch button, delete button, and new session action.
+    * Automatically restores active session upon browser refresh without mixing profiles between sessions.
+  - **P1: Mind Change & Domain Extensions (`careerDecisionEngine.ts`)**:
+    * Clause-aware past-preference retraction: "Trước đây em thích máy tính nhưng giờ em không thích nữa, em muốn làm việc với động vật" cleanly excises `Công nghệ` from `statedInterests` and prioritizes `Sinh học, Thú y & Chăm sóc động vật`.
+    * Negative sub-activity disambiguation: "Em thích công nghệ nhưng không muốn lập trình" retains `Công nghệ` while recording programming in `rejectedActivities`.
+    * Untested interest isolation: "Em chưa thử thiết kế" records in `untestedInterests` without false confirmation or rejection.
+    * Refuted negation: "Em không phải ghét Toán, em chỉ sợ Toán nâng cao" isolates advanced math without blacklisting core math.
+    * Added Veterinary & Biology domain: Career proposals `c_veterinarian` (Bác sĩ Thú y & Chăm sóc Động vật / Thú cưng) and `c_bio_specialist`, direct major `7640101` (Thú y), and audited university admissions at Học viện Nông nghiệp Việt Nam (HVN) and ĐH Nông Lâm TP.HCM (NLS).
+  - **Verification**:
+    * Created `scripts/test_ai_counselor_integration.mjs`: 13/13 PASSED (100%).
+    * Added Suite 7 (5 assertions) to `src/services/realtimeBrowserTestSuite.ts`: 75/75 PASSED (100% in 19.57ms).
+    * `scripts/verify_audit_points.mjs`: 7/7 PASSED (100%).
+    * `scripts/test_decision_engine_behavior.mjs`: 24/24 PASSED (100%).
+    * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED (100%).
+    * `scripts/test_career_decision_quality_12scenarios.mjs`: 12/12 PASSED (100%).
+    * `scripts/test_geography_flow.mjs`: 5/5 PASSED (100%).
+    * `tsc --noEmit`: Clean (0 errors).
+    * `vite build`: Succeeded in 3.11s.
+
 ## 3. Current Status & Git Branch
 - **Branch**: `main`. Dev server active on `http://localhost:8443` via `dev_server.mjs`.
 - **Modified & New Files**:
-  * `src/components/UNIROOTPlatform.tsx` (simplified AdmissionCalculatorView and CombinationDetailView)
-  * `dev_server.mjs` (stabilized watcher)
-  * `vite.config.ts` (stabilized watcher)
+  * `scripts/counselor_backend.mjs` (AI counselor backend service, prompt engineering, JSON parser)
+  * `dev_server.mjs` (endpoints `/api/ai/counselor/status` and `/api/ai/counselor/chat`)
+  * `server.ts` (Express server endpoints)
+  * `api/ai/counselor.ts` (Vercel serverless function)
+  * `vercel.json` (API route rewrites)
+  * `src/engine/careerDecisionEngine.ts` (Mind change retraction, Veterinary domain, major mapping, audited admissions)
+  * `src/components/CareerPathwayNavigator.tsx` (Session management state & modal, AI backend chat calling)
+  * `src/services/realtimeBrowserTestSuite.ts` (Suite 7 added, 75 real-time browser assertions)
+  * `scripts/test_ai_counselor_integration.mjs` (13 integration test cases)
   * `MEMORY.md` (persistent project memory)
-- **Status**: 100% verified across 66 client-side assertions, all CLI suites, TypeScript compile, and Vite production build.
+- **Status**: 100% verified across 75 in-browser test assertions, all CLI suites (7/7 audit, 24/24 behavior, 18/18 P1/P2, 12/12 scenarios, 13/13 integration), clean TypeScript compile, and production Vite build.
 
 ## 4. Operational Directives
 - Always consult `MEMORY.md` upon session start or reset.
 - Update `MEMORY.md` after major milestones, file changes, or architecture decisions.
 - Maintain concise conversation turns to conserve context window.
+
 
 
 

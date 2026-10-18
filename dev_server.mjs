@@ -1,9 +1,11 @@
+import 'dotenv/config';
 import http from 'node:http';
 import { createServer as createViteServer } from 'vite';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleCounselorChatRequest } from './scripts/counselor_backend.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +81,44 @@ async function start() {
         duckdbPath: 'data/career_guidance.duckdb',
         chromaPath: 'data/chroma_db'
       }));
+      return;
+    }
+
+    // AI Career Counselor Status Endpoint
+    if (url === '/api/ai/counselor/status' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        hasServerKey: Boolean(process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY),
+        provider: process.env.GEMINI_API_KEY ? 'gemini' : (process.env.GROQ_API_KEY ? 'groq' : 'none'),
+        model: process.env.GEMINI_API_KEY ? 'gemini-2.0-flash' : (process.env.GROQ_API_KEY ? 'llama-3.3-70b-versatile' : 'none')
+      }));
+      return;
+    }
+
+    // AI Career Counselor Realtime Chat Endpoint (P0)
+    if (url === '/api/ai/counselor/chat' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const parsed = JSON.parse(body || '{}');
+          const result = await handleCounselorChatRequest({
+            body: parsed,
+            headers: req.headers,
+            env: process.env
+          });
+          res.writeHead(result.status, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result.data));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: false,
+            code: 'SERVER_ERROR',
+            error: err.message || 'Lỗi xử lý yêu cầu hội thoại AI'
+          }));
+        }
+      });
       return;
     }
 
