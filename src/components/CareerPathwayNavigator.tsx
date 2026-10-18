@@ -22,7 +22,12 @@ import {
   FastForward,
   ShieldAlert,
   Award,
-  CalendarCheck
+  CalendarCheck,
+  Sliders,
+  Target,
+  Check,
+  Zap,
+  HelpCircle
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
@@ -626,6 +631,366 @@ function useTypewriter(fullText: string, speedMs: number = 14) {
 }
 
 // =========================================================================
+// 2.5 INTERMEDIATE PROGRESSIVE GUIDANCE ENGINE
+// =========================================================================
+export interface IntermediateClarificationOption {
+  id: string;
+  label: string;
+  comboCode?: string;
+  tag?: string;
+  desc: string;
+}
+
+export interface IntermediateDomainConfig {
+  domainKey: string;
+  domainName: string;
+  badge: string;
+  initialAcknowledgment: string;
+  subjectQuestion: {
+    title: string;
+    description: string;
+    options: IntermediateClarificationOption[];
+  };
+  workEnvQuestion: {
+    title: string;
+    description: string;
+    options: IntermediateClarificationOption[];
+  };
+  targetTierQuestion: {
+    title: string;
+    description: string;
+    options: IntermediateClarificationOption[];
+  };
+}
+
+export type IntermediateDomainType = 
+  | 'BUSINESS' 
+  | 'TECH_AI' 
+  | 'SPORTS' 
+  | 'MEDICAL' 
+  | 'SOCIAL_MEDIA' 
+  | 'ARTS_DESIGN' 
+  | 'CULINARY_TOURISM' 
+  | 'GENERAL';
+
+export function detectDomain(text: string): IntermediateDomainType {
+  const l = (text || '').toLowerCase();
+  if (l.includes('đá banh') || l.includes('đá bóng') || l.includes('bóng đá') || l.includes('thể thao') || l.includes('cầu thủ') || l.includes('gym') || l.includes('thể hình') || l.includes('huấn luyện viên') || l.includes('bơi lội') || l.includes('vận động viên') || l.includes('thể chất') || l.includes('tdtt') || l.includes('t00')) {
+    return 'SPORTS';
+  }
+  if (l.includes('y ') || l.includes('y khoa') || l.includes('bác sĩ') || l.includes('dược') || l.includes('sinh') || l.includes('chữa bệnh') || l.includes('nha khoa') || l.includes('y tế') || l.includes('b00')) {
+    return 'MEDICAL';
+  }
+  if (l.includes('kinh doanh') || l.includes('kinh tế') || l.includes('tài chính') || l.includes('tiền') || l.includes('đàm phán') || l.includes('quản trị') || l.includes('marketing') || l.includes('logistics') || l.includes('chứng khoán') || l.includes('ngân hàng') || l.includes('fdi')) {
+    return 'BUSINESS';
+  }
+  if (l.includes('công nghệ') || l.includes('máy tính') || l.includes('lập trình') || l.includes('code') || l.includes('ai') || l.includes('phần mềm') || l.includes('tin học') || l.includes('bán dẫn') || l.includes('vi mạch') || l.includes('robot') || l.includes('kỹ thuật') || l.includes('a00') || l.includes('a01')) {
+    return 'TECH_AI';
+  }
+  if (l.includes('vẽ') || l.includes('kiến trúc') || l.includes('thiết kế') || l.includes('mỹ thuật') || l.includes('đồ họa') || l.includes('nội thất') || l.includes('v00') || l.includes('h00')) {
+    return 'ARTS_DESIGN';
+  }
+  if (l.includes('nấu ăn') || l.includes('đầu bếp') || l.includes('ẩm thực') || l.includes('làm bánh') || l.includes('du lịch') || l.includes('khách sạn') || l.includes('lữ hành') || l.includes('hàng không') || l.includes('phi công') || l.includes('tiếp viên')) {
+    return 'CULINARY_TOURISM';
+  }
+  if (l.includes('viết') || l.includes('văn') || l.includes('báo') || l.includes('truyền thông') || l.includes('luật') || l.includes('sử') || l.includes('địa') || l.includes('xã hội') || l.includes('sư phạm') || l.includes('c00') || l.includes('d01')) {
+    return 'SOCIAL_MEDIA';
+  }
+  return 'GENERAL';
+}
+
+export const INTERMEDIATE_CONFIGS: Record<IntermediateDomainType, IntermediateDomainConfig> = {
+  BUSINESS: {
+    domainKey: 'BUSINESS',
+    domainName: 'Kinh Doanh, Tài Chính & Quản Trị Toàn Cầu',
+    badge: 'Khối Ngành Hội Nhập & Thị Trường Số',
+    initialAcknowledgment: 'Nexora đã ghi nhận bạn có thế mạnh và hứng thú ban đầu về kinh doanh, tài chính hoặc đàm phán quốc tế. Để không kết luận vội vã chỉ bằng 1 câu ngắn, hãy cùng đối soát 3 mảnh ghép trung gian sau:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Môn thứ 3 bạn tự tin nhất để ghép tổ hợp điểm cao nhất?',
+      description: 'Tổ hợp có điểm thi cao nhất sẽ quyết định trường đại học bạn trúng tuyển.',
+      options: [
+        { id: 'sub_d01', label: 'Ngữ văn (Ghép Toán · Ngữ văn · Tiếng Anh)', comboCode: 'D01', tag: 'Linh hoạt số 1', desc: 'Mở rộng 100% ngành Kinh doanh Quốc tế, Marketing, Quan hệ Đối ngoại và Luật kinh tế tại FTU, NEU, UEH.' },
+        { id: 'sub_a01', label: 'Vật lý (Ghép Toán · Vật lý · Tiếng Anh)', comboCode: 'A01', tag: 'Định lượng & FinTech', desc: 'Lợi thế vào Công nghệ Tài chính (FinTech), Logistics & Chuỗi cung ứng, Phân tích dữ liệu kinh doanh.' },
+        { id: 'sub_d07', label: 'Hóa học (Ghép Toán · Hóa học · Tiếng Anh)', comboCode: 'D07', tag: 'Cạnh tranh tốt', desc: 'Tổ hợp xét tuyển mới nổi bật cho Tài chính doanh nghiệp, Thuế, Quản trị chuỗi cung ứng.' },
+        { id: 'sub_x06', label: 'Tin học (Ghép Toán · Tin học · Tiếng Anh)', comboCode: 'X06', tag: 'Kinh doanh số', desc: 'Đón đầu xu hướng E-Commerce, Thương mại điện tử xuyên biên giới và Chuyển đổi số.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Môi trường / Hoạt động làm việc bạn thực sự khao khát?',
+      description: 'Giúp định vị chính xác chuyên ngành và phong cách làm việc của bạn.',
+      options: [
+        { id: 'env_fdi', label: 'Tập đoàn Đa quốc gia (MNCs) & Đàm phán Quốc tế', tag: 'Enterprising', desc: 'Làm việc với đối tác toàn cầu, đàm phán hợp đồng thương mại xuất nhập khẩu và logistics.' },
+        { id: 'env_fintech', label: 'Ngân hàng Đầu tư, Chứng khoán & FinTech', tag: 'Investigative', desc: 'Phân tích số liệu tài chính, dòng tiền đầu tư, quản lý danh mục và tài chính định lượng.' },
+        { id: 'env_startup', label: 'Khởi nghiệp (Startup) & Thương mại Điện tử', tag: 'Chủ động', desc: 'Tự xây dựng dự án kinh doanh số, quản trị vận hành và chinh phục thị trường tự do.' },
+        { id: 'env_marketing', label: 'Marketing Số & Quản trị Thương hiệu', tag: 'Sáng tạo', desc: 'Sáng tạo chiến dịch tiếp thị số, xây dựng hình ảnh và quản trị truyền thông thương hiệu.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu điểm số & Nhóm trường kỳ vọng?',
+      description: 'Giúp phân tầng nguyện vọng Mơ ước – Vừa sức – An toàn.',
+      options: [
+        { id: 'tier_top1', label: 'Nhóm Mơ ước / Top 1 (> 26.5 – 28.5 điểm)', tag: 'Top Tier', desc: 'ĐH Ngoại Thương (FTU), Kinh Tế Quốc Dân (NEU), ĐH Kinh Tế TP.HCM (UEH).' },
+        { id: 'tier_top2', label: 'Nhóm Vừa sức / Chất lượng cao (22.5 – 25.5 điểm)', tag: 'High Match', desc: 'Học viện Tài chính (HTC), ĐH Thương Mại (TMU), ĐH Kinh tế Đà Nẵng, ĐH Cần Thơ.' },
+        { id: 'tier_safe', label: 'Nhóm An toàn / Điểm chuẩn vừa sức (19.0 – 22.0 điểm)', tag: 'Safe 100%', desc: 'ĐH Tài chính - Marketing (UFM), ĐH Mở, Phân hiệu UEH Mekong Vĩnh Long.' },
+        { id: 'tier_budget', label: 'Ưu tiên Học phí thấp / Học bổng Doanh nghiệp', tag: 'Tiết kiệm', desc: 'Các chương trình công lập có chính sách học bổng và hỗ trợ chi phí tốt.' }
+      ]
+    }
+  },
+  TECH_AI: {
+    domainKey: 'TECH_AI',
+    domainName: 'Công Nghệ Số, Trí Tuệ Nhân Tạo & Bán Dẫn',
+    badge: 'Khối Ngành Trọng Điểm Quốc Gia',
+    initialAcknowledgment: 'Nexora đã ghi nhận bạn đam mê công nghệ máy tính và tư duy kỹ thuật. Để thiết lập lộ trình chính xác với thực lực điểm thi và chuyên môn sâu:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Tổ hợp môn thi bạn tự tin đạt điểm cao nhất?',
+      description: 'Điểm chuẩn khối kỹ thuật phân hóa rất mạnh giữa các môn.',
+      options: [
+        { id: 'sub_a01', label: 'Toán · Vật lý · Tiếng Anh (Tổ hợp A01)', comboCode: 'A01', tag: 'Toàn diện', desc: 'Tổ hợp vàng cho AI, Phần mềm, Bán dẫn tại Bách Khoa và ĐHQG với lợi thế ngoại ngữ.' },
+        { id: 'sub_a00', label: 'Toán · Vật lý · Hóa học (Tổ hợp A00)', comboCode: 'A00', tag: 'Kinh điển', desc: 'Khối kỹ thuật truyền thống, xét tuyển toàn bộ các trường Bách Khoa và Kỹ thuật cả nước.' },
+        { id: 'sub_x06', label: 'Toán · Tin học · Tiếng Anh (Tổ hợp X06)', comboCode: 'X06', tag: 'Lợi thế Tin học', desc: 'Phát huy tối đa thế mạnh nếu bạn đã từng học lập trình hoặc thi HSG Tin học.' },
+        { id: 'sub_d07', label: 'Toán · Hóa học · Tiếng Anh (Tổ hợp D07)', comboCode: 'D07', tag: 'Vi mạch & Y sinh', desc: 'Rất mạnh cho Kỹ thuật Vật liệu Bán dẫn, Kỹ thuật Hóa Dược và Y sinh học.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Bạn muốn tập trung giải quyết bài toán công nghệ nào?',
+      description: 'Giúp xác định đúng ngành hẹp: AI, Phần mềm, Bán dẫn hay An ninh mạng.',
+      options: [
+        { id: 'env_ai', label: 'Kỹ sư AI & Khoa học Dữ liệu (AI Engineer / Data Scientist)', tag: 'Mũi nhọn', desc: 'Nghiên cứu mô hình ngôn ngữ lớn (LLM), thị giác máy tính và thuật toán thông minh.' },
+        { id: 'env_swe', label: 'Kỹ sư Phần mềm & Hệ thống (Software Engineer / Cloud)', tag: 'Thực chiến', desc: 'Phát triển ứng dụng Web, Mobile, hệ thống phân tán chịu tải hàng triệu người dùng.' },
+        { id: 'env_semi', label: 'Kỹ sư Thiết kế Vi mạch & Phần cứng Bán dẫn (IC Design)', tag: 'Chiến lược', desc: 'Thiết kế chip, vi điện tử và kiểm thử phần cứng tại Synopsys, Marvell, NVIDIA.' },
+        { id: 'env_security', label: 'Kỹ sư An toàn Thông tin & An ninh Mạng (Cybersecurity)', tag: 'Cấp bách', desc: 'Bảo vệ hệ thống dữ liệu, phòng thủ mã độc và điều tra số cho ngân hàng, chính phủ.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu điểm số & Nhóm trường công nghệ?',
+      description: 'Xếp lớp nguyện vọng Bách Khoa, ĐHQG hay các trường công lập thế mạnh.',
+      options: [
+        { id: 'tier_top1', label: 'Trọng Điểm Kỹ Thuật Top 1 (> 26.5 – 29.5 điểm)', tag: 'Top Tier', desc: 'ĐH Bách Khoa Hà Nội (BKA), ĐHBK TP.HCM (QSB), ĐH Công nghệ ĐHQGHN (QHI).' },
+        { id: 'tier_top2', label: 'Trường ĐH Công Lập Thế Mạnh CNTT (23.5 – 26.5 điểm)', tag: 'High Match', desc: 'ĐH CNTT TP.HCM (QSC), ĐHBK Đà Nẵng (DDK), ĐH Sư phạm Kỹ thuật (HCMUTE).' },
+        { id: 'tier_safe', label: 'Trường An Toàn / Học Phí Tiết Kiệm (19.5 – 23.0 điểm)', tag: 'Safe 100%', desc: 'ĐH CNTT&TT Việt - Hàn (VKU - 18 tr/năm), ĐH Giao Thông Vận Tải, ĐH Thủy Lợi.' },
+        { id: 'tier_budget', label: '111 Ngành STEM Hưởng Học Bổng Nhà Nước (QĐ 1826)', tag: 'Học bổng Nhà nước', desc: 'Được Nhà nước và doanh nghiệp FDI bảo trợ đào tạo nhân lực bán dẫn/AI.' }
+      ]
+    }
+  },
+  SPORTS: {
+    domainKey: 'SPORTS',
+    domainName: 'Thể Dục Thể Thao, Quản Lý Thể Thao & Sức Khỏe',
+    badge: 'Khối Ngành Vận Động & Công Nghiệp Thể Thao',
+    initialAcknowledgment: 'Nexora đã ghi nhận bạn đam mê thể thao & vận động thể chất. Ngành công nghiệp thể thao Việt Nam đang cần rất nhiều nhân lực chuyên nghiệp:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Phương thức thi tuyển và môn học bạn ưu tiên?',
+      description: 'Chọn thi môn văn hóa thông thường hay kết hợp thi Năng khiếu TDTT.',
+      options: [
+        { id: 'sub_d01', label: 'Toán · Ngữ văn · Tiếng Anh (Tổ hợp D01 — Không thi năng khiếu)', comboCode: 'D01', tag: 'Xét văn hóa', desc: 'Tuyển thẳng Quản lý Thể thao & Sự kiện tại ĐH Tôn Đức Thắng (không cần thi năng khiếu).' },
+        { id: 'sub_t00', label: 'Toán · Sinh học · Năng khiếu TDTT (Tổ hợp T00 — Có thi thể lực)', comboCode: 'T00', tag: 'Độc quyền TDTT', desc: 'Vào thẳng ĐH TDTT TPHCM, ĐH Sư phạm TDTT Hà Nội, ĐH TDTT Bắc Ninh.' },
+        { id: 'sub_c00', label: 'Ngữ văn · Lịch sử · Địa lý (Tổ hợp C00 — Xét văn hóa)', comboCode: 'C00', tag: 'Miễn học phí / Báo chí', desc: 'Vào Sư phạm Thể chất (Miễn 100% học phí theo NĐ 116), Bình luận viên thể thao.' },
+        { id: 'sub_a01', label: 'Toán · Vật lý · Tiếng Anh (Tổ hợp A01)', comboCode: 'A01', tag: 'Kinh doanh thể thao', desc: 'Mở rộng vào Marketing thể thao, Quản trị sân golf và sự kiện giải đấu.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Vị trí trong ngành thể thao bạn mong muốn nhất?',
+      description: 'Xác định vai trò chuyên môn thực tế sau tốt nghiệp.',
+      options: [
+        { id: 'env_mgt', label: 'Quản lý & Điều hành CLB Thể thao, Học viện Bóng đá', tag: 'Quản lý cấp cao', desc: 'Tổ chức giải đấu, điều hành sự kiện, ký kết hợp đồng tài trợ và đại diện cầu thủ.' },
+        { id: 'env_coach', label: 'Huấn luyện viên Bóng đá Chuyên nghiệp & Master PT Gym', tag: 'HLV thực chiến', desc: 'Huấn luyện kỹ chiến thuật, thể lực tại các CLB chuyên nghiệp và trung tâm Fitness VIP.' },
+        { id: 'env_med', label: 'Chuyên gia Y học Thể thao & Trị liệu Phục hồi Chấn thương', tag: 'Y sinh vận động', desc: 'Điều trị, phục hồi cơ xương khớp dây chằng và tối ưu dinh dưỡng cho VĐV.' },
+        { id: 'env_teach', label: 'Giáo viên Giáo dục Thể chất / Giảng viên TDTT (Miễn HP)', tag: 'Sư phạm ổn định', desc: 'Giảng dạy tại các trường học công lập/quốc tế, kết hợp mở CLB bóng đá cộng đồng.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu trường đại học kỳ vọng?',
+      description: 'Chọn trường theo cơ sở vật chất và chính sách học phí.',
+      options: [
+        { id: 'tier_top1', label: 'ĐH Tôn Đức Thắng (DTT) — Số 1 Quản Lý Thể Thao & Golf', tag: 'Chuẩn 5 sao', desc: 'Khoa Khoa học Thể thao hiện đại bậc nhất cả nước, liên kết đối tác quốc tế.' },
+        { id: 'tier_top2', label: 'Các Trường ĐH Thể Dục Thể Thao Chuyên Sâu Cả Nước', tag: 'Cái nôi VĐV', desc: 'ĐH TDTT TPHCM (TDS), ĐH TDTT Bắc Ninh (TDB), ĐH TDTT Đà Nẵng (TTD).' },
+        { id: 'tier_safe', label: 'Khối Sư Phạm TDTT Miễn 100% Học Phí (Nghị định 116)', tag: 'Trợ cấp 3,63M/th', desc: 'ĐH Sư phạm TDTT Hà Nội (TDH), ĐH Sư phạm TDTT TPHCM (STS) — Nhận trợ cấp sinh hoạt.' },
+        { id: 'tier_budget', label: 'Học Viện Thể Thao Địa Phương / Cao Đẳng TDTT', tag: 'An toàn 100%', desc: 'Xét tuyển điểm học bạ nhẹ nhàng, chi phí sinh hoạt thấp, đi làm sớm.' }
+      ]
+    }
+  },
+  MEDICAL: {
+    domainKey: 'MEDICAL',
+    domainName: 'Khối Ngành Y Dược & Khoa Học Sức Khỏe',
+    badge: 'Khối Ngành Y Sinh & Chăm Sóc Sức Khỏe',
+    initialAcknowledgment: 'Ngành Y đòi hỏi sự bền bỉ, tính chuẩn xác và y đức dài hạn. Hãy cùng xác định đúng chuyên khoa và tổ hợp:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Môn học tự nhiên bạn có điểm số vững vàng nhất?',
+      description: 'Tổ hợp môn chuẩn vàng sẽ quyết định chuyên khoa của bạn.',
+      options: [
+        { id: 'sub_b00', label: 'Toán · Hóa học · Sinh học (Tổ hợp B00)', comboCode: 'B00', tag: 'Chuẩn Y Dược', desc: 'Tổ hợp độc quyền vàng cho Y Đa khoa, Răng Hàm Mặt, Dược học tại HMU, YDS, YCT.' },
+        { id: 'sub_d07', label: 'Toán · Hóa học · Tiếng Anh (Tổ hợp D07)', comboCode: 'D07', tag: 'Hóa Dược quốc tế', desc: 'Mũi nhọn cho ngành Hóa Dược, Công nghệ Sinh học và Nghiên cứu thuốc quốc tế.' },
+        { id: 'sub_a00', label: 'Toán · Vật lý · Hóa học (Tổ hợp A00)', comboCode: 'A00', tag: 'Kỹ thuật Y sinh', desc: 'Cơ hội vào Kỹ thuật Y sinh, Thiết bị y tế công nghệ cao và Công nghệ thực phẩm.' },
+        { id: 'sub_b08', label: 'Toán · Sinh học · Tiếng Anh (Tổ hợp B08)', comboCode: 'B08', tag: 'Y sinh học Anh ngữ', desc: 'Xét tuyển Y sinh học và Dược lâm sàng kết hợp chứng chỉ ngoại ngữ.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Chuyên môn thực tế nào bạn muốn gắn bó?',
+      description: 'Xác định định hướng Bác sĩ lâm sàng, Nghiên cứu hay Kỹ thuật y sinh.',
+      options: [
+        { id: 'env_clinical', label: 'Bác sĩ Đa khoa / Bác sĩ Răng Hàm Mặt Lâm sàng', tag: 'Lâm sàng', desc: 'Khám chữa bệnh trực tiếp tại các bệnh viện tuyến đầu và hệ thống phòng khám quốc tế.' },
+        { id: 'env_pharma', label: 'Dược sĩ Lâm sàng & Nghiên cứu Bào chế Thuốc', tag: 'Nghiên cứu', desc: 'Bào chế thuốc, quản lý dược phẩm và làm việc tại tập đoàn dược đa quốc gia.' },
+        { id: 'env_biomed', label: 'Kỹ thuật Xét nghiệm Y học & Chẩn đoán Hình ảnh', tag: 'Kỹ thuật y sinh', desc: 'Vận hành máy móc y tế công nghệ cao, xét nghiệm phân tử, sinh học di truyền và gen.' },
+        { id: 'env_prevent', label: 'Y tế Công cộng & Y học Dự phòng', tag: 'Chính sách', desc: 'Hoạch định chính sách sức khỏe cộng đồng, kiểm soát bệnh truyền nhiễm và dinh dưỡng.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu điểm số & Nhóm trường Y Dược?',
+      description: 'Phân loại các trường Y Dược theo thang điểm chuẩn cạnh tranh.',
+      options: [
+        { id: 'tier_top1', label: 'Đại Học Y Dược Tuyến Đầu (> 27.0 – 28.5 điểm)', tag: 'Top 1', desc: 'ĐH Y Hà Nội (HMU), ĐH Y Dược TP.HCM (YDS).' },
+        { id: 'tier_top2', label: 'Đại Học Y Dược Trọng Điểm Vùng (24.0 – 26.5 điểm)', tag: 'High Match', desc: 'ĐH Y Dược Cần Thơ (YCT), ĐH Y Dược Huế, ĐH Y khoa Phạm Ngọc Thạch.' },
+        { id: 'tier_safe', label: 'Khối Ngành Y Sinh & Điều Dưỡng / Xét Nghiệm (21.0 – 23.5 điểm)', tag: 'Safe 100%', desc: 'Cơ hội việc làm cao, điểm chuẩn vừa sức tại các trường ĐH Y vùng.' },
+        { id: 'tier_budget', label: 'Học Viện Quân Y (Miễn 100% Toàn Bộ Học Phí & Bao Ăn Ở)', tag: 'Bao cấp Nhà nước', desc: 'Phục vụ trong lực lượng quân y, được chu cấp hoàn toàn chi phí học tập.' }
+      ]
+    }
+  },
+  SOCIAL_MEDIA: {
+    domainKey: 'SOCIAL_MEDIA',
+    domainName: 'Truyền Thông, Luật & Khoa Học Xã Hội Nhân Văn',
+    badge: 'Khối Ngành Ngôn Ngữ & Xã Hội Số',
+    initialAcknowledgment: 'Bạn có trực giác ngôn ngữ và khả năng biểu đạt cảm xúc, xã hội. Hãy đối soát tổ hợp tối ưu nhất:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Bạn muốn tận dụng thế mạnh môn học nào nhất?',
+      description: 'Lựa chọn tổ hợp môn mang lại lợi thế điểm số cao nhất cho bạn.',
+      options: [
+        { id: 'sub_d01', label: 'Toán · Ngữ văn · Tiếng Anh (Tổ hợp D01)', comboCode: 'D01', tag: 'Đa năng số 1', desc: 'Linh hoạt số 1 cho Truyền thông số, PR, Marketing và Luật kinh tế.' },
+        { id: 'sub_c00', label: 'Ngữ văn · Lịch sử · Địa lý (Tổ hợp C00)', comboCode: 'C00', tag: 'Khối C truyền thống', desc: 'Lợi thế vượt trội cho Sư phạm Văn/Sử/Địa, Báo chí và Luật học.' },
+        { id: 'sub_c19', label: 'Ngữ văn · Lịch sử · GD Kinh tế & Pháp luật (Tổ hợp C19)', comboCode: 'C19', tag: 'Pháp luật hiện đại', desc: 'Tổ hợp xét tuyển mới hiện đại cho khối trường Luật.' },
+        { id: 'sub_d14', label: 'Ngữ văn · Lịch sử · Tiếng Anh (Tổ hợp D14)', comboCode: 'D14', tag: 'Ngoại giao & Quốc tế', desc: 'Chuyên sâu cho Quan hệ Quốc tế, Ngoại giao và Ngôn ngữ.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Môi trường sáng tạo và làm việc bạn muốn hướng tới?',
+      description: 'Định hình vai trò truyền thông, pháp lý hay giáo dục.',
+      options: [
+        { id: 'env_media', label: 'Truyền thông Số, Sáng tạo Nội dung & Quan hệ Công chúng (PR)', tag: 'Sáng tạo', desc: 'Sản xuất video, quản lý mạng xã hội và truyền thông thương hiệu doanh nghiệp.' },
+        { id: 'env_law', label: 'Pháp chế Doanh nghiệp, Luật sư & Trọng tài Thương mại', tag: 'Chính xác', desc: 'Tư vấn hợp đồng, bảo vệ quyền lợi doanh nghiệp và người lao động.' },
+        { id: 'env_journal', label: 'Báo chí Đa phương tiện, Phóng viên & Biên tập viên', tag: 'Năng động', desc: 'Phóng viên truyền hình, báo điện tử và cơ quan thông tấn báo chí.' },
+        { id: 'env_teach', label: 'Sư phạm Giáo dục (Miễn 100% học phí theo Nghị định 116)', tag: 'Sư phạm', desc: 'Giảng dạy tại trường chuyên THPT, trường song ngữ quốc tế.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Nhóm trường đại học bạn nhắm tới?',
+      description: 'Lựa chọn trường theo thế mạnh đào tạo chuyên biệt.',
+      options: [
+        { id: 'tier_top1', label: 'Trường Top 1 Báo Chí & Xã Hội (> 26.5 – 28.5 điểm)', tag: 'Top Tier', desc: 'Học viện Báo chí & Tuyên truyền (HBT), ĐH KHXH&NV Hà Nội / TP.HCM.' },
+        { id: 'tier_top2', label: 'Khối Trường Luật Trọng Điểm (24.0 – 26.5 điểm)', tag: 'High Match', desc: 'ĐH Luật Hà Nội (LPH), ĐH Luật TP.HCM (LPS).' },
+        { id: 'tier_safe', label: 'Khối Sư Phạm Miễn Học Phí (Nghị định 116)', tag: 'Miễn học phí', desc: 'ĐH Sư phạm Hà Nội (SPH), ĐH Sư phạm TP.HCM (SPS).' },
+        { id: 'tier_budget', label: 'Tối Ưu Ngân Sách Với Hỗ Trợ 3,63 tr/tháng Của Nhà Nước', tag: 'Hỗ trợ sinh hoạt', desc: 'Học bổng nhà giáo và việc làm ổn định sau khi tốt nghiệp.' }
+      ]
+    }
+  },
+  ARTS_DESIGN: {
+    domainKey: 'ARTS_DESIGN',
+    domainName: 'Kiến Trúc, Mỹ Thuật Đồ Họa & Thiết Kế Không Gian',
+    badge: 'Khối Ngành Sáng Tạo Thị Giác',
+    initialAcknowledgment: 'Bạn có năng khiếu thẩm mỹ thị giác và tư duy không gian. Ngành thiết kế đang bùng nổ theo đô thị hóa và truyền thông số:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Môn thi năng khiếu vẽ mỹ thuật bạn chuẩn bị?',
+      description: 'Tổ hợp môn sẽ định vị chuyên ngành kiến trúc công trình hay đồ họa số.',
+      options: [
+        { id: 'sub_v00', label: 'Toán · Vật lý · Vẽ Mỹ thuật (Tổ hợp V00)', comboCode: 'V00', tag: 'Kiến trúc chuẩn', desc: 'Tổ hợp vàng cho Kiến trúc công trình, Quy hoạch đô thị tại ĐH Kiến Trúc.' },
+        { id: 'sub_h00', label: 'Ngữ văn · Năng khiếu Vẽ 1 · Vẽ 2 (Tổ hợp H00)', comboCode: 'H00', tag: 'Đồ họa & Nội thất', desc: 'Tổ hợp chuyên sâu cho Thiết kế Đồ họa, Mỹ thuật Công nghiệp và Nội thất.' },
+        { id: 'sub_v01', label: 'Toán · Ngữ văn · Vẽ Mỹ thuật (Tổ hợp V01)', comboCode: 'V01', tag: 'Tư duy biểu đạt', desc: 'Thay thế môn Lý bằng Ngữ văn giúp phát huy năng lực tư duy biểu đạt kiến trúc.' },
+        { id: 'sub_d01', label: 'Toán · Ngữ văn · Tiếng Anh (Tổ hợp D01 — Không thi vẽ)', comboCode: 'D01', tag: 'Đồ họa số', desc: 'Vào các ngành Thiết kế Đồ họa số và Truyền thông Đa phương tiện không yêu cầu thi vẽ.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Không gian sáng tạo thực tế bạn muốn kiến tạo?',
+      description: 'Chọn chuyên môn thiết kế thực tế.',
+      options: [
+        { id: 'env_arch', label: 'Kiến trúc sư Công trình & Quy hoạch Đô thị', tag: 'Xây dựng', desc: 'Thiết kế tòa nhà, khu đô thị, cảnh quan sinh thái tại các tập đoàn bất động sản.' },
+        { id: 'env_graphic', label: 'Thiết kế Đồ họa Số, Game 3D & Hoạt hình', tag: 'Digital Arts', desc: 'Thiết kế đồ họa game, hoạt hình 3D, kỹ xảo điện ảnh và UI/UX.' },
+        { id: 'env_interior', label: 'Thiết kế Nội thất & Không gian Trải nghiệm', tag: 'Không gian', desc: 'Kiến tạo không gian sống cao cấp, showroom, khách sạn và resort.' },
+        { id: 'env_fashion', label: 'Thiết kế Thời trang & Mỹ thuật Công nghiệp', tag: 'Phong cách', desc: 'Thiết kế thời trang, tạo dáng sản phẩm công nghiệp và thương hiệu thời trang.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu trường đào tạo kiến trúc / mỹ thuật?',
+      description: 'Lựa chọn các cái nôi kiến trúc và mỹ thuật hàng đầu.',
+      options: [
+        { id: 'tier_top1', label: 'Đại Học Kiến Trúc Hà Nội (KTA) / ĐH Kiến Trúc TP.HCM (KTS)', tag: 'Top 1', desc: 'Hai cái nôi đào tạo kiến trúc sư và nhà thiết kế danh tiếng nhất.' },
+        { id: 'tier_top2', label: 'ĐH Mỹ Thuật Công Nghiệp / ĐH Mỹ Thuật TP.HCM', tag: 'Chuyên sâu', desc: 'Đào tạo bài bản mỹ thuật ứng dụng và thiết kế thương mại.' },
+        { id: 'tier_safe', label: 'Khoa Mỹ Thuật / Kiến Trúc ĐH Bách Khoa / ĐH Xây Dựng', tag: 'High Match', desc: 'Nền tảng kỹ thuật vững chắc, cơ hội việc làm thực tế cao.' },
+        { id: 'tier_budget', label: 'Cao Đẳng Mỹ Thuật Trang Trí / ĐH Mở', tag: 'Thực hành nhanh', desc: 'Thời gian đào tạo thực hành nhanh, chi phí hợp lý.' }
+      ]
+    }
+  },
+  CULINARY_TOURISM: {
+    domainKey: 'CULINARY_TOURISM',
+    domainName: 'Quản Trị Khách Sạn, Ẩm Thực & Dịch Vụ Hàng Không',
+    badge: 'Khối Ngành Dịch Vụ Quốc Tế & Trải Nghiệm',
+    initialAcknowledgment: 'Bạn yêu thích dịch vụ hiếu khách, ẩm thực hoặc bầu trời hàng không. Khối ngành này mang lại trải nghiệm quốc tế và thu nhập linh hoạt:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Môn học bạn tự tin đạt điểm cao nhất?',
+      description: 'Chọn tổ hợp tối ưu hóa cơ hội trúng tuyển.',
+      options: [
+        { id: 'sub_d01', label: 'Toán · Ngữ văn · Tiếng Anh (Tổ hợp D01)', comboCode: 'D01', tag: 'Chuẩn quốc tế', desc: 'Tổ hợp vàng cho Quản trị Khách sạn, Lữ hành Quốc tế và Tiếp viên/Quản lý Hàng không.' },
+        { id: 'sub_a01', label: 'Toán · Vật lý · Tiếng Anh (Tổ hợp A01)', comboCode: 'A01', tag: 'Kỹ thuật bay', desc: 'Mũi nhọn cho Kỹ thuật Hàng không, Quản lý Hoạt động Bay và Logistics Hàng không.' },
+        { id: 'sub_b00', label: 'Toán · Hóa học · Sinh học (Tổ hợp B00)', comboCode: 'B00', tag: 'Công nghệ thực phẩm', desc: 'Cốt lõi cho Công nghệ Thực phẩm, Chế biến Dinh dưỡng và Nghiên cứu R&D F&B.' },
+        { id: 'sub_c00', label: 'Ngữ văn · Lịch sử · Địa lý (Tổ hợp C00)', comboCode: 'C00', tag: 'Văn hóa du lịch', desc: 'Lợi thế văn hóa lịch sử vượt trội cho Hướng dẫn viên Du lịch Quốc tế.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Môi trường dịch vụ cao cấp bạn muốn trải nghiệm?',
+      description: 'Lựa chọn phân khúc ngành thực tế.',
+      options: [
+        { id: 'env_hotel', label: 'Quản trị Resort 5 Sao & Khách sạn Quốc tế', tag: 'Hospitality', desc: 'Vận hành chuỗi resort hạng sang (Marriott, Hilton, InterContinental).' },
+        { id: 'env_aviation', label: 'Dịch vụ Hàng không, Tiếp viên & Quản lý Bay', tag: 'Aviation', desc: 'Làm việc tại các hãng hàng không quốc tế, tiếp viên hoặc điều phối bay.' },
+        { id: 'env_culinary', label: 'Bếp trưởng Điều hành F&B & Chuyên gia Ẩm thực', tag: 'Culinary Arts', desc: 'Sáng tạo thực đơn cao cấp, quản lý chuỗi nhà hàng ẩm thực quốc tế.' },
+        { id: 'env_tour', label: 'Điều hành Tour Du lịch Quốc tế & Lữ hành', tag: 'Tourism', desc: 'Thiết kế hành trình khám phá thế giới, quản lý đoàn lữ hành xuyên quốc gia.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu trường đào tạo dịch vụ hàng đầu?',
+      description: 'Lựa chọn các trường đào tạo thế mạnh.',
+      options: [
+        { id: 'tier_top1', label: 'Học Viện Hàng Không (VAA) / ĐH Ngoại Thương / ĐH Hà Nội', tag: 'Top Tier', desc: 'Đào tạo dịch vụ hàng không và kinh tế du lịch chuẩn ngoại ngữ.' },
+        { id: 'tier_top2', label: 'ĐH Kinh Tế Quốc Dân (NEU) / ĐH Kinh Tế TP.HCM (UEH)', tag: 'Chất lượng cao', desc: 'Chuyên sâu về Quản trị Khách sạn và Du lịch Lữ hành.' },
+        { id: 'tier_safe', label: 'Trường ĐH Công Lập Chuyên Ngành Du Lịch Địa Phương', tag: 'Safe 100%', desc: 'ĐH Cần Thơ, ĐH Huế, ĐH Nha Trang — Vùng đất du lịch trọng điểm.' },
+        { id: 'tier_budget', label: 'Chương Trình Đào Tạo Nghề Khách Sạn Tiêu Chuẩn Quốc Tế', tag: 'Đi làm sớm', desc: 'Đào tạo kỹ năng thực tế, đi làm ngay tại chuỗi khách sạn đối tác.' }
+      ]
+    }
+  },
+  GENERAL: {
+    domainKey: 'GENERAL',
+    domainName: 'Bản Đồ Định Hướng Năng Lực Đa Mục Tiêu',
+    badge: 'Khảo Sát Khám Phá Toàn Diện',
+    initialAcknowledgment: 'Nexora đã tiếp nhận mong muốn ban đầu của bạn. Để tìm ra tổ hợp môn và trường đại học thực sự vừa vặn thay vì kết luận vội vã, hãy làm rõ 3 mảnh ghép trung gian sau:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1: Trong các môn thi tốt nghiệp THPT, bạn tự tin nhất ở môn nào?',
+      description: 'Tổ hợp môn mạnh nhất sẽ là đòn bẩy điểm số của bạn.',
+      options: [
+        { id: 'sub_d01', label: 'Toán · Ngữ văn · Tiếng Anh (Tổ hợp D01)', comboCode: 'D01', tag: 'Đa năng số 1', desc: 'Tổ hợp xét tuyển phổ biến nhất toàn quốc, áp dụng cho hơn 1.200 ngành kinh tế, xã hội, luật.' },
+        { id: 'sub_a01', label: 'Toán · Vật lý · Tiếng Anh (Tổ hợp A01)', comboCode: 'A01', tag: 'Kỹ thuật & Công nghệ', desc: 'Cân bằng tư duy logic tự nhiên và ngoại ngữ, ứng dụng cho công nghệ số và tài chính.' },
+        { id: 'sub_a00', label: 'Toán · Vật lý · Hóa học (Tổ hợp A00)', comboCode: 'A00', tag: 'Tự nhiên kinh điển', desc: 'Nền tảng tự nhiên kinh điển cho mọi chuyên ngành kỹ thuật, xây dựng, kinh tế.' },
+        { id: 'sub_c00', label: 'Ngữ văn · Lịch sử · Địa lý (Tổ hợp C00)', comboCode: 'C00', tag: 'Khoa học xã hội', desc: 'Khối ngành Xã hội, Sư phạm (miễn 100% học phí theo NĐ 116), Báo chí và Luật.' }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2: Hoạt động thực tế nào bạn cảm thấy phù hợp nhất với bản thân?',
+      description: 'Nhận diện phong cách làm việc và giá trị cá nhân.',
+      options: [
+        { id: 'env_logic', label: 'Tư duy Logic, Phân tích Dữ liệu & Công nghệ', tag: 'Investigative', desc: 'Làm việc với số liệu, phần mềm, giải quyết bài toán kỹ thuật phức tạp.' },
+        { id: 'env_biz', label: 'Kinh doanh, Đàm phán Thương mại & Quản lý Dự án', tag: 'Enterprising', desc: 'Gặp gỡ đối tác, điều hành kinh doanh, mở rộng thị trường và quản trị.' },
+        { id: 'env_social', label: 'Giao tiếp Con người, Giáo dục & Truyền thông Xã hội', tag: 'Social', desc: 'Truyền đạt kiến thức, sáng tạo nội dung, kết nối và hỗ trợ cộng đồng.' },
+        { id: 'env_practical', label: 'Thực hành Thực nghiệm, Vận động Thể chất & Kỹ thuật Xưởng', tag: 'Realistic', desc: 'Làm việc trực tiếp trên máy móc, công trình hoặc môi trường thể thao.' }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu điểm số & Nhóm trường đại học bạn nhắm tới?',
+      description: 'Lựa chọn phân khúc trường đại học.',
+      options: [
+        { id: 'tier_top1', label: 'Nhóm Trường Đại Học Top 1 Quốc Gia (> 26.0 điểm)', tag: 'Top Tier', desc: 'Cạnh tranh cao, giá trị bằng cấp và cơ hội nghề nghiệp vượt trội.' },
+        { id: 'tier_top2', label: 'Nhóm Trường ĐH Công Lập Uy Tín (22.0 – 25.5 điểm)', tag: 'High Match', desc: 'Đào tạo bài bản, điểm chuẩn vừa sức và môi trường năng động.' },
+        { id: 'tier_safe', label: 'Nhóm Trường ĐH Điểm Chuẩn An Toàn (18.5 – 21.5 điểm)', tag: 'Safe 100%', desc: 'Đảm bảo cơ hội trúng tuyển 100% không lo trượt đại học.' },
+        { id: 'tier_budget', label: 'Ưu tiên Trường Miễn Học Phí hoặc Học Bổng Nhà Nước', tag: 'Tiết kiệm chi phí', desc: 'Khối Sư phạm (NĐ 116), Khối Công an/Quân đội, Học bổng STEM (QĐ 1826).' }
+      ]
+    }
+  }
+};
+
+// =========================================================================
 // 3. MAIN COMPONENT: CAREER PATHWAY NAVIGATOR
 // =========================================================================
 export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
@@ -640,11 +1005,30 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   // Step 3: 'SELECT_ITEM' -> Curated items in selected pathway shown for choice
   // Step 4: 'REVERSE_DOSSIER' -> Progressive typewriter generation of the multidimensional reverse dossier
   const [workflowStep, setWorkflowStep] = useState<
-    'INITIAL' | 'ANALYZED_COMBOS' | 'CHOOSE_DIRECTION' | 'SELECT_ITEM' | 'REVERSE_DOSSIER'
+    'INITIAL' | 'INTERMEDIATE_DISCOVERY' | 'ANALYZED_COMBOS' | 'CHOOSE_DIRECTION' | 'SELECT_ITEM' | 'REVERSE_DOSSIER'
   >('INITIAL');
 
   const [chatInput, setChatInput] = useState('');
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+
+  // Intermediate progressive discovery state
+  const [activePromptQuery, setActivePromptQuery] = useState('');
+  const [detectedDomainType, setDetectedDomainType] = useState<IntermediateDomainType>('GENERAL');
+  const [selectedSubjectOption, setSelectedSubjectOption] = useState<string>('');
+  const [selectedWorkEnvOption, setSelectedWorkEnvOption] = useState<string>('');
+  const [selectedTargetTierOption, setSelectedTargetTierOption] = useState<string>('');
+
+  const currentDomainConfig = useMemo(() => {
+    return INTERMEDIATE_CONFIGS[detectedDomainType] || INTERMEDIATE_CONFIGS.GENERAL;
+  }, [detectedDomainType]);
+
+  const confidenceScore = useMemo(() => {
+    let score = 45;
+    if (selectedSubjectOption) score += 20;
+    if (selectedWorkEnvOption) score += 15;
+    if (selectedTargetTierOption) score += 15;
+    return Math.min(score, 95);
+  }, [selectedSubjectOption, selectedWorkEnvOption, selectedTargetTierOption]);
 
   // Analysis result for Step 1
   const [analysisText, setAnalysisText] = useState('');
@@ -687,21 +1071,50 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   ];
 
   // =========================================================================
-  // STEP 1: SMART LOCAL ANALYZER (ZERO API KEY REQUIRED)
+  // STEP 1: SMART LOCAL ANALYZER WITH INTERMEDIATE GUIDANCE
   // =========================================================================
   const handleAnalyzeInput = (textToAnalyze?: string) => {
     const text = (textToAnalyze || chatInput).trim();
     if (!text) return;
 
+    setActivePromptQuery(text);
     setIsGeneratingAnalysis(true);
     sfx.playUiClick();
 
     setTimeout(() => {
-      const lower = text.toLowerCase();
-      let combos: { code: string; matchPercent: number; reason: string }[] = [];
-      let fullIntroText = '';
+      const domain = detectDomain(text);
+      setDetectedDomainType(domain);
+      const config = INTERMEDIATE_CONFIGS[domain];
 
-      // Location detection from input
+      // Pre-select smart defaults so user can immediately see recommendations or refine them
+      setSelectedSubjectOption(config.subjectQuestion.options[0]?.id || '');
+      setSelectedWorkEnvOption(config.workEnvQuestion.options[0]?.id || '');
+      setSelectedTargetTierOption(config.targetTierQuestion.options[0]?.id || '');
+
+      setIsGeneratingAnalysis(false);
+      setWorkflowStep('INTERMEDIATE_DISCOVERY');
+      sfx.playActionSuccess();
+    }, 350);
+  };
+
+  // =========================================================================
+  // STEP 1.5: FINALIZE FROM INTERMEDIATE MULTI-DIMENSIONAL DOSSIER
+  // =========================================================================
+  const handleFinalizeAnalysis = (skipIntermediate: boolean = false) => {
+    sfx.playUiClick();
+    setIsGeneratingAnalysis(true);
+
+    setTimeout(() => {
+      const config = currentDomainConfig;
+      const text = activePromptQuery || chatInput;
+      const lower = text.toLowerCase();
+
+      // Find chosen options
+      const chosenSub = config.subjectQuestion.options.find(o => o.id === selectedSubjectOption) || config.subjectQuestion.options[0];
+      const chosenEnv = config.workEnvQuestion.options.find(o => o.id === selectedWorkEnvOption) || config.workEnvQuestion.options[0];
+      const chosenTier = config.targetTierQuestion.options.find(o => o.id === selectedTargetTierOption) || config.targetTierQuestion.options[0];
+
+      // Location detection
       let detectedLocation = '';
       if (lower.includes('hà nội') || lower.includes('ha noi') || lower.includes('miền bắc') || lower.includes('mien bac')) {
         detectedLocation = 'Hà Nội (Miền Bắc)';
@@ -713,261 +1126,81 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
         detectedLocation = 'Cần Thơ & ĐBSCL';
       }
 
-      // 1. Direct Combo Match: If user entered an exact combo code (e.g. D02, D07, A02, C01, V00, etc.)
-      const words = lower.split(/[\s,.;:!?/\\-]+/);
-      const directCombo = VERIFIED_COMBINATIONS_219.find(c => 
-        words.includes(c.code.toLowerCase()) || lower.includes(`tổ hợp ${c.code.toLowerCase()}`) || lower === c.code.toLowerCase()
-      );
+      // Check if primary combo code is specified in the chosen subject option
+      const primaryComboCode = chosenSub?.comboCode || 'D01';
 
-      if (directCombo) {
-        const cCode = directCombo.code;
-        const cData = getOrSynthesizeComboData(cCode);
-        fullIntroText = 
-          `Nexora đã nhận diện chính xác mã tổ hợp [${cCode}] theo yêu cầu của bạn:\n` +
-          `• Thành phần môn thi: ${directCombo.subjects.join(' · ')}.\n` +
-          `• Định hướng đào tạo: ${directCombo.description || cData.highlights}\n` +
-          (detectedLocation ? `• Địa bàn tuyển sinh: Tập trung các trường tại ${detectedLocation}.\n` : '') +
-          `• Khảo sát tuyển sinh 2026: Tổ hợp có ${cData.majors.length} chuyên ngành đào tạo trọng điểm tại ${cData.schools.length} trường đại học uy tín.\n` +
-          `Dưới đây là các tổ hợp tối ưu tương ứng:`;
-        combos = [
-          { code: cCode, matchPercent: 99, reason: `Tổ hợp chính xác bạn đã chọn với các môn ${directCombo.subjects.join(', ')}.` },
-          { code: cCode.startsWith('D') ? 'D01' : (cCode.startsWith('A') ? 'A01' : 'C00'), matchPercent: 88, reason: 'Lựa chọn thay thế linh hoạt có môn tương đồng để đăng ký song song.' },
-          { code: 'A00', matchPercent: 80, reason: 'Phương án dự phòng mở rộng cơ hội trúng tuyển vào các trường kỹ thuật và kinh tế.' },
-        ];
-      } else if ((lower.includes('toán') && lower.includes('lý') && lower.includes('hóa')) || lower.includes('toán lý hóa') || lower.includes('a00')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
-          '• Môn trọng tâm: Toán – Vật lí – Hóa học (Khối A00 kinh điển).\n' +
-          '• Thiên hướng: Nền tảng khoa học tự nhiên vững chắc, tư duy phân tích định lượng và thực nghiệm kỹ thuật sâu sắc.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng 2026: Thích hợp nhất cho Kỹ thuật Ô tô, Bán dẫn, Tự động hóa, Vi mạch, CNTT và Hóa dầu.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
-        combos = [
-          { code: 'A00', matchPercent: 99, reason: 'Tổ hợp chuẩn xác 100% gồm Toán - Vật lí - Hóa học.' },
-          { code: 'A01', matchPercent: 92, reason: 'Toán - Vật lí - Tiếng Anh: Lựa chọn song song mở rộng cơ hội quốc tế.' },
-          { code: 'D07', matchPercent: 85, reason: 'Toán - Hóa - Tiếng Anh: Tuyệt vời cho các chương trình kỹ thuật tiên tiến.' },
-        ];
-      } else if ((lower.includes('toán') && lower.includes('lý') && lower.includes('anh')) || lower.includes('toán lý anh') || lower.includes('a01')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
-          '• Môn trọng tâm: Toán – Vật lí – Tiếng Anh (Tổ hợp A01).\n' +
-          '• Thiên hướng: Sự kết hợp hoàn hảo giữa tư duy logic kỹ thuật và năng lực hội nhập quốc tế.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng 2026: Tổ hợp có chỉ tiêu tuyển sinh lớn nhất vào Bách Khoa, CNTT, AI, Ngoại thương và Logistics.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
-        combos = [
-          { code: 'A01', matchPercent: 99, reason: 'Tổ hợp chuẩn xác Toán - Vật lí - Tiếng Anh.' },
-          { code: 'A00', matchPercent: 90, reason: 'Toán - Vật lí - Hóa học: Phương án dự phòng kỹ thuật truyền thống.' },
-          { code: 'D01', matchPercent: 88, reason: 'Toán - Ngữ văn - Tiếng Anh: Chuyển hướng kinh tế và ngoại thương linh hoạt.' },
-        ];
-      } else if ((lower.includes('toán') && lower.includes('hóa') && lower.includes('sinh')) || lower.includes('toán hóa sinh') || lower.includes('b00')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
-          '• Môn trọng tâm: Toán – Hóa học – Sinh học (Tổ hợp B00).\n' +
-          '• Thiên hướng: Đam mê khoa học sự sống, y học điều trị, nghiên cứu dược chất và công nghệ sinh học.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng 2026: Độc quyền cho các trường Y Dược hàng đầu (Y Hà Nội, Y Dược TP.HCM, Y Dược Cần Thơ, Y Huế).\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
-        combos = [
-          { code: 'B00', matchPercent: 99, reason: 'Tổ hợp chuẩn vàng cho Y khoa, Dược học, Răng Hàm Mặt.' },
-          { code: 'D07', matchPercent: 86, reason: 'Toán - Hóa - Tiếng Anh: Hóa Dược và Công nghệ Sinh học quốc tế.' },
-          { code: 'A00', matchPercent: 82, reason: 'Toán - Lý - Hóa: Mở rộng sang Kỹ thuật Y sinh và Thiết bị y tế.' },
-        ];
-      } else if ((lower.includes('văn') && lower.includes('sử') && lower.includes('địa')) || lower.includes('văn sử địa') || lower.includes('c00')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
-          '• Môn trọng tâm: Ngữ văn – Lịch sử – Địa lí (Tổ hợp C00).\n' +
-          '• Thiên hướng: Trực giác ngôn ngữ sâu sắc, am hiểu văn hóa xã hội và tư duy lập luận chính luận.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng 2026: Ưu thế số 1 cho khối Sư phạm (miễn 100% học phí theo NĐ 116), Báo chí, Luật và An ninh quốc phòng.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
-        combos = [
-          { code: 'C00', matchPercent: 99, reason: 'Tổ hợp truyền thống số 1 cho Sư phạm, Báo chí, Luật và Xã hội học.' },
-          { code: 'D01', matchPercent: 90, reason: 'Toán - Ngữ văn - Tiếng Anh: Mở rộng sang Truyền thông số và Quan hệ quốc tế.' },
-          { code: 'C19', matchPercent: 83, reason: 'Ngữ văn - Lịch sử - GD Kinh tế & Pháp luật: Khối ngành Luật pháp hiện đại.' },
-        ];
-      } else if ((lower.includes('toán') && lower.includes('văn') && lower.includes('anh')) || lower.includes('toán văn anh') || lower.includes('d01')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích tổ hợp thế mạnh của bạn:\n' +
-          '• Môn trọng tâm: Toán – Ngữ văn – Tiếng Anh (Tổ hợp D01).\n' +
-          '• Thiên hướng: Cân bằng toàn diện giữa tư duy định lượng và khả năng diễn đạt ngôn ngữ hiện đại.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng 2026: Tổ hợp phổ biến nhất cả nước, áp dụng cho hơn 1.200 ngành kinh tế, luật, truyền thông, ngôn ngữ và quản trị.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu cho bạn:';
-        combos = [
-          { code: 'D01', matchPercent: 99, reason: 'Tổ hợp đa năng số 1 cho mọi trường Kinh tế, Ngoại ngữ, Luật và Truyền thông.' },
-          { code: 'A01', matchPercent: 91, reason: 'Toán - Lý - Tiếng Anh: Cơ hội vào các ngành công nghệ và tài chính định lượng.' },
-          { code: 'D07', matchPercent: 85, reason: 'Toán - Hóa - Tiếng Anh: Tăng khả năng cạnh tranh các ngành xuất nhập khẩu và kinh doanh.' },
-        ];
-      } else if (lower.includes('nga') || lower.includes('tiếng nga') || lower.includes('d02') || lower.includes('du học nga') || lower.includes('á âu') || lower.includes('eaeu')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn có năng khiếu ngoại ngữ đặc thù, quan tâm đến thị trường Liên minh Kinh tế Á – Âu (EAEU) và các đối tác truyền thống của Việt Nam.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng thị trường 2026: Ngành Kinh tế đối ngoại (Nga - Á-Âu) và Ngôn ngữ Nga tại NEU, FTU, ULIS đang có nhu cầu nhân sự song ngữ cấp bách đón đầu hiệp định thương mại tự do VN-EAEU.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'D02', matchPercent: 99, reason: 'Tổ hợp độc quyền vàng cho Kinh tế đối ngoại Nga - Á-Âu và Ngôn ngữ Nga tại NEU (KHA), FTU, ULIS.' },
-          { code: 'D01', matchPercent: 90, reason: 'Phương án xét tuyển phổ biến và linh hoạt nhất cho khối ngành Ngoại thương và Kinh tế Quốc tế.' },
-          { code: 'A01', matchPercent: 82, reason: 'Mở rộng cơ hội vào các ngành Logistics quốc tế và Chuỗi cung ứng vận tải Á – Âu.' },
-        ];
-      } else if (lower.includes('pháp') || lower.includes('tiếng pháp') || lower.includes('d03')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Năng lực tiếng Pháp và tư duy văn hóa quốc tế mở ra cơ hội trong các tổ chức Pháp ngữ (OIF) và doanh nghiệp châu Âu.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'D03', matchPercent: 99, reason: 'Tổ hợp chuẩn cho ngành Ngôn ngữ Pháp, Luật Quốc tế và Kinh tế Đối ngoại Pháp ngữ.' },
-          { code: 'D01', matchPercent: 90, reason: 'Tổ hợp đa năng cho các ngành Quan hệ Quốc tế và Kinh doanh Toàn cầu.' },
-          { code: 'A01', matchPercent: 82, reason: 'Cơ hội xét tuyển vào các chương trình kỹ sư chất lượng cao PFIEV Việt - Pháp.' },
-        ];
-      } else if (lower.includes('trung') || lower.includes('tiếng trung') || lower.includes('tiếng hoa') || lower.includes('d04')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Năng lực tiếng Trung mở ra cơ hội khổng lồ trong chuỗi cung ứng, xuất nhập khẩu và doanh nghiệp FDI tỷ đô.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'D04', matchPercent: 99, reason: 'Tổ hợp tối ưu cho Ngôn ngữ Trung Quốc, Kinh doanh Quốc tế Trung - Việt và Thương mại điện tử.' },
-          { code: 'D01', matchPercent: 91, reason: 'Lựa chọn song song mở rộng cơ hội vào Ngoại Thương, Kinh Tế Quốc Dân và UEH.' },
-          { code: 'A01', matchPercent: 84, reason: 'Lợi thế môn Toán cho các vị trí Quản lý Chuỗi cung ứng và Logistics biên giới.' },
-        ];
-      } else if (lower.includes('nhật') || lower.includes('tiếng nhật') || lower.includes('d06')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Đam mê tiếng Nhật và văn hóa doanh nghiệp Nhật Bản mở ra con đường Kỹ sư Cầu nối (BrSE) và chuyên gia đối ngoại.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'D06', matchPercent: 99, reason: 'Tổ hợp chuẩn cho Ngôn ngữ Nhật, Kỹ sư Cầu nối CNTT và Kinh tế Đối ngoại Đông Bắc Á.' },
-          { code: 'D01', matchPercent: 90, reason: 'Tổ hợp đăng ký dự phòng linh hoạt cho các chuyên ngành ngoại thương.' },
-          { code: 'A01', matchPercent: 85, reason: 'Rất mạnh nếu bạn muốn học CNTT định hướng làm việc tại Tokyo hoặc doanh nghiệp Nhật.' },
-        ];
-      } else if (lower.includes('vẽ') || lower.includes('kiến trúc') || lower.includes('mỹ thuật') || lower.includes('đồ họa') || lower.includes('nội thất')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn có năng khiếu thẩm mỹ thị giác, tư duy không gian và khả năng cảm thụ nghệ thuật kết hợp kỹ thuật kiến trúc.\n' +
-          '• Triển vọng thị trường 2026: Ngành Kiến trúc công trình, Thiết kế đồ họa game và Nội thất đang bùng nổ theo tốc độ đô thị hóa.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'V00', matchPercent: 99, reason: 'Tổ hợp vàng cho Kiến trúc, Quy hoạch Đô thị và Thiết kế Cảnh quan tại ĐH Kiến Trúc.' },
-          { code: 'H00', matchPercent: 94, reason: 'Tổ hợp chuyên sâu cho Thiết kế Đồ họa, Mỹ thuật Công nghiệp và Nội thất.' },
-          { code: 'V01', matchPercent: 86, reason: 'Tổ hợp thay thế môn Lý bằng Ngữ văn giúp phát huy năng lực tư duy biểu đạt.' },
-        ];
-      } else if (lower.includes('y') || lower.includes('bác sĩ') || lower.includes('dược') || lower.includes('sinh') || lower.includes('hóa') || lower.includes('nha khoa') || lower.includes('chữa bệnh')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Khối ngành Khoa học Sức khỏe & Y sinh đòi hỏi tính kiên nhẫn, sự tận tụy và khả năng ghi nhớ kiến thức sinh học - hóa học sâu sắc.\n' +
-          '• Triển vọng thị trường 2026: Ngành Y Dược là lĩnh vực có mức độ an toàn cao nhất trước làn sóng trí tuệ nhân tạo (AI không thể thay thế bác sĩ lâm sàng và bàn tay nha sĩ).\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'B00', matchPercent: 98, reason: 'Tổ hợp độc quyền vàng cho Y Đa khoa, Dược học, Răng Hàm Mặt tại HMU, YDS, YCT.' },
-          { code: 'A00', matchPercent: 84, reason: 'Lựa chọn mở rộng cho ngành Kỹ thuật Y sinh, Công nghệ Sinh học và Hóa dược.' },
-          { code: 'D07', matchPercent: 80, reason: 'Toán - Hóa - Tiếng Anh rất mạnh cho ngành Hóa Dược và Công nghệ Sinh học quốc tế.' },
-        ];
-      } else if (lower.includes('văn') || lower.includes('viết') || lower.includes('báo') || lower.includes('sử') || lower.includes('địa') || lower.includes('luật') || lower.includes('xã hội') || lower.includes('truyền thông') || lower.includes('sư phạm')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn sở hữu tư duy ngôn ngữ nhạy bén, khả năng biểu đạt cảm xúc và lập luận logic trong các vấn đề xã hội.\n' +
-          '• Triển vọng thị trường 2026: Các ngành Truyền thông số, PR thương hiệu, Luật thương mại và Sư phạm (chính sách miễn 100% học phí theo NĐ 116) đang có nhu cầu nhân sự chất lượng cao rất lớn.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'D01', matchPercent: 96, reason: 'Tổ hợp linh hoạt số 1 cho Truyền thông, Marketing, Luật Kinh tế và Đối ngoại.' },
-          { code: 'C00', matchPercent: 91, reason: 'Lợi thế vượt trội vào khối trường Sư phạm trọng điểm (SPH, SPS) và Báo chí Tuyên truyền.' },
-          { code: 'A01', matchPercent: 82, reason: 'Mở rộng cơ hội vào các ngành Phân tích Dữ liệu Truyền thông và Quản trị Đa phương tiện.' },
-        ];
-      } else if (lower.includes('kinh tế') || lower.includes('kinh doanh') || lower.includes('marketing') || lower.includes('tài chính') || lower.includes('quản trị') || lower.includes('tiền') || lower.includes('chứng khoán') || lower.includes('logistics')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn có tư duy thị trường nhạy bén, thích giao tiếp, đàm phán và nắm bắt cơ hội kinh doanh số.\n' +
-          '• Triển vọng thị trường 2026: Ngành Công nghệ Tài chính (FinTech), Logistics quốc tế và Marketing số đang là những trụ cột tăng trưởng nhanh nhất của nền kinh tế Việt Nam.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'A01', matchPercent: 97, reason: 'Lợi thế môn Toán và Tiếng Anh giúp bạn vào thẳng Ngoại Thương (FTU), NEU, UEH với mức điểm cao.' },
-          { code: 'D01', matchPercent: 94, reason: 'Tổ hợp cân bằng nhất cho Marketing, Kinh doanh Quốc tế và Quản trị Doanh nghiệp số.' },
-          { code: 'D07', matchPercent: 88, reason: 'Toán - Hóa - Tiếng Anh: Tổ hợp xét tuyển mới nổi bật cho khối Tài chính và Quản trị chuỗi cung ứng.' },
-        ];
-      } else if (
-        lower.includes('đá banh') || 
-        lower.includes('đá bóng') || 
-        lower.includes('bóng đá') || 
-        lower.includes('thể thao') || 
-        lower.includes('cầu thủ') || 
-        lower.includes('gym') || 
-        lower.includes('thể hình') || 
-        lower.includes('huấn luyện viên') || 
-        lower.includes('bơi lội') || 
-        lower.includes('vận động viên') || 
-        lower.includes('thể chất') ||
-        lower.includes('tdtt') ||
-        lower.includes('t00')
-      ) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn có niềm đam mê mãnh liệt với thể thao, vận động thể chất, tinh thần đồng đội và yêu thích môi trường huấn luyện, quản lý sự kiện thi đấu hoặc kinh doanh thể thao.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng thị trường 2026: Ngành Công nghiệp Thể thao & Giải trí tại Việt Nam đang bùng nổ. Nhu cầu chuyên gia Quản lý Thể thao (Sports Management), Huấn luyện viên thể lực/bóng đá, Y học thể thao phục hồi chấn thương và Kinh doanh thể thao đang tăng trưởng trên 25%/năm.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'T00', matchPercent: 99, reason: 'Tổ hợp vàng Toán - Sinh - Năng khiếu TDTT cho Sư phạm Thể chất, Huấn luyện Thể thao và Y học Thể thao (ĐH Tôn Đức Thắng, ĐH TDTT TPHCM, ĐH Sư phạm TDTT Hà Nội).' },
-          { code: 'D01', matchPercent: 94, reason: 'Toán - Văn - Tiếng Anh: Tuyển thẳng ngành Quản lý Thể thao & Sự kiện tại ĐH Tôn Đức Thắng (DTT), Kinh doanh Thể thao và Báo chí Thể thao.' },
-          { code: 'C00', matchPercent: 88, reason: 'Văn - Sử - Địa: Lợi thế vào Giáo dục Thể chất (Miễn 100% học phí theo NĐ 116), Bình luận viên và Truyền thông Thể thao.' },
-        ];
-      } else if (lower.includes('nấu ăn') || lower.includes('đầu bếp') || lower.includes('ẩm thực') || lower.includes('làm bánh') || lower.includes('nhà hàng') || lower.includes('pha chế')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn có gu cảm thụ ẩm thực tinh tế, tính kiên nhẫn và đam mê nghệ thuật chế biến thực phẩm kết hợp quản trị dịch vụ chuẩn quốc tế.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng thị trường 2026: Ngành Quản trị Ẩm thực & Nhà hàng Khách sạn và Công nghệ Thực phẩm đang có nhu cầu nhân lực chất lượng cao rất lớn tại các chuỗi resort 5 sao và tập đoàn F&B quốc tế.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất cho bạn:';
-        combos = [
-          { code: 'D01', matchPercent: 96, reason: 'Toán - Văn - Tiếng Anh: Tối ưu cho Quản trị Nhà hàng, Dịch vụ Ăn uống và Khách sạn Quốc tế.' },
-          { code: 'B00', matchPercent: 91, reason: 'Toán - Hóa - Sinh: Tổ hợp cốt lõi cho Công nghệ Thực phẩm & Chế biến Dinh dưỡng tại ĐHBK, ĐH Nông Lâm.' },
-          { code: 'A00', matchPercent: 85, reason: 'Toán - Lý - Hóa: Mở rộng vào Quản trị Chuỗi cung ứng Thực phẩm và Kỹ thuật chế biến.' },
-        ];
-      } else if (lower.includes('du lịch') || lower.includes('hướng dẫn viên') || lower.includes('khách sạn') || lower.includes('lữ hành') || lower.includes('hàng không') || lower.includes('phi công') || lower.includes('tiếp viên')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn yêu thích xê dịch, giao tiếp đa văn hóa, kỹ năng đối ngoại linh hoạt và phong thái dịch vụ chuyên nghiệp chuẩn quốc tế.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng thị trường 2026: Du lịch quốc tế và Hàng không Việt Nam phục hồi tăng tốc, mở rộng mạnh đường bay châu Âu - Bắc Mỹ với dải thu nhập và phụ cấp ngoại tệ hấp dẫn.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất cho bạn:';
-        combos = [
-          { code: 'D01', matchPercent: 98, reason: 'Toán - Văn - Tiếng Anh: Tổ hợp vàng cho Quản trị Lữ hành, Khách sạn Quốc tế và Tiếp viên/Quản lý Hàng không (VAA, HANU, NEU, USSH).' },
-          { code: 'A01', matchPercent: 91, reason: 'Toán - Lý - Tiếng Anh: Mũi nhọn cho Kỹ thuật Hàng không, Quản lý Hoạt động Bay và Logistics Hàng không.' },
-          { code: 'C00', matchPercent: 86, reason: 'Văn - Sử - Địa: Ưu thế văn hóa lịch sử vượt trội cho Hướng dẫn viên Du lịch Quốc tế và Văn hóa Du lịch.' },
-        ];
-      } else if (lower.includes('tin') || lower.includes('cntt') || lower.includes('it') || lower.includes('máy tính') || lower.includes('code') || lower.includes('lập trình') || lower.includes('ai') || lower.includes('bán dẫn') || lower.includes('vi mạch') || lower.includes('kỹ thuật') || lower.includes('robot') || lower.includes('công nghệ') || lower.includes('điện tử')) {
-        fullIntroText = 
-          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn có thế mạnh về tư duy logic, đam mê công nghệ máy tính, giải quyết vấn đề kỹ thuật và khát khao làm chủ tương lai số.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Triển vọng thị trường 2026: Trí tuệ nhân tạo (AI), Kỹ thuật Phần mềm và Thiết kế Vi mạch Bán dẫn đang là tâm điểm ưu tiên phát triển quốc gia với mức thu nhập vượt trội.\n' +
-          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
-        combos = [
-          { code: 'A01', matchPercent: 98, reason: 'Tổ hợp vàng toàn diện cho CNTT, AI và Bán dẫn tại Bách Khoa, ĐHQG với lợi thế môn Tiếng Anh.' },
-          { code: 'A00', matchPercent: 90, reason: 'Nền tảng Toán - Lý kinh điển cho mọi chuyên ngành Kỹ thuật Công nghệ cao và Ô tô điện.' },
-          { code: 'D07', matchPercent: 86, reason: 'Toán - Hóa - Tiếng Anh rất hợp cho Kỹ thuật Hóa Dược, Vật liệu bán dẫn và Công nghệ số.' },
-        ];
-      } else {
-        // Universal multi-disciplinary overview — never assume coding/IT!
-        fullIntroText = 
-          'Nexora đã tiếp nhận hồ sơ năng lực của bạn:\n' +
-          '• Thiên hướng: Bạn đang trong giai đoạn khám phá đa chiều các lĩnh vực học tập và nghề nghiệp để tìm ra ngã rẽ phù hợp nhất với bản thân.\n' +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          '• Chiến lược 2026: Hãy ưu tiên các tổ hợp đa năng có độ phủ lớn nhất (xét tuyển hơn 1.200 ngành từ Kinh tế, Luật, Ngoại ngữ đến Kỹ thuật và Xã hội) để giữ quyền chủ động tối đa.\n' +
-          'Dưới đây là 3 tổ hợp môn linh hoạt và toàn diện nhất đề xuất cho bạn:';
-        combos = [
-          { code: 'D01', matchPercent: 96, reason: 'Toán - Ngữ văn - Tiếng Anh: Tổ hợp linh hoạt số 1 toàn quốc, mở cánh cửa vào hơn 1.200 ngành Kinh tế, Truyền thông, Luật và Quản trị.' },
-          { code: 'A01', matchPercent: 92, reason: 'Toán - Vật lý - Tiếng Anh: Cân bằng giữa tư duy logic tự nhiên và ngoại ngữ, ứng dụng cho mọi ngành Công nghệ, Kỹ thuật và Tài chính.' },
-          { code: 'C00', matchPercent: 86, reason: 'Ngữ văn - Lịch sử - Địa lý: Nền tảng khoa học xã hội vững chắc, Sư phạm (miễn 100% học phí theo NĐ 116), Báo chí và Luật.' },
-        ];
+      // Construct secondary and tertiary combinations that make logical sense
+      let secondaryComboCode = 'A01';
+      let tertiaryComboCode = 'A00';
+
+      if (primaryComboCode === 'A01') {
+        secondaryComboCode = 'A00';
+        tertiaryComboCode = 'D01';
+      } else if (primaryComboCode === 'A00') {
+        secondaryComboCode = 'A01';
+        tertiaryComboCode = 'D07';
+      } else if (primaryComboCode === 'D01') {
+        secondaryComboCode = 'A01';
+        tertiaryComboCode = detectedDomainType === 'BUSINESS' ? 'D07' : (detectedDomainType === 'SOCIAL_MEDIA' ? 'C00' : 'A00');
+      } else if (primaryComboCode === 'D07') {
+        secondaryComboCode = 'A01';
+        tertiaryComboCode = 'D01';
+      } else if (primaryComboCode === 'B00') {
+        secondaryComboCode = 'D07';
+        tertiaryComboCode = 'A00';
+      } else if (primaryComboCode === 'C00') {
+        secondaryComboCode = 'D01';
+        tertiaryComboCode = 'C19';
+      } else if (primaryComboCode === 'T00') {
+        secondaryComboCode = 'D01';
+        tertiaryComboCode = 'C00';
+      } else if (primaryComboCode === 'V00') {
+        secondaryComboCode = 'H00';
+        tertiaryComboCode = 'V01';
+      } else if (primaryComboCode === 'X06') {
+        secondaryComboCode = 'A01';
+        tertiaryComboCode = 'D01';
+      } else if (primaryComboCode === 'D02') {
+        secondaryComboCode = 'D01';
+        tertiaryComboCode = 'A01';
       }
 
-      setAnalysisText(fullIntroText);
+      const effectiveConfidence = skipIntermediate ? 45 : confidenceScore;
+
+      const fullAnalysis = 
+        `🎯 BÁO CÁO TỔNG HỢP TIẾN TRÌNH ĐỊNH HƯỚNG TỔ HỢP (ĐỘ TIN CẬY: ${effectiveConfidence}%):\n` +
+        `• Nguyện vọng khởi điểm: "${text}"\n` +
+        `• Môn thế mạnh đã xác nhận: ${chosenSub.label} (${chosenSub.desc})\n` +
+        `• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}\n` +
+        `• Phân tầng trường & mục tiêu điểm: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}\n` +
+        (detectedLocation ? `• Khu vực ưu tiên: Tập trung mạng lưới đào tạo tại ${detectedLocation}.\n` : '') +
+        `\n💡 ĐÁNH GIÁ CHIẾN LƯỢC TUYỂN SINH 2026 TỪ NEXORA:\n` +
+        `Dựa trên đối soát 4 chiều dữ liệu giữa nguyện vọng ban đầu, năng lực môn thi thực tế, môi trường làm việc kỳ vọng và phân khúc trường đại học, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu đem lại xác suất trúng tuyển cao nhất và mở ra cơ hội nghề nghiệp tương thích bền vững.`;
+
+      const combos = [
+        {
+          code: primaryComboCode,
+          matchPercent: effectiveConfidence >= 90 ? 98 : 94,
+          reason: `Khớp chuẩn xác với môn bạn tự tin (${chosenSub.label}) và định hướng ${chosenEnv.label}.`
+        },
+        {
+          code: secondaryComboCode,
+          matchPercent: 89,
+          reason: `Phương án thay thế cân bằng giữa các môn thi cho nhóm trường ${chosenTier.label}.`
+        },
+        {
+          code: tertiaryComboCode,
+          matchPercent: 82,
+          reason: `Phương án dự phòng an toàn mở rộng cơ hội trúng tuyển và giảm áp lực điểm chuẩn.`
+        }
+      ];
+
+      setAnalysisText(fullAnalysis);
       setSuggestedCombos(combos);
       setIsGeneratingAnalysis(false);
       setWorkflowStep('ANALYZED_COMBOS');
       sfx.playActionSuccess();
-    }, 450);
+    }, 400);
   };
 
   // =========================================================================
@@ -1078,6 +1311,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     sfx.playUiClick();
     setWorkflowStep('INITIAL');
     setChatInput('');
+    setActivePromptQuery('');
     setAnalysisText('');
     setSuggestedCombos([]);
     setSelectedComboCode(null);
@@ -1085,6 +1319,9 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     setSelectedSchoolCode(null);
     setSelectedMajorId(null);
     setSelectedCareerId(null);
+    setSelectedSubjectOption('');
+    setSelectedWorkEnvOption('');
+    setSelectedTargetTierOption('');
     setDossierFullText('');
   };
 
@@ -1190,11 +1427,320 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       </section>
 
       {/* =========================================================================
-          PROGRESSIVE STEP 1: AI TYPEWRITER ANALYSIS & TOP SUGGESTED COMBOS
-          (Only shown when workflowStep === 'ANALYZED_COMBOS' or later)
+          INTERMEDIATE STEP: DYNAMIC PROGRESSIVE DISCOVERY
+          (Shown when workflowStep === 'INTERMEDIATE_DISCOVERY')
           ========================================================================= */}
       <AnimatePresence>
-        {workflowStep !== 'INITIAL' && analysisText && (
+        {workflowStep === 'INTERMEDIATE_DISCOVERY' && (
+          <motion.section
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="max-w-3xl mx-auto px-4 space-y-6"
+          >
+            {/* Header Card: Initial Quote & Confidence Meter */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#0B0F19] border border-[#1E3A8A]/50 shadow-2xl space-y-4">
+              {/* Badge & Domain Info */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E3A8A]/30 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+                  <span className="text-xs font-mono font-bold text-[#60A5FA] uppercase tracking-wider">
+                    {currentDomainConfig.badge}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-[#94A3B8]">Lĩnh vực:</span>
+                  <span className="text-xs font-semibold text-white px-2 py-0.5 rounded bg-[#1E293B] border border-[#334155]">
+                    {currentDomainConfig.domainName}
+                  </span>
+                </div>
+              </div>
+
+              {/* User Quote & Nexora Reflection */}
+              <div className="bg-[#10141D] p-3.5 rounded-xl border border-[#1E293B] space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-1 rounded bg-[#2563EB]/20 text-[#60A5FA] mt-0.5 shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-[#94A3B8] font-mono">
+                      Mong muốn ban đầu của bạn: <span className="text-white font-medium italic">"{activePromptQuery || chatInput}"</span>
+                    </p>
+                    <p className="text-xs text-[#CBD5E1] leading-relaxed">
+                      {currentDomainConfig.initialAcknowledgment}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Confidence Gauge Bar */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-[#94A3B8] flex items-center gap-1.5 font-medium">
+                    <Sliders className="w-3.5 h-3.5 text-[#3B82F6]" />
+                    Độ tin cậy của thuật toán gợi ý:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold px-2 py-0.5 rounded text-xs ${
+                      confidenceScore >= 90 
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                        : confidenceScore >= 75
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    }`}>
+                      {confidenceScore}% — {
+                        confidenceScore >= 90 ? 'Rất cao & Chuẩn xác' : confidenceScore >= 75 ? 'Rõ nét' : confidenceScore >= 60 ? 'Đang định hình' : 'Sơ bộ (Chưa đủ kết luận)'
+                      }
+                    </span>
+                  </div>
+                </div>
+                <div className="w-full h-2.5 bg-[#171C26] rounded-full overflow-hidden border border-[#262D3D]">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-amber-500 via-blue-500 to-emerald-400 rounded-full"
+                    initial={{ width: '45%' }}
+                    animate={{ width: `${confidenceScore}%` }}
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-[#64748B] font-mono">
+                  <span>1 câu: 45%</span>
+                  <span>+Môn thế mạnh: 65%</span>
+                  <span>+Môi trường: 80%</span>
+                  <span>+Nhóm trường: 95%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* QUESTION 1: MÔN THẾ MẠNH */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#0E121C] border border-[#1E293B] shadow-xl space-y-3.5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[11px] font-bold flex items-center justify-center font-mono">
+                    1
+                  </span>
+                  <h3 className="text-sm sm:text-base font-bold text-white">
+                    {currentDomainConfig.subjectQuestion.title}
+                  </h3>
+                </div>
+                <p className="text-xs text-[#94A3B8] pl-7">
+                  {currentDomainConfig.subjectQuestion.description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-0 sm:pl-7">
+                {currentDomainConfig.subjectQuestion.options.map((opt) => {
+                  const isSelected = selectedSubjectOption === opt.id;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setSelectedSubjectOption(opt.id);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                        isSelected
+                          ? 'bg-[#182338] border-[#3B82F6] shadow-[0_0_15px_rgba(59,130,246,0.25)] ring-1 ring-[#3B82F6]'
+                          : 'bg-[#121622] border-[#222838] hover:border-[#3B82F6]/60 hover:bg-[#151B2A]'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                              isSelected ? 'border-[#3B82F6] bg-[#2563EB] text-white' : 'border-[#475569]'
+                            }`}>
+                              {isSelected && <Check className="w-2.5 h-2.5" />}
+                            </div>
+                            <span className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-[#E2E8F0]'}`}>
+                              {opt.label}
+                            </span>
+                          </div>
+                          {opt.tag && (
+                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                              isSelected ? 'bg-[#3B82F6] text-white' : 'bg-[#1E293B] text-[#93C5FD]'
+                            }`}>
+                              {opt.tag}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[11px] leading-relaxed pl-6 ${isSelected ? 'text-[#CBD5E1]' : 'text-[#8E929F]'}`}>
+                          {opt.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* QUESTION 2: MÔI TRƯỜNG & HOẠT ĐỘNG THỰC TẾ */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#0E121C] border border-[#1E293B] shadow-xl space-y-3.5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[11px] font-bold flex items-center justify-center font-mono">
+                    2
+                  </span>
+                  <h3 className="text-sm sm:text-base font-bold text-white">
+                    {currentDomainConfig.workEnvQuestion.title}
+                  </h3>
+                </div>
+                <p className="text-xs text-[#94A3B8] pl-7">
+                  {currentDomainConfig.workEnvQuestion.description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-0 sm:pl-7">
+                {currentDomainConfig.workEnvQuestion.options.map((opt) => {
+                  const isSelected = selectedWorkEnvOption === opt.id;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setSelectedWorkEnvOption(opt.id);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                        isSelected
+                          ? 'bg-[#182338] border-[#3B82F6] shadow-[0_0_15px_rgba(59,130,246,0.25)] ring-1 ring-[#3B82F6]'
+                          : 'bg-[#121622] border-[#222838] hover:border-[#3B82F6]/60 hover:bg-[#151B2A]'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                              isSelected ? 'border-[#3B82F6] bg-[#2563EB] text-white' : 'border-[#475569]'
+                            }`}>
+                              {isSelected && <Check className="w-2.5 h-2.5" />}
+                            </div>
+                            <span className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-[#E2E8F0]'}`}>
+                              {opt.label}
+                            </span>
+                          </div>
+                          {opt.tag && (
+                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                              isSelected ? 'bg-[#10B981] text-white' : 'bg-[#064E3B]/40 text-[#6EE7B7]'
+                            }`}>
+                              {opt.tag}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[11px] leading-relaxed pl-6 ${isSelected ? 'text-[#CBD5E1]' : 'text-[#8E929F]'}`}>
+                          {opt.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* QUESTION 3: PHÂN TẦNG NHÓM TRƯỜNG & MỤC TIÊU ĐIỂM */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#0E121C] border border-[#1E293B] shadow-xl space-y-3.5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-[11px] font-bold flex items-center justify-center font-mono">
+                    3
+                  </span>
+                  <h3 className="text-sm sm:text-base font-bold text-white">
+                    {currentDomainConfig.targetTierQuestion.title}
+                  </h3>
+                </div>
+                <p className="text-xs text-[#94A3B8] pl-7">
+                  {currentDomainConfig.targetTierQuestion.description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-0 sm:pl-7">
+                {currentDomainConfig.targetTierQuestion.options.map((opt) => {
+                  const isSelected = selectedTargetTierOption === opt.id;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setSelectedTargetTierOption(opt.id);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                        isSelected
+                          ? 'bg-[#182338] border-[#3B82F6] shadow-[0_0_15px_rgba(59,130,246,0.25)] ring-1 ring-[#3B82F6]'
+                          : 'bg-[#121622] border-[#222838] hover:border-[#3B82F6]/60 hover:bg-[#151B2A]'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                              isSelected ? 'border-[#3B82F6] bg-[#2563EB] text-white' : 'border-[#475569]'
+                            }`}>
+                              {isSelected && <Check className="w-2.5 h-2.5" />}
+                            </div>
+                            <span className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-[#E2E8F0]'}`}>
+                              {opt.label}
+                            </span>
+                          </div>
+                          {opt.tag && (
+                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                              isSelected ? 'bg-amber-500 text-white' : 'bg-[#78350F]/40 text-[#FDE68A]'
+                            }`}>
+                              {opt.tag}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[11px] leading-relaxed pl-6 ${isSelected ? 'text-[#CBD5E1]' : 'text-[#8E929F]'}`}>
+                          {opt.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ACTION CTA BUTTONS */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setWorkflowStep('INITIAL');
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 text-xs font-mono text-[#8E929F] hover:text-white rounded-xl border border-[#262D3D] hover:bg-[#1F242C] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Nhập lại mong muốn</span>
+              </button>
+
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => handleFinalizeAnalysis(true)}
+                  className="w-full sm:w-auto text-[11px] font-mono text-[#64748B] hover:text-[#94A3B8] px-3 py-2 cursor-pointer hover:underline"
+                >
+                  Bỏ qua &amp; xem dự đoán sơ bộ →
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleFinalizeAnalysis(false)}
+                  className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 text-amber-300" />
+                  <span>Hoàn Tất Đánh Giá &amp; Xuất Ma Trận 3 Tổ Hợp ({confidenceScore}% Tin Cậy)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      {/* =========================================================================
+          PROGRESSIVE STEP 1: AI TYPEWRITER ANALYSIS & TOP SUGGESTED COMBOS
+          (Only shown when workflowStep !== 'INITIAL' and !== 'INTERMEDIATE_DISCOVERY')
+          ========================================================================= */}
+      <AnimatePresence>
+        {workflowStep !== 'INITIAL' && workflowStep !== 'INTERMEDIATE_DISCOVERY' && analysisText && (
           <motion.section 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1210,15 +1756,28 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
                     Nexora AI: Phân Tích Thiên Hướng &amp; Đề Xuất Tổ Hợp
                   </span>
                 </div>
-                {!isAnalysisDone && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={skipAnalysis}
-                    className="text-[10px] font-mono text-[#94A3B8] hover:text-white flex items-center gap-1 cursor-pointer"
+                    type="button"
+                    onClick={() => {
+                      sfx.playUiClick();
+                      setWorkflowStep('INTERMEDIATE_DISCOVERY');
+                    }}
+                    className="text-[10px] font-mono text-[#60A5FA] hover:text-white flex items-center gap-1 bg-[#1E293B] hover:bg-[#2563EB] px-2 py-0.5 rounded border border-[#3B82F6]/30 transition-colors cursor-pointer"
                   >
-                    <FastForward className="w-3 h-3" />
-                    <span>Xem nhanh</span>
+                    <ArrowLeft className="w-3 h-3" />
+                    <span>Đổi lựa chọn thăm dò</span>
                   </button>
-                )}
+                  {!isAnalysisDone && (
+                    <button
+                      onClick={skipAnalysis}
+                      className="text-[10px] font-mono text-[#94A3B8] hover:text-white flex items-center gap-1 cursor-pointer"
+                    >
+                      <FastForward className="w-3 h-3" />
+                      <span>Xem nhanh</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Progressive typewriter streaming text */}
