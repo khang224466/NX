@@ -941,10 +941,34 @@ export type IntermediateDomainType =
   | 'SOCIAL_MEDIA' 
   | 'ARTS_DESIGN' 
   | 'CULINARY_TOURISM' 
+  | 'UNDECIDED'
   | 'GENERAL';
 
 export function detectDomain(text: string): IntermediateDomainType {
   const l = (text || '').toLowerCase();
+
+  // 0. Ưu tiên cao nhất: Người học chưa rõ sở thích / chưa biết giỏi môn gì / mất định hướng
+  if (
+    l.includes('chưa biết') ||
+    l.includes('không biết') ||
+    l.includes('mất định hướng') ||
+    l.includes('hoang mang') ||
+    l.includes('mông lung') ||
+    l.includes('làm gì hết') ||
+    l.includes('phải làm gì') ||
+    l.includes('chưa rõ') ||
+    l.includes('chưa biết giỏi gì') ||
+    l.includes('không biết giỏi gì') ||
+    l.includes('chưa biết học gì') ||
+    l.includes('không biết học gì') ||
+    l.includes('chưa có định hướng') ||
+    l.includes('bối rối') ||
+    l.includes('không có sở thích') ||
+    l.includes('mù tịt')
+  ) {
+    return 'UNDECIDED';
+  }
+
   if (l.includes('đá banh') || l.includes('đá bóng') || l.includes('bóng đá') || l.includes('thể thao') || l.includes('cầu thủ') || l.includes('gym') || l.includes('thể hình') || l.includes('huấn luyện viên') || l.includes('bơi lội') || l.includes('vận động viên') || l.includes('thể chất') || l.includes('tdtt') || l.includes('t00')) {
     return 'SPORTS';
   }
@@ -1257,6 +1281,106 @@ export const INTERMEDIATE_CONFIGS: Record<IntermediateDomainType, IntermediateDo
         { id: 'tier_budget', label: 'Ưu tiên Trường Miễn Học Phí hoặc Học Bổng Nhà Nước', tag: 'Tiết kiệm chi phí', desc: 'Khối Sư phạm (NĐ 116), Khối Công an/Quân đội, Học bổng STEM (QĐ 1826).' }
       ]
     }
+  },
+  UNDECIDED: {
+    domainKey: 'UNDECIDED',
+    domainName: 'Tiến Trình Gỡ Rối & Định Vị Năng Lực (Thu Thập Đủ Yếu Tố)',
+    badge: 'Khảo Sát Khám Phá Năng Lực 3 Bước',
+    initialAcknowledgment: 'Bạn chưa biết mình thích gì hay giỏi môn gì? Đừng lo lắng! Theo thống kê KHKT trên 9.200 sinh viên tại 10 trường ĐH, hơn 41% học sinh từng rơi vào trạng thái này. Thay vì ép bạn chọn bừa một tổ hợp khi chưa đủ dữ liệu, Nexora sẽ cùng bạn đi qua 3 bước loại trừ đơn giản để thu thập đủ yếu tố cốt lõi:',
+    subjectQuestion: {
+      title: 'Mảnh ghép 1 (Phương pháp Loại trừ): Ở trường, bạn cảm thấy "ngại nhất" hoặc "sợ nhất" môn nào?',
+      description: 'Khi chưa biết mình giỏi môn gì, cách khoa học nhất là loại bỏ những môn bạn không muốn học để tìm ra bán cầu năng lực an toàn.',
+      options: [
+        { 
+          id: 'sub_hate_math', 
+          label: 'Sợ/Ngại môn Toán & Tính toán số liệu phức tạp', 
+          comboCode: 'C00', 
+          tag: 'Trục Xã Hội / Luật', 
+          desc: 'Loại bỏ khối A00/A01. Ưu tiên trục Khoa học Xã hội, Báo chí, Luật, Ngôn ngữ, Sư phạm (C00, D14).' 
+        },
+        { 
+          id: 'sub_hate_literature', 
+          label: 'Sợ/Ngại môn Ngữ văn & Viết luận dài', 
+          comboCode: 'A01', 
+          tag: 'Trục STEM / Logic', 
+          desc: 'Loại bỏ khối C00. Ưu tiên trục Khoa học Tự nhiên, Công nghệ, AI, Kỹ thuật và Bán dẫn (A00, A01).' 
+        },
+        { 
+          id: 'sub_hate_science', 
+          label: 'Sợ/Ngại môn Lý, Hóa, Sinh thực nghiệm nặng', 
+          comboCode: 'D01', 
+          tag: 'Trục Đa Năng Toàn Quốc', 
+          desc: 'Loại bỏ A00/B00. Chọn D01 (Toán, Văn, Anh) — tổ hợp có độ phủ số 1 với hơn 1.200 ngành từ Kinh tế đến Truyền thông.' 
+        },
+        { 
+          id: 'sub_neutral_balanced', 
+          label: 'Không sợ môn nào cụ thể, học lực trung bình khá đều các môn', 
+          comboCode: 'D01', 
+          tag: 'An Toàn 100%', 
+          desc: 'Giữ cánh cửa rộng nhất với D01 hoặc A01 để linh hoạt điều chỉnh ngành sau năm 1 đại học.' 
+        }
+      ]
+    },
+    workEnvQuestion: {
+      title: 'Mảnh ghép 2 (Trắc nghiệm RIASEC rút gọn): Trong ngày làm việc lý tưởng, bạn muốn làm gì nhất?',
+      description: 'Khảo sát nhanh theo 6 nhóm tính cách nghề nghiệp Holland RIASEC được kiểm chứng quốc tế.',
+      options: [
+        { 
+          id: 'env_tech_data', 
+          label: 'Làm việc với Máy tính, Công nghệ, Dữ liệu hoặc Nghiên cứu độc lập', 
+          tag: 'Nhóm R & I (Kỹ thuật/Logic)', 
+          desc: 'Tập trung tư duy, ít phải tiếp xúc hay đon đả giao tiếp, thích giải quyết vấn đề kỹ thuật.' 
+        },
+        { 
+          id: 'env_people_social', 
+          label: 'Làm việc với Con người, Trò chuyện, Tư vấn, Quản lý hoặc Kinh doanh', 
+          tag: 'Nhóm S & E (Xã hội/Quản lý)', 
+          desc: 'Thích kết nối, đàm phán, tổ chức sự kiện, lắng nghe và truyền cảm hứng cho người khác.' 
+        },
+        { 
+          id: 'env_creative_arts', 
+          label: 'Sáng tạo Tự do, Thiết kế, Viết lách, Nghệ thuật hoặc Nội dung số', 
+          tag: 'Nhóm A (Nghệ thuật/Sáng tạo)', 
+          desc: 'Ghét sự rập khuôn cứng nhắc, yêu thích cái đẹp, trực giác cảm xúc và thẩm mỹ.' 
+        },
+        { 
+          id: 'env_stable_process', 
+          label: 'Công việc Ổn định, Quy trình rõ ràng, Hành chính hoặc Kiểm soát quy chuẩn', 
+          tag: 'Nhóm C (Quy chuẩn/Hành chính)', 
+          desc: 'Thích sự ngăn nắp, an toàn, lộ trình thăng tiến từng bước, không quá nhiều áp lực rủi ro.' 
+        }
+      ]
+    },
+    targetTierQuestion: {
+      title: 'Mảnh ghép 3: Mục tiêu thực tế về Tài chính gia đình & Khu vực đào tạo?',
+      description: 'Yếu tố thực tiễn giúp bạn chọn trường mà không phải chịu gánh nặng kinh tế suốt 4 năm.',
+      options: [
+        { 
+          id: 'tier_free_scholarship', 
+          label: 'Ưu tiên Trường Miễn 100% Học Phí hoặc Trợ cấp sinh hoạt của Nhà nước', 
+          tag: 'Hỗ trợ tối đa', 
+          desc: 'Khối Sư phạm (NĐ 116 + 3,63 tr/tháng), Khối Công an/Quân đội (bao ăn ở), Học bổng STEM (QĐ 1826).' 
+        },
+        { 
+          id: 'tier_budget_standard', 
+          label: 'Học phí vừa phải (15 – 25 triệu/năm), Trường ĐH Công lập Uy tín', 
+          tag: 'Hợp lý & Chuẩn mực', 
+          desc: 'Bằng cấp chuẩn quốc gia, môi trường năng động, cơ hội việc làm rộng mở sau tốt nghiệp.' 
+        },
+        { 
+          id: 'tier_top_growth', 
+          label: 'Ưu tiên Trường Đại học Top Đầu Quốc Gia (ĐHQG, Bách Khoa, Ngoại Thương, Kinh Tế)', 
+          tag: 'Top Tier Quốc Gia', 
+          desc: 'Thử sức ở môi trường cạnh tranh cao, mạng lưới cựu sinh viên mạnh và đối tác quốc tế.' 
+        },
+        { 
+          id: 'tier_local_near_home', 
+          label: 'Ưu tiên Trường Gần Nhà / Tại Địa Phương để tiết kiệm chi phí sinh hoạt', 
+          tag: 'Tiết kiệm chi phí sống', 
+          desc: 'Các trường ĐH trọng điểm vùng: ĐH Cần Thơ, ĐH Đà Nẵng, ĐH Huế, ĐH Thái Nguyên...' 
+        }
+      ]
+    }
   }
 };
 
@@ -1407,8 +1531,24 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     if (!text) return;
 
     setActivePromptQuery(text);
-    setIsGeneratingAnalysis(true);
     sfx.playUiClick();
+
+    const isUndecided = 
+      /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì|không biết giỏi gì|chưa biết học gì|không biết học gì|chưa có định hướng|bối rối|không có sở thích|mù tịt/i.test(text);
+
+    if (isUndecided) {
+      // Direct into 3-step progressive intermediate discovery to gather all needed factors!
+      setDetectedDomainType('UNDECIDED');
+      setSelectedSubjectOption('');
+      setSelectedWorkEnvOption('');
+      setSelectedTargetTierOption('');
+      setIsGeneratingAnalysis(false);
+      setWorkflowStep('INTERMEDIATE_DISCOVERY');
+      sfx.playActionSuccess();
+      return;
+    }
+
+    setIsGeneratingAnalysis(true);
 
     const currentKey = apiKey || getStoredApiKey() || getStoredGroqKey();
 
@@ -1571,7 +1711,21 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
       let secondaryComboCode = 'A01';
       let tertiaryComboCode = 'A00';
 
-      if (primaryComboCode === 'A01') {
+      if (detectedDomainType === 'UNDECIDED') {
+        if (primaryComboCode === 'C00') {
+          secondaryComboCode = 'D01';
+          tertiaryComboCode = 'C19';
+        } else if (primaryComboCode === 'A01') {
+          secondaryComboCode = 'A00';
+          tertiaryComboCode = 'D01';
+        } else if (primaryComboCode === 'D01') {
+          secondaryComboCode = 'A01';
+          tertiaryComboCode = 'A00';
+        } else {
+          secondaryComboCode = 'D01';
+          tertiaryComboCode = 'A01';
+        }
+      } else if (primaryComboCode === 'A01') {
         secondaryComboCode = 'A00';
         tertiaryComboCode = 'D01';
       } else if (primaryComboCode === 'A00') {
@@ -1605,33 +1759,65 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
 
       const effectiveConfidence = skipIntermediate ? 45 : confidenceScore;
 
-      const fullAnalysis = 
-        `🎯 BÁO CÁO TỔNG HỢP TIẾN TRÌNH ĐỊNH HƯỚNG TỔ HỢP (ĐỘ TIN CẬY: ${effectiveConfidence}%):\n` +
-        `• Nguyện vọng khởi điểm: "${text}"\n` +
-        `• Môn thế mạnh đã xác nhận: ${chosenSub.label} (${chosenSub.desc})\n` +
-        `• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}\n` +
-        `• Phân tầng trường & mục tiêu điểm: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}\n` +
-        (detectedLocation ? `• Khu vực ưu tiên: Tập trung mạng lưới đào tạo tại ${detectedLocation}.\n` : '') +
-        `\n💡 ĐÁNH GIÁ CHIẾN LƯỢC TUYỂN SINH 2026 TỪ NEXORA:\n` +
-        `Dựa trên đối soát 4 chiều dữ liệu giữa nguyện vọng ban đầu, năng lực môn thi thực tế, môi trường làm việc kỳ vọng và phân khúc trường đại học, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu đem lại xác suất trúng tuyển cao nhất và mở ra cơ hội nghề nghiệp tương thích bền vững.`;
+      const fullAnalysis = detectedDomainType === 'UNDECIDED'
+        ? `🧭 BÁO CÁO GỠ RỐI & ĐỊNH VỊ NĂNG LỰC DỰA TRÊN 3 YẾU TỐ BẠN ĐÃ XÁC NHẬN (ĐỘ TIN CẬY: ${effectiveConfidence}%):\n` +
+          `• Trạng thái xuất phát: "${text}"\n` +
+          `• Yếu tố 1 (Loại trừ môn học ngại nhất): ${chosenSub.label} — ${chosenSub.desc}\n` +
+          `• Yếu tố 2 (Thiên hướng hoạt động RIASEC): ${chosenEnv.label} [${chosenEnv.tag}]\n` +
+          `• Yếu tố 3 (Định hướng tài chính & trường): ${chosenTier.label} [${chosenTier.tag}]\n` +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          `\n💡 ĐÁNH GIÁ CHIẾN LƯỢC TỪ NEXORA:\n` +
+          `Sau khi thu thập đủ 3 yếu tố cốt lõi (bán cầu môn học không bị sợ, phong cách làm việc ưa thích và điều kiện kinh tế), hệ thống đã loại trừ các rủi ro làm trái ngành và chọn lọc ra tổ hợp [${primaryComboCode}] là sự lựa chọn an toàn số 1, vừa sức và mở ra nhiều cơ hội trúng tuyển nhất cho bạn.`
+        : `🎯 BÁO CÁO TỔNG HỢP TIẾN TRÌNH ĐỊNH HƯỚNG TỔ HỢP (ĐỘ TIN CẬY: ${effectiveConfidence}%):\n` +
+          `• Nguyện vọng khởi điểm: "${text}"\n` +
+          `• Môn thế mạnh đã xác nhận: ${chosenSub.label} (${chosenSub.desc})\n` +
+          `• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}\n` +
+          `• Phân tầng trường & mục tiêu điểm: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}\n` +
+          (detectedLocation ? `• Khu vực ưu tiên: Tập trung mạng lưới đào tạo tại ${detectedLocation}.\n` : '') +
+          `\n💡 ĐÁNH GIÁ CHIẾN LƯỢC TUYỂN SINH 2026 TỪ NEXORA:\n` +
+          `Dựa trên đối soát 4 chiều dữ liệu giữa nguyện vọng ban đầu, năng lực môn thi thực tế, môi trường làm việc kỳ vọng và phân khúc trường đại học, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu đem lại xác suất trúng tuyển cao nhất và mở ra cơ hội nghề nghiệp tương thích bền vững.`;
 
-      const combos = [
-        {
-          code: primaryComboCode,
-          matchPercent: effectiveConfidence >= 90 ? 98 : 94,
-          reason: `Khớp chuẩn xác với môn bạn tự tin (${chosenSub.label}) và định hướng ${chosenEnv.label}.`
-        },
-        {
-          code: secondaryComboCode,
-          matchPercent: 89,
-          reason: `Phương án thay thế cân bằng giữa các môn thi cho nhóm trường ${chosenTier.label}.`
-        },
-        {
-          code: tertiaryComboCode,
-          matchPercent: 82,
-          reason: `Phương án dự phòng an toàn mở rộng cơ hội trúng tuyển và giảm áp lực điểm chuẩn.`
-        }
-      ];
+      const combos: SuggestedComboItem[] = detectedDomainType === 'UNDECIDED'
+        ? [
+            {
+              code: primaryComboCode,
+              matchPercent: effectiveConfidence >= 90 ? 96 : 90,
+              matchLabel: 'Độ an toàn',
+              reason: `Giải pháp an toàn tối ưu sau khi loại trừ môn bạn ngại (${chosenSub.label}) và hướng tới ${chosenEnv.tag}.`
+            },
+            {
+              code: secondaryComboCode,
+              matchPercent: 88,
+              matchLabel: 'Độ phủ',
+              reason: `Phương án thay thế cân bằng cho định hướng ${chosenTier.label}.`
+            },
+            {
+              code: tertiaryComboCode,
+              matchPercent: 80,
+              matchLabel: 'Dự phòng',
+              reason: `Phương án mở rộng thêm cơ hội tuyển sinh không lo trượt đại học.`
+            }
+          ]
+        : [
+            {
+              code: primaryComboCode,
+              matchPercent: effectiveConfidence >= 90 ? 98 : 94,
+              matchLabel: 'Khớp',
+              reason: `Khớp chuẩn xác với môn bạn tự tin (${chosenSub.label}) và định hướng ${chosenEnv.label}.`
+            },
+            {
+              code: secondaryComboCode,
+              matchPercent: 89,
+              matchLabel: 'Khớp',
+              reason: `Phương án thay thế cân bằng giữa các môn thi cho nhóm trường ${chosenTier.label}.`
+            },
+            {
+              code: tertiaryComboCode,
+              matchPercent: 82,
+              matchLabel: 'Dự phòng',
+              reason: `Phương án dự phòng an toàn mở rộng cơ hội trúng tuyển và giảm áp lực điểm chuẩn.`
+            }
+          ];
 
       setAnalysisText(fullAnalysis);
       setSuggestedCombos(combos);
@@ -2257,15 +2443,59 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="pt-3 border-t border-[#1E3A8A]/30 space-y-2.5"
+                  className="pt-3 border-t border-[#1E3A8A]/30 space-y-3"
                 >
-                  <div className="text-[11px] font-mono text-[#94A3B8] uppercase tracking-wider font-semibold">
-                    Hãy bấm chọn 1 tổ hợp môn phù hợp nhất với bạn để tiếp tục:
+                  {/* Discovery Triage Banner if user is undecided or lacks direction */}
+                  {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput)) && (
+                    <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-[#172033] via-[#0F172A] to-[#111827] border border-[#3B82F6]/40 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-[#2563EB]/25 text-[#60A5FA] mt-0.5 shrink-0 border border-[#3B82F6]/30">
+                          <Compass className="w-5 h-5 animate-pulse text-[#60A5FA]" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-bold text-white flex items-center gap-2">
+                            <span>Bạn vẫn đang bối rối &amp; chưa biết mình giỏi môn gì?</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">Đừng chọn vội!</span>
+                          </div>
+                          <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                            Không ai có thể chọn đúng tổ hợp nếu chưa thu thập đủ yếu tố (loại trừ môn ngại nhất, môi trường làm việc RIASEC, điều kiện tài chính). Hãy để AI hỏi thêm 3 câu để định vị chuẩn xác!
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sfx.playUiClick();
+                          setDetectedDomainType('UNDECIDED');
+                          setWorkflowStep('INTERMEDIATE_DISCOVERY');
+                        }}
+                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 transition-transform active:scale-95 cursor-pointer"
+                      >
+                        <Sliders className="w-3.5 h-3.5" />
+                        <span>Mở 3 Bước Thăm Dò Năng Lực</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="text-[11px] font-mono text-[#94A3B8] uppercase tracking-wider font-semibold">
+                      {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput))
+                        ? 'Gợi ý 3 tổ hợp môn có độ phủ tuyển sinh an toàn số 1 toàn quốc:'
+                        : 'Hãy bấm chọn 1 tổ hợp môn phù hợp nhất với bạn để tiếp tục:'}
+                    </div>
+                    {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput)) && (
+                      <span className="text-[10px] text-amber-400/90 font-mono italic">
+                        * Bạn có thể bấm xem thử lộ trình mà không bắt buộc phải chốt ngay!
+                      </span>
+                    )}
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {suggestedCombos.map((combo) => {
                       const isSelected = selectedComboCode === combo.code;
                       const cData = getOrSynthesizeComboData(combo.code);
+                      const isLost = (detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput));
                       return (
                         <div
                           key={combo.code}
@@ -2273,7 +2503,7 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
                           className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
                             isSelected
                               ? 'bg-[#2563EB] text-white border-[#60A5FA] shadow-[0_0_20px_rgba(37,99,235,0.4)] scale-[1.02]'
-                              : 'bg-[#10141D] border-[#222836] hover:border-[#3B82F6]'
+                              : 'bg-[#10141D] border-[#222838] hover:border-[#3B82F6]'
                           }`}
                         >
                           <div>
@@ -2297,7 +2527,7 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
                             <span className={`text-[11px] font-medium font-mono flex items-center gap-1 ${
                               isSelected ? 'text-white font-bold' : 'text-[#60A5FA] group-hover:underline'
                             }`}>
-                              <span>Chọn tổ hợp này</span>
+                              <span>{isLost ? 'Xem thử lộ trình tổ hợp này' : 'Chọn tổ hợp này'}</span>
                               <ArrowRight className="w-3 h-3" />
                             </span>
                           </div>
