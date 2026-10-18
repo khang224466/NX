@@ -87,39 +87,247 @@ function renderFormattedInline(text: string) {
   });
 }
 
-const MarkdownMessageView: React.FC<{ content: string }> = ({ content }) => {
-  const lines = content.split('\n');
+interface ParsedTableBlock {
+  type: 'table';
+  headers: string[];
+  alignments: ('left' | 'center' | 'right')[];
+  rows: string[][];
+}
 
-  return (
-    <div className="space-y-2 text-xs sm:text-sm leading-relaxed text-[#D8DFEB]">
-      {lines.map((line, idx) => {
-        const trimmed = line.trim();
+interface ParsedCodeBlock {
+  type: 'code';
+  lang: string;
+  code: string;
+}
 
-        if (!trimmed) {
-          return <div key={idx} className="h-1.5" />;
+interface ParsedTextBlock {
+  type: 'section_header' | 'quote' | 'bullet' | 'numbered' | 'hr' | 'paragraph';
+  content: string;
+  meta?: any;
+}
+
+type ContentBlock = ParsedTableBlock | ParsedCodeBlock | ParsedTextBlock;
+
+function parseMarkdownBlocks(content: string): ContentBlock[] {
+  const rawLines = content.split('\n');
+  const blocks: ContentBlock[] = [];
+  let i = 0;
+
+  while (i < rawLines.length) {
+    const line = rawLines[i];
+    const trimmed = line.trim();
+
+    // 1. Code blocks
+    if (trimmed.startsWith('```')) {
+      const lang = trimmed.slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < rawLines.length && !rawLines[i].trim().startsWith('```')) {
+        codeLines.push(rawLines[i]);
+        i++;
+      }
+      i++; // skip closing ```
+      blocks.push({
+        type: 'code',
+        lang,
+        code: codeLines.join('\n')
+      });
+      continue;
+    }
+
+    // 2. Table blocks (lines starting with | and ending with |)
+    if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2) {
+      const tableLines: string[] = [];
+      while (i < rawLines.length && rawLines[i].trim().startsWith('|') && rawLines[i].trim().endsWith('|')) {
+        tableLines.push(rawLines[i].trim());
+        i++;
+      }
+
+      if (tableLines.length >= 2) {
+        const rawHeaders = tableLines[0].split('|').slice(1, -1).map(c => c.trim());
+        let alignments: ('left' | 'center' | 'right')[] = rawHeaders.map(() => 'left');
+        let dataStartIndex = 1;
+
+        if (tableLines.length > 1 && tableLines[1].includes('-')) {
+          const sepCols = tableLines[1].split('|').slice(1, -1).map(c => c.trim());
+          alignments = sepCols.map(col => {
+            if (col.startsWith(':') && col.endsWith(':')) return 'center';
+            if (col.endsWith(':')) return 'right';
+            return 'left';
+          });
+          dataStartIndex = 2;
         }
 
-        if (trimmed === '---' || trimmed === '***') {
+        const rows: string[][] = [];
+        for (let r = dataStartIndex; r < tableLines.length; r++) {
+          const cols = tableLines[r].split('|').slice(1, -1).map(c => c.trim());
+          rows.push(cols);
+        }
+
+        blocks.push({
+          type: 'table',
+          headers: rawHeaders,
+          alignments,
+          rows
+        });
+        continue;
+      }
+    }
+
+    // 3. Horizontal rules
+    if (trimmed === '---' || trimmed === '***') {
+      blocks.push({ type: 'hr', content: '' });
+      i++;
+      continue;
+    }
+
+    // 4. Section headers
+    if (
+      trimmed.includes('PHẦN 1:') ||
+      trimmed.includes('PHẦN 2:') ||
+      trimmed.includes('PHẦN 3:') ||
+      trimmed.includes('PHẦN 4:') ||
+      trimmed.includes('HÀNH ĐỘNG CỤ THỂ') ||
+      trimmed.startsWith('####') ||
+      trimmed.startsWith('###') ||
+      trimmed.startsWith('##')
+    ) {
+      blocks.push({ type: 'section_header', content: trimmed });
+      i++;
+      continue;
+    }
+
+    // 5. Quote / Callout
+    if (trimmed.startsWith('>')) {
+      blocks.push({ type: 'quote', content: trimmed.replace(/^>\s*/, '') });
+      i++;
+      continue;
+    }
+
+    // 6. Bullet items
+    if (trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      blocks.push({ type: 'bullet', content: trimmed.replace(/^[•\-\*]\s*/, '') });
+      i++;
+      continue;
+    }
+
+    // 7. Numbered list
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+    if (numMatch) {
+      blocks.push({ type: 'numbered', content: numMatch[2], meta: { num: numMatch[1] } });
+      i++;
+      continue;
+    }
+
+    // 8. Normal paragraph
+    if (trimmed) {
+      blocks.push({ type: 'paragraph', content: trimmed });
+    }
+    i++;
+  }
+
+  return blocks;
+}
+
+const MarkdownMessageView: React.FC<{ content: string }> = ({ content }) => {
+  const blocks = parseMarkdownBlocks(content);
+
+  return (
+    <div className="space-y-2.5 text-xs sm:text-sm leading-relaxed text-[#D8DFEB]">
+      {blocks.map((block, idx) => {
+        if (block.type === 'hr') {
           return <hr key={idx} className="border-white/10 my-3" />;
         }
 
-        // Section Headers
-        if (
-          trimmed.includes('PHẦN 1:') ||
-          trimmed.includes('PHẦN 2:') ||
-          trimmed.includes('PHẦN 3:') ||
-          trimmed.includes('PHẦN 4:') ||
-          trimmed.includes('HÀNH ĐỘNG CỤ THỂ') ||
-          trimmed.startsWith('###') ||
-          trimmed.startsWith('##')
-        ) {
-          const isP1 = trimmed.includes('PHẦN 1') || trimmed.includes('THIÊN HƯỚNG');
-          const isP2 = trimmed.includes('PHẦN 2') || trimmed.includes('TOP 3');
-          const isP3 = trimmed.includes('PHẦN 3') || trimmed.includes('MA TRẬN');
-          const isP4 = trimmed.includes('PHẦN 4') || trimmed.includes('LỘ TRÌNH');
-          const isAction = trimmed.includes('HÀNH ĐỘNG');
+        if (block.type === 'code') {
+          return (
+            <div key={idx} className="my-2.5 rounded-xl overflow-hidden border border-white/10 bg-[#090D14] shadow-md font-mono text-xs">
+              {block.lang && (
+                <div className="px-3 py-1 bg-white/5 border-b border-white/10 text-[10px] text-cyan-400 font-semibold uppercase">
+                  {block.lang}
+                </div>
+              )}
+              <pre className="p-3 overflow-x-auto text-emerald-300 leading-relaxed text-[11px]">
+                <code>{block.code}</code>
+              </pre>
+            </div>
+          );
+        }
 
-          const borderColor = isP1
+        if (block.type === 'table') {
+          return (
+            <div key={idx} className="overflow-x-auto my-3 rounded-xl border border-cyan-500/25 bg-[#090D16] shadow-xl">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-[#121B2D] text-cyan-300 font-mono text-[11px] border-b border-white/10 uppercase tracking-wider">
+                  <tr>
+                    {block.headers.map((h, i) => (
+                      <th
+                        key={i}
+                        className={`px-3.5 py-2.5 font-bold ${
+                          block.alignments[i] === 'right' ? 'text-right' : block.alignments[i] === 'center' ? 'text-center' : 'text-left'
+                        }`}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5 font-sans">
+                  {block.rows.map((row, rIdx) => (
+                    <tr key={rIdx} className="hover:bg-white/[0.04] transition-colors">
+                      {row.map((cell, cIdx) => {
+                        const isPercentage = cell.includes('%') || (block.headers[cIdx]?.includes('%') && !isNaN(parseFloat(cell)));
+                        const numVal = parseFloat(cell);
+                        const isNumeric = !isNaN(numVal) && !isNaN(Number(cell));
+
+                        return (
+                          <td
+                            key={cIdx}
+                            className={`px-3.5 py-2 ${
+                              block.alignments[cIdx] === 'right' ? 'text-right' : block.alignments[cIdx] === 'center' ? 'text-center' : 'text-left'
+                            }`}
+                          >
+                            {isPercentage ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-md font-mono text-[11px] font-bold ${
+                                  numVal >= 25
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                    : numVal >= 15
+                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                    : numVal > 0
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                    : 'bg-zinc-500/20 text-zinc-400 border border-zinc-500/30'
+                                }`}
+                              >
+                                {cell}
+                              </span>
+                            ) : isNumeric ? (
+                              <span className="font-mono text-cyan-200 font-semibold">{cell}</span>
+                            ) : (
+                              <span className="text-zinc-200">{renderFormattedInline(cell)}</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+
+        if (block.type === 'section_header') {
+          const isP1 = block.content.includes('PHẦN 1') || block.content.includes('THIÊN HƯỚNG');
+          const isP2 = block.content.includes('PHẦN 2') || block.content.includes('TOP 3');
+          const isP3 = block.content.includes('PHẦN 3') || block.content.includes('MA TRẬN');
+          const isP4 = block.content.includes('PHẦN 4') || block.content.includes('LỘ TRÌNH');
+          const isStats = block.content.includes('DỮ LIỆU THỰC CHỨNG') || block.content.includes('KHOA HỌC') || block.content.includes('TRI THỨC');
+          const isAction = block.content.includes('HÀNH ĐỘNG');
+
+          const borderColor = isStats
+            ? 'border-cyan-500/60 bg-cyan-950/40 text-cyan-200'
+            : isP1
             ? 'border-cyan-500/50 bg-cyan-950/30 text-cyan-200'
             : isP2
             ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-200'
@@ -131,7 +339,7 @@ const MarkdownMessageView: React.FC<{ content: string }> = ({ content }) => {
             ? 'border-blue-500/50 bg-blue-950/30 text-blue-200'
             : 'border-white/20 bg-white/5 text-white';
 
-          const cleanTitle = trimmed.replace(/^#+\s*/, '').replace(/^\*\*|\*\*$/g, '');
+          const cleanTitle = block.content.replace(/^#+\s*/, '').replace(/^\*\*|\*\*$/g, '');
 
           return (
             <div
@@ -144,43 +352,38 @@ const MarkdownMessageView: React.FC<{ content: string }> = ({ content }) => {
           );
         }
 
-        // Callout quote
-        if (trimmed.startsWith('>')) {
+        if (block.type === 'quote') {
           return (
             <div
               key={idx}
               className="border-l-2 border-amber-400 pl-3 py-1.5 my-1.5 text-zinc-300 italic bg-amber-500/10 rounded-r text-xs"
             >
-              {renderFormattedInline(trimmed.replace(/^>\s*/, ''))}
+              {renderFormattedInline(block.content)}
             </div>
           );
         }
 
-        // Bullet item
-        if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
-          const text = trimmed.replace(/^[•\-\*]\s*/, '');
+        if (block.type === 'bullet') {
           return (
             <div key={idx} className="flex items-start gap-2 pl-2">
               <span className="text-blue-400 font-bold shrink-0 mt-0.5">•</span>
-              <div className="flex-1">{renderFormattedInline(text)}</div>
+              <div className="flex-1">{renderFormattedInline(block.content)}</div>
             </div>
           );
         }
 
-        // Numbered list item
-        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
-        if (numMatch) {
+        if (block.type === 'numbered') {
           return (
             <div key={idx} className="flex items-start gap-2 pl-1 my-1">
               <span className="w-5 h-5 rounded-md bg-blue-500/20 border border-blue-500/30 text-blue-300 font-mono text-[11px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
-                {numMatch[1]}
+                {block.meta?.num}
               </span>
-              <div className="flex-1">{renderFormattedInline(numMatch[2])}</div>
+              <div className="flex-1">{renderFormattedInline(block.content)}</div>
             </div>
           );
         }
 
-        return <p key={idx}>{renderFormattedInline(trimmed)}</p>;
+        return <p key={idx}>{renderFormattedInline(block.content)}</p>;
       })}
     </div>
   );
@@ -398,11 +601,12 @@ Bạn đang quan tâm đến ngành nghề nào hoặc muốn tìm trường the
   };
 
   const sampleQuestions = [
-    '⚽ Em thích đá banh / thể thao thì học ngành gì, trường nào?',
-    '💻 Tư vấn định hướng Công nghệ thông tin & Trí tuệ nhân tạo',
-    '💼 Ngành Kinh doanh, Marketing & Logistics cơ hội ra sao?',
-    '🏛️ Điểm tầm 24–26 nên lập ma trận 3 tầng trường thế nào?',
-    '🔄 Khi lỡ chọn ngành không hợp thì có cách chuyển hướng an toàn nào?'
+    '📊 Tỷ lệ làm trái ngành theo nhóm ngành trong tập dữ liệu CV?',
+    '💼 So sánh nhu cầu tuyển dụng & kỹ năng CNTT vs Quản trị kinh doanh',
+    '🤖 Muốn theo AI & Khoa học dữ liệu thì xét tuyển ngành nào?',
+    '📉 Tỷ lệ thất nghiệp lao động trẻ & quy định bảo hiểm việc làm',
+    '⚽ Em thích thể thao / bóng đá thì học ngành gì, trường nào?',
+    '🏛️ Điểm tầm 24–26 nên lập ma trận 3 tầng trường thế nào?'
   ];
 
   if (!isOpen) return null;

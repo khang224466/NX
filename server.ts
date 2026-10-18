@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import path from 'path';
 import fs from 'fs';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -33,6 +34,130 @@ app.get('/api/ai/status', (req, res) => {
     recommendedModel: hasGroqKey ? 'llama-3.3-70b-versatile (Groq Speed)' : 'gemini-3.8-flash (Search Grounded)',
     systemTime: new Date().toISOString(),
   });
+});
+
+// =============================================================================
+// BACKEND API: HYBRID CAREER DATA & MISMATCH AI ENGINE (DUCKDB + CHROMADB RAG)
+// =============================================================================
+const PYTHON_CANDIDATE_PATHS = [
+  process.env.PYTHON_PATH,
+  'C:\\Users\\LEGION\\AppData\\Local\\Programs\\DeepSeek Harness\\resources\\runtime\\primary-runtime\\dependencies\\python\\python.exe',
+  'python',
+  'py'
+].filter(Boolean) as string[];
+
+function resolvePythonExecutable(): string {
+  for (const p of PYTHON_CANDIDATE_PATHS) {
+    if (fs.existsSync(p)) return p;
+  }
+  return 'python';
+}
+
+function resolveScriptPath(scriptName: string): string {
+  const localPath = path.resolve(__dirname, 'scripts', scriptName);
+  if (fs.existsSync(localPath)) return localPath;
+  const rootPath = path.resolve('D:\\scripts', scriptName);
+  if (fs.existsSync(rootPath)) return rootPath;
+  return localPath;
+}
+
+// Endpoint: Truy vấn số liệu thực chứng & tư vấn hướng nghiệp từ Hybrid DB
+app.post('/api/ai/career-query', async (req, res) => {
+  const { question } = req.body;
+  if (!question || typeof question !== 'string') {
+    return res.status(400).json({ success: false, error: 'Thiếu tham số question' });
+  }
+
+  const scriptPath = resolveScriptPath('query_api_bridge.py');
+  const pythonPath = resolvePythonExecutable();
+
+  try {
+    const pythonProc = spawn(pythonPath, [scriptPath, '--question', question], {
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+      cwd: __dirname
+    });
+
+    let stdoutData = '';
+    let stderrData = '';
+
+    pythonProc.stdout.on('data', (chunk) => {
+      stdoutData += chunk.toString('utf-8');
+    });
+
+    pythonProc.stderr.on('data', (chunk) => {
+      stderrData += chunk.toString('utf-8');
+    });
+
+    pythonProc.on('close', (code) => {
+      if (code !== 0 && !stdoutData.trim()) {
+        console.warn('[Career Query Bridge Error]', stderrData);
+        return res.status(500).json({
+          success: false,
+          error: stderrData || `Python process exited with code ${code}`
+        });
+      }
+
+      try {
+        const parsed = JSON.parse(stdoutData.trim());
+        res.json({
+          success: true,
+          ...parsed
+        });
+      } catch (parseErr) {
+        res.json({
+          success: true,
+          reply: stdoutData.trim(),
+          source: 'HYBRID_ENGINE_RAW'
+        });
+      }
+    });
+
+    // 20s safety timeout
+    setTimeout(() => {
+      if (!pythonProc.killed) {
+        pythonProc.kill();
+      }
+    }, 20000);
+
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Lỗi khi gọi Python AI Query Engine'
+    });
+  }
+});
+
+// Endpoint: Thống kê tổng kho dữ liệu thực chứng (DuckDB & ChromaDB)
+app.get('/api/ai/career-data-summary', async (req, res) => {
+  const scriptPath = resolveScriptPath('query_api_bridge.py');
+  const pythonPath = resolvePythonExecutable();
+
+  try {
+    const pythonProc = spawn(pythonPath, [scriptPath, '--question', 'Tỷ lệ làm trái ngành theo nhóm ngành trong tập dữ liệu CV'], {
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+      cwd: __dirname
+    });
+
+    let stdoutData = '';
+    pythonProc.stdout.on('data', (chunk) => { stdoutData += chunk.toString('utf-8'); });
+    pythonProc.on('close', () => {
+      try {
+        const parsed = JSON.parse(stdoutData.trim());
+        res.json({
+          success: true,
+          databaseSummary: {
+            duckdbPath: 'data/career_guidance.duckdb',
+            chromaPath: 'data/chroma_db',
+            mismatchAnalysis: parsed.sql_analysis?.data || []
+          }
+        });
+      } catch {
+        res.json({ success: false, error: 'Không thể phân tích dữ liệu tổng hợp' });
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // =============================================================================

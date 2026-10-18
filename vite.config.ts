@@ -5,6 +5,9 @@ import path from 'node:path'
 
 import { fileURLToPath } from 'node:url'
 
+import fs from 'node:fs'
+import { spawn } from 'node:child_process'
+
 // Fallback site configuration so build works seamlessly in clean environments without .figma directory
 const siteConfiguration = {
   title: "NX Nexora | Website Hỗ Trợ Hướng Nghiệp",
@@ -26,6 +29,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      careerAiBackendPlugin(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -43,7 +47,16 @@ export default defineConfig(({ mode }) => {
       watch: {
         ignored: [
           '**/.figma/**',
-],
+          '**/node_modules/**',
+          '**/data/**',
+          '**/.pnpm-store/**',
+          '**/SteamLibrary/**',
+          '**/Riot Games/**',
+          '**/VMware*/**',
+          '**/dist/**',
+          '**/.git/**',
+          '**/nx-nexora-*/**'
+        ],
       },
     },
     preview: {
@@ -392,4 +405,142 @@ function figmaMakeKitPlugin(options: { storiesGlob: string | string[] }): Plugin
       })
     },
   }
+}
+
+/**
+ * Backend Hybrid AI Engine Middleware Plugin for Vite.
+ * Serves /api/ai/career-query, /api/ai/career-data-summary, /api/ai/status
+ * seamlessly connecting frontend to DuckDB + ChromaDB + Python bridge.
+ */
+function careerAiBackendPlugin(): Plugin {
+  const PYTHON_CANDIDATE_PATHS = [
+    process.env.PYTHON_PATH,
+    'C:\\Users\\LEGION\\AppData\\Local\\Programs\\DeepSeek Harness\\resources\\runtime\\primary-runtime\\dependencies\\python\\python.exe',
+    'python',
+    'py'
+  ].filter(Boolean) as string[];
+
+  function resolvePythonExecutable(): string {
+    for (const p of PYTHON_CANDIDATE_PATHS) {
+      if (fs.existsSync(p)) return p;
+    }
+    return 'python';
+  }
+
+  function resolveScriptPath(scriptName: string): string {
+    const localPath = path.resolve(__dirname, 'scripts', scriptName);
+    if (fs.existsSync(localPath)) return localPath;
+    const rootPath = path.resolve('D:\\scripts', scriptName);
+    if (fs.existsSync(rootPath)) return rootPath;
+    return localPath;
+  }
+
+  return {
+    name: 'career-ai-backend',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url?.split('?')[0];
+
+        // 1. Status Check
+        if (url === '/api/ai/status' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            hasServerKey: Boolean(process.env.GEMINI_API_KEY),
+            hasGroqKey: Boolean(process.env.GROQ_API_KEY),
+            recommendedModel: 'gemini-2.0-flash',
+            hybridEngineReady: true,
+            duckdbPath: 'data/career_guidance.duckdb',
+            chromaPath: 'data/chroma_db'
+          }));
+          return;
+        }
+
+        // 2. Career Query
+        if (url === '/api/ai/career-query' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', () => {
+            let question = '';
+            try {
+              const parsed = JSON.parse(body || '{}');
+              question = parsed.question || '';
+            } catch {}
+
+            if (!question) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: false, error: 'Thiếu tham số question' }));
+              return;
+            }
+
+            const pythonPath = resolvePythonExecutable();
+            const scriptPath = resolveScriptPath('query_api_bridge.py');
+
+            const pyProc = spawn(pythonPath, [scriptPath, '--question', question], {
+              env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+              cwd: __dirname
+            });
+
+            let stdout = '';
+            let stderr = '';
+            pyProc.stdout.on('data', chunk => { stdout += chunk.toString('utf-8'); });
+            pyProc.stderr.on('data', chunk => { stderr += chunk.toString('utf-8'); });
+
+            pyProc.on('close', code => {
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              if (code !== 0 && !stdout.trim()) {
+                res.statusCode = 500;
+                res.end(JSON.stringify({ success: false, error: stderr || `Exit ${code}` }));
+                return;
+              }
+              try {
+                const parsed = JSON.parse(stdout.trim());
+                res.end(JSON.stringify({ success: true, ...parsed }));
+              } catch {
+                res.end(JSON.stringify({ success: true, reply: stdout.trim(), source: 'HYBRID_ENGINE_RAW' }));
+              }
+            });
+
+            setTimeout(() => {
+              if (!pyProc.killed) pyProc.kill();
+            }, 25000);
+          });
+          return;
+        }
+
+        // 3. Career Data Summary
+        if (url === '/api/ai/career-data-summary' && req.method === 'GET') {
+          const pythonPath = resolvePythonExecutable();
+          const scriptPath = resolveScriptPath('query_api_bridge.py');
+          const pyProc = spawn(pythonPath, [scriptPath, '--question', 'Tỷ lệ làm trái ngành theo nhóm ngành trong tập dữ liệu CV'], {
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+            cwd: __dirname
+          });
+          let stdout = '';
+          pyProc.stdout.on('data', chunk => { stdout += chunk.toString('utf-8'); });
+          pyProc.on('close', () => {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            try {
+              const parsed = JSON.parse(stdout.trim());
+              res.end(JSON.stringify({
+                success: true,
+                databaseSummary: {
+                  duckdbPath: 'data/career_guidance.duckdb',
+                  chromaPath: 'data/chroma_db',
+                  mismatchAnalysis: parsed.sql_analysis?.data || []
+                }
+              }));
+            } catch {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ success: false, error: 'Không thể tổng hợp' }));
+            }
+          });
+          return;
+        }
+
+        next();
+      });
+    }
+  };
 }

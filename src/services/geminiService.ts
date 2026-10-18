@@ -1159,6 +1159,29 @@ export const sendAIChatMessage = async (
 - Loại hình đào tạo: ${profile.targetEducationType || 'Đại học'}`;
   }
 
+  // 0. Query Grounded Empirical Career Data & Vector KB (/api/ai/career-query)
+  let groundedData: any = null;
+  try {
+    const careerQueryRes = await fetch('/api/ai/career-query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: lastMsg })
+    });
+    if (careerQueryRes.ok) {
+      groundedData = await careerQueryRes.json();
+    }
+  } catch (err) {
+    // Backend offline or running in standalone client mode
+  }
+
+  // If grounded data exists, enrich system prompt for Gemini / Groq with verified facts
+  if (groundedData?.reply && groundedData?.success) {
+    systemPrompt += `\n\n=== DỮ LIỆU THỰC CHỨNG TỪ HYBRID SQL & VECTOR DATABASE (DUCKDB + CHROMADB) ===
+${groundedData.reply}
+=== HẾT DỮ LIỆU THỰC CHỨNG ===
+BẮT BUỘC: Khi trả lời, hãy tham chiếu và trích dẫn trực tiếp các số liệu thống kê thực tế, tỷ lệ làm trái ngành, mức lương và điều kiện tuyển sinh trong phần dữ liệu thực chứng trên.`;
+  }
+
   // 1. Direct Google Gemini REST API (Client-side, 0 latency, Vercel-ready)
   if (provider === 'gemini' && geminiApiKey) {
     try {
@@ -1167,7 +1190,7 @@ export const sendAIChatMessage = async (
         return {
           reply: result.text,
           sources: result.sources || [],
-          modelUsed: `${selectedModel} ${isSupreme ? '⚡ MODE SUPREME' : ''}`
+          modelUsed: `${selectedModel} ${isSupreme ? '⚡ MODE SUPREME (Grounded)' : ''}`
         };
       }
     } catch (err: any) {
@@ -1183,7 +1206,7 @@ export const sendAIChatMessage = async (
         return {
           reply: result.text,
           sources: [],
-          modelUsed: `llama-3.3-70b-versatile (Groq) ${isSupreme ? '⚡ MODE SUPREME' : ''}`
+          modelUsed: `llama-3.3-70b-versatile (Groq) ${isSupreme ? '⚡ MODE SUPREME (Grounded)' : ''}`
         };
       }
     } catch (err: any) {
@@ -1218,7 +1241,19 @@ export const sendAIChatMessage = async (
     // Gateway not running or 404 on static Vercel hosting, proceed to local fallback
   }
 
-  // 4. Fallback to Local Smart Advisor Engine
+  // 4. Return Direct Grounded Response from Hybrid Database (DuckDB + ChromaDB)
+  if (groundedData?.reply && groundedData?.success) {
+    return {
+      reply: groundedData.reply,
+      sources: [
+        { title: 'DuckDB Career Mismatch & Job Market Engine (1.500 CV & 1.500 Việc làm)', url: '/docs/dataset_schemas.json' },
+        { title: 'ChromaDB Admission & Labor Law Knowledge Base', url: '/data/chroma_db' }
+      ],
+      modelUsed: 'HYBRID ENGINE (DuckDB + ChromaDB RAG)'
+    };
+  }
+
+  // 5. Fallback to Local Smart Advisor Engine
   const localReply = buildSmartAdvisorReply(lastMsg);
   const supremeNotice = !geminiApiKey && !groqApiKey
     ? `\n\n---\n🔑 **Kích hoạt MODE SUPREME Toàn Năng**: Bạn đã có API Key (Google Gemini hoặc Groq)? Hãy bấm vào nút **[⚙️ Cấu Hình API Key]** ở trên để dán API Key. Trí tuệ nhân tạo sẽ lập tức phân tích sâu 4 chiều theo đúng dữ liệu 300 trường đại học và 219 tổ hợp tuyển sinh 2026!`

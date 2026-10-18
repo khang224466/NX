@@ -52,7 +52,8 @@ import {
   callDirectGeminiAPI, 
   callDirectGroqAPI, 
   getStoredAiProvider, 
-  setStoredAiProvider 
+  setStoredAiProvider,
+  sendAIChatMessage
 } from '../services/geminiService';
 
 export interface CareerPathwayNavigatorProps {
@@ -1419,7 +1420,7 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ
   };
 
   // =========================================================================
-  // FOLLOW-UP Q&A HANDLER (API KEY INTERACTIVE CHAT)
+  // FOLLOW-UP Q&A HANDLER (HYBRID DUCKDB + CHROMADB + API KEY INTERACTIVE CHAT)
   // =========================================================================
   const handleSendFollowUp = async (customQuery?: string) => {
     const q = (customQuery || followUpInput).trim();
@@ -1434,43 +1435,25 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ
 
     const currentKey = apiKey || getStoredApiKey() || getStoredGroqKey();
 
-    if (!currentKey) {
-      setApiKeyInput('');
-      setShowApiKeyModal(true);
-      setIsAskingFollowUp(false);
-      return;
-    }
-
     try {
-      const systemPrompt = `Bạn là NEXORA SUPREME AI — Cố Vấn Tuyển Sinh & Hướng Nghiệp 2026 tại Việt Nam.
-Hãy trả lời câu hỏi tiếp theo của học sinh một cách ngắn gọn, súc tích, thực tế, kèm số liệu trường học, điểm chuẩn hoặc học phí nếu có. Không lạc đề.`;
+      const history = newMessages.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
 
-      let reply = '';
-      if (currentKey.startsWith('gsk_')) {
-        const res = await callDirectGroqAPI(
-          currentKey,
-          newMessages,
-          systemPrompt,
-          'llama-3.3-70b-versatile'
-        );
-        reply = res.text;
-      } else {
-        const res = await callDirectGeminiAPI(
-          currentKey,
-          newMessages,
-          systemPrompt,
-          'gemini-2.0-flash'
-        );
-        reply = res.text;
-      }
+      const res = await sendAIChatMessage(history, undefined, {
+        isSupremeMode: true,
+        selectedModel: 'gemini-2.0-flash',
+        provider: currentKey?.startsWith('gsk_') ? 'groq' : 'gemini'
+      });
 
-      setChatMessages([...newMessages, { role: 'model' as const, content: reply }]);
+      setChatMessages([...newMessages, { role: 'model' as const, content: res.reply }]);
       sfx.playActionSuccess();
     } catch (err: any) {
       console.error('Follow-up AI failed:', err);
       setChatMessages([
         ...newMessages,
-        { role: 'model' as const, content: `Xin lỗi, có lỗi kết nối API: ${err?.message || 'Vui lòng kiểm tra lại API Key'}.` }
+        { role: 'model' as const, content: `Xin lỗi, có lỗi kết nối: ${err?.message || 'Vui lòng thử lại sau.'}.` }
       ]);
     } finally {
       setIsAskingFollowUp(false);
@@ -2257,11 +2240,11 @@ Hãy trả lời câu hỏi tiếp theo của học sinh một cách ngắn gọ
                 <div className="pt-4 border-t border-[#1E3A8A]/30 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-mono text-[#60A5FA] flex items-center gap-1.5 font-semibold uppercase">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Hỏi Đáp Chuyên Sâu Cùng AI (Sử dụng API Key)
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      Hỏi Đáp Hướng Nghiệp & Phân Tích Thực Chứng (DuckDB + ChromaDB + AI)
                     </span>
-                    <span className="text-[10px] font-mono text-[#8E929F]">
-                      {apiKey ? (apiKey.startsWith('gsk_') ? 'Groq Llama-3.3' : 'Gemini 2.0 Flash') : 'Chưa có API Key'}
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                      {apiKey ? (apiKey.startsWith('gsk_') ? '⚡ Groq Llama-3.3' : '⚡ Gemini 2.0') : '⚡ Hybrid Engine (Không cần Key)'}
                     </span>
                   </div>
 
@@ -2299,7 +2282,7 @@ Hãy trả lời câu hỏi tiếp theo của học sinh một cách ngắn gọ
                       type="text"
                       value={followUpInput}
                       onChange={(e) => setFollowUpInput(e.target.value)}
-                      placeholder="Đặt câu hỏi tiếp theo cho AI (VD: Điểm chuẩn năm nay thế nào? Trường nào đào tạo tốt nhất?)..."
+                      placeholder="Đặt câu hỏi tiếp theo cho AI (VD: Điểm chuẩn năm nay thế nào? Tỷ lệ làm trái ngành theo CV?)..."
                       className="flex-1 bg-[#10141D] border border-[#262D3D] focus:border-[#3B82F6] text-white px-3.5 py-2.5 text-xs rounded-xl placeholder-[#64748B] focus:outline-none transition-colors"
                     />
                     <button
@@ -2325,10 +2308,10 @@ Hãy trả lời câu hỏi tiếp theo của học sinh một cách ngắn gọ
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     <span className="text-[10px] text-[#64748B] font-mono">Gợi ý hỏi tiếp:</span>
                     {[
+                      'Tỷ lệ làm trái ngành của nhóm này theo CV là bao nhiêu?',
+                      'So sánh cơ hội việc làm & kỹ năng cần thiết?',
                       'Trường nào xét tuyển tổ hợp này tốt nhất?',
-                      'Học phí ngành này khoảng bao nhiêu một năm?',
-                      'Cơ hội việc làm và mức lương khởi điểm?',
-                      'Nguy cơ bị AI thay thế của ngành này thế nào?'
+                      'Học phí ngành này khoảng bao nhiêu một năm?'
                     ].map((sugg, idx) => (
                       <button
                         key={idx}

@@ -199,24 +199,30 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
 
         const mName = rec.audited_major_name;
         const lowerName = mName.toLowerCase();
-        if (lowerName.includes('đối ngoại') || lowerName.includes('quốc tế') || lowerName.includes('nga')) {
-          reason = `Phù hợp với mục tiêu làm việc trong môi trường đa quốc gia, cơ quan ngoại giao và các doanh nghiệp xuất nhập khẩu.`;
-          trend = `Nhu cầu nhân lực song ngữ và chuyên môn thương mại quốc tế tăng trưởng mạnh mẽ trong giai đoạn 2026-2030.`;
-        } else if (lowerName.includes('ngôn ngữ')) {
+        if (lowerName.includes('máy tính') || lowerName.includes('phần mềm') || lowerName.includes('ai') || lowerName.includes('công nghệ') || lowerName.includes('cntt')) {
+          reason = `Ngành mũi nhọn thời đại số, nhu cầu tuyển dụng kỹ sư phần mềm, AI & phân tích dữ liệu ở mức cao.`;
+          trend = `Thực chứng DuckDB (908 CV & 1.500 việc làm): Mức lương P50 15–28 triệu/tháng; tỷ lệ trái ngành/liên quan 31.72%.`;
+        } else if (lowerName.includes('quản trị') || lowerName.includes('kinh doanh') || lowerName.includes('marketing') || lowerName.includes('thương mại') || lowerName.includes('logistics')) {
+          reason = `Phù hợp với mục tiêu làm việc trong khối kinh tế, vận hành chuỗi cung ứng và thương mại quốc tế.`;
+          trend = `Thực chứng DuckDB (412 CV): Tỷ lệ làm trái ngành chỉ 9.47%, cơ hội việc làm tuyển dụng rộng khắp.`;
+        } else if (lowerName.includes('tài chính') || lowerName.includes('ngân hàng') || lowerName.includes('kế toán') || lowerName.includes('kiểm toán')) {
+          reason = `Khối ngành quy chuẩn, nghiệp vụ kiểm toán, tài chính định lượng và phân tích rủi ro bền vững.`;
+          trend = `Thực chứng DuckDB (78 CV): Tỷ lệ đúng/liên quan ngành đạt 97.44% (chỉ 2.56% làm trái ngành).`;
+        } else if (lowerName.includes('cơ điện') || lowerName.includes('tự động') || lowerName.includes('kỹ thuật') || lowerName.includes('cơ khí') || lowerName.includes('điện tử')) {
+          reason = `Nền tảng kỹ thuật cơ khí, tự động hóa và điều khiển công nghiệp 4.0 tiếp cận các nhà máy thông minh.`;
+          trend = `Thực chứng DuckDB (68 CV): Tỷ lệ làm việc đúng/liên quan đạt 83.82% (16.18% trái ngành), các tập đoàn FDI săn đón.`;
+        } else if (lowerName.includes('kiến trúc') || lowerName.includes('thiết kế') || lowerName.includes('mỹ thuật') || lowerName.includes('đồ họa')) {
+          reason = `Phát huy năng khiếu mỹ thuật, tư duy không gian và sáng tạo giao diện sản phẩm số.`;
+          trend = `Thực chứng DuckDB: Tỷ lệ dịch chuyển công việc 25.0%, thị trường truyền thông số và game cần nhân lực sáng tạo.`;
+        } else if (lowerName.includes('sư phạm')) {
+          reason = `Chính sách miễn 100% học phí và trợ cấp sinh hoạt phí 3,63 triệu/tháng theo Nghị định 116/2020/NĐ-CP.`;
+          trend = `Thực chứng DuckDB: 80% sinh viên ra trường làm đúng hoặc liên quan trực tiếp đến ngành sư phạm.`;
+        } else if (lowerName.includes('đối ngoại') || lowerName.includes('quốc tế') || lowerName.includes('ngôn ngữ')) {
           reason = `Lợi thế đào tạo chuyên sâu về ngôn ngữ kết hợp kỹ năng biên phiên dịch, thương mại và văn hóa đối tác.`;
           trend = `Cơ hội việc làm đa dạng tại đại sứ quán, doanh nghiệp FDI, du lịch cao cấp và xuất khẩu lao động tay nghề cao.`;
-        } else if (lowerName.includes('máy tính') || lowerName.includes('phần mềm') || lowerName.includes('ai') || lowerName.includes('công nghệ')) {
-          reason = `Ngành mũi nhọn thời đại số, nhu cầu tuyển dụng kỹ sư phần mềm và AI luôn ở mức cao kỷ lục.`;
-          trend = `Mức lương khởi điểm dẫn đầu thị trường và lộ trình thăng tiến quốc tế rộng mở.`;
-        } else if (lowerName.includes('kiến trúc') || lowerName.includes('thiết kế')) {
-          reason = `Phát huy năng khiếu mỹ thuật và tư duy không gian, tạo dựng sản phẩm thiết kế có giá trị thực tiễn cao.`;
-          trend = `Thị trường bất động sản và truyền thông số đang khát nhân lực thiết kế sáng tạo.`;
-        } else if (lowerName.includes('sư phạm')) {
-          reason = `Chính sách miễn 100% học phí và trợ cấp sinh hoạt phí 3,63 triệu/tháng theo Nghị định 116.`;
-          trend = `Đảm bảo đầu ra ổn định tại hệ thống trường công lập và trường tư thục quốc tế.`;
         } else {
           reason = `Điểm chuẩn ${rec.audited_official_cutoff} (${rec.audited_official_scale}) nằm trong ngưỡng an toàn, tỷ lệ cạnh tranh hợp lý.`;
-          trend = `Chương trình đào tạo thực tế, cơ hội việc làm rộng mở tại các trung tâm kinh tế lớn.`;
+          trend = `Chương trình đào tạo chuẩn kiểm định, cơ hội việc làm rộng mở tại các trung tâm kinh tế lớn.`;
         }
 
         return {

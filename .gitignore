@@ -52,3 +52,11 @@ System Volume Information/
 /.figma/*
 !/.figma/make
 !/.figma/make/site.json
+
+# Python & Data Cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+data/*.wal
+data/*.tmp

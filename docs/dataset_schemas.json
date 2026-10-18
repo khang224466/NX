@@ -1,0 +1,1197 @@
+{
+  "title": "Hệ Thống Dữ Liệu Hướng Nghiệp & Phân Tích Thất Nghiệp / Trái Ngành Tại Việt Nam",
+  "description": "Cấu trúc Schema khám phá an toàn (streaming=True) của 9 bộ dữ liệu Hugging Face",
+  "inspection_timestamp": "2026-10-18",
+  "total_datasets": 9,
+  "datasets": {
+    "vnu-llm2023-ftdata/QA_TVTS_2024_DATASET": {
+      "dataset_id": "vnu-llm2023-ftdata/QA_TVTS_2024_DATASET",
+      "role": "Bộ câu hỏi - trả lời (Q&A) tư vấn tuyển sinh và định hướng ngành học",
+      "recommended_target": "Vector DB (RAG) + QA mẫu",
+      "status": "success",
+      "features": {
+        "id": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "xtt_utxt_001"
+        },
+        "question": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Cho em hỏi điều kiện để được xét tuyển thẳng vào trường theo quy định của Bộ Giáo dục và Đào tạo là gì ạ?"
+        },
+        "answer": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Theo Quy chế tuyển sinh của Bộ Giáo dục và Đào tạo (GD&ĐT), thí sinh đoạt giải nhất, nhì, ba trong kỳ thi chọn học sinh giỏi quốc gia, quốc tế hoặc th... [TRUNCATED]"
+        },
+        "reference": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "8. Chính sách ưu tiên: Xét tuyển thẳng; ưu tiên xét tuyển\n8.1. Nhóm đối tượng 1: Xét tuyển thẳng theo Quy chế tuyển sinh của Bộ GD&ĐT\nThí sinh đoạt gi... [TRUNCATED]"
+        },
+        "multi_intent": {
+          "inferred_python_type": "bool",
+          "has_nulls": false,
+          "preview": false
+        },
+        "insufficient_context": {
+          "inferred_python_type": "bool",
+          "has_nulls": false,
+          "preview": false
+        },
+        "reasoning_level": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 0
+        },
+        "topic": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "XTT-ƯTXT"
+        },
+        "question_type": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Cái gì"
+        }
+      },
+      "columns": [
+        "id",
+        "question",
+        "answer",
+        "reference",
+        "multi_intent",
+        "insufficient_context",
+        "reasoning_level",
+        "topic",
+        "question_type"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "id": "xtt_utxt_001",
+          "question": "Cho em hỏi điều kiện để được xét tuyển thẳng vào trường theo quy định của Bộ Giáo dục và Đào tạo là gì ạ?",
+          "answer": "Theo Quy chế tuyển sinh của Bộ Giáo dục và Đào tạo (GD&ĐT), thí sinh đoạt giải nhất, nhì, ba trong kỳ thi chọn học sinh giỏi quốc gia, quốc tế hoặc th... [TRUNCATED]",
+          "reference": "8. Chính sách ưu tiên: Xét tuyển thẳng; ưu tiên xét tuyển\n8.1. Nhóm đối tượng 1: Xét tuyển thẳng theo Quy chế tuyển sinh của Bộ GD&ĐT\nThí sinh đoạt gi... [TRUNCATED]",
+          "multi_intent": false,
+          "insufficient_context": false,
+          "reasoning_level": 0,
+          "topic": "XTT-ƯTXT",
+          "question_type": "Cái gì"
+        },
+        {
+          "id": "xtt_utxt_002",
+          "question": "Em là học sinh trường chuyên của tỉnh, đoạt giải Nhì học sinh giỏi cấp tỉnh môn Lý và có điểm trung bình chung 3 năm THPT là 8.7. Em có thuộc diện đượ... [TRUNCATED]",
+          "answer": "Thí sinh là học sinh trường THPT chuyên cấp tỉnh, tốt nghiệp THPT năm 2024, có học lực Giỏi và hạnh kiểm Tốt trong 3 năm học THPT, đồng thời đoạt giải... [TRUNCATED]",
+          "reference": "8.4. Nhóm đối tượng 4: Ưu tiên xét tuyển theo Quy định của ĐHQGHN\n8.4.1. Thí sinh là học sinh các trường THPT trên toàn quốc tốt nghiệp THPT năm 2024,... [TRUNCATED]",
+          "multi_intent": false,
+          "insufficient_context": false,
+          "reasoning_level": 1,
+          "topic": "XTT-ƯTXT",
+          "question_type": "Như thế nào"
+        },
+        {
+          "id": "xtt_utxt_003",
+          "question": "Nếu em đoạt giải Khuyến khích trong kỳ thi học sinh giỏi quốc gia thì em được hưởng chính sách gì từ trường ạ?",
+          "answer": "Thí sinh đoạt giải Khuyến khích trong kỳ thi chọn học sinh giỏi quốc gia và tốt nghiệp THPT năm 2024 sẽ được ưu tiên xét tuyển vào đại học của trường ... [TRUNCATED]",
+          "reference": "8.3. Nhóm đối tượng 3: Ưu tiên xét tuyển theo Quy chế tuyển sinh của Bộ GD&ĐT\n8.3.1. Thí sinh đoạt giải khuyến khích trong kỳ thi chọn học sinh giỏi q... [TRUNCATED]",
+          "multi_intent": false,
+          "insufficient_context": false,
+          "reasoning_level": 0,
+          "topic": "XTT-ƯTXT",
+          "question_type": "Cái gì"
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "H4438/dict-universities": {
+      "dataset_id": "H4438/dict-universities",
+      "role": "Thông tin cấu trúc về các trường ĐH Việt Nam",
+      "recommended_target": "SQL (universities_majors) + Vector DB",
+      "status": "success",
+      "features": {
+        "id": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 0
+        },
+        "input_condition": {
+          "inferred_python_type": "str",
+          "has_nulls": true,
+          "preview": "Ngưỡng đảm bảo chất lượng đầu vào sẽ căn cứ theo quy định của trường Đại học Khoa học Xã hội và Nhân văn. Riêng đối với chương trình đào tạo CLC, thí ... [TRUNCATED]"
+        },
+        "privilege": {
+          "inferred_python_type": "str",
+          "has_nulls": true,
+          "preview": "Được hưởng đầy đủ các quyền về đào tạo theo Quy chế đào tạo đại học hiện hành tại ĐHQGHN.\nĐược đăng ký dự tuyển đi học ở nước ngoài theo quy định hiện... [TRUNCATED]"
+        },
+        "addmission_target": {
+          "inferred_python_type": "str",
+          "has_nulls": true,
+          "preview": "Đối tượng, điều kiện tuyển sinh\nThí sinh đã tốt nghiệp chương trình THPT của Việt Nam (theo hình thức giáo dục chính quy hoặc giáo dục thường xuyên) h... [TRUNCATED]"
+        },
+        "history": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Ngày 21/12/1999, Khoa Sư phạm được thành lập là tiền thân của Trường Đại học Giáo dục. Ngày 03/04/2009, Trường Đại học Giáo dục được thành lập dựa trê... [TRUNCATED]"
+        },
+        "aims": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Trường Đại học Giáo dục là một trong những cơ sở giáo dục đào tạo và nghiên cứu chất lượng cao trong nước. Nhà trường đào tạo giáo viên, cán bộ quản l... [TRUNCATED]"
+        },
+        "addmission_method": {
+          "inferred_python_type": "str",
+          "has_nulls": true,
+          "preview": "Thí sinh thuộc đối tượng xét tuyển thẳng, ưu tiên xét tuyển và dự bị đại học xét tuyển theo Quy chế tuyển sinh hiện hành của Bộ Giáo dục và Đào tạo (G... [TRUNCATED]"
+        },
+        "facilities": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Hiện tại, Trường Đại học Giáo dục đang nằm trong khuôn viên của trường ĐHQGHN vì vậy nhà trường sử dụng chung cơ sở vật chất của trường ĐHQGHN. Có ký ... [TRUNCATED]"
+        },
+        "general_info": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Tên trường: Trường Đại học Giáo Dục – Hà Nội (tên tiếng Anh: VNU University of Education VNU – UED)\nĐịa chỉ: Nhà G7, số 144 Xuân Thủy, Cầu Giấy, Hà Nộ... [TRUNCATED]"
+        },
+        "satisfy": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Giảng viên8.6\nCơ sở vật chất8.0\nMôi trường HT8.2\nHoạt động ngoại khoá8.1\nCơ hội việc làm7\nTiến bộ bản thân8.6\nThủ tục hành chính7.2\nQuan tâm sinh viên... [TRUNCATED]"
+        },
+        "facility_points": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Giáo viên nước ngoài\nGiáo viên Việt Nam\nMáy lạnh\nMáy chiếu\nWifi\nThư viện"
+        },
+        "title": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Review Trường Đại học Giáo Dục Hà Nội (VNU-UED) có tốt không?"
+        },
+        "intro": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Trường Đại học Giáo dục (tiếng Anh: VNU University of Education, tên viết tắt: VNU-UEd hoặc UEd) là một trường đại học thành viên trực thuộc Đại học Q... [TRUNCATED]"
+        },
+        "phone": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "(024)730.17123"
+        },
+        "address": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Nhà G7, số 144 Xuân Thủy, Cầu Giấy, Hà Nội"
+        },
+        "rate": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "7.6Tốt Top 10"
+        },
+        "university": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Đại học Giáo Dục Hà Nội"
+        }
+      },
+      "columns": [
+        "id",
+        "input_condition",
+        "privilege",
+        "addmission_target",
+        "history",
+        "aims",
+        "addmission_method",
+        "facilities",
+        "general_info",
+        "satisfy",
+        "facility_points",
+        "title",
+        "intro",
+        "phone",
+        "address",
+        "rate",
+        "university"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "id": 0,
+          "input_condition": null,
+          "privilege": "Được hưởng đầy đủ các quyền về đào tạo theo Quy chế đào tạo đại học hiện hành tại ĐHQGHN.\nĐược đăng ký dự tuyển đi học ở nước ngoài theo quy định hiện... [TRUNCATED]",
+          "addmission_target": null,
+          "history": "Ngày 21/12/1999, Khoa Sư phạm được thành lập là tiền thân của Trường Đại học Giáo dục. Ngày 03/04/2009, Trường Đại học Giáo dục được thành lập dựa trê... [TRUNCATED]",
+          "aims": "Trường Đại học Giáo dục là một trong những cơ sở giáo dục đào tạo và nghiên cứu chất lượng cao trong nước. Nhà trường đào tạo giáo viên, cán bộ quản l... [TRUNCATED]",
+          "addmission_method": "Thí sinh thuộc đối tượng xét tuyển thẳng, ưu tiên xét tuyển và dự bị đại học xét tuyển theo Quy chế tuyển sinh hiện hành của Bộ Giáo dục và Đào tạo (G... [TRUNCATED]",
+          "facilities": "Hiện tại, Trường Đại học Giáo dục đang nằm trong khuôn viên của trường ĐHQGHN vì vậy nhà trường sử dụng chung cơ sở vật chất của trường ĐHQGHN. Có ký ... [TRUNCATED]",
+          "general_info": "Tên trường: Trường Đại học Giáo Dục – Hà Nội (tên tiếng Anh: VNU University of Education VNU – UED)\nĐịa chỉ: Nhà G7, số 144 Xuân Thủy, Cầu Giấy, Hà Nộ... [TRUNCATED]",
+          "satisfy": "Giảng viên8.6\nCơ sở vật chất8.0\nMôi trường HT8.2\nHoạt động ngoại khoá8.1\nCơ hội việc làm7\nTiến bộ bản thân8.6\nThủ tục hành chính7.2\nQuan tâm sinh viên... [TRUNCATED]",
+          "facility_points": "Giáo viên nước ngoài\nGiáo viên Việt Nam\nMáy lạnh\nMáy chiếu\nWifi\nThư viện",
+          "title": "Review Trường Đại học Giáo Dục Hà Nội (VNU-UED) có tốt không?",
+          "intro": "Trường Đại học Giáo dục (tiếng Anh: VNU University of Education, tên viết tắt: VNU-UEd hoặc UEd) là một trường đại học thành viên trực thuộc Đại học Q... [TRUNCATED]",
+          "phone": "(024)730.17123",
+          "address": "Nhà G7, số 144 Xuân Thủy, Cầu Giấy, Hà Nội",
+          "rate": "7.6Tốt Top 10",
+          "university": "Đại học Giáo Dục Hà Nội"
+        },
+        {
+          "id": 1,
+          "input_condition": null,
+          "privilege": "Ngoài những chính sách mà nhà trường đã đề ra trước đó. Khi theo học tại trường, sinh viên sẽ được:\nĐăng ký dự tuyển đi học ở nước ngoài theo quy định... [TRUNCATED]",
+          "addmission_target": "Đối tượng, điều kiện tuyển sinh\nThí sinh đã tốt nghiệp chương trình THPT của Việt Nam (theo hình thức giáo dục chính quy hoặc giáo dục thường xuyên) h... [TRUNCATED]",
+          "history": "Tiền thân của Đại học Khoa học Tự nhiên – Hà Nội là trường Đại học Đông Dương thành lập từ năm 1904. Trải qua hơn 50 năm xây dựng và phát triển, trườn... [TRUNCATED]",
+          "aims": "Mục tiêu phấn đấu xây dựng trường trở thành một đại học nghiên cứu đã được xác định từ lâu. Đại học Khoa học Tự nhiên – Đại học Quốc gia Hà Nội được k... [TRUNCATED]",
+          "addmission_method": null,
+          "facilities": "Trường hiện có 3 cơ sở trên địa bàn thành phố Hà Nội: trụ sở chính ở 334 Nguyễn Trãi, hai cơ sở phụ lần lượt tọa lạc tại 19 Lê Thánh Tông và 182 Lương... [TRUNCATED]",
+          "general_info": "Tên trường: Trường Đại học Khoa học Tự nhiên – Hà Nội (tên viết tắt: VNU – US hay Vietnam National University – University of Science).\nĐịa chỉ: Số 33... [TRUNCATED]",
+          "satisfy": "Giảng viên8.6\nCơ sở vật chất9.0\nMôi trường HT9.5\nHoạt động ngoại khoá8.0\nCơ hội việc làm8.5\nTiến bộ bản thân7.2\nThủ tục hành chính6.5\nQuan tâm sinh vi... [TRUNCATED]",
+          "facility_points": "Giáo viên nước ngoài\nGiáo viên Việt Nam\nMáy lạnh\nMáy chiếu\nWifi\nThư viện",
+          "title": "Review Trường Đại học Khoa học Tự nhiên – Hà Nội (VNU-US) có tốt không?",
+          "intro": "Đại học Khoa học Tự nhiên – Hà Nội, trực thuộc Đại học Quốc gia Hà Nội, là cơ sở giáo dục dẫn dẫn đầu cả nước về nghiên cứu, giảng dạy khoa học cơ bản... [TRUNCATED]",
+          "phone": "0243.557.9076",
+          "address": "Số 334 Nguyễn Trãi, phường Thanh Xuân Trung, quận Thanh Xuân, tp. Hà Nội",
+          "rate": "7,8Tốt Top 1",
+          "university": "Đại học Khoa học Tự nhiên – Hà Nội"
+        },
+        {
+          "id": 2,
+          "input_condition": "Ngưỡng đảm bảo chất lượng đầu vào sẽ căn cứ theo quy định của trường Đại học Khoa học Xã hội và Nhân văn. Riêng đối với chương trình đào tạo CLC, thí ... [TRUNCATED]",
+          "privilege": "Là trường đại học nổi tiếng lâu đời và chất lượng đào tạo tốt, USSH thường xuyên đánh giá, kiểm định chất lượng và đặc biệt hướng đến các tiêu chuẩn q... [TRUNCATED]",
+          "addmission_target": "Đối tượng xét tuyển: Được quy định cụ thể tại đề án tuyển sinh của trường.\nPhạm vi tuyển sinh: Trên cả nước.\n",
+          "history": "Ngày 10/10/1945, chủ tịch Hồ Chí Minh đã ký sắc lệnh thành lập Ban Đại học Văn khoa – tiền thân của trường với mong muốn xây dựng nơi đây trở thành mô... [TRUNCATED]",
+          "aims": "Hiện nay, Đại học Khoa học Xã hội và Nhân văn hoạt động với mục tiêu duy trì vị trí là trường ĐH dẫn đầu cả nước trong nghiên cứu, giảng dạy các ngành... [TRUNCATED]",
+          "addmission_method": "Kỳ tuyển sinh này, trường Đại học Khoa học Xã hội và Nhân văn áp dụng 3 phương thức xét tuyển như sau:\nPhương thức xét tuyển 1: Xét tuyển thẳng và ưu ... [TRUNCATED]",
+          "facilities": "Trường Đại học Khoa học Xã hội và Nhân văn có 9 dãy nhà cao tầng. Khu vực hành chính đặt tại tầng E1 tòa số 8. Những năm gần đây, ĐHQGHN triển khai ch... [TRUNCATED]",
+          "general_info": "Tên trường: Trường Đại học Khoa học Xã hội và Nhân văn – Đại học Quốc gia Hà Nội (tên viết tắt: VNU-USSH hay Vietnam National University – University ... [TRUNCATED]",
+          "satisfy": "Giảng viên7.2\nCơ sở vật chất9.4\nMôi trường HT7.4\nHoạt động ngoại khoá6.9\nCơ hội việc làm7.1\nTiến bộ bản thân10\nThủ tục hành chính6.9\nQuan tâm sinh viê... [TRUNCATED]",
+          "facility_points": "Giáo viên nước ngoài\nGiáo viên Việt Nam\nMáy lạnh\nMáy chiếu\nWifi\nThư viện",
+          "title": "Review Trường Đại học Khoa học Xã hội và Nhân văn – Hà Nội (VNU-USSH) có tốt không?",
+          "intro": "Đại học Khoa học Xã hội và Nhân văn – ĐHQGHN là cơ sở đứng đầu cả nước trong lĩnh vực đào tạo cũng như nghiên cứu các bộ môn khoa học xã hội và nhân v... [TRUNCATED]",
+          "phone": "0862.155.299",
+          "address": "336 Nguyễn Trãi, phường Thanh Xuân Trung, quận Thanh Xuân, thành phố Hà Nội.",
+          "rate": "7.6Tốt Top 10",
+          "university": "Đại học Khoa học Xã hội và Nhân văn – Hà Nội"
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "uitnlp/vietnamese_students_feedback": {
+      "dataset_id": "uitnlp/vietnamese_students_feedback",
+      "role": "Phản hồi sinh viên về chương trình đào tạo, giảng viên, cơ sở vật chất",
+      "recommended_target": "SQL (student_feedback / satisfaction)",
+      "status": "success",
+      "features": {
+        "sentence": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "thầy giảng dạy rất nhiệt tình và tâm huyết với sinh viên"
+        },
+        "sentiment": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 2,
+          "labels": [
+            "negative (0)",
+            "neutral (1)",
+            "positive (2)"
+          ]
+        },
+        "topic": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 0,
+          "labels": [
+            "lecturer (0)",
+            "training_program (1)",
+            "facility (2)",
+            "others (3)"
+          ]
+        }
+      },
+      "columns": [
+        "sentence",
+        "sentiment",
+        "topic"
+      ],
+      "sample_count": 3,
+      "samples": [
+        {
+          "sentence": "thầy dạy nhiệt tình, tài liệu đầy đủ dễ tiếp thu",
+          "sentiment": 2,
+          "topic": 0
+        },
+        {
+          "sentence": "chương trình đào tạo hơi nặng lý thuyết, cần thêm thực hành đồ án",
+          "sentiment": 0,
+          "topic": 1
+        },
+        {
+          "sentence": "cơ sở vật chất phòng máy tính hiện đại, điều hòa tốt",
+          "sentiment": 2,
+          "topic": 2
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "Nma/resume_dataset": {
+      "dataset_id": "Nma/resume_dataset",
+      "role": "Hơn 805.000 hồ sơ CV tiếng Việt",
+      "recommended_target": "SQL (candidate_resumes / resume_career_match)",
+      "status": "success",
+      "features": {
+        "text": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "đỗ sơn - prime visuallizer - prim3d studio | đỗ sơn 3d opertaion manager at schnellmedia vietnam hanoi, hanoi, vietnam s prim3d studio truòng dai hoc ... [TRUNCATED]"
+        }
+      },
+      "columns": [
+        "text"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "text": "đỗ sơn - prime visuallizer - prim3d studio | đỗ sơn 3d opertaion manager at schnellmedia vietnam hanoi, hanoi, vietnam s prim3d studio truòng dai hoc ... [TRUNCATED]"
+        },
+        {
+          "text": "vương bùi - university of social sciences and humanities (ussh) - ho chi minh city, vietnam | vương bùi social worker ho chi minh city, vietnam s s th... [TRUNCATED]"
+        },
+        {
+          "text": "nguyen truong giang - heavy lift supervisor - technipfmc | nguyen truong giang heavy lift supervisor at technipfmc vietnam s technipfmc industrial of ... [TRUNCATED]"
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "tinixai/vietnamese-job-descriptions": {
+      "dataset_id": "tinixai/vietnamese-job-descriptions",
+      "role": "Khoảng 607.000 tin tuyển dụng tiếng Việt",
+      "recommended_target": "SQL (job_postings_summary / job_market)",
+      "status": "success",
+      "features": {
+        "id": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 1
+        },
+        "job_title": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Java Software Engineer - MSCV 233-2"
+        },
+        "company_name": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "CÔNG TY TNHH QUICK VIỆT NAM"
+        },
+        "salary": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "26 - 36 triệu"
+        },
+        "location": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Hồ Chí Minh"
+        },
+        "job_type": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Toàn thời gian"
+        },
+        "job_industry": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "IT phần mềm"
+        },
+        "experience_level": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "3 năm"
+        },
+        "education_level": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Cao đẳng"
+        },
+        "job_position": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Nhân Viên"
+        },
+        "job_description": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Công ty vốn Nhật chuyên cung cấp dịch vụ điện toán đám mây (SaaS) Nội dung công việc:Phát triển hệ thống quản lý chi phí và công tác phí dành cho các ... [TRUNCATED]"
+        },
+        "benefits": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Lương: 1,000 ~ 1,400 USD (Gross) Phúc lợi: - Bảo Hiểm xã hội đóng trên Full lương Hợp đồng - Du lịch Công ty hàng năm, tài trợ 50% chi phí tour cho gi... [TRUNCATED]"
+        },
+        "requirements": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Yêu cầu: - Từ 25 ~ 39 tuổi - Trên 3 năm kinh nghiệm về kiến thức và đam mê lập trình ứng dụng web với: + JavaScript, jQuery. + Các Frameworks như Spri... [TRUNCATED]"
+        },
+        "year": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 2026
+        }
+      },
+      "columns": [
+        "id",
+        "job_title",
+        "company_name",
+        "salary",
+        "location",
+        "job_type",
+        "job_industry",
+        "experience_level",
+        "education_level",
+        "job_position",
+        "job_description",
+        "benefits",
+        "requirements",
+        "year"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "id": 1,
+          "job_title": "Java Software Engineer - MSCV 233-2",
+          "company_name": "CÔNG TY TNHH QUICK VIỆT NAM",
+          "salary": "26 - 36 triệu",
+          "location": "Hồ Chí Minh",
+          "job_type": "Toàn thời gian",
+          "job_industry": "IT phần mềm",
+          "experience_level": "3 năm",
+          "education_level": "Cao đẳng",
+          "job_position": "Nhân Viên",
+          "job_description": "Công ty vốn Nhật chuyên cung cấp dịch vụ điện toán đám mây (SaaS) Nội dung công việc:Phát triển hệ thống quản lý chi phí và công tác phí dành cho các ... [TRUNCATED]",
+          "benefits": "Lương: 1,000 ~ 1,400 USD (Gross) Phúc lợi: - Bảo Hiểm xã hội đóng trên Full lương Hợp đồng - Du lịch Công ty hàng năm, tài trợ 50% chi phí tour cho gi... [TRUNCATED]",
+          "requirements": "Yêu cầu: - Từ 25 ~ 39 tuổi - Trên 3 năm kinh nghiệm về kiến thức và đam mê lập trình ứng dụng web với: + JavaScript, jQuery. + Các Frameworks như Spri... [TRUNCATED]",
+          "year": 2026
+        },
+        {
+          "id": 2,
+          "job_title": "Software Engineer (Backend/Frontend) - Tiếng Trung",
+          "company_name": "CÔNG TY TNHH SONIC FUSION",
+          "salary": "15 - 35 triệu",
+          "location": "Hồ Chí Minh",
+          "job_type": "Toàn thời gian",
+          "job_industry": "IT phần mềm",
+          "experience_level": "Dưới 1 năm",
+          "education_level": "Không",
+          "job_position": "Nhân Viên",
+          "job_description": "Đọc hiểu tài liệu kỹ thuật và làm việc với đối tác Trung Quốc Phối hợp với team sản phẩm để triển khai các tính năng AI (automation, recommendation, d... [TRUNCATED]",
+          "benefits": "Chế độ bảo hiểm và nghỉ phép đầy đủ theo quy định pháp luật. Cơ hội làm việc trong môi trường trẻ trung, sáng tạo và công nghệ mới nhất. Thu nhập hấp ... [TRUNCATED]",
+          "requirements": "Thành thạo ít nhất một trong các ngôn ngữ: Python / Java / NodeJS / PHP Ưu điểm: có kinh nghiệm về AI, Machine Learning hoặc AdTech, đã làm việc với h... [TRUNCATED]",
+          "year": 2026
+        },
+        {
+          "id": 3,
+          "job_title": "Lead Software Engineer – Desktop (Remote, English)",
+          "company_name": "CÔNG TY TNHH PHẦN MỀM GIÁ TRỊ TÍNH TOÁN VÀ ỨNG DỤNG CÔNG NGHỆ CAO",
+          "salary": "4000 usd",
+          "location": "Hà Nội",
+          "job_type": "Toàn thời gian",
+          "job_industry": "IT phần mềm",
+          "experience_level": "5 năm",
+          "education_level": "Không",
+          "job_position": "Trưởng Nhóm",
+          "job_description": "This role is ideal for a senior developer who can both build and lead, translate business goals into technical execution plans, break down requirement... [TRUNCATED]",
+          "benefits": "Flexible working style Collaborate with diverse teams and influence technical decisions that align with business goals. Working remotely Working direc... [TRUNCATED]",
+          "requirements": "Qualifications Very strong computer science fundamentals including software architecture and design patterns 5+ years of experience in software engine... [TRUNCATED]",
+          "year": 2026
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "nvidia/Nemotron-Personas-Vietnam": {
+      "dataset_id": "nvidia/Nemotron-Personas-Vietnam",
+      "role": "1.000.000 hồ sơ nhân khẩu học & nghề nghiệp",
+      "recommended_target": "SQL / Phân tích tương quan học vấn - nghề nghiệp",
+      "status": "success",
+      "features": {
+        "uuid": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "89e85296-fd3c-5ced-8d9c-7c8fe8bdac54"
+        },
+        "professional_persona": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Công việc nhân viên khách sạn đòi hỏi anh phải luôn tỉnh táo và cẩn thận trong từng khâu phục vụ từ khi đón tiếp khách cho đến khi xử lý các yêu cầu p... [TRUNCATED]"
+        },
+        "sports_persona": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Bơi lội là hoạt động thể chất duy nhất anh lựa chọn để rèn luyện sức khỏe và thư giãn cơ thể sau những giờ làm việc căng thẳng. Anh thường dành thời g... [TRUNCATED]"
+        },
+        "arts_persona": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Trong thời gian rảnh, anh thích xem các chương trình gameshow và phim truyền hình giải trí để tìm kiếm tiếng cười và sự thư giãn. Anh cũng tìm đến các... [TRUNCATED]"
+        },
+        "travel_persona": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Anh có sở thích đi du lịch đến các thành phố lớn, nơi anh có thể trải nghiệm những không gian đô thị hiện đại và đa dạng. Những chuyến đi ngắn ngày gi... [TRUNCATED]"
+        },
+        "culinary_persona": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Ẩm thực là một phần quan trọng trong đời sống hàng ngày của anh, với những món ăn truyền thống như xôi, phở, bánh xèo và bánh cuốn được ưu tiên chọn l... [TRUNCATED]"
+        },
+        "persona": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Anh Đặng Quang Khánh sống trong một hộ gia đình nhỏ gồm ba người tại khu vực đô thị tỉnh An Giang, nơi nhịp sống sông nước vẫn hiện hữu dù xung quanh ... [TRUNCATED]"
+        },
+        "cultural_background": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Sống tại Đồng bằng sông Cửu Long, anh thấm nhuần những giá trị văn hóa đặc trưng của vùng đất này, từ cách ăn nói đến các lễ hội truyền thống. Tết Ngu... [TRUNCATED]"
+        },
+        "skills_and_expertise": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Anh sở hữu kỹ năng quản lý thời gian và xử lý tình huống nhanh nhẹn, giúp anh hoàn thành tốt nhiệm vụ được giao tại khách sạn mà không cần bằng cấp ch... [TRUNCATED]"
+        },
+        "skills_and_expertise_list": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "[\"Kiểm tra phòng ốc\", \"Đón tiếp khách\", \"Sắp xếp không gian\", \"Xử lý tình huống\", \"Quản lý thời gian\", \"Thái độ phục vụ\"]"
+        },
+        "hobbies_and_interests": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Anh dành thời gian xem phim và tham gia các hoạt động giải trí đơn giản bên cạnh công việc hàng ngày. Anh cũng thích ăn những món truyền thống như bán... [TRUNCATED]"
+        },
+        "hobbies_and_interests_list": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "[\"Xem phim truyền hình\", \"Xem gameshow\", \"Nghe đờn ca tài tử\", \"Xem cải lương\", \"Ăn bánh xèo\", \"Ăn phở\"]"
+        },
+        "career_goals_and_ambitions": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Anh mong muốn duy trì sự ổn định trong công việc hiện tại và nâng cao kỹ năng phục vụ để được đồng nghiệp tin tưởng. Mục tiêu của anh là trở thành một... [TRUNCATED]"
+        },
+        "sex": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Nam"
+        },
+        "age": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 43
+        },
+        "marital_status": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Đã kết hôn"
+        },
+        "education_level": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Trung học phổ thông"
+        },
+        "occupation": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Nhân viên khách sạn"
+        },
+        "zone": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Đô Thị"
+        },
+        "region": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Đồng bằng sông Cửu Long"
+        },
+        "country": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Việt Nam"
+        }
+      },
+      "columns": [
+        "uuid",
+        "professional_persona",
+        "sports_persona",
+        "arts_persona",
+        "travel_persona",
+        "culinary_persona",
+        "persona",
+        "cultural_background",
+        "skills_and_expertise",
+        "skills_and_expertise_list",
+        "hobbies_and_interests",
+        "hobbies_and_interests_list",
+        "career_goals_and_ambitions",
+        "sex",
+        "age",
+        "marital_status",
+        "education_level",
+        "occupation",
+        "zone",
+        "region",
+        "country"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "uuid": "89e85296-fd3c-5ced-8d9c-7c8fe8bdac54",
+          "professional_persona": "Công việc nhân viên khách sạn đòi hỏi anh phải luôn tỉnh táo và cẩn thận trong từng khâu phục vụ từ khi đón tiếp khách cho đến khi xử lý các yêu cầu p... [TRUNCATED]",
+          "sports_persona": "Bơi lội là hoạt động thể chất duy nhất anh lựa chọn để rèn luyện sức khỏe và thư giãn cơ thể sau những giờ làm việc căng thẳng. Anh thường dành thời g... [TRUNCATED]",
+          "arts_persona": "Trong thời gian rảnh, anh thích xem các chương trình gameshow và phim truyền hình giải trí để tìm kiếm tiếng cười và sự thư giãn. Anh cũng tìm đến các... [TRUNCATED]",
+          "travel_persona": "Anh có sở thích đi du lịch đến các thành phố lớn, nơi anh có thể trải nghiệm những không gian đô thị hiện đại và đa dạng. Những chuyến đi ngắn ngày gi... [TRUNCATED]",
+          "culinary_persona": "Ẩm thực là một phần quan trọng trong đời sống hàng ngày của anh, với những món ăn truyền thống như xôi, phở, bánh xèo và bánh cuốn được ưu tiên chọn l... [TRUNCATED]",
+          "persona": "Anh Đặng Quang Khánh sống trong một hộ gia đình nhỏ gồm ba người tại khu vực đô thị tỉnh An Giang, nơi nhịp sống sông nước vẫn hiện hữu dù xung quanh ... [TRUNCATED]",
+          "cultural_background": "Sống tại Đồng bằng sông Cửu Long, anh thấm nhuần những giá trị văn hóa đặc trưng của vùng đất này, từ cách ăn nói đến các lễ hội truyền thống. Tết Ngu... [TRUNCATED]",
+          "skills_and_expertise": "Anh sở hữu kỹ năng quản lý thời gian và xử lý tình huống nhanh nhẹn, giúp anh hoàn thành tốt nhiệm vụ được giao tại khách sạn mà không cần bằng cấp ch... [TRUNCATED]",
+          "skills_and_expertise_list": "[\"Kiểm tra phòng ốc\", \"Đón tiếp khách\", \"Sắp xếp không gian\", \"Xử lý tình huống\", \"Quản lý thời gian\", \"Thái độ phục vụ\"]",
+          "hobbies_and_interests": "Anh dành thời gian xem phim và tham gia các hoạt động giải trí đơn giản bên cạnh công việc hàng ngày. Anh cũng thích ăn những món truyền thống như bán... [TRUNCATED]",
+          "hobbies_and_interests_list": "[\"Xem phim truyền hình\", \"Xem gameshow\", \"Nghe đờn ca tài tử\", \"Xem cải lương\", \"Ăn bánh xèo\", \"Ăn phở\"]",
+          "career_goals_and_ambitions": "Anh mong muốn duy trì sự ổn định trong công việc hiện tại và nâng cao kỹ năng phục vụ để được đồng nghiệp tin tưởng. Mục tiêu của anh là trở thành một... [TRUNCATED]",
+          "sex": "Nam",
+          "age": 43,
+          "marital_status": "Đã kết hôn",
+          "education_level": "Trung học phổ thông",
+          "occupation": "Nhân viên khách sạn",
+          "zone": "Đô Thị",
+          "region": "Đồng bằng sông Cửu Long",
+          "country": "Việt Nam"
+        },
+        {
+          "uuid": "6cdf3803-a845-57e4-9aca-e1f9257a7e06",
+          "professional_persona": "Từ khi mở cửa hàng, anh đã học cách quản lý tồn kho và cân đối dòng tiền một cách chính xác. Công việc đòi hỏi anh phải tương tác thường xuyên với nhi... [TRUNCATED]",
+          "sports_persona": "Sau giờ làm việc, anh thường tìm đến các bàn bi-a để giải tỏa căng thẳng từ công việc. Anh không chơi thể thao cường độ cao mà ưu tiên những môn đòi h... [TRUNCATED]",
+          "arts_persona": "Anh thích theo dõi các gameshow truyền hình thực tế vì sự hấp dẫn và tính giải trí cao của chúng. Bên cạnh đó, anh cũng là người mê cải lương và đờn c... [TRUNCATED]",
+          "travel_persona": "Mỗi khi có dịp đi xa, anh thường lựa chọn các điểm đến nổi tiếng về ẩm thực để thưởng thức đặc sản. Anh không thích những chuyến du lịch bụi mà nghiên... [TRUNCATED]",
+          "culinary_persona": "Anh đặc biệt yêu thích món bún riêu và bún ốc, hai loại bún có nước dùng đậm đà và hương vị đặc trưng. Anh thường tự tay nấu những tô bún ngon tại nhà... [TRUNCATED]",
+          "persona": "Mỗi sáng thức dậy, anh Nguyễn Văn Thịnh lại bắt đầu một ngày làm việc với vai trò người chủ cửa hàng tạp hóa tại Cà Mau. Cuộc sống của anh gắn liền vớ... [TRUNCATED]",
+          "cultural_background": "Anh sống và làm việc tại tỉnh Cà Mau, nơi văn hóa Nam Bộ hiện hữu rõ nét trong đời sống thường nhật. Tết Nguyên Đán và lễ Ông Công Ông Táo là những dị... [TRUNCATED]",
+          "skills_and_expertise": "Bằng cấp kỹ sư cơ khí giúp anh có tư duy logic và khả năng phân tích vấn đề tốt trong kinh doanh. Anh thành thạo trong việc quản lý kho hàng, dự báo n... [TRUNCATED]",
+          "skills_and_expertise_list": "[\"Quản lý tồn kho\", \"Chăm sóc khách hàng\", \"Tính toán dòng tiền\", \"Bảo trì thiết bị cơ bản\", \"Giao tiếp và đàm phán\"]",
+          "hobbies_and_interests": "Anh dành thời gian rảnh để xem các chương trình truyền hình thực tế và gameshow hài hước. Sở thích đọc sách văn học giúp anh có thêm góc nhìn mới về c... [TRUNCATED]",
+          "hobbies_and_interests_list": "[\"Xem gameshow truyền hình\", \"Đọc sách văn học\", \"Xem phim truyền hình\", \"Nghe cải lương\"]",
+          "career_goals_and_ambitions": "Anh mong muốn cửa hàng tạp hóa của mình sẽ ngày càng phát triển và trở thành điểm quen thuộc của người dân. Anh hy vọng sẽ mở rộng quy mô kinh doanh đ... [TRUNCATED]",
+          "sex": "Nam",
+          "age": 46,
+          "marital_status": "Đã kết hôn",
+          "education_level": "Đại học",
+          "occupation": "Chủ cửa hàng tạp hóa",
+          "zone": "Nông Thôn",
+          "region": "Đồng bằng sông Cửu Long",
+          "country": "Việt Nam"
+        },
+        {
+          "uuid": "05cfc3bd-23e9-56d2-b1f5-07efb57a9023",
+          "professional_persona": "Tại cửa hàng nơi cô quản lý, cô luôn là người đứng đầu bàn giao ca làm việc và kiểm tra kho hàng. Sự kỷ luật cao giúp cô xử lý các tình huống phát sin... [TRUNCATED]",
+          "sports_persona": "Chiều thứ Bảy, cô thường đến phòng tập gym để tập luyện thể hình và duy trì sức khỏe. Cô cũng tham gia các lớp yoga vào buổi sáng sớm để khởi động cơ ... [TRUNCATED]",
+          "arts_persona": "Trên đường về nhà, cô thường nghe nhạc trẻ V-pop để thư giãn sau giờ làm. Cô cũng dành thời gian cuối tuần để xem phim Hàn Quốc hoặc đọc sách văn học.... [TRUNCATED]",
+          "travel_persona": "Vào kỳ nghỉ, cô và chồng thường chọn các điểm du lịch cộng đồng ở bản làng vùng cao. Cô thích trải nghiệm văn hóa địa phương và ngủ lại tại các nhà ho... [TRUNCATED]",
+          "culinary_persona": "Trong bếp, cô thường nấu các món hải sản tươi ngon cho bữa ăn gia đình. Cô cũng thích thử sức với các món mì Quảng hoặc cao lầu đậm đà hương vị miền T... [TRUNCATED]",
+          "persona": "Căn nhà nhỏ hai người của cô luôn gọn gàng và ngăn nắp ngay từ sáng sớm. Cô dành thời gian chuẩn bị bữa sáng đơn giản trước khi chuẩn bị tinh thần cho... [TRUNCATED]",
+          "cultural_background": "Sống tại Thành phố Đồng Nai, cô tham gia tích cực vào các lễ hội truyền thống của vùng Đông Nam Bộ. Cô thường xem biểu diễn cải lương hoặc đờn ca tài ... [TRUNCATED]",
+          "skills_and_expertise": "Cô có khả năng quản lý nhân sự hiệu quả và xử lý khủng hoảng trong môi trường bán lẻ. Kỹ năng sắp xếp kho bãi và kiểm kê hàng tồn kho giúp cửa hàng ho... [TRUNCATED]",
+          "skills_and_expertise_list": "[\"Quản lý nhân sự\", \"Kiểm kê hàng tồn kho\", \"Xử lý khủng hoảng\", \"Sử dụng phần mềm bán lẻ\", \"Giao tiếp khách hàng\"]",
+          "hobbies_and_interests": "Cô dành thời gian rảnh để đọc sách văn học và khám phá các tác phẩm mới. Cô cũng thích xem phim Hàn Quốc để giải trí sau những ngày làm việc căng thẳn... [TRUNCATED]",
+          "hobbies_and_interests_list": "[\"Đọc sách văn học\", \"Xem phim Hàn Quốc\", \"Nghe nhạc V-pop\", \"Xem cải lương\"]",
+          "career_goals_and_ambitions": "Cô mong muốn trở thành quản lý cấp cao hơn trong tương lai gần. Cô đang nỗ lực học hỏi thêm về chiến lược marketing và phát triển thương hiệu. Những k... [TRUNCATED]",
+          "sex": "Nữ",
+          "age": 29,
+          "marital_status": "Đã kết hôn",
+          "education_level": "Trung học phổ thông",
+          "occupation": "Quản lý cửa hàng",
+          "zone": "Đô Thị",
+          "region": "Đông Nam Bộ",
+          "country": "Việt Nam"
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "letrinhan/vn-provinces-labor-master": {
+      "dataset_id": "letrinhan/vn-provinces-labor-master",
+      "role": "Dữ liệu chuỗi thời gian lao động, việc làm, thất nghiệp theo tỉnh",
+      "recommended_target": "SQL (province_labor_stats / labor_unemployment_stats)",
+      "status": "success",
+      "features": {
+        "year": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 2005
+        },
+        "geo_code": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 1
+        },
+        "geo_name": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Ha Noi"
+        },
+        "geo_short": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "HN"
+        },
+        "geo_system": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "historical_63"
+        },
+        "labor_force_age_15_plus": {
+          "inferred_python_type": "float",
+          "has_nulls": false,
+          "preview": 1553.1
+        },
+        "employed_persons": {
+          "inferred_python_type": "unknown",
+          "has_nulls": true,
+          "preview": null
+        },
+        "informal_employment_rate": {
+          "inferred_python_type": "unknown",
+          "has_nulls": true,
+          "preview": null
+        },
+        "trained_labor_rate": {
+          "inferred_python_type": "float",
+          "has_nulls": true,
+          "preview": 23.3
+        },
+        "labor_productivity": {
+          "inferred_python_type": "unknown",
+          "has_nulls": true,
+          "preview": null
+        },
+        "working_age_unemployment_rate": {
+          "inferred_python_type": "unknown",
+          "has_nulls": true,
+          "preview": null
+        },
+        "working_age_underemployment_rate": {
+          "inferred_python_type": "unknown",
+          "has_nulls": true,
+          "preview": null
+        }
+      },
+      "columns": [
+        "year",
+        "geo_code",
+        "geo_name",
+        "geo_short",
+        "geo_system",
+        "labor_force_age_15_plus",
+        "employed_persons",
+        "informal_employment_rate",
+        "trained_labor_rate",
+        "labor_productivity",
+        "working_age_unemployment_rate",
+        "working_age_underemployment_rate"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "year": 2005,
+          "geo_code": 1,
+          "geo_name": "Ha Noi",
+          "geo_short": "HN",
+          "geo_system": "historical_63",
+          "labor_force_age_15_plus": 1553.1,
+          "employed_persons": null,
+          "informal_employment_rate": null,
+          "trained_labor_rate": null,
+          "labor_productivity": null,
+          "working_age_unemployment_rate": null,
+          "working_age_underemployment_rate": null
+        },
+        {
+          "year": 2007,
+          "geo_code": 1,
+          "geo_name": "Ha Noi",
+          "geo_short": "HN",
+          "geo_system": "historical_63",
+          "labor_force_age_15_plus": 1653.7,
+          "employed_persons": null,
+          "informal_employment_rate": null,
+          "trained_labor_rate": null,
+          "labor_productivity": null,
+          "working_age_unemployment_rate": null,
+          "working_age_underemployment_rate": null
+        },
+        {
+          "year": 2008,
+          "geo_code": 1,
+          "geo_name": "Ha Noi",
+          "geo_short": "HN",
+          "geo_system": "historical_63",
+          "labor_force_age_15_plus": 3421.2,
+          "employed_persons": null,
+          "informal_employment_rate": null,
+          "trained_labor_rate": 23.3,
+          "labor_productivity": null,
+          "working_age_unemployment_rate": null,
+          "working_age_underemployment_rate": null
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "Oztobuzz/vietnamese_ethnic_community_information": {
+      "dataset_id": "Oztobuzz/vietnamese_ethnic_community_information",
+      "role": "Chỉ số KT-XH, tỷ lệ thất nghiệp theo trình độ đào tạo",
+      "recommended_target": "SQL (socio_economic_unemployment / labor_unemployment_stats)",
+      "status": "success",
+      "features": {
+        "type": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "ethnic_data"
+        },
+        "url": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "https://nhandan.vn/dan-toc-ba-na-post723892.html"
+        },
+        "title": {
+          "inferred_python_type": "str",
+          "has_nulls": false,
+          "preview": "Dân tộc Ba na"
+        },
+        "image_url": {
+          "inferred_python_type": "list",
+          "has_nulls": false,
+          "preview": [
+            "https://image.nhandan.vn/w2000/Uploaded/2024/unvrwqcqd/2022_10_17/camnhi205121015152nharong.jpeg.webp",
+            "https://image.nhandan.vn/w2000/Uploaded/2024/unvrwqcqd/2022_10_17/3.jpeg.webp",
+            "https://image.nhandan.vn/w2000/Uploaded/2024/tpuoaob/2022_11_15/ba-na6-692.jpg.webp"
+          ]
+        },
+        "detail_url": {
+          "inferred_python_type": "list",
+          "has_nulls": false,
+          "preview": [
+            "Nhà rông của người Ba na. (Ảnh: Báo Dân tộc và phát triển)",
+            "Lễ cưới truyền thống của người Ba na (Gia Lai). (Nguồn: Làng văn hóa-du lịch các dân tộc Việt Nam)",
+            "(Ảnh: Thành Đạt)"
+          ]
+        },
+        "content": {
+          "inferred_python_type": "list",
+          "has_nulls": false,
+          "preview": [
+            "Tổ tiên người Ba na chủ yếu sinh sống tại vùng dưới núi Mang Yang, dọc theo hai bờ sông Ba trở về phía đông tới những huyện đồng bằng giáp ranh miền n... [TRUNCATED]",
+            "Dân tộc Ba na có tên tự gọi chung là “",
+            "”, có nghĩa là “"
+          ]
+        },
+        "__index_level_0__": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 34
+        }
+      },
+      "columns": [
+        "type",
+        "url",
+        "title",
+        "image_url",
+        "detail_url",
+        "content",
+        "__index_level_0__"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "type": "ethnic_data",
+          "url": "https://nhandan.vn/dan-toc-ba-na-post723892.html",
+          "title": "Dân tộc Ba na",
+          "image_url": [
+            "https://image.nhandan.vn/w2000/Uploaded/2024/unvrwqcqd/2022_10_17/camnhi205121015152nharong.jpeg.webp",
+            "https://image.nhandan.vn/w2000/Uploaded/2024/unvrwqcqd/2022_10_17/3.jpeg.webp",
+            "https://image.nhandan.vn/w2000/Uploaded/2024/tpuoaob/2022_11_15/ba-na6-692.jpg.webp"
+          ],
+          "detail_url": [
+            "Nhà rông của người Ba na. (Ảnh: Báo Dân tộc và phát triển)",
+            "Lễ cưới truyền thống của người Ba na (Gia Lai). (Nguồn: Làng văn hóa-du lịch các dân tộc Việt Nam)",
+            "(Ảnh: Thành Đạt)"
+          ],
+          "content": [
+            "Tổ tiên người Ba na chủ yếu sinh sống tại vùng dưới núi Mang Yang, dọc theo hai bờ sông Ba trở về phía đông tới những huyện đồng bằng giáp ranh miền n... [TRUNCATED]",
+            "Dân tộc Ba na có tên tự gọi chung là “",
+            "”, có nghĩa là “"
+          ],
+          "__index_level_0__": 34
+        },
+        {
+          "type": "ethnic_data",
+          "url": "https://nhandan.vn/lam-clip-ve-trang-phuc-truyen-thong-nu-sinh-bo-y-ve-nhat-cuoc-thi-tinh-hoa-viet-nam-post810954.html",
+          "title": "Làm clip về trang phục truyền thống, nữ sinh Bố Y về nhất cuộc thi \"Tinh hoa Việt Nam\"",
+          "image_url": [
+            "https://image.nhandan.vn/w790/Uploaded/2024/zrkxrkvsxr/2024_05_24/3e39a0410c39ac67f528-5234.jpg.webp",
+            "https://image.nhandan.vn/w790/Uploaded/2024/zrkxrkvsxr/2024_05_24/0d3a19b7d3cf73912ade-8396.jpg.webp"
+          ],
+          "detail_url": [
+            "Đại diện Ban tổ chức, các bộ, ngành, đơn vị cùng thí sinh, nhóm thí sinh giành giải của cuộc thi.",
+            "Đồng chí Nguyễn Minh Triết phát biểu ý kiến tại buổi lễ."
+          ],
+          "content": [
+            "Chiều 24/5, tại Hà Nội, ",
+            " tổ chức Lễ tổng kết và trao giải cuộc thi \"Tinh hoa Việt Nam\" năm 2024. ",
+            "Triển khai từ cuối tháng 11/2023, cuộc thi nằm trong khuôn khổ Kế hoạch hành động của tổ chức Đoàn thực hiện Chương trình mục tiêu quốc gia về chấn hư... [TRUNCATED]"
+          ],
+          "__index_level_0__": 35
+        },
+        {
+          "type": "ethnic_data",
+          "url": "https://nhandan.vn/dan-toc-brau-post723903.html",
+          "title": "Dân tộc Brâu",
+          "image_url": [
+            "https://image.nhandan.vn/w2000/Uploaded/2024/igpcvcvjntc8510/2022_11_21/brau-2506.jpg.webp",
+            "https://image.nhandan.vn/w2000/Uploaded/2024/bpcbzivo/2022_10_18/brau4.jpg.webp",
+            "https://image.nhandan.vn/w2000/Uploaded/2024/igpcvcvjntc8510/2022_11_21/brau1-4999.jpg.webp"
+          ],
+          "detail_url": [
+            "Người già Brâu vẫn giữ tục căng tai và hút thuốc bằng tẩu (Ảnh: THÀNH ĐẠT)",
+            "Khuôn viên nhà rông văn hóa của người Brâu. (Ảnh:Báo Dân tộc)",
+            "Đồng bào Brâu thực hiện nghi thức mừng nhà mới. (Ảnh: Báo Dân tộc)"
+          ],
+          "content": [
+            "Tổ tiên của người Brâu cư trú ở vùng nam Lào và đông bắc Campuchia, đại bộ phận hiện nay vẫn cư trú bên lưu vực sông Sekamarn (Sê San), Nậm Khoong (Mê... [TRUNCATED]",
+            "Tên gọi khác: Brao.",
+            "Theo số liệu Điều tra 53 dân tộc thiểu số 01/4/ 2019: Tổng dân số: 525 người, trong đó dân số nam là 255 người và dân số nữ là 270 người. Quy mô hộ: 3... [TRUNCATED]"
+          ],
+          "__index_level_0__": 36
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    },
+    "qhuyisthebest/vietnam-labor-law-vbpl": {
+      "dataset_id": "qhuyisthebest/vietnam-labor-law-vbpl",
+      "role": "Văn bản QPPL Bộ luật Lao động Việt Nam",
+      "recommended_target": "Vector DB (labor_law_docs)",
+      "status": "success",
+      "features": {
+        "page": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 1
+        },
+        "total": {
+          "inferred_python_type": "int",
+          "has_nulls": false,
+          "preview": 173063
+        },
+        "items": {
+          "inferred_python_type": "list",
+          "has_nulls": false,
+          "preview": [
+            {
+              "id": "03dee8b0-b8ce-11f1-b362-1b2583ed3ba0",
+              "title": "Thông tư Quy định về Hệ thống thông tin, Cơ sở dữ liệu cấp nước sạch và thoát nước đô thị",
+              "docAbs": null,
+              "docNum": "69/2026/TT-BXD",
+              "docType": {
+                "id": "178c63a9-73ff-4fd4-9d91-18d690520090",
+                "name": "Thông tư",
+                "code": "TT",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "2b3fd600-bd3b-11f1-a8ba-1be36c238c42",
+              "title": "Thông tư Ban hành định mức chi phí chuẩn bị và hoạt động triển khai thực hiện dự án sau khi ký kết hợp đồng của cơ quan có thẩm quyền, cơ quan ký kết ... [TRUNCATED]",
+              "docAbs": null,
+              "docNum": "72/2025/TT-BXD",
+              "docType": {
+                "id": "178c63a9-73ff-4fd4-9d91-18d690520090",
+                "name": "Thông tư",
+                "code": "TT",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "5a069bf0-bcae-11f1-a205-177c3ae181d8",
+              "title": "Quyết định số 146/2026/QĐ-UBND Quy định diện tích, vị trí, mục đích sử dụng của công trình xây dựng phục vụ trực tiếp sản xuất nông nghiệp trên đất tr... [TRUNCATED]",
+              "docAbs": null,
+              "docNum": "146/2026/QĐ-UBND",
+              "docType": {
+                "id": "0a5362e8-cdca-436e-96cd-979598df3b16",
+                "name": "Quyết định",
+                "code": "QĐ",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            }
+          ]
+        }
+      },
+      "columns": [
+        "page",
+        "total",
+        "items"
+      ],
+      "sample_count": 5,
+      "samples": [
+        {
+          "page": 1,
+          "total": 173063,
+          "items": [
+            {
+              "id": "03dee8b0-b8ce-11f1-b362-1b2583ed3ba0",
+              "title": "Thông tư Quy định về Hệ thống thông tin, Cơ sở dữ liệu cấp nước sạch và thoát nước đô thị",
+              "docAbs": null,
+              "docNum": "69/2026/TT-BXD",
+              "docType": {
+                "id": "178c63a9-73ff-4fd4-9d91-18d690520090",
+                "name": "Thông tư",
+                "code": "TT",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "2b3fd600-bd3b-11f1-a8ba-1be36c238c42",
+              "title": "Thông tư Ban hành định mức chi phí chuẩn bị và hoạt động triển khai thực hiện dự án sau khi ký kết hợp đồng của cơ quan có thẩm quyền, cơ quan ký kết ... [TRUNCATED]",
+              "docAbs": null,
+              "docNum": "72/2025/TT-BXD",
+              "docType": {
+                "id": "178c63a9-73ff-4fd4-9d91-18d690520090",
+                "name": "Thông tư",
+                "code": "TT",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "5a069bf0-bcae-11f1-a205-177c3ae181d8",
+              "title": "Quyết định số 146/2026/QĐ-UBND Quy định diện tích, vị trí, mục đích sử dụng của công trình xây dựng phục vụ trực tiếp sản xuất nông nghiệp trên đất tr... [TRUNCATED]",
+              "docAbs": null,
+              "docNum": "146/2026/QĐ-UBND",
+              "docType": {
+                "id": "0a5362e8-cdca-436e-96cd-979598df3b16",
+                "name": "Quyết định",
+                "code": "QĐ",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            }
+          ]
+        },
+        {
+          "page": 2,
+          "total": 173063,
+          "items": [
+            {
+              "id": "59c7ea20-a806-11f1-9de7-6fb8f37e956c",
+              "title": "Nghị định số 337/2026/NĐ-CP Quy định chi tiết một số điều và biện pháp thi hành Luật Tiếp cận thông tin",
+              "docAbs": null,
+              "docNum": "337/2026/NĐ-CP",
+              "docType": {
+                "id": "0d08b84c-7de7-4800-8760-2a68265e7890",
+                "name": "Nghị định",
+                "code": "NĐ",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "d9af3da0-a11d-11f1-b0a5-77c3f6546658",
+              "title": "Thông tư số 42/2026/TT-NHNN Sửa đổi, bổ sung một số điều của Thông tư số 03/2020/TT-NHNN quy định về tiêu huỷ tiền của Ngân hàng Nhà nước Việt Nam",
+              "docAbs": null,
+              "docNum": "42/2026/TT-NHNN",
+              "docType": {
+                "id": "178c63a9-73ff-4fd4-9d91-18d690520090",
+                "name": "Thông tư",
+                "code": "TT",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "e9005860-a1e6-11f1-8236-dbc0b3c4c6b6",
+              "title": "Quyết định số 85/2026/QĐ-UBND Ban hành Quy chế đánh giá, phân hạng doanh nghiệp, nhà đầu tư trên địa bàn tỉnh Thanh Hóa",
+              "docAbs": null,
+              "docNum": "85/2026/QĐ-UBND",
+              "docType": {
+                "id": "0a5362e8-cdca-436e-96cd-979598df3b16",
+                "name": "Quyết định",
+                "code": "QĐ",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            }
+          ]
+        },
+        {
+          "page": 3,
+          "total": 173063,
+          "items": [
+            {
+              "id": "b7238120-8fa1-11f1-9523-b7330e841005",
+              "title": "Quyết định số 50/2026/QĐ-UBND Bãi bỏ Quyết định số 42/2025/QĐ-UBND ngày 30 tháng 6 năm 2025 của Ủy ban nhân dân tỉnh Lạng Sơn quy định chức năng, nhiệ... [TRUNCATED]",
+              "docAbs": null,
+              "docNum": "50/2026/QĐ-UBND",
+              "docType": {
+                "id": "0a5362e8-cdca-436e-96cd-979598df3b16",
+                "name": "Quyết định",
+                "code": "QĐ",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "8f7d9710-8f0f-11f1-9b98-7974a5d6d159",
+              "title": "Quyết định số 58/2026/QĐ-UBND Sửa đổi, bổ sung một số điều của Quyết định số 45/2023/QĐ-UBND ngày 05/12/2023 và Quyết định số 17/2025/QĐ-UBND ngày 04/... [TRUNCATED]",
+              "docAbs": null,
+              "docNum": "58/2026/QĐ-UBND",
+              "docType": {
+                "id": "0a5362e8-cdca-436e-96cd-979598df3b16",
+                "name": "Quyết định",
+                "code": "QĐ",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            },
+            {
+              "id": "27f87e10-8fe7-11f1-b389-bd82f453d571",
+              "title": "Quyết định số 66/2026/QĐ-UBND Quy định phương thức quản lý và phân cấp thẩm quyền quyết định khoán kinh phí sử dụng xe ô tô phục vụ công tác chung tại... [TRUNCATED]",
+              "docAbs": null,
+              "docNum": "66/2026/QĐ-UBND",
+              "docType": {
+                "id": "0a5362e8-cdca-436e-96cd-979598df3b16",
+                "name": "Quyết định",
+                "code": "QĐ",
+                "parentCode": "VBQPPL",
+                "parentName": ""
+              }
+            }
+          ]
+        }
+      ],
+      "error": null,
+      "split_inspected": "train"
+    }
+  }
+}
