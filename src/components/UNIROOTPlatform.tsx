@@ -2146,23 +2146,20 @@ const CombinationDetailView: React.FC<{
               </p>
             </div>
 
-            <div className="p-5 bg-[#121316] border border-[#262630] rounded-xl space-y-4">
-              <h3 className="font-bold text-white text-sm font-sans flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#C6F135]" />
-                Quy tắc tính điểm & Giảm ưu tiên
-              </h3>
-              <div className="space-y-2 text-slate-100 text-xs leading-relaxed">
-                <div className="p-2.5 bg-[#181920] border border-[#22232a] rounded-lg">
-                  <strong className="text-white">Công thức chuẩn Thang 30 (1:1:1):</strong> S = M1 + M2 + M3 + Điểm cộng + Ưu tiên thực tế.
+            <details className="group p-3.5 bg-[#121316] border border-[#262630] rounded-xl text-xs font-mono">
+              <summary className="flex items-center justify-between cursor-pointer text-slate-200 hover:text-white font-semibold select-none">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#C6F135]" />
+                  <span>Quy tắc tính điểm &amp; Giảm ưu tiên (Thông tư 06)</span>
                 </div>
-                <div className="p-2.5 bg-[#181920] border border-[#22232a] rounded-lg">
-                  <strong className="text-white">Giảm dần điểm ưu tiên:</strong> Thí sinh đạt từ 22.50 điểm trở lên bắt đầu giảm dần điểm ưu tiên: [(30 - Tổng) / 7.5] × ĐƯT gốc.
-                </div>
-                <div className="p-2.5 bg-[#181920] border border-[#22232a] rounded-lg">
-                  <strong className="text-white">Trần điểm thưởng:</strong> Tổng điểm cộng/khuyến khích không vượt quá 3.00/30 điểm (10% thang điểm).
-                </div>
+                <span className="text-xs text-slate-400 group-open:rotate-180 transition-transform duration-200">▾</span>
+              </summary>
+              <div className="mt-3 pt-2.5 border-t border-[#20222c] space-y-2 text-slate-300 text-xs leading-relaxed">
+                <div>• <strong className="text-white">Thang 30 chuẩn (1:1:1):</strong> S = M1 + M2 + M3 + Điểm cộng + Ưu tiên thực tế.</div>
+                <div>• <strong className="text-white">Giảm dần điểm ưu tiên:</strong> Đạt từ 22.50đ trở lên giảm dần: <code>[(30 - Tổng) / 7.5] × ĐƯT gốc</code>.</div>
+                <div>• <strong className="text-white">Trần điểm thưởng:</strong> Tổng điểm cộng/khuyến khích tối đa 3.00/30đ (10% thang điểm).</div>
               </div>
-            </div>
+            </details>
           </div>
 
           {/* Ngành & Cơ sở đào tạo tiêu biểu xét tuyển tổ hợp này */}
@@ -3942,34 +3939,12 @@ const AdmissionCalculatorView: React.FC<{
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8 font-mono text-xs">
       {/* Page Title */}
       <div>
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-200 mb-1">
-          <span>BỘ MÁY TÍNH ĐIỂM XÉT TUYỂN CHÍNH THỨC</span>
-          <span>·</span>
-          <span className="text-[#C6F135] font-bold">300 TRƯỜNG &middot; 7.110 BẢN GHI ĐIỂM CHUẨN KIỂM TOÁN</span>
-        </div>
-        <h1 className="text-2xl sm:text-4xl font-bold font-sans text-white">
-          Máy Tính Điểm Xét Tuyển Đại Học 2026
+        <h1 className="text-2xl sm:text-3xl font-bold font-sans text-white">
+          Máy Tính Điểm Xét Tuyển 2026
         </h1>
-        <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed">
-          Tuân thủ Thông tư 06/2026/TT-BGDĐT: tự động phân loại thang điểm gốc (Thang 30 chuẩn, Thang 100 ĐGNL toàn diện, Thang 40 nhân đôi môn chính), giảm trừ ưu tiên lũy tiến và tính điểm đúng từng tổ hợp tuyển sinh.
+        <p className="text-xs text-slate-300 mt-1">
+          Tự động tính theo tổ hợp môn, thang điểm chuẩn (30, 40, 100) và giảm trừ ưu tiên Thông tư 06/2026/TT-BGDĐT.
         </p>
-      </div>
-
-      {/* 6-Step Indicator Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-[10px]">
-        {[
-          { num: '01', title: 'Năm tuyển sinh', desc: 'Năm 2026' },
-          { num: '02', title: 'Trường & Ngành', desc: `[${selectedRecord.institution_code}] ${selectedRecord.audited_major_name}` },
-          { num: '03', title: 'Phương thức', desc: formatAdmissionMethod(selectedRecord.method_id) },
-          { num: '04', title: 'Tổ hợp & Điểm thi', desc: `Tổ hợp ${selectedComboCode} (${isScale100Record ? 'Thang 100' : 'Thang 30'})` },
-          { num: '05', title: 'Tính & Giải thích', desc: 'Phép tính & Công thức' },
-          { num: '06', title: 'Đối chiếu lịch sử', desc: `Điểm chuẩn: ${selectedRecord.audited_official_cutoff}đ` }
-        ].map(step => (
-          <div key={step.num} className="p-2.5 bg-[#121316] border border-[#262630] rounded-lg">
-            <div className="text-[#C6F135] font-bold">{step.num} · {step.title}</div>
-            <div className="text-slate-200 font-medium truncate mt-0.5">{step.desc}</div>
-          </div>
-        ))}
       </div>
 
       {/* Main Calculation Layout: Controls Left & Results Card Right */}
@@ -3977,78 +3952,68 @@ const AdmissionCalculatorView: React.FC<{
         {/* Left Column: School Selection & Score Inputs */}
         <div className="lg:col-span-2 space-y-6">
           {/* Step 2 & 3: Select Record with 300 Schools Selector */}
-          <div className="p-4 bg-[#121316] border border-[#262630] space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#22232a] pb-2.5">
-              <label className="text-white font-bold text-xs font-sans">
-                Bước 2 &amp; 3: Chọn Trường, Ngành &amp; Phương Thức Xét Tuyển (Đầy đủ 300 trường)
-              </label>
+          {/* Step 1: School & Major Selection */}
+          <div className="p-4 bg-[#121316] border border-[#262630] rounded-xl space-y-3.5">
+            <div className="flex items-center justify-between border-b border-[#22232a] pb-2">
+              <span className="text-xs font-bold text-white uppercase tracking-wider font-sans">
+                1. Chọn Trường &amp; Ngành Xét Tuyển
+              </span>
               <div className="flex items-center gap-1.5 text-[10px]">
                 <button
                   type="button"
                   onClick={() => setSelectionMode('bySchool')}
-                  className={`px-2.5 py-1 transition-colors ${selectionMode === 'bySchool' ? 'bg-[#C6F135] text-[#0C0D0E] font-bold' : 'bg-[#181920] text-[#888888] hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded transition-colors ${selectionMode === 'bySchool' ? 'bg-[#C6F135] text-[#0C0D0E] font-bold' : 'bg-[#181920] text-slate-300 hover:text-white'}`}
                 >
-                  Chọn theo Trường (300 trường)
+                  Theo Trường
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectionMode('byMajorSearch')}
-                  className={`px-2.5 py-1 transition-colors ${selectionMode === 'byMajorSearch' ? 'bg-[#C6F135] text-[#0C0D0E] font-bold' : 'bg-[#181920] text-[#888888] hover:text-white'}`}
+                  className={`px-2.5 py-1 rounded transition-colors ${selectionMode === 'byMajorSearch' ? 'bg-[#C6F135] text-[#0C0D0E] font-bold' : 'bg-[#181920] text-slate-300 hover:text-white'}`}
                 >
-                  Tìm theo Tên Ngành
+                  Tìm Tên Ngành
                 </button>
               </div>
             </div>
 
             {selectionMode === 'bySchool' ? (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* School Selector */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[#888888] text-[10px] uppercase">1. Chọn Trường Đại Học (300 cơ sở đào tạo):</span>
-                    <span className="text-[10px] text-[#60A5FA]">Đang chọn: [{selectedUniCode}]</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <input
-                      type="text"
-                      value={schoolSearchQuery}
-                      onChange={(e) => setSchoolSearchQuery(e.target.value)}
-                      placeholder="Lọc 300 trường (BKHN, NEU, Y Hà Nội, Bách Khoa TP.HCM...)"
-                      className="bg-[#181920] text-white border border-[#2c2d38] px-2.5 py-1.5 text-xs font-mono focus:border-[#C6F135] focus:outline-none"
-                    />
-                    <select
-                      value={selectedUniCode}
-                      onChange={(e) => {
-                        const code = e.target.value;
-                        setSelectedUniCode(code);
-                        const firstRec = AUDITED_MAJOR_METHOD_SCORING_DB.find(r => r.institution_code === code);
-                        if (firstRec) setSelectedRecordId(firstRec.record_id);
-                      }}
-                      className="sm:col-span-2 bg-[#181920] text-white border border-[#2c2d38] p-1.5 text-xs font-mono focus:border-[#C6F135] focus:outline-none"
-                    >
-                      {filteredUniversities.map(u => (
-                        <option key={u.code} value={u.code}>
-                          [{u.code}] {u.official_name} — ({u.verified_province_city || 'Toàn quốc'})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                    Trường Đại học (300 trường):
+                  </label>
+                  <select
+                    value={selectedUniCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      setSelectedUniCode(code);
+                      const firstRec = AUDITED_MAJOR_METHOD_SCORING_DB.find(r => r.institution_code === code);
+                      if (firstRec) setSelectedRecordId(firstRec.record_id);
+                    }}
+                    className="w-full bg-[#181920] text-white border border-[#2c2d38] rounded-lg p-2 text-xs font-mono focus:border-[#C6F135] focus:outline-none"
+                  >
+                    {filteredUniversities.map(u => (
+                      <option key={u.code} value={u.code}>
+                        [{u.code}] {u.official_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Major & Method Selector for Selected Uni */}
+                {/* Major & Method Selector */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[#888888] text-[10px] uppercase">2. Chọn Ngành &amp; Phương thức xét tuyển tại {selectedUniCode}:</span>
-                    <span className="text-[10px] text-[#C6F135]">{recordsOfSelectedUni.length} bản ghi kiểm toán</span>
-                  </div>
+                  <label className="block text-[11px] text-slate-300 font-medium mb-1">
+                    Ngành &amp; Phương thức tuyển sinh:
+                  </label>
                   <select
                     value={selectedRecordId}
                     onChange={(e) => setSelectedRecordId(e.target.value)}
-                    className="w-full bg-[#181920] text-white border border-[#2c2d38] p-2.5 text-xs font-mono focus:border-[#C6F135] focus:outline-none"
+                    className="w-full bg-[#181920] text-white border border-[#2c2d38] rounded-lg p-2 text-xs font-mono focus:border-[#C6F135] focus:outline-none truncate"
                   >
                     {recordsOfSelectedUni.map(r => (
                       <option key={r.record_id} value={r.record_id}>
-                        {r.audited_major_name} — {r.method_id} | Thang: {r.audited_official_scale} ({r.scale_max}đ) | Chuẩn 2026: {r.audited_official_cutoff}đ
+                        {r.audited_major_name} — {formatAdmissionMethod(r.method_id)} (Chuẩn: {r.audited_official_cutoff}đ)
                       </option>
                     ))}
                   </select>
@@ -4056,113 +4021,57 @@ const AdmissionCalculatorView: React.FC<{
               </div>
             ) : (
               /* Major Direct Search Mode */
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[#888888] text-[10px] uppercase mb-1">
-                    Tìm kiếm nhanh trong 7.110 bản ghi xét tuyển của 300 trường:
-                  </label>
-                  <input
-                    type="text"
-                    value={majorSearchQuery}
-                    onChange={(e) => setMajorSearchQuery(e.target.value)}
-                    placeholder="Nhập tên ngành (Công nghệ thông tin, Y khoa, Luật, Kinh tế, Bán dẫn, Sư phạm...)"
-                    className="w-full bg-[#181920] text-white border border-[#2c2d38] p-2 text-xs font-mono focus:border-[#C6F135] focus:outline-none"
-                  />
-                </div>
-
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={majorSearchQuery}
+                  onChange={(e) => setMajorSearchQuery(e.target.value)}
+                  placeholder="Nhập tên ngành (Công nghệ thông tin, Y khoa, Kinh tế...)"
+                  className="w-full bg-[#181920] text-white border border-[#2c2d38] rounded-lg p-2 text-xs font-mono focus:border-[#C6F135] focus:outline-none"
+                />
                 {majorSearchQuery && (
-                  <div>
-                    <label className="block text-[#888888] text-[10px] uppercase mb-1">
-                      Kết quả tìm thấy ({globalMatchingRecords.length} ngành):
-                    </label>
-                    <select
-                      value={selectedRecordId}
-                      onChange={(e) => setSelectedRecordId(e.target.value)}
-                      className="w-full bg-[#181920] text-white border border-[#2c2d38] p-2.5 text-xs font-mono"
-                    >
-                      {globalMatchingRecords.map(r => (
-                        <option key={r.record_id} value={r.record_id}>
-                          [{r.institution_code}] {r.audited_major_name} — {r.method_id} ({r.audited_official_scale}: {r.audited_official_cutoff}đ)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <select
+                    value={selectedRecordId}
+                    onChange={(e) => setSelectedRecordId(e.target.value)}
+                    className="w-full bg-[#181920] text-white border border-[#2c2d38] rounded-lg p-2 text-xs font-mono"
+                  >
+                    {globalMatchingRecords.slice(0, 50).map(r => (
+                      <option key={r.record_id} value={r.record_id}>
+                        [{r.institution_code}] {r.audited_major_name} — {formatAdmissionMethod(r.method_id)} (Chuẩn: {r.audited_official_cutoff}đ)
+                      </option>
+                    ))}
+                  </select>
                 )}
               </div>
             )}
 
-            {/* Selected Program & Institution Specification Card */}
-            <div className="p-3.5 bg-[#0E0F12] border border-[#20212a] space-y-2.5 text-[11px]">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1c1d24] pb-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[#60A5FA] font-bold text-xs">[{selectedRecord.institution_code}]</span>
-                  <span className="text-white font-bold">{currentUniInfo?.official_name || selectedRecord.institution_code}</span>
-                  <span className="text-[10px] bg-[#1a1b22] px-1.5 py-0.2 border border-[#262630] text-[#AAAAAA]">
-                    {currentUniInfo?.verified_province_city || 'Toàn quốc'}
-                  </span>
-                </div>
+            {/* Selected Major Compact Pill Strip */}
+            <div className="p-2.5 bg-[#0C0D10] border border-[#1e1f26] rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[#60A5FA] font-bold">[{selectedRecord.institution_code}]</span>
+                <span className="text-white font-semibold">{currentUniInfo?.official_name || selectedRecord.institution_code}</span>
+                <span className="text-slate-400">·</span>
+                <span className="text-slate-200">{selectedRecord.audited_major_name}</span>
+              </div>
+              <div className="flex items-center gap-3 text-[11px]">
+                <span className="text-slate-300">
+                  Điểm chuẩn 2026: <strong className="text-[#C6F135]">{selectedRecord.audited_official_cutoff}đ</strong>
+                </span>
                 <button
                   type="button"
                   onClick={() => onSelectSchool(selectedRecord.institution_code)}
-                  className="text-[10px] text-[#C6F135] hover:underline"
+                  className="text-[#60A5FA] hover:text-[#C6F135] transition-colors"
                 >
-                  Xem hồ sơ trường →
+                  Hồ sơ trường →
                 </button>
-              </div>
-
-              {/* Full Address of University */}
-              <div className="flex items-start gap-1.5 text-[#AAAAAA] text-[11px]">
-                <MapPin className="w-3.5 h-3.5 text-[#60A5FA] shrink-0 mt-0.5" />
-                <span>
-                  <strong>Địa chỉ trụ sở chính:</strong> {currentUniInfo?.detailed_address_and_history || 'Trụ sở chính cơ sở giáo dục đại học'}
-                </span>
-              </div>
-
-              {/* Major Codes (TT 74 & TT 09) & Key Specs */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] text-[#888888] pt-1 border-t border-[#1a1b20]">
-                <div>
-                  <span>Ngành &amp; Mã TT 74:</span>
-                  <div className="text-white font-bold truncate">
-                    {selectedRecord.audited_major_name} <span className="text-[#60A5FA]">({majorCodeDetails.codeTT74})</span>
-                  </div>
-                </div>
-                <div>
-                  <span>Mã ngành cũ (TT 09):</span>
-                  <div className="text-[#AAAAAA] font-mono">{majorCodeDetails.codeTT09}</div>
-                </div>
-                <div>
-                  <span>Thang điểm chuẩn:</span>
-                  <div className={`font-bold ${isScale100Record ? 'text-amber-300' : 'text-white'}`}>
-                    {selectedRecord.audited_official_scale} (Max: {selectedRecord.scale_max}đ)
-                  </div>
-                </div>
-                <div>
-                  <span>Điểm chuẩn 2026:</span>
-                  <div className="text-[#C6F135] font-bold text-xs">{selectedRecord.audited_official_cutoff} điểm</div>
-                </div>
-              </div>
-
-              {/* Formula & Tie-Breaker Rule */}
-              <div className="text-[10px] text-[#888888] pt-1.5 border-t border-[#1a1b20] space-y-1">
-                <div>
-                  <strong>Công thức tính:</strong> <code className="text-[#C6F135]">{selectedRecord.formula_id}</code> &middot; <span className="text-white">{formatFormulaDisplay(selectedRecord.formula_expression)}</span>
-                </div>
-                <div>
-                  <strong>Tiêu chí phụ:</strong> <span className="text-[#CCCCCC]">{selectedRecord.eligibility_and_tie_breaker || majorCodeDetails.tieBreaker}</span>
-                </div>
               </div>
             </div>
 
             {/* Combination Picker for Selected Major */}
-            <div className="space-y-2 pt-2 border-t border-[#22232a]">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                <span className="text-[10px] uppercase text-[#888888] font-bold">
-                  Chọn tổ hợp môn xét tuyển cho ngành này:
-                </span>
-                <span className="text-[10px] text-[#60A5FA]">
-                  {currentComboMeta.name}
-                </span>
-              </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-[#1e1f26]">
+              <span className="text-[11px] text-slate-300 font-medium shrink-0">
+                Tổ hợp xét tuyển:
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {(selectedRecord.subject_combinations && selectedRecord.subject_combinations.length > 0 
                   ? selectedRecord.subject_combinations 
@@ -4175,10 +4084,10 @@ const AdmissionCalculatorView: React.FC<{
                       key={combo}
                       type="button"
                       onClick={() => setSelectedComboCode(combo)}
-                      className={`px-2.5 py-1 rounded text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         isSelected 
-                          ? 'bg-[#2563EB] text-white font-bold ring-1 ring-blue-400 shadow-md' 
-                          : 'bg-[#181920] text-[#AAAAAA] hover:text-white border border-[#2c2d38]'
+                          ? 'bg-[#C6F135] text-black shadow-sm' 
+                          : 'bg-[#181920] text-slate-200 hover:text-white border border-[#2c2d38]'
                       }`}
                     >
                       <span>{combo}</span>
@@ -4190,13 +4099,13 @@ const AdmissionCalculatorView: React.FC<{
             </div>
           </div>
 
-          {/* Step 4: Input Scores (Dynamic Combinations, 11 Subjects & Scale 100 components) */}
-          <div className="p-5 bg-[#121316] border border-[#262630] space-y-4">
+          {/* Step 2: Input Scores */}
+          <div className="p-4 bg-[#121316] border border-[#262630] rounded-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#22232a] pb-2">
               <h3 className="font-bold text-white text-xs font-sans flex items-center gap-2">
-                <span>Bước 4: Nhập Điểm Thành Phần Theo Yêu Cầu Của Ngành</span>
+                <span>2. Nhập Điểm Môn Xét Tuyển ({selectedComboCode})</span>
                 <span className="text-[#C6F135] font-mono text-[10px]">
-                  {isScale100Record ? 'Thang điểm 100 Kép' : 'Thang điểm 0 - 10'}
+                  {isScale100Record ? 'Thang điểm 100' : 'Thang điểm 0 - 10'}
                 </span>
               </h3>
 
@@ -4514,18 +4423,8 @@ const AdmissionCalculatorView: React.FC<{
               );
             })()}
 
-            {/* Institutional Provenance details in sidebar */}
-            <div className="p-3.5 bg-[#0E0F12] border border-[#20212a] rounded-lg space-y-1.5 text-xs text-slate-200">
-              <div>• <strong className="text-white">Trường:</strong> {currentUniInfo?.official_name} ({selectedRecord.institution_code})</div>
-              <div>• <strong className="text-white">Trụ sở:</strong> {currentUniInfo?.detailed_address_and_history}</div>
-              <div>• <strong className="text-white">Mã ngành:</strong> {majorCodeDetails.codeTT74}</div>
-              <div>• <strong className="text-white">Chỉ tiêu dự kiến:</strong> ~{majorCodeDetails.quota} sinh viên</div>
-              <div>• <strong className="text-white">Học phí:</strong> ~{majorCodeDetails.tuitionMln} triệu/năm</div>
-            </div>
-
-            {/* Verified Notes */}
-            <div className="text-xs text-slate-300 leading-relaxed">
-              * Điểm đã được kiểm tra điều kiện sàn TT06 (không có môn &le; 1.0 và đạt ngưỡng sàn tuyển sinh của Bộ GD&amp;ĐT).
+            <div className="text-[11px] text-slate-400 text-center pt-1 border-t border-[#20222c]">
+              Điểm sàn TT06: Không môn &le; 1.0đ &middot; Đã tính giảm trừ ưu tiên
             </div>
           </div>
         </div>

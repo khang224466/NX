@@ -189,15 +189,28 @@ Last Updated: 2026-10-18T17:42:00+07:00
     * `vite build`: Succeeded in 10.22s.
     * All 3 CLI suites (`test_decision_engine_behavior.mjs`, `test_p1_p2_decision_engine.mjs`, `test_career_decision_quality_12scenarios.mjs`) and audit suite PASSED 100%.
 
+- **UI/UX Simplification & Decluttering (Completed 2026-10-18)**:
+  - Addressed user directive: "giao diện quá hỗn loạn, đơn giản hóa lại, k cần phải show hết ra":
+    * **AdmissionCalculatorView (`UNIROOTPlatform.tsx`)**:
+      - Excised the 6-step indicator ribbon (`01 - Năm tuyển sinh... 06 - Đối chiếu`) which consumed massive vertical space with redundant data.
+      - Streamlined Step 1 into a clean 2-column selector: School Dropdown (300 schools) + Major & Method Dropdown.
+      - Replaced bloated 8-row Program Specification card with a sleek, single-row summary pill displaying School code, Name, Major, and Cutoff score.
+      - Simplified Step 2 into clean, balanced subject score inputs with high-contrast labels.
+      - Excised duplicate institutional provenance bullets (Trường, Trụ sở, Mã ngành, Chỉ tiêu, Học phí, Disclaimer) from the right sidebar Result Card, focusing 100% on the core admission score and pass/fail prediction.
+    * **CombinationDetailView (`UNIROOTPlatform.tsx`)**:
+      - Converted the 3 bulky static blocks of "Quy tắc tính điểm & Giảm ưu tiên" into an elegant, collapsed `<details>` accordion that users can expand only if interested.
+  - Verification:
+    * `tsc --noEmit`: Clean (0 errors).
+    * `vite build`: Succeeded in 4.26s.
+    * `run_browser_suite_check.mjs`: 66/66 PASSED (100% in 18ms).
+    * `verify_audit_points.mjs`: 7/7 PASSED.
+
 ## 3. Current Status & Git Branch
-- **Branch**: `main` (Latest commit: `fb9993f`). Dev server active on `http://localhost:8443` via `dev_server.mjs`.
+- **Branch**: `main`. Dev server active on `http://localhost:8443` via `dev_server.mjs`.
 - **Modified & New Files**:
-  * `src/services/realtimeBrowserTestSuite.ts` (complete 66 assertions engine)
-  * `src/components/RealtimeBrowserTestRunner.tsx` (interactive continuous UI component)
-  * `scripts/run_browser_suite_check.mjs` (CLI verification harness for browser suite)
-  * `src/components/BlueprintHeaderRuler.tsx` (header quick button for live test runner)
-  * `src/components/UNIROOTPlatform.tsx` (header prop wiring)
-  * `src/App.tsx` (global mount & state management)
+  * `src/components/UNIROOTPlatform.tsx` (simplified AdmissionCalculatorView and CombinationDetailView)
+  * `dev_server.mjs` (stabilized watcher)
+  * `vite.config.ts` (stabilized watcher)
   * `MEMORY.md` (persistent project memory)
 - **Status**: 100% verified across 66 client-side assertions, all CLI suites, TypeScript compile, and Vite production build.
 
