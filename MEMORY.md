@@ -37,7 +37,7 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Enriched `AIMajorSchoolAssistant.tsx` recommendation trends with empirical statistics from 908 CVs and 1,500 job descriptions.
 
 ## 3. Current Status & Git Branch
-- **Branch**: `main`.
+- **Branch**: `main` (Latest commit: `dd770ad` - *pushed to GitHub `origin/main` & Vercel deployment triggered*).
 - **Server**: Running on `http://localhost:8443` via `dev_server.mjs`.
 - **Hybrid DB State**: Initialized in `data/career_guidance.duckdb` (8+ tables & views) and `data/chroma_db` (797 vectors indexed).
 
