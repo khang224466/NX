@@ -86,6 +86,7 @@ interface UNIROOTPlatformProps {
   onOpenAIChat: (query?: string) => void;
   onOpenDataModal: () => void;
   onTriggerIntro?: () => void;
+  onOpenTestRunner?: () => void;
 }
 
 export type ViewRoute = 
@@ -107,7 +108,8 @@ export type ViewRoute =
 export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
   onOpenAIChat,
   onOpenDataModal,
-  onTriggerIntro
+  onTriggerIntro,
+  onOpenTestRunner
 }) => {
   // Navigation & Route states
   const [currentRoute, setCurrentRoute] = useState<ViewRoute>('home');
@@ -273,6 +275,7 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
         onTriggerIntro={onTriggerIntro}
         onNavigate={(tab) => navigateTo(tab as ViewRoute)}
         savedCount={savedSchoolCodes.length}
+        onOpenTestRunner={onOpenTestRunner}
       />
 
       {/* 6. Main Dynamic View Container */}
@@ -2029,17 +2032,17 @@ const CombinationDetailView: React.FC<{
       <div className="flex items-center justify-between border-b border-[#262630] pb-4">
         <button
           onClick={onBack}
-          className="text-xs font-mono text-[#888888] hover:text-[#C6F135] flex items-center gap-1.5 transition-colors"
+          className="text-xs font-mono text-slate-100 hover:text-[#C6F135] flex items-center gap-1.5 transition-colors font-semibold cursor-pointer"
         >
           <span>← Quay lại danh mục tổ hợp</span>
         </button>
-        <span className="text-xs font-mono text-[#C6F135] bg-[#C6F135]/10 px-2 py-0.5 border border-[#C6F135]/30">
+        <span className="text-xs font-mono text-[#C6F135] bg-[#C6F135]/10 px-2 py-0.5 border border-[#C6F135]/30 font-bold">
           XÁC MINH NĂM 2026
         </span>
       </div>
 
       {/* Combination Header */}
-      <div className="p-6 bg-[#121316] border border-[#262630] space-y-3">
+      <div className="p-6 bg-[#121316] border border-[#262630] rounded-xl space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -2050,7 +2053,7 @@ const CombinationDetailView: React.FC<{
                 {comboInfo.subjects.join(' – ')}
               </span>
             </div>
-            <p className="text-xs text-[#999999] mt-1 font-mono">
+            <p className="text-xs text-slate-200 mt-1 font-mono">
               {comboInfo.description}
             </p>
           </div>
@@ -2058,7 +2061,7 @@ const CombinationDetailView: React.FC<{
           <div className="flex items-center gap-2">
             <button
               onClick={() => onOpenAIChat(`Tư vấn cho em cơ hội đỗ và danh sách trường tốt nhất với tổ hợp ${comboInfo.code} (${comboInfo.subjects.join(', ')})`)}
-              className="px-3 py-2 bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-xs font-mono font-medium flex items-center gap-1.5 transition-colors"
+              className="px-3 py-2 bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer rounded-lg"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#C6F135]" />
               <span>Hỏi AI về tổ hợp {comboInfo.code}</span>
@@ -2069,20 +2072,20 @@ const CombinationDetailView: React.FC<{
         {/* Quick Numbers Banner */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-[#1e1f26] text-xs font-mono">
           <div>
-            <span className="text-[#888888]">Số ngành trong CSDL:</span>
+            <span className="text-slate-200 font-semibold">Số ngành trong CSDL:</span>
             <div className="text-white font-bold">{matchingRecords.length} ngành</div>
           </div>
           <div>
-            <span className="text-[#888888]">Trường sử dụng:</span>
+            <span className="text-slate-200 font-semibold">Trường sử dụng:</span>
             <div className="text-[#C6F135] font-bold">{usingUnis.length} trường</div>
           </div>
           <div>
-            <span className="text-[#888888]">Phạm vi điểm chuẩn:</span>
+            <span className="text-slate-200 font-semibold">Phạm vi điểm chuẩn:</span>
             <div className="text-white font-bold">{comboInfo.benchmarkRange ?? '18.0 - 28.5'} điểm</div>
           </div>
           <div>
-            <span className="text-[#888888]">Trạng thái nguồn:</span>
-            <div className="text-[#60A5FA] font-bold">VERIFIED_TIER1</div>
+            <span className="text-slate-200 font-semibold">Trạng thái dữ liệu:</span>
+            <div className="text-cyan-300 font-bold">Chuẩn Quốc Gia 2026</div>
           </div>
         </div>
       </div>
@@ -2098,10 +2101,10 @@ const CombinationDetailView: React.FC<{
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2.5 border-b-2 font-medium whitespace-nowrap transition-colors ${
+            className={`px-4 py-2.5 border-b-2 font-semibold whitespace-nowrap transition-colors cursor-pointer ${
               activeTab === tab.id
                 ? 'border-[#C6F135] text-[#C6F135] bg-[#141518]'
-                : 'border-transparent text-[#888888] hover:text-white'
+                : 'border-transparent text-slate-200 hover:text-white'
             }`}
           >
             {tab.label}
@@ -2125,65 +2128,65 @@ const CombinationDetailView: React.FC<{
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs font-mono">
-            <div className="p-5 bg-[#121316] border border-[#262630] space-y-4">
+            <div className="p-5 bg-[#121316] border border-[#262630] rounded-xl space-y-4">
               <h3 className="font-bold text-white text-sm font-sans flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-[#C6F135]" />
                 Thành phần môn thi trong tổ hợp
               </h3>
-              <ul className="space-y-2 text-[#CCCCCC]">
+              <ul className="space-y-2 text-slate-100">
                 {comboInfo.subjects.map((sub, idx) => (
-                  <li key={idx} className="flex items-center justify-between p-2 bg-[#181920] border border-[#22232a]">
+                  <li key={idx} className="flex items-center justify-between p-2.5 bg-[#181920] border border-[#22232a] rounded-lg">
                     <span className="font-bold text-white">Môn {idx + 1}: {sub}</span>
-                    <span className="text-[#888888]">Thang điểm 10.0</span>
+                    <span className="text-slate-200 font-semibold">Thang 10.0</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-[#888888] leading-relaxed">
+              <p className="text-xs text-slate-200 leading-relaxed">
                 Theo Thông tư 06/2026/TT-BGDĐT, tổ hợp xét tuyển phải có tối thiểu 3 môn thi, điểm liệt tính khi có bất kỳ môn nào ≤ 1.00 điểm.
               </p>
             </div>
 
-            <div className="p-5 bg-[#121316] border border-[#262630] space-y-4">
+            <div className="p-5 bg-[#121316] border border-[#262630] rounded-xl space-y-4">
               <h3 className="font-bold text-white text-sm font-sans flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#C6F135]" />
                 Quy tắc tính điểm & Giảm ưu tiên
               </h3>
-              <div className="space-y-2 text-[#CCCCCC] text-[11px] leading-relaxed">
-                <div className="p-2 bg-[#181920] border border-[#22232a]">
-                  <strong>Công thức chuẩn Thang 30 (1:1:1):</strong> S = M1 + M2 + M3 + Điểm cộng + Ưu tiên thực tế.
+              <div className="space-y-2 text-slate-100 text-xs leading-relaxed">
+                <div className="p-2.5 bg-[#181920] border border-[#22232a] rounded-lg">
+                  <strong className="text-white">Công thức chuẩn Thang 30 (1:1:1):</strong> S = M1 + M2 + M3 + Điểm cộng + Ưu tiên thực tế.
                 </div>
-                <div className="p-2 bg-[#181920] border border-[#22232a]">
-                  <strong>Giảm dần điểm ưu tiên:</strong> Thí sinh đạt từ 22.50 điểm trở lên bắt đầu giảm dần điểm ưu tiên: [(30 - Tổng) / 7.5] × ĐƯT gốc.
+                <div className="p-2.5 bg-[#181920] border border-[#22232a] rounded-lg">
+                  <strong className="text-white">Giảm dần điểm ưu tiên:</strong> Thí sinh đạt từ 22.50 điểm trở lên bắt đầu giảm dần điểm ưu tiên: [(30 - Tổng) / 7.5] × ĐƯT gốc.
                 </div>
-                <div className="p-2 bg-[#181920] border border-[#22232a]">
-                  <strong>Trần điểm thưởng:</strong> Tổng điểm cộng/khuyến khích không vượt quá 3.00/30 điểm (10% thang điểm).
+                <div className="p-2.5 bg-[#181920] border border-[#22232a] rounded-lg">
+                  <strong className="text-white">Trần điểm thưởng:</strong> Tổng điểm cộng/khuyến khích không vượt quá 3.00/30 điểm (10% thang điểm).
                 </div>
               </div>
             </div>
           </div>
 
           {/* Ngành & Cơ sở đào tạo tiêu biểu xét tuyển tổ hợp này */}
-          <div className="p-5 bg-[#121316] border border-[#262630] space-y-4 font-mono text-xs">
+          <div className="p-5 bg-[#121316] border border-[#262630] rounded-xl space-y-4 font-mono text-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#22232a] pb-3">
               <div>
                 <h3 className="text-white font-bold text-sm font-sans flex items-center gap-2">
                   <GraduationCap className="w-4 h-4 text-[#C6F135]" />
                   Danh sách ngành &amp; cơ sở đào tạo tiêu biểu xét tổ hợp {cleanCode}
                 </h3>
-                <p className="text-[11px] text-[#888888] mt-0.5">
+                <p className="text-xs text-slate-200 mt-0.5">
                   Tổng hợp {matchingRecords.length} ngành xét tuyển tại {usingUnis.length} trường đại học và học viện trên toàn quốc.
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveTab('majors')}
-                  className="px-3 py-1.5 bg-[#1c1d24] hover:bg-[#252632] text-[#C6F135] border border-[#C6F135]/40 text-xs transition-colors"
+                  className="px-3 py-1.5 bg-[#1c1d24] hover:bg-[#252632] text-[#C6F135] border border-[#C6F135]/40 text-xs transition-colors cursor-pointer rounded-lg font-semibold"
                 >
                   Xem tất cả {matchingRecords.length} ngành →
                 </button>
                 <button
                   onClick={() => setActiveTab('schools')}
-                  className="px-3 py-1.5 bg-[#1c1d24] hover:bg-[#252632] text-white border border-[#2c2d38] text-xs transition-colors"
+                  className="px-3 py-1.5 bg-[#1c1d24] hover:bg-[#252632] text-white border border-[#2c2d38] text-xs transition-colors cursor-pointer rounded-lg font-semibold"
                 >
                   Bảng {usingUnis.length} trường →
                 </button>
@@ -2197,28 +2200,28 @@ const CombinationDetailView: React.FC<{
                   <div
                     key={rec.record_id}
                     onClick={() => setSelectedRecordForModal(rec)}
-                    className="p-3.5 bg-[#16171c] hover:bg-[#1a1b22] border border-[#24252f] hover:border-[#C6F135] cursor-pointer group flex flex-col justify-between transition-all"
+                    className="p-3.5 bg-[#16171c] hover:bg-[#1a1b22] border border-[#24252f] hover:border-[#C6F135] cursor-pointer group flex flex-col justify-between transition-all rounded-xl"
                   >
                     <div>
-                      <div className="flex items-center justify-between text-[11px] text-[#888888] mb-1">
-                        <span className="text-[#60A5FA] font-bold">[{rec.institution_code}]</span>
-                        <span className="text-[10px] bg-[#1f202a] px-1.5 py-0.5 border border-[#2a2b38] text-[#EAEAE3]">
+                      <div className="flex items-center justify-between text-xs text-slate-200 mb-1">
+                        <span className="text-cyan-300 font-bold">[{rec.institution_code}]</span>
+                        <span className="text-[10px] bg-[#1f202a] px-1.5 py-0.5 border border-[#2a2b38] text-white rounded">
                           {rec.campus_location || uni?.verified_province_city || 'Trụ sở'}
                         </span>
                       </div>
-                      <div className="text-[11px] text-[#AAAAAA] line-clamp-1 mb-1">
+                      <div className="text-xs text-slate-200 line-clamp-1 mb-1 font-semibold">
                         {uni?.official_name || rec.institution_code}
                       </div>
                       <div className="text-xs font-bold text-white group-hover:text-[#C6F135] transition-colors line-clamp-2">
                         {rec.audited_major_name}
                       </div>
                     </div>
-                    <div className="mt-3 pt-2 border-t border-[#20212a] flex items-center justify-between text-[11px]">
-                      <span className="text-[#888888]">
-                        Điểm: <strong className="text-white">{rec.audited_official_cutoff}</strong> ({rec.audited_official_scale})
+                    <div className="mt-3 pt-2 border-t border-[#20212a] flex items-center justify-between text-xs">
+                      <span className="text-slate-200">
+                        Điểm chuẩn: <strong className="text-[#C6F135] font-bold font-mono">{formatCutoffScore(rec.audited_official_cutoff, rec.audited_official_scale)}</strong>
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[#60A5FA] hover:underline text-[10px]">Chi tiết</span>
+                        <span className="text-cyan-400 hover:underline text-[11px] font-semibold">Chi tiết</span>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -2414,28 +2417,28 @@ const CombinationDetailView: React.FC<{
                     className="p-3.5 bg-[#121316] hover:bg-[#181920] border border-[#22232a] hover:border-[#3B82F6] cursor-pointer group flex flex-col justify-between transition-all rounded-xl"
                   >
                     <div>
-                      <div className="flex items-center justify-between text-[11px] font-mono text-[#8E929F] mb-1">
-                        <span className="text-[#60A5FA] font-bold">[{rec.institution_code}]</span>
-                        <span className="text-[10px] bg-[#1a1b22] px-1.5 py-0.5 border border-[#262630] text-[#EAEAE3] rounded">
+                      <div className="flex items-center justify-between text-xs font-mono text-slate-200 mb-1">
+                        <span className="text-cyan-300 font-bold">[{rec.institution_code}]</span>
+                        <span className="text-[10px] bg-[#1a1b22] px-1.5 py-0.5 border border-[#262630] text-white rounded">
                           {rec.campus_location || uni?.verified_province_city || 'Trụ sở'}
                         </span>
                       </div>
-                      <div className="text-[11px] text-[#888888] line-clamp-1 mb-1 font-sans">
+                      <div className="text-xs text-slate-200 line-clamp-1 mb-1 font-semibold">
                         {uni?.official_name || rec.institution_code}
                       </div>
-                      <div className="text-xs font-bold text-white group-hover:text-[#60A5FA] transition-colors line-clamp-2">
+                      <div className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-2">
                         {rec.audited_major_name}
                       </div>
-                      <div className="text-[10px] text-[#666666] font-mono mt-1">
-                        {rec.method_id} &middot; {rec.formula_id}
+                      <div className="text-xs text-slate-200 font-mono mt-1">
+                        {formatAdmissionMethod(rec.method_id)}
                       </div>
                     </div>
-                    <div className="mt-3 pt-2 border-t border-[#1a1b22] text-[11px] font-mono flex items-center justify-between text-[#888888]">
+                    <div className="mt-3 pt-2 border-t border-[#1a1b22] text-xs font-mono flex items-center justify-between text-slate-200">
                       <span>
-                        Điểm: <strong className="text-white">{rec.audited_official_cutoff}</strong> ({rec.audited_official_scale})
+                        Điểm chuẩn: <strong className="text-[#C6F135] font-bold font-mono">{formatCutoffScore(rec.audited_official_cutoff, rec.audited_official_scale)}</strong>
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[#60A5FA] hover:underline text-[10px]">Chi tiết</span>
+                        <span className="text-cyan-400 hover:underline text-[11px] font-semibold">Chi tiết</span>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -2473,23 +2476,23 @@ const CombinationDetailView: React.FC<{
       {activeTab === 'schools' && (
         <div className="space-y-4">
           {/* Sub-filters for schools table */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-[#121316] border border-[#262630] text-xs font-mono">
+          <div className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-[#121316] border border-[#262630] rounded-xl text-xs font-mono">
             <div className="relative flex-1 w-full">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888888]" />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
               <input
                 type="text"
                 value={schoolFilter}
                 onChange={(e) => setSchoolFilter(e.target.value)}
                 placeholder="Lọc theo tên trường, mã trường, tên ngành..."
-                className="w-full bg-[#181920] text-white pl-8 pr-3 py-1.5 border border-[#2c2d38] text-xs focus:outline-none"
+                className="w-full bg-[#181920] text-white pl-8 pr-3 py-1.5 border border-[#2c2d38] text-xs focus:outline-none rounded-lg"
               />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-[#888888]">Tỉnh thành:</span>
+              <span className="text-slate-200 font-semibold">Tỉnh thành:</span>
               <select
                 value={provinceFilter}
                 onChange={(e) => setProvinceFilter(e.target.value)}
-                className="bg-[#181920] text-white border border-[#2c2d38] px-2 py-1.5 text-xs"
+                className="bg-[#181920] text-white border border-[#2c2d38] px-2 py-1.5 text-xs rounded-lg"
               >
                 {provinces.map(p => (
                   <option key={p} value={p}>{p === 'All' ? 'Tất cả tỉnh/thành' : p}</option>
@@ -2499,14 +2502,14 @@ const CombinationDetailView: React.FC<{
           </div>
 
           {/* Table Container */}
-          <div className="border border-[#262630] overflow-x-auto bg-[#121316]">
+          <div className="border border-[#262630] rounded-xl overflow-x-auto bg-[#121316]">
             <table className="w-full text-left text-xs font-mono">
-              <thead className="bg-[#181920] text-[#888888] border-b border-[#262630] uppercase text-[10px]">
+              <thead className="bg-[#181920] text-slate-100 border-b border-[#262630] uppercase text-xs font-bold">
                 <tr>
-                  <th className="py-2.5 px-3">Mã Trg</th>
+                  <th className="py-2.5 px-3">Mã Trường</th>
                   <th className="py-2.5 px-3">Tên Ngành &amp; Chương Trình</th>
                   <th className="py-2.5 px-3">Phương Thức</th>
-                  <th className="py-2.5 px-3">Thang</th>
+                  <th className="py-2.5 px-3">Thang Điểm</th>
                   <th className="py-2.5 px-3 text-right">Điểm Chuẩn</th>
                   <th className="py-2.5 px-3">Cơ Sở Đào Tạo</th>
                   <th className="py-2.5 px-3">Trạng Thái</th>
@@ -2522,27 +2525,27 @@ const CombinationDetailView: React.FC<{
                       onClick={() => setSelectedRecordForModal(rec)}
                       className="hover:bg-[#1a1b22] cursor-pointer transition-colors"
                     >
-                      <td className="py-2 px-3 font-bold text-[#60A5FA]">
+                      <td className="py-2 px-3 font-bold text-cyan-300">
                         {rec.institution_code}
                       </td>
                       <td className="py-2 px-3 text-white font-sans font-medium">
                         {rec.audited_major_name}
                       </td>
-                      <td className="py-2 px-3 text-[#AAAAAA]">
-                        {rec.method_id}
+                      <td className="py-2 px-3 text-slate-100 font-semibold">
+                        {formatAdmissionMethod(rec.method_id)}
                       </td>
-                      <td className="py-2 px-3 text-[#888888]">
-                        {rec.audited_official_scale}
+                      <td className="py-2 px-3 text-slate-200">
+                        {rec.audited_official_scale === 'THANG_100' ? '100đ' : rec.audited_official_scale === 'THANG_40' ? '40đ' : '30đ'}
                       </td>
-                      <td className="py-2 px-3 text-right font-bold text-[#C6F135]">
+                      <td className="py-2 px-3 text-right font-bold text-[#C6F135] text-sm font-mono">
                         {rec.audited_official_cutoff}
                       </td>
-                      <td className="py-2 px-3 text-[#AAAAAA] max-w-xs truncate">
+                      <td className="py-2 px-3 text-slate-200 max-w-xs truncate">
                         {uni ? uni.verified_province_city : 'Trụ sở chính'}
                       </td>
                       <td className="py-2 px-3">
-                        <span className="text-[10px] text-[#C6F135] bg-[#C6F135]/10 px-1.5 py-0.5 border border-[#C6F135]/30">
-                          {rec.verification_status}
+                        <span className="text-[10px] text-[#C6F135] bg-[#C6F135]/15 px-2 py-0.5 border border-[#C6F135]/40 font-bold rounded">
+                          Chuẩn 2026
                         </span>
                       </td>
                       <td className="py-2 px-3 text-right">
@@ -2553,7 +2556,7 @@ const CombinationDetailView: React.FC<{
                               e.stopPropagation();
                               setSelectedRecordForModal(rec);
                             }}
-                            className="px-2 py-0.5 rounded bg-[#1c2230] text-[#93C5FD] hover:bg-[#2563EB]/30 text-[10px] transition-colors"
+                            className="px-2.5 py-1 rounded bg-[#1c2230] text-slate-100 hover:text-white border border-blue-500/40 text-xs font-semibold transition-colors cursor-pointer"
                           >
                             Chi tiết
                           </button>
@@ -2563,7 +2566,7 @@ const CombinationDetailView: React.FC<{
                               e.stopPropagation();
                               onSelectSchool(`${rec.institution_code}:${rec.audited_major_name}`);
                             }}
-                            className="px-2 py-0.5 rounded bg-[#C6F135]/15 text-[#C6F135] hover:bg-[#C6F135] hover:text-[#0C0D0E] font-bold text-[10px] transition-colors"
+                            className="px-2.5 py-1 rounded bg-[#C6F135]/15 text-[#C6F135] hover:bg-[#C6F135] hover:text-[#0C0D0E] font-bold text-xs transition-colors cursor-pointer"
                           >
                             Xem tại trường →
                           </button>
@@ -2580,35 +2583,35 @@ const CombinationDetailView: React.FC<{
 
       {/* Tab 4: Nguồn dữ liệu & Căn cứ */}
       {activeTab === 'sources' && (
-        <div className="p-5 bg-[#121316] border border-[#262630] space-y-4 text-xs font-mono">
+        <div className="p-5 bg-[#121316] border border-[#262630] rounded-xl space-y-4 text-xs font-mono">
           <h3 className="font-bold text-white text-sm font-sans flex items-center gap-2">
             <FileText className="w-4 h-4 text-[#C6F135]" />
             Căn cứ pháp lý &amp; Địa chỉ nguồn dữ liệu tổ hợp {comboCode}
           </h3>
-          <p className="text-[#AAAAAA] leading-relaxed text-[11px]">
-            Toàn bộ danh mục tổ hợp môn và quan hệ ngành – trường được đối soát trực tiếp với <strong>Thông tư 06/2026/TT-BGDĐT</strong>, Cổng thông tin tuyển sinh Bộ GD&amp;ĐT (SRC_001, SRC_004) và đề án tuyển sinh chính thức công bố bởi các cơ sở đào tạo.
+          <p className="text-slate-100 leading-relaxed text-xs">
+            Toàn bộ danh mục tổ hợp môn và quan hệ ngành – trường được đối soát trực tiếp với <strong className="text-white">Thông tư 06/2026/TT-BGDĐT</strong>, Cổng thông tin tuyển sinh Bộ GD&amp;ĐT (SRC_001, SRC_004) và đề án tuyển sinh chính thức công bố bởi các cơ sở đào tạo.
           </p>
-          <div className="p-3 bg-[#0E0F12] border border-[#22232a] space-y-2">
-            <div className="text-[#C6F135] font-bold">Văn bản hỗ trợ:</div>
-            <div className="flex items-center justify-between text-[#888888]">
+          <div className="p-3.5 bg-[#0E0F12] border border-[#22232a] rounded-lg space-y-2.5">
+            <div className="text-[#C6F135] font-bold text-xs">Văn bản hỗ trợ:</div>
+            <div className="flex items-center justify-between text-slate-200 text-xs">
               <span>SRC_001: Thông tư 06/2026/TT-BGDĐT (Bộ GD&amp;ĐT)</span>
               <a 
                 href="https://xaydungchinhsach.chinhphu.vn/toan-van-thong-tu-06-2026-tt-bgddt-quy-che-tuyen-sinh-dao-tao-dai-hoc-cao-dang-giao-duc-mam-non-119260226145829864.htm" 
                 target="_blank" 
                 rel="noreferrer"
-                className="text-[#60A5FA] underline flex items-center gap-1"
+                className="text-cyan-400 hover:text-cyan-300 font-semibold underline flex items-center gap-1"
               >
                 <span>Xem văn bản gốc</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
-            <div className="flex items-center justify-between text-[#888888]">
+            <div className="flex items-center justify-between text-slate-200 text-xs">
               <span>SRC_002: Chính sách điểm ưu tiên khu vực &amp; đối tượng 2026</span>
               <a 
                 href="https://xaydungchinhsach.chinhphu.vn/chinh-sach-uu-tien-trong-tuyen-sinh-dai-hoc-119260227153842885.htm" 
                 target="_blank" 
                 rel="noreferrer"
-                className="text-[#60A5FA] underline flex items-center gap-1"
+                className="text-cyan-400 hover:text-cyan-300 font-semibold underline flex items-center gap-1"
               >
                 <span>Xem văn bản gốc</span>
                 <ExternalLink className="w-3 h-3" />
@@ -3276,6 +3279,57 @@ const UniversitiesListView: React.FC<{
   );
 };
 
+// =========================================================================
+// UNIVERSITY PROFILE VIEW FORMATTER HELPERS (JARGON-FREE & HIGH-CONTRAST)
+// =========================================================================
+function formatSectorName(sector?: string): string {
+  if (!sector) return 'Đa ngành';
+  const s = sector.toUpperCase();
+  if (s.includes('KY_THUAT') || s.includes('CONG_NGHE')) return 'Kỹ thuật & Công nghệ';
+  if (s.includes('KINH_TE') || s.includes('QUAN_TRI') || s.includes('TAI_CHINH')) return 'Kinh tế, Quản trị & Tài chính';
+  if (s.includes('Y_DUOC') || s.includes('SUC_KHOE')) return 'Y Dược & Khoa học Sức khỏe';
+  if (s.includes('SU_PHAM') || s.includes('GIAO_DUC')) return 'Sư phạm & Đào tạo Giáo dục';
+  if (s.includes('NGOAI_NGU') || s.includes('XA_HOI') || s.includes('NHAN_VAN')) return 'Ngoại ngữ, Khoa học Xã hội & Nhân văn';
+  if (s.includes('NGHE_THUAT') || s.includes('MY_THUAT') || s.includes('THIET_KE')) return 'Nghệ thuật & Thiết kế Sáng tạo';
+  if (s.includes('LUAT')) return 'Luật & Pháp chế';
+  return sector.replace(/_/g, ' ');
+}
+
+function formatInstitutionStatus(status?: string): string {
+  if (status === 'ACTIVE_INDEPENDENT') return 'Đại học Công lập Độc lập (Chuẩn Quốc gia)';
+  if (status === 'ACTIVE_BRANCH') return 'Phân hiệu Đại học Công lập';
+  if (status === 'PRIVATE') return 'Đại học Tư thục';
+  return 'Đại học Đã Kiểm Toán Chuẩn';
+}
+
+function formatAdmissionMethod(methodId?: string): string {
+  if (!methodId) return 'Điểm thi THPT';
+  const m = methodId.toUpperCase();
+  if (m.includes('PT100') || m.includes('THPT')) return 'Điểm thi THPT';
+  if (m.includes('PT200') || m.includes('HOCBA')) return 'Học bạ THPT';
+  if (m.includes('PT402') || m.includes('DGTD') || m.includes('TSA')) return 'Thi ĐGTD';
+  if (m.includes('PT401') || m.includes('DGNL') || m.includes('HSA')) return 'Thi ĐGNL';
+  if (m.includes('PT301') || m.includes('XTTT') || m.includes('TUYEN_THANG')) return 'Tuyển thẳng';
+  if (m.includes('PT500') || m.includes('IELTS')) return 'IELTS + THPT';
+  return methodId.replace(/^PT\d+_?/, '');
+}
+
+function formatCutoffScore(cutoff: number | string, scale?: string): string {
+  const num = typeof cutoff === 'number' ? cutoff : parseFloat(String(cutoff));
+  if (isNaN(num)) return String(cutoff);
+  
+  if (!scale || scale === 'THANG_30') {
+    return `${num}`;
+  }
+  if (scale === 'THANG_40') {
+    return `${num} / 40`;
+  }
+  if (scale === 'THANG_100') {
+    return `${num} / 100`;
+  }
+  return `${num}`;
+}
+
 /**
  * 5.1 UNIVERSITY PROFILE VIEW (Chi Tiết Hồ Sơ Trường)
  * 6 Tabs: Tổng quan, Ngành tuyển sinh, Cách tính điểm, Điểm chuẩn, Học phí, Cơ sở.
@@ -3329,33 +3383,33 @@ const UniversityProfileView: React.FC<{
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8 font-mono text-xs">
       {/* Top action */}
-      <div className="flex items-center justify-between border-b border-[#262630] pb-4">
-        <button onClick={onBack} className="text-[#888888] hover:text-[#C6F135] flex items-center gap-1">
+      <div className="flex items-center justify-between border-b border-[#2e3042] pb-4">
+        <button onClick={onBack} className="text-slate-100 hover:text-[#C6F135] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer text-xs">
           <span>← Quay lại danh sách 300 trường</span>
         </button>
         <button
           onClick={onToggleSave}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-[#2c2d38] hover:border-[#C6F135] text-white"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 border border-[#383a4c] hover:border-[#C6F135] text-white rounded-lg transition-colors cursor-pointer bg-[#141620]"
         >
           <Bookmark className={`w-3.5 h-3.5 ${isSaved ? 'fill-[#C6F135] text-[#C6F135]' : 'text-white'}`} />
-          <span>{isSaved ? 'Đã lưu quan tâm' : 'Lưu vào quan tâm'}</span>
+          <span className="font-semibold">{isSaved ? 'Đã lưu quan tâm' : 'Lưu vào quan tâm'}</span>
         </button>
       </div>
 
       {/* School Header Card */}
-      <div className="p-6 bg-[#121316] border border-[#262630] space-y-4">
+      <div className="p-6 bg-[#12141c] border border-[#2a2d3c] rounded-2xl shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="font-bold text-lg text-[#60A5FA] bg-[#2563EB]/15 border border-[#3B82F6]/30 px-2 py-0.5">
+              <span className="font-bold text-lg text-[#60A5FA] bg-[#2563EB]/20 border border-[#3B82F6]/40 px-2.5 py-0.5 rounded-lg">
                 {school.code}
               </span>
               <h1 className="text-2xl sm:text-3xl font-bold font-sans text-white">
                 {school.official_name}
               </h1>
             </div>
-            <p className="text-xs text-[#888888] mt-1">
-              {school.detailed_address_and_history} · Tỉnh/TP: <span className="text-white">{school.verified_province_city}</span>
+            <p className="text-xs text-slate-200 mt-2 leading-relaxed">
+              {school.detailed_address_and_history} · Tỉnh/TP: <span className="text-[#C6F135] font-bold">{school.verified_province_city}</span>
             </p>
           </div>
 
@@ -3363,7 +3417,7 @@ const UniversityProfileView: React.FC<{
             href={school.official_scheme_or_cutoff_url}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-2 bg-[#181920] hover:bg-[#22232a] border border-[#2c2d38] text-xs text-[#C6F135] flex items-center gap-1.5 self-start"
+            className="px-4 py-2.5 bg-[#181a26] hover:bg-[#222536] border border-[#383a4c] hover:border-[#C6F135] text-xs text-[#C6F135] font-bold flex items-center gap-1.5 self-start rounded-lg transition-colors shadow-sm"
           >
             <span>Đề án tuyển sinh chính thức</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -3371,7 +3425,7 @@ const UniversityProfileView: React.FC<{
         </div>
 
         {/* 6 Tabs */}
-        <div className="border-t border-[#1e1f26] pt-4 flex items-center gap-2 overflow-x-auto">
+        <div className="border-t border-[#222536] pt-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
           {[
             { id: 'overview', label: '1. Tổng quan' },
             { id: 'majors', label: `2. Ngành tuyển sinh (${schoolRecords.length})` },
@@ -3383,10 +3437,10 @@ const UniversityProfileView: React.FC<{
             <button
               key={tab.id}
               onClick={() => setProfileTab(tab.id as any)}
-              className={`px-3 py-1.5 border text-xs whitespace-nowrap transition-colors ${
+              className={`px-3.5 py-2 border text-xs whitespace-nowrap transition-colors rounded-lg cursor-pointer ${
                 profileTab === tab.id
-                  ? 'bg-[#C6F135] text-[#0C0D0E] border-[#C6F135] font-bold'
-                  : 'bg-[#181920] text-[#888888] hover:text-white border-[#2c2d38]'
+                  ? 'bg-[#C6F135] text-[#0C0D0E] border-[#C6F135] font-bold shadow-md'
+                  : 'bg-[#181a26] text-slate-100 hover:text-[#C6F135] hover:bg-[#222536] border-[#36384a] font-semibold'
               }`}
             >
               {tab.label}
@@ -3398,20 +3452,26 @@ const UniversityProfileView: React.FC<{
       {/* Tab 1: Tổng quan */}
       {profileTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-5 bg-[#121316] border border-[#262630] space-y-3">
-            <h3 className="font-bold text-white text-sm font-sans">Thông Tin Tuyển Sinh &amp; Quy Chế</h3>
-            <div className="space-y-2 text-[#CCCCCC] text-[11px] leading-relaxed">
-              <div>• <strong>Trạng thái pháp lý:</strong> {school.institution_status} ({school.verification_status})</div>
-              <div>• <strong>Lĩnh vực thế mạnh:</strong> {school.primary_sector}</div>
-              <div>• <strong>Website chính thức:</strong> <a href={school.official_scheme_or_cutoff_url} target="_blank" rel="noreferrer" className="text-[#60A5FA] underline">{school.official_scheme_or_cutoff_url}</a></div>
-              <div>• <strong>Số lượng ngành mở tuyển 2026:</strong> {schoolRecords.length} ngành/phương thức</div>
+          <div className="p-5 sm:p-6 bg-[#12141c] border border-[#262838] rounded-xl shadow-lg space-y-3.5">
+            <h3 className="font-bold text-white text-base font-sans flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#60A5FA]" />
+              <span>Thông Tin Tuyển Sinh &amp; Quy Chế</span>
+            </h3>
+            <div className="space-y-2.5 text-slate-100 text-xs leading-relaxed">
+              <div>• <strong className="text-white">Cơ chế quản lý:</strong> {formatInstitutionStatus(school.institution_status)}</div>
+              <div>• <strong className="text-white">Lĩnh vực thế mạnh:</strong> {formatSectorName(school.primary_sector)}</div>
+              <div>• <strong className="text-white">Website chính thức:</strong> <a href={school.official_scheme_or_cutoff_url} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 font-semibold underline">{school.official_scheme_or_cutoff_url}</a></div>
+              <div>• <strong className="text-white">Quy mô mở tuyển 2026:</strong> {schoolRecords.length} ngành / chương trình xét tuyển</div>
             </div>
           </div>
 
-          <div className="p-5 bg-[#121316] border border-[#262630] space-y-3">
-            <h3 className="font-bold text-white text-sm font-sans">Chính Sách Điểm Ưu Tiên &amp; Khuyến Khích</h3>
-            <p className="text-[#AAAAAA] text-[11px] leading-relaxed">
-              Trường áp dụng nghiêm ngặt Thông tư 06/2026/TT-BGDĐT: tổng điểm cộng không quá 3.0 điểm, giảm dần ưu tiên khi tổng điểm nền $\ge 22.5/30$. Khóa điểm cộng nếu đã sử dụng chứng chỉ ngoại ngữ quy đổi.
+          <div className="p-5 sm:p-6 bg-[#12141c] border border-[#262838] rounded-xl shadow-lg space-y-3.5">
+            <h3 className="font-bold text-white text-base font-sans flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#C6F135]" />
+              <span>Chính Sách Điểm Ưu Tiên &amp; Khuyến Khích</span>
+            </h3>
+            <p className="text-slate-100 text-xs leading-relaxed">
+              Trường áp dụng nghiêm ngặt Thông tư 06/2026/TT-BGDĐT: tổng điểm cộng ưu tiên khu vực và đối tượng không quá 3.0 điểm, giảm dần tỷ lệ khi tổng điểm xét tuyển từ 22.5/30 điểm trở lên. Khóa điểm cộng nếu thí sinh đã sử dụng chứng chỉ ngoại ngữ quy đổi.
             </p>
           </div>
         </div>
@@ -3433,7 +3493,7 @@ const UniversityProfileView: React.FC<{
 
           {/* Alert nếu đang xem ngành được chuyển trực tiếp từ tổ hợp môn */}
           {initialMajorSearch && majorSearchQuery === initialMajorSearch && (
-            <div className="p-3 rounded-xl bg-[#2563EB]/15 border border-[#3B82F6]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#93C5FD]">
+            <div className="p-3.5 rounded-xl bg-[#2563EB]/15 border border-[#3B82F6]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#93C5FD]">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse shrink-0" />
                 <span>
@@ -3443,7 +3503,7 @@ const UniversityProfileView: React.FC<{
               <button
                 type="button"
                 onClick={() => setMajorSearchQuery('')}
-                className="text-[11px] underline hover:text-white font-mono cursor-pointer shrink-0 text-left"
+                className="text-[11px] underline hover:text-white font-mono cursor-pointer shrink-0 text-left font-semibold"
               >
                 Xem toàn bộ {schoolRecords.length} ngành →
               </button>
@@ -3451,44 +3511,44 @@ const UniversityProfileView: React.FC<{
           )}
 
           {/* Thanh tìm kiếm & Bộ lọc tổ hợp */}
-          <div className="p-3 bg-[#121316] border border-[#262630] space-y-2.5">
-            <div className="flex flex-col sm:flex-row items-center gap-2.5">
+          <div className="p-4 bg-[#12141c] border border-[#262838] rounded-xl space-y-3 shadow-md">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="relative flex-1 w-full">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
                 <input
                   type="text"
                   value={majorSearchQuery}
                   onChange={(e) => setMajorSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm tên ngành, mã ngành, hoặc tổ hợp xét tuyển (A00, D01, D02...)..."
-                  className="w-full bg-[#181920] text-white pl-9 pr-8 py-2 border border-[#2c2d38] focus:border-[#C6F135] text-xs focus:outline-none"
+                  placeholder="Tìm kiếm tên ngành, mã ngành, hoặc tổ hợp xét tuyển (A00, D01, A01, B00...)..."
+                  className="w-full bg-[#181a26] text-white pl-9 pr-8 py-2.5 border border-[#333548] focus:border-[#C6F135] text-xs focus:outline-none rounded-lg"
                 />
                 {majorSearchQuery && (
                   <button
                     type="button"
                     onClick={() => setMajorSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#888888] hover:text-white cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
-              <span className="text-[#888888] whitespace-nowrap text-xs">
-                Tìm thấy <strong className="text-[#C6F135]">{filteredSchoolRecords.length}</strong> / {schoolRecords.length} ngành
+              <span className="text-slate-200 whitespace-nowrap text-xs">
+                Tìm thấy <strong className="text-[#C6F135] font-bold">{filteredSchoolRecords.length}</strong> / {schoolRecords.length} ngành
               </span>
             </div>
 
             {/* Quick Combo Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto text-[11px]">
-              <span className="text-[#64748B] shrink-0 font-mono">Lọc theo tổ hợp:</span>
+            <div className="flex items-center gap-2 overflow-x-auto text-xs no-scrollbar pt-1">
+              <span className="text-slate-200 shrink-0 font-mono font-semibold">Lọc theo tổ hợp:</span>
               {['ALL', 'A00', 'A01', 'D01', 'D02', 'B00', 'C00', 'D07'].map(combo => (
                 <button
                   key={combo}
                   type="button"
                   onClick={() => setSelectedComboFilter(combo)}
-                  className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-colors cursor-pointer ${
                     selectedComboFilter === combo
-                      ? 'bg-[#2563EB] text-white font-bold'
-                      : 'bg-[#181920] text-[#888888] hover:text-white border border-[#262630]'
+                      ? 'bg-[#2563EB] text-white shadow-sm'
+                      : 'bg-[#181a26] text-slate-100 hover:text-white hover:bg-[#252838] border border-[#333548]'
                   }`}
                 >
                   {combo === 'ALL' ? 'Tất cả' : combo}
@@ -3498,23 +3558,23 @@ const UniversityProfileView: React.FC<{
           </div>
 
           {/* Table */}
-          <div className="border border-[#262630] overflow-x-auto bg-[#121316]">
+          <div className="border border-[#262838] rounded-xl overflow-x-auto bg-[#12141c] shadow-lg">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#181920] text-[#888888] border-b border-[#262630] uppercase text-[10px]">
+              <thead className="bg-[#181a26] text-slate-100 border-b border-[#2b2d3e] uppercase text-xs font-bold tracking-wider">
                 <tr>
-                  <th className="py-2.5 px-3">Tên Ngành</th>
-                  <th className="py-2.5 px-3">Tổ Hợp Chấp Nhận</th>
-                  <th className="py-2.5 px-3">Phương Thức</th>
-                  <th className="py-2.5 px-3 text-right">Điểm Chuẩn 2026</th>
-                  <th className="py-2.5 px-3 text-right">Thao Tác</th>
+                  <th className="py-3 px-4">Tên Ngành</th>
+                  <th className="py-3 px-4">Tổ Hợp Xét Tuyển</th>
+                  <th className="py-3 px-4">Phương Thức</th>
+                  <th className="py-3 px-4 text-right">Điểm Chuẩn 2026</th>
+                  <th className="py-3 px-4 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1e1f26]">
+              <tbody className="divide-y divide-[#1e202e]">
                 {filteredSchoolRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-[#888888]">
+                    <td colSpan={5} className="py-10 text-center text-slate-200 text-xs">
                       Không tìm thấy ngành nào phù hợp với từ khóa "{majorSearchQuery}". Bấm{' '}
-                      <button onClick={() => { setMajorSearchQuery(''); setSelectedComboFilter('ALL'); }} className="text-[#60A5FA] underline cursor-pointer">
+                      <button onClick={() => { setMajorSearchQuery(''); setSelectedComboFilter('ALL'); }} className="text-[#60A5FA] underline font-bold cursor-pointer">
                         xóa bộ lọc
                       </button>{' '}
                       để xem tất cả.
@@ -3527,47 +3587,49 @@ const UniversityProfileView: React.FC<{
                       <tr 
                         key={r.record_id} 
                         className={`transition-colors ${
-                          isTargetMatch ? 'bg-[#182338] border-l-4 border-l-[#C6F135]' : 'hover:bg-[#181920]'
+                          isTargetMatch ? 'bg-[#182338] border-l-4 border-l-[#C6F135]' : 'hover:bg-[#181a26]'
                         }`}
                       >
-                        <td className="py-2.5 px-3 text-white font-medium">
+                        <td className="py-3 px-4 text-white font-semibold">
                           <div className="flex items-center gap-2">
                             <span>{r.audited_major_name}</span>
                             {isTargetMatch && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#C6F135]/20 text-[#C6F135] font-mono shrink-0">
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-[#C6F135]/20 text-[#C6F135] font-mono shrink-0 font-bold">
                                 🎯 Khớp tìm kiếm
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 text-[#AAAAAA]">
-                          <div className="flex flex-wrap gap-1">
+                        <td className="py-3 px-4 text-slate-100">
+                          <div className="flex flex-wrap gap-1.5">
                             {r.subject_combinations.map(c => (
                               <button
                                 key={c}
                                 onClick={() => onSelectCombo(c)}
-                                className="px-1.5 py-0.5 rounded bg-[#1f202a] hover:bg-[#2563EB] text-[#60A5FA] hover:text-white font-mono text-[10px] transition-colors cursor-pointer"
+                                className="px-2 py-0.5 rounded bg-[#1c2236] hover:bg-[#2563EB] text-[#60A5FA] hover:text-white font-mono text-[11px] font-bold border border-[#2b3552] transition-colors cursor-pointer"
                               >
                                 {c}
                               </button>
                             ))}
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 text-[#888888] font-mono">{r.method_id}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-[#C6F135] font-mono">
-                          {r.audited_official_cutoff} ({r.audited_official_scale})
+                        <td className="py-3 px-4 text-slate-100 font-semibold text-xs font-mono">
+                          {formatAdmissionMethod(r.method_id)}
                         </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3 px-4 text-right font-bold text-[#C6F135] font-mono text-sm">
+                          {formatCutoffScore(r.audited_official_cutoff, r.audited_official_scale)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => setSelectedRecordForDetail(r)}
-                              className="px-2 py-1 bg-[#1c2230] text-[#93C5FD] border border-[#2563EB]/30 hover:bg-[#2563EB]/30 text-[10px] transition-colors cursor-pointer"
+                              className="px-2.5 py-1 bg-[#1a233a] text-blue-200 border border-blue-500/40 hover:bg-blue-600 hover:text-white text-xs font-semibold rounded transition-colors cursor-pointer"
                             >
                               Chi tiết
                             </button>
                             <button
                               onClick={() => onCalculateScore(r.record_id)}
-                              className="px-2 py-1 bg-[#2563EB]/20 text-[#60A5FA] border border-[#3B82F6]/30 hover:bg-[#2563EB]/40 text-[10px] transition-colors cursor-pointer"
+                              className="px-2.5 py-1 bg-[#2563EB] text-white hover:bg-blue-600 text-xs font-bold rounded shadow-sm transition-colors cursor-pointer"
                             >
                               Tính điểm
                             </button>
@@ -3597,22 +3659,21 @@ const UniversityProfileView: React.FC<{
 
       {/* Tab 3: Cách tính điểm */}
       {profileTab === 'scoring' && (
-        <div className="p-5 bg-[#121316] border border-[#262630] space-y-4">
-          <h3 className="font-bold text-white text-sm font-sans">
+        <div className="p-5 sm:p-6 bg-[#12141c] border border-[#262838] rounded-xl shadow-lg space-y-4">
+          <h3 className="font-bold text-white text-base font-sans">
             Công Thức Tính Điểm Xét Tuyển Đã Kiểm Toán Tại {school.code}
           </h3>
           <div className="space-y-3">
-            {schoolRecords.slice(0, 4).map(r => (
-              <div key={r.record_id} className="p-3 bg-[#0E0F12] border border-[#22232a] space-y-1">
-                <div className="flex items-center justify-between text-xs text-white font-bold">
-                  <span>{r.audited_major_name}</span>
-                  <span className="text-[#C6F135]">{r.formula_id}</span>
+            {schoolRecords.slice(0, 8).map(r => (
+              <div key={r.record_id} className="p-4 bg-[#141622] border border-[#262838] rounded-xl space-y-2 hover:border-[#383a4c] transition-colors">
+                <div className="text-white font-bold text-sm">
+                  {r.audited_major_name}
                 </div>
-                <div className="text-[11px] text-[#888888]">
-                  Biểu thức: <code className="text-[#60A5FA]">{formatFormulaDisplay(r.formula_expression)}</code>
+                <div className="text-xs text-slate-100 font-medium">
+                  Biểu thức: <code className="text-cyan-300 font-bold text-xs bg-cyan-950/60 px-2.5 py-1 rounded border border-cyan-800/50 inline-block mt-0.5">{formatFormulaDisplay(r.formula_expression)}</code>
                 </div>
-                <div className="text-[10px] text-[#777777]">
-                  Thang điểm tối đa: {r.scale_max} · Quy đổi chuẩn hóa 100: {r.analytical_normalized_100}
+                <div className="text-xs text-slate-200">
+                  Thang điểm tối đa: <strong className="text-white font-bold">{r.scale_max} điểm</strong>
                 </div>
               </div>
             ))}
@@ -3622,18 +3683,18 @@ const UniversityProfileView: React.FC<{
 
       {/* Tab 4: Điểm chuẩn */}
       {profileTab === 'cutoffs' && (
-        <div className="p-5 bg-[#121316] border border-[#262630] space-y-4">
-          <h3 className="font-bold text-white text-sm font-sans">Điểm Chuẩn Lịch Sử Theo Thang Điểm Gốc</h3>
-          <p className="text-xs text-[#888888]">
-            Hệ thống phân tách tuyệt đối điểm thang 30, thang 40 và thang 100 để tránh sai lệch thống kê.
+        <div className="p-5 sm:p-6 bg-[#12141c] border border-[#262838] rounded-xl shadow-lg space-y-4">
+          <h3 className="font-bold text-white text-base font-sans">Điểm Chuẩn Lịch Sử Theo Thang Điểm Gốc</h3>
+          <p className="text-xs text-slate-200">
+            Hệ thống phân tách chính xác điểm thang 30, thang 40 và thang 100 để tránh sai lệch thống kê.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {schoolRecords.map(r => (
-              <div key={r.record_id} className="p-3 bg-[#181920] border border-[#22232a]">
-                <div className="text-white font-medium truncate">{r.audited_major_name}</div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-[10px] text-[#888888]">{r.audited_official_scale}</span>
-                  <span className="text-base font-bold text-[#C6F135]">{r.audited_official_cutoff}</span>
+              <div key={r.record_id} className="p-4 bg-[#141622] border border-[#262838] rounded-xl hover:border-[#383a4c] transition-colors">
+                <div className="text-white font-semibold text-xs truncate">{r.audited_major_name}</div>
+                <div className="flex items-center justify-between mt-2.5">
+                  <span className="text-xs text-slate-200 font-medium font-mono">Thang {r.scale_max || 30}đ</span>
+                  <span className="text-base font-bold text-[#C6F135] font-mono">{r.audited_official_cutoff}</span>
                 </div>
               </div>
             ))}
@@ -3643,25 +3704,25 @@ const UniversityProfileView: React.FC<{
 
       {/* Tab 5: Học phí */}
       {profileTab === 'tuition' && (
-        <div className="p-5 bg-[#121316] border border-[#262630] space-y-4">
-          <h3 className="font-bold text-white text-sm font-sans">Mức Học Phí Công Bố Trong Đề Án 2026</h3>
-          <div className="p-4 bg-[#0E0F12] border border-[#1e1f26] space-y-2 text-[11px] text-[#CCCCCC] leading-relaxed">
-            <div>• <strong>Chương trình chuẩn:</strong> Khoảng 24 – 35 triệu đồng / năm học.</div>
-            <div>• <strong>Chương trình tiên tiến / Chất lượng cao:</strong> 45 – 75 triệu đồng / năm học.</div>
-            <div>• <strong>Lộ trình tăng học phí:</strong> Tuân thủ Nghị định 81/2021/NĐ-CP và Nghị định 97/2023/NĐ-CP của Chính phủ.</div>
-            <div>• <strong>Chi phí sinh hoạt ước tính:</strong> 4 – 6 triệu đồng / tháng tại Hà Nội &amp; TP.HCM.</div>
+        <div className="p-5 sm:p-6 bg-[#12141c] border border-[#262838] rounded-xl shadow-lg space-y-4">
+          <h3 className="font-bold text-white text-base font-sans">Mức Học Phí Công Bố Trong Đề Án 2026</h3>
+          <div className="p-5 bg-[#141622] border border-[#262838] rounded-xl space-y-3 text-xs text-slate-100 leading-relaxed">
+            <div>• <strong className="text-white">Chương trình chuẩn:</strong> Khoảng 24 – 35 triệu đồng / năm học.</div>
+            <div>• <strong className="text-white">Chương trình tiên tiến / Chất lượng cao:</strong> 45 – 75 triệu đồng / năm học.</div>
+            <div>• <strong className="text-white">Lộ trình tăng học phí:</strong> Tuân thủ Nghị định 81/2021/NĐ-CP và Nghị định 97/2023/NĐ-CP của Chính phủ.</div>
+            <div>• <strong className="text-white">Chi phí sinh hoạt ước tính:</strong> 4 – 6 triệu đồng / tháng tại Hà Nội &amp; TP.HCM.</div>
           </div>
         </div>
       )}
 
       {/* Tab 6: Cơ sở đào tạo */}
       {profileTab === 'campuses' && (
-        <div className="p-5 bg-[#121316] border border-[#262630] space-y-4">
-          <h3 className="font-bold text-white text-sm font-sans">Địa Chỉ Cơ Sở Đào Tạo Thực Tế</h3>
-          <div className="p-4 bg-[#0E0F12] border border-[#1e1f26] space-y-2 text-[11px] leading-relaxed">
-            <div className="text-white font-bold">1. Trụ sở chính:</div>
-            <div className="text-[#AAAAAA]">{school.detailed_address_and_history}</div>
-            <div className="text-[#C6F135]">Tỉnh/Thành phố: {school.verified_province_city}</div>
+        <div className="p-5 sm:p-6 bg-[#12141c] border border-[#262838] rounded-xl shadow-lg space-y-4">
+          <h3 className="font-bold text-white text-base font-sans">Địa Chỉ Cơ Sở Đào Tạo Thực Tế</h3>
+          <div className="p-5 bg-[#141622] border border-[#262838] rounded-xl space-y-3 text-xs leading-relaxed">
+            <div className="text-white font-bold text-sm">1. Trụ sở chính:</div>
+            <div className="text-slate-100">{school.detailed_address_and_history}</div>
+            <div className="text-[#C6F135] font-bold">Tỉnh/Thành phố: {school.verified_province_city}</div>
           </div>
         </div>
       )}
@@ -3881,15 +3942,15 @@ const AdmissionCalculatorView: React.FC<{
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8 font-mono text-xs">
       {/* Page Title */}
       <div>
-        <div className="flex items-center gap-2 text-xs font-mono text-[#888888] mb-1">
+        <div className="flex items-center gap-2 text-xs font-mono text-slate-200 mb-1">
           <span>BỘ MÁY TÍNH ĐIỂM XÉT TUYỂN CHÍNH THỨC</span>
           <span>·</span>
-          <span className="text-[#C6F135]">300 TRƯỜNG &middot; 7.110 BẢN GHI ĐIỂM CHUẨN KIỂM TOÁN</span>
+          <span className="text-[#C6F135] font-bold">300 TRƯỜNG &middot; 7.110 BẢN GHI ĐIỂM CHUẨN KIỂM TOÁN</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-bold font-sans text-white">
           Máy Tính Điểm Xét Tuyển Đại Học 2026
         </h1>
-        <p className="text-xs sm:text-sm text-[#999999] mt-1 max-w-2xl leading-relaxed">
+        <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed">
           Tuân thủ Thông tư 06/2026/TT-BGDĐT: tự động phân loại thang điểm gốc (Thang 30 chuẩn, Thang 100 ĐGNL toàn diện, Thang 40 nhân đôi môn chính), giảm trừ ưu tiên lũy tiến và tính điểm đúng từng tổ hợp tuyển sinh.
         </p>
       </div>
@@ -3899,14 +3960,14 @@ const AdmissionCalculatorView: React.FC<{
         {[
           { num: '01', title: 'Năm tuyển sinh', desc: 'Năm 2026' },
           { num: '02', title: 'Trường & Ngành', desc: `[${selectedRecord.institution_code}] ${selectedRecord.audited_major_name}` },
-          { num: '03', title: 'Phương thức', desc: `${selectedRecord.method_id} (${selectedRecord.audited_official_scale})` },
+          { num: '03', title: 'Phương thức', desc: formatAdmissionMethod(selectedRecord.method_id) },
           { num: '04', title: 'Tổ hợp & Điểm thi', desc: `Tổ hợp ${selectedComboCode} (${isScale100Record ? 'Thang 100' : 'Thang 30'})` },
           { num: '05', title: 'Tính & Giải thích', desc: 'Phép tính & Công thức' },
-          { num: '06', title: 'Đối chiếu lịch sử', desc: `Chuẩn: ${selectedRecord.audited_official_cutoff}đ` }
+          { num: '06', title: 'Đối chiếu lịch sử', desc: `Điểm chuẩn: ${selectedRecord.audited_official_cutoff}đ` }
         ].map(step => (
-          <div key={step.num} className="p-2.5 bg-[#121316] border border-[#262630]">
+          <div key={step.num} className="p-2.5 bg-[#121316] border border-[#262630] rounded-lg">
             <div className="text-[#C6F135] font-bold">{step.num} · {step.title}</div>
-            <div className="text-[#888888] truncate mt-0.5">{step.desc}</div>
+            <div className="text-slate-200 font-medium truncate mt-0.5">{step.desc}</div>
           </div>
         ))}
       </div>
@@ -4374,11 +4435,11 @@ const AdmissionCalculatorView: React.FC<{
 
         {/* Right Column: Step 5 & 6 Calculation Result Breakdown */}
         <div className="space-y-4">
-          <div className="p-5 bg-[#14151a] border-2 border-[#C6F135] rounded-xs space-y-4">
-            <div className="flex items-center justify-between text-[11px] font-mono text-[#888888] border-b border-[#262630] pb-2">
-              <span>KẾT QUẢ TÍNH TOÁN</span>
+          <div className="p-5 bg-[#14151a] border-2 border-[#C6F135] rounded-xl space-y-4">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-200 border-b border-[#262630] pb-2">
+              <span className="font-bold">KẾT QUẢ TÍNH TOÁN</span>
               <span className="text-[#C6F135] font-bold">
-                {isScale100Record ? 'THANG 100 KÉP' : selectedRecord.audited_official_scale}
+                {isScale100Record ? 'THANG 100 ĐIỂM' : selectedRecord.scale_max ? `THANG ${selectedRecord.scale_max} ĐIỂM` : 'THANG 30 ĐIỂM'}
               </span>
             </div>
 
@@ -4394,34 +4455,34 @@ const AdmissionCalculatorView: React.FC<{
 
               return (
                 <>
-                  <div className="text-center py-3 bg-[#0C0D0E] border border-[#262630]">
-                    <div className="text-[10px] text-[#888888] uppercase">Điểm Xét Tuyển Chính Thức</div>
+                  <div className="text-center py-3 bg-[#0C0D0E] border border-[#262630] rounded-lg">
+                    <div className="text-xs text-slate-200 uppercase font-bold">Điểm Xét Tuyển Chính Thức</div>
                     <div className="text-4xl font-bold font-mono text-[#C6F135] mt-1">
                       {finalScore.toFixed(2)}
                     </div>
-                    <div className="text-[11px] text-[#888888] mt-1">
-                      Thang điểm: <strong>{effectiveScaleMax} điểm</strong> {isScale100Record ? '(ĐGNL + THPT + Học bạ)' : ''}
+                    <div className="text-xs text-slate-200 mt-1 font-medium">
+                      Thang điểm: <strong className="text-white">{effectiveScaleMax} điểm</strong> {isScale100Record ? '(ĐGNL + THPT + Học bạ)' : ''}
                     </div>
                   </div>
 
                   {/* Step-by-Step Breakdown */}
-                  <div className="space-y-2 text-[11px] font-mono">
-                    <div className="flex justify-between p-1.5 bg-[#181920]">
-                      <span className="text-[#888888]">
+                  <div className="space-y-2 text-xs font-mono">
+                    <div className="flex justify-between p-2 bg-[#181920] rounded">
+                      <span className="text-slate-200 font-medium">
                         {isScale100Record ? 'Điểm thành phần (70% ĐGNL + 20% THPT + 10% HB):' : `Điểm nền tổ hợp ${selectedComboCode}:`}
                       </span>
                       <span className="text-white font-bold">{rawScoreVal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between p-1.5 bg-[#181920]">
-                      <span className="text-[#888888]">Điểm thưởng / CCNN:</span>
+                    <div className="flex justify-between p-2 bg-[#181920] rounded">
+                      <span className="text-slate-200 font-medium">Điểm thưởng / CCNN:</span>
                       <span className="text-[#C6F135] font-bold">+{bonusVal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between p-1.5 bg-[#181920]">
-                      <span className="text-[#888888]">Ưu tiên thực nhận (Sau giảm dần):</span>
-                      <span className="text-[#60A5FA] font-bold">+{priorityVal.toFixed(3)}</span>
+                    <div className="flex justify-between p-2 bg-[#181920] rounded">
+                      <span className="text-slate-200 font-medium">Ưu tiên thực nhận (Sau giảm dần):</span>
+                      <span className="text-cyan-300 font-bold">+{priorityVal.toFixed(3)}</span>
                     </div>
                     {rawScoreVal >= (effectiveScaleMax === 100 ? 75.0 : 22.5) && (
-                      <div className="text-[10px] text-amber-300 p-1.5 bg-amber-500/10 border border-amber-500/20 flex items-center gap-1">
+                      <div className="text-xs text-amber-300 p-2 bg-amber-500/10 border border-amber-500/20 rounded flex items-center gap-1 font-medium">
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                         <span>Kích hoạt giảm trừ lũy tiến ưu tiên theo Thông tư 06</span>
                       </div>
@@ -4429,13 +4490,13 @@ const AdmissionCalculatorView: React.FC<{
                   </div>
 
                   {/* Step 6: Historical Cutoff Comparison */}
-                  <div className="p-3 bg-[#0C0D0E] border border-[#262630] space-y-2 text-[11px]">
+                  <div className="p-3 bg-[#0C0D0E] border border-[#262630] rounded-lg space-y-2 text-xs font-mono">
                     <div className="flex items-center justify-between">
-                      <span className="text-[#888888]">Điểm chuẩn 2026:</span>
-                      <span className="text-white font-bold">{cutoffVal} ({isScale100Record ? 'Thang 100' : 'Thang 30'})</span>
+                      <span className="text-slate-200 font-semibold">Điểm chuẩn 2026:</span>
+                      <span className="text-white font-bold">{cutoffVal} điểm</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#888888]">Chênh lệch:</span>
+                      <span className="text-slate-200 font-semibold">Chênh lệch:</span>
                       <span className={`font-bold ${diff >= 0 ? 'text-[#C6F135]' : 'text-[#EF4444]'}`}>
                         {diff >= 0 ? '+' : ''}
                         {diff.toFixed(2)} điểm
@@ -4454,16 +4515,16 @@ const AdmissionCalculatorView: React.FC<{
             })()}
 
             {/* Institutional Provenance details in sidebar */}
-            <div className="p-3 bg-[#0E0F12] border border-[#20212a] space-y-1.5 text-[10px] text-[#888888]">
-              <div>• <strong>Trường:</strong> {currentUniInfo?.official_name} ({selectedRecord.institution_code})</div>
-              <div>• <strong>Trụ sở:</strong> {currentUniInfo?.detailed_address_and_history}</div>
-              <div>• <strong>Mã ngành TT 74:</strong> {majorCodeDetails.codeTT74} (Mã cũ: {majorCodeDetails.codeTT09})</div>
-              <div>• <strong>Chỉ tiêu dự kiến:</strong> ~{majorCodeDetails.quota} sinh viên</div>
-              <div>• <strong>Học phí:</strong> ~{majorCodeDetails.tuitionMln} triệu/năm</div>
+            <div className="p-3.5 bg-[#0E0F12] border border-[#20212a] rounded-lg space-y-1.5 text-xs text-slate-200">
+              <div>• <strong className="text-white">Trường:</strong> {currentUniInfo?.official_name} ({selectedRecord.institution_code})</div>
+              <div>• <strong className="text-white">Trụ sở:</strong> {currentUniInfo?.detailed_address_and_history}</div>
+              <div>• <strong className="text-white">Mã ngành:</strong> {majorCodeDetails.codeTT74}</div>
+              <div>• <strong className="text-white">Chỉ tiêu dự kiến:</strong> ~{majorCodeDetails.quota} sinh viên</div>
+              <div>• <strong className="text-white">Học phí:</strong> ~{majorCodeDetails.tuitionMln} triệu/năm</div>
             </div>
 
             {/* Verified Notes */}
-            <div className="text-[10px] text-[#777777] leading-relaxed">
+            <div className="text-xs text-slate-300 leading-relaxed">
               * Điểm đã được kiểm tra điều kiện sàn TT06 (không có môn &le; 1.0 và đạt ngưỡng sàn tuyển sinh của Bộ GD&amp;ĐT).
             </div>
           </div>
@@ -4495,23 +4556,23 @@ const HistoricalCutoffsView: React.FC<{
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8 font-mono text-xs">
       <div>
-        <div className="flex items-center gap-2 text-xs font-mono text-[#888888] mb-1">
+        <div className="flex items-center gap-2 text-xs font-mono text-slate-200 mb-1">
           <span>ĐIỂM CHUẨN ĐÃ ĐỐI SOÁT KIỂM TOÁN</span>
           <span>·</span>
-          <span className="text-[#C6F135]">PHÂN TÁCH 5 HỆ THANG ĐIỂM</span>
+          <span className="text-[#C6F135] font-bold">PHÂN TÁCH 5 HỆ THANG ĐIỂM</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-bold font-sans text-white">
           Điểm Chuẩn Tuyển Sinh Đại Học 2026
         </h1>
-        <p className="text-xs sm:text-sm text-[#999999] mt-1 max-w-2xl">
+        <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed">
           Tuyệt đối không so sánh chéo giữa các trường dùng thang điểm khác nhau (ví dụ: UTH thang 1200, UEH/HCMUT thang 100, HANU thang 40).
         </p>
       </div>
 
       {/* Scale Separation Filter Tabs */}
-      <div className="p-4 bg-[#121316] border border-[#262630] flex flex-wrap items-center justify-between gap-4">
+      <div className="p-4 bg-[#121316] border border-[#262630] rounded-xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-[#888888] text-[10px] uppercase">LỌC THANG ĐIỂM:</span>
+          <span className="text-slate-200 text-xs uppercase font-bold">LỌC THANG ĐIỂM:</span>
           {[
             { id: 'ALL', label: 'Tất cả (2.158)' },
             { id: 'THANG_30', label: 'Thang 30 (2.028)' },
@@ -4522,10 +4583,10 @@ const HistoricalCutoffsView: React.FC<{
             <button
               key={tab.id}
               onClick={() => setScaleFilter(tab.id as any)}
-              className={`px-2.5 py-1 text-xs border ${
+              className={`px-3 py-1.5 text-xs rounded-lg border transition-colors cursor-pointer ${
                 scaleFilter === tab.id
                   ? 'bg-[#C6F135] text-[#0C0D0E] border-[#C6F135] font-bold'
-                  : 'bg-[#181920] text-[#888888] hover:text-white border-[#2c2d38]'
+                  : 'bg-[#181920] text-slate-200 hover:text-white border-[#36384a] font-semibold'
               }`}
             >
               {tab.label}
@@ -4534,29 +4595,28 @@ const HistoricalCutoffsView: React.FC<{
         </div>
 
         <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888888]" />
+          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
           <input
             type="text"
             value={searchCutoff}
             onChange={(e) => setSearchCutoff(e.target.value)}
             placeholder="Lọc tên trường, ngành..."
-            className="w-full bg-[#181920] text-white pl-8 pr-3 py-1.5 border border-[#2c2d38] text-xs focus:outline-none"
+            className="w-full bg-[#181920] text-white pl-8 pr-3 py-1.5 border border-[#333548] text-xs focus:outline-none rounded-lg"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="border border-[#262630] overflow-x-auto bg-[#121316]">
+      <div className="border border-[#262630] rounded-xl overflow-x-auto bg-[#121316]">
         <table className="w-full text-left text-xs">
-          <thead className="bg-[#181920] text-[#888888] border-b border-[#262630] uppercase text-[10px]">
+          <thead className="bg-[#181920] text-slate-100 border-b border-[#262630] uppercase text-xs font-bold">
             <tr>
-              <th className="py-2.5 px-3">Mã Trg</th>
-              <th className="py-2.5 px-3">Ngành &amp; Chương Trình</th>
-              <th className="py-2.5 px-3">Phương Thức</th>
-              <th className="py-2.5 px-3">Thang Điểm</th>
-              <th className="py-2.5 px-3 text-right">Điểm Chuẩn 2026</th>
-              <th className="py-2.5 px-3 text-right">Quy Đổi 100</th>
-              <th className="py-2.5 px-3">Nguồn</th>
+              <th className="py-3 px-4">Mã Trường</th>
+              <th className="py-3 px-4">Ngành &amp; Chương Trình</th>
+              <th className="py-3 px-4">Phương Thức</th>
+              <th className="py-3 px-4">Thang Điểm</th>
+              <th className="py-3 px-4 text-right">Điểm Chuẩn 2026</th>
+              <th className="py-3 px-4 text-right">Nguồn Đề Án</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1e1f26]">
@@ -4564,17 +4624,18 @@ const HistoricalCutoffsView: React.FC<{
               <tr 
                 key={r.record_id}
                 onClick={() => onSelectSchool(r.institution_code)}
-                className="hover:bg-[#181920] cursor-pointer"
+                className="hover:bg-[#181920] cursor-pointer transition-colors"
               >
-                <td className="py-2 px-3 font-bold text-[#60A5FA]">{r.institution_code}</td>
-                <td className="py-2 px-3 text-white font-sans font-medium">{r.audited_major_name}</td>
-                <td className="py-2 px-3 text-[#AAAAAA]">{r.method_id}</td>
-                <td className="py-2 px-3 text-[#888888]">{r.audited_official_scale}</td>
-                <td className="py-2 px-3 text-right font-bold text-[#C6F135]">{r.audited_official_cutoff}</td>
-                <td className="py-2 px-3 text-right text-[#888888]">{r.analytical_normalized_100}</td>
-                <td className="py-2 px-3 text-[10px] text-[#60A5FA] underline">
-                  <a href={r.source_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                    Đề án
+                <td className="py-2.5 px-4 font-bold text-cyan-300">{r.institution_code}</td>
+                <td className="py-2.5 px-4 text-white font-sans font-medium">{r.audited_major_name}</td>
+                <td className="py-2.5 px-4 text-slate-100 font-semibold">{formatAdmissionMethod(r.method_id)}</td>
+                <td className="py-2.5 px-4 text-slate-200">
+                  {r.audited_official_scale === 'THANG_100' ? '100 điểm' : r.audited_official_scale === 'THANG_40' ? '40 điểm' : r.audited_official_scale === 'THANG_1200' ? '1200 điểm' : '30 điểm'}
+                </td>
+                <td className="py-2.5 px-4 text-right font-bold text-[#C6F135] text-sm font-mono">{r.audited_official_cutoff}</td>
+                <td className="py-2.5 px-4 text-right text-xs">
+                  <a href={r.source_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-400 hover:text-cyan-300 font-semibold underline">
+                    Xem Đề Án →
                   </a>
                 </td>
               </tr>
@@ -4612,21 +4673,21 @@ const TuitionExplorerView: React.FC<{
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8 font-mono text-xs">
       <div>
-        <div className="flex items-center gap-2 text-xs font-mono text-[#888888] mb-1">
+        <div className="flex items-center gap-2 text-xs font-mono text-slate-200 mb-1">
           <span>TRA CỨU HỌC PHÍ CHÍNH THỨC</span>
           <span>·</span>
-          <span className="text-[#C6F135]">TÁCH BẠCH SINH HOẠT PHÍ</span>
+          <span className="text-[#C6F135] font-bold">TÁCH BẠCH SINH HOẠT PHÍ</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-bold font-sans text-white">
           Tra Cứu Học Phí &amp; Dự Toán Chi Phí 2026
         </h1>
-        <p className="text-xs sm:text-sm text-[#999999] mt-1 max-w-2xl">
+        <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed">
           Tách rõ học phí chính thức theo công bố trường, các khoản hỗ trợ miễn giảm và dự toán chi phí sinh hoạt.
         </p>
       </div>
 
       {/* Budget Slider */}
-      <div className="p-5 bg-[#121316] border border-[#262630] space-y-3">
+      <div className="p-5 bg-[#121316] border border-[#262630] rounded-xl space-y-3">
         <div className="flex items-center justify-between text-xs font-bold text-white font-sans">
           <span>Ngân sách học phí tối đa gia đình dự kiến:</span>
           <span className="text-[#C6F135] font-mono text-sm">{budgetMax} Triệu VNĐ / năm</span>
@@ -4638,9 +4699,9 @@ const TuitionExplorerView: React.FC<{
           step="5"
           value={budgetMax}
           onChange={(e) => setBudgetMax(parseInt(e.target.value, 10))}
-          className="w-full accent-[#C6F135]"
+          className="w-full accent-[#C6F135] cursor-pointer"
         />
-        <div className="flex justify-between text-[10px] text-[#888888]">
+        <div className="flex justify-between text-xs text-slate-200 font-medium">
           <span>0 triệu (Miễn phí/Bao cấp)</span>
           <span>35 triệu (Mức công lập chuẩn)</span>
           <span>70 triệu (Hệ tiên tiến)</span>
@@ -4654,19 +4715,19 @@ const TuitionExplorerView: React.FC<{
           <div
             key={idx}
             onClick={() => onSelectSchool(item.schoolCode)}
-            className="p-4 bg-[#121316] hover:bg-[#181920] border border-[#22232a] hover:border-[#C6F135] cursor-pointer transition-colors"
+            className="p-4 bg-[#121316] hover:bg-[#181920] border border-[#22232a] hover:border-[#C6F135] cursor-pointer transition-colors rounded-xl"
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[#60A5FA] bg-[#2563EB]/15 px-2 py-0.5 border border-[#3B82F6]/30">
+              <span className="font-bold text-cyan-300 bg-[#2563EB]/20 px-2 py-0.5 border border-[#3B82F6]/40 rounded">
                 {item.schoolCode}
               </span>
               <span className="text-[#C6F135] font-bold text-sm">
                 {item.tuitionYearMln === 0 ? 'MIỄN 100%' : `${item.tuitionYearMln} tr/năm`}
               </span>
             </div>
-            <div className="text-sm font-bold text-white mt-1 font-sans">{item.schoolName}</div>
-            <div className="text-xs text-[#CCCCCC] mt-0.5">{item.major} · Hệ: {item.program}</div>
-            <p className="text-[11px] text-[#888888] mt-2 pt-2 border-t border-[#1e1f26]">
+            <div className="text-sm font-bold text-white mt-1.5 font-sans">{item.schoolName}</div>
+            <div className="text-xs text-slate-100 mt-0.5">{item.major} · Hệ: {item.program}</div>
+            <p className="text-xs text-slate-200 mt-2 pt-2 border-t border-[#1e1f26] leading-relaxed">
               {item.note}
             </p>
           </div>

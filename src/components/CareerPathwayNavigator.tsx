@@ -66,7 +66,8 @@ import {
   AdaptiveCareerProposal,
   MajorMappingPathway,
   AdmissionsOption,
-  DecisionActionType
+  DecisionActionType,
+  evaluateEvidenceReadiness
 } from '../engine/careerDecisionEngine';
 
 export interface CareerPathwayNavigatorProps {
@@ -1819,6 +1820,180 @@ export const INTERMEDIATE_CONFIGS: Record<IntermediateDomainType, IntermediateDo
 };
 
 // =========================================================================
+// CHATBOT MARKDOWN & NUMBERED OPTION PARSING HELPERS
+// =========================================================================
+function extractNumberedOptions(text: string): { num: string; text: string }[] {
+  const regex = /\((\d+)\)\s*/g;
+  let match: RegExpExecArray | null;
+  const positions: { num: string; start: number; contentStart: number }[] = [];
+  while ((match = regex.exec(text)) !== null) {
+    positions.push({
+      num: match[1],
+      start: match.index,
+      contentStart: match.index + match[0].length
+    });
+  }
+  if (positions.length < 2) return [];
+
+  const results: { num: string; text: string }[] = [];
+  for (let i = 0; i < positions.length; i++) {
+    const end = (i < positions.length - 1) ? positions[i + 1].start : text.length;
+    let chunk = text.slice(positions[i].contentStart, end).trim();
+    chunk = chunk.replace(/(?:[,;]|\s+hay|\s+hoặc)+$/i, '').replace(/[?]$/, '').trim();
+    if (chunk) {
+      results.push({ num: positions[i].num, text: chunk });
+    }
+  }
+  return results;
+}
+
+function renderFormattedInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const boldText = part.slice(2, -2);
+      return (
+        <strong key={i} className="text-white font-semibold">
+          {boldText}
+        </strong>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={i} className="px-1.5 py-0.5 rounded bg-white/10 text-cyan-300 font-mono text-[11px]">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
+const ChatMessageMarkdownView: React.FC<{
+  content: string;
+  isLatest?: boolean;
+  onSelectOption?: (optionText: string) => void;
+}> = ({ content, isLatest, onSelectOption }) => {
+  const numberedOptions = useMemo(() => {
+    return isLatest ? extractNumberedOptions(content) : [];
+  }, [content, isLatest]);
+
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+
+  let inQuestionBlock = false;
+  let questionHeader = '';
+  let questionLines: string[] = [];
+
+  const flushQuestion = (key: number) => {
+    if (!inQuestionBlock) return;
+    const qBody = questionLines.join('\n').trim();
+    elements.push(
+      <div 
+        key={`q-${key}`} 
+        className="my-3 p-3.5 sm:p-4 rounded-xl bg-gradient-to-br from-blue-950/40 via-[#0B1528] to-indigo-950/30 border border-blue-500/30 shadow-md space-y-3"
+      >
+        <div className="flex items-center gap-2 text-xs font-bold text-amber-300 font-mono">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+          <span>{questionHeader || 'Câu hỏi định hướng:'}</span>
+        </div>
+        <div className="text-xs sm:text-sm text-slate-100 leading-relaxed font-sans">
+          {renderFormattedInline(qBody)}
+        </div>
+        {numberedOptions.length > 0 && onSelectOption && (
+          <div className="pt-2 space-y-1.5 border-t border-blue-500/20">
+            <div className="text-[10px] font-mono text-blue-300/80 uppercase tracking-wider">
+              Chọn nhanh phương án phù hợp:
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {numberedOptions.map((opt) => (
+                <button
+                  key={opt.num}
+                  type="button"
+                  onClick={() => onSelectOption(opt.text)}
+                  className="w-full text-left p-2.5 rounded-lg bg-[#131E35] hover:bg-[#1E3A8A] border border-[#203358] hover:border-blue-400 text-xs text-slate-200 hover:text-white transition-all flex items-start gap-2.5 group cursor-pointer active:scale-[0.99]"
+                >
+                  <span className="w-5 h-5 rounded-md bg-blue-500/20 group-hover:bg-blue-500 text-blue-300 group-hover:text-white font-mono text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                    {opt.num}
+                  </span>
+                  <span className="flex-1 leading-snug">{opt.text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+    inQuestionBlock = false;
+    questionHeader = '';
+    questionLines = [];
+  };
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      if (inQuestionBlock) {
+        questionLines.push('');
+      }
+      return;
+    }
+
+    if (trimmed.startsWith('👉') || trimmed.includes('👉 **')) {
+      if (inQuestionBlock) flushQuestion(idx);
+      inQuestionBlock = true;
+      const headerMatch = trimmed.match(/👉\s*\*\*([^*]+)\*\*:?/);
+      if (headerMatch) {
+        questionHeader = headerMatch[1];
+        const rest = trimmed.replace(/👉\s*\*\*[^*]+\*\*:?/, '').trim();
+        if (rest) questionLines.push(rest);
+      } else {
+        questionHeader = 'Câu hỏi tiếp theo:';
+        questionLines.push(trimmed.replace(/^👉\s*/, ''));
+      }
+      return;
+    }
+
+    if (inQuestionBlock) {
+      if (trimmed.startsWith('- **') || trimmed.startsWith('• **') || trimmed.startsWith('###')) {
+        flushQuestion(idx);
+      } else {
+        questionLines.push(trimmed);
+        return;
+      }
+    }
+
+    if (trimmed.startsWith('- **') || trimmed.startsWith('• **')) {
+      const match = trimmed.match(/^[-•]\s*\*\*([^*]+)\*\*:\s*(.*)$/);
+      if (match) {
+        elements.push(
+          <div key={idx} className="flex items-start gap-2 text-xs py-1.5 px-3 rounded-lg bg-white/[0.03] border border-white/5 my-1">
+            <span className="text-blue-400 font-mono shrink-0 mt-0.5">•</span>
+            <div className="flex-1 leading-relaxed">
+              <span className="font-semibold text-blue-300 font-mono mr-1.5">{match[1]}:</span>
+              <span className="text-slate-200">{renderFormattedInline(match[2])}</span>
+            </div>
+          </div>
+        );
+        return;
+      }
+    }
+
+    elements.push(
+      <p key={idx} className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans my-1.5">
+        {renderFormattedInline(trimmed)}
+      </p>
+    );
+  });
+
+  if (inQuestionBlock) {
+    flushQuestion(lines.length);
+  }
+
+  return <div className="space-y-1">{elements}</div>;
+};
+
+// =========================================================================
 // 3. MAIN COMPONENT: CAREER PATHWAY NAVIGATOR
 // =========================================================================
 export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
@@ -1939,6 +2114,21 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   const activeCombo = useMemo(() => {
     return selectedComboCode ? getOrSynthesizeComboData(selectedComboCode) : null;
   }, [selectedComboCode]);
+
+  // Chat auto-scroll reference
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, isAskingFollowUp, isAnalysisDone]);
+
+  // Evidence readiness evaluation for chat header status
+  const evidenceReadiness = useMemo(() => {
+    return learnerEvidenceProfile 
+      ? evaluateEvidenceReadiness(learnerEvidenceProfile)
+      : { isReadyForCareers: false, score: 0, reason: '' };
+  }, [learnerEvidenceProfile]);
 
   // Quick Prompt Chips (5 career-first orientation chips from scratch)
   const promptChips = [
@@ -3330,7 +3520,7 @@ ${chosenSub?.id === 'sub_neutral_balanced'
       </AnimatePresence>
 
       {/* =========================================================================
-          PROGRESSIVE STEP 1: AI TYPEWRITER ANALYSIS & TOP SUGGESTED COMBOS
+          PROGRESSIVE STEP 1: UNIFIED CONVERSATIONAL DECISION STREAM & TARGET CAREER ROLES
           (Only shown when workflowStep !== 'INITIAL' and !== 'INTERMEDIATE_DISCOVERY')
           ========================================================================= */}
       <AnimatePresence>
@@ -3339,308 +3529,409 @@ ${chosenSub?.id === 'sub_neutral_balanced'
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -15 }}
-            className="max-w-3xl mx-auto px-4 space-y-4"
+            className="max-w-4xl mx-auto px-4 space-y-4"
           >
-            {/* Streamed AI Terminal Card */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-[#090D16] border border-[#1E3A8A]/50 shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-[#1E3A8A]/30 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
-                  <span className="text-xs font-mono font-bold text-[#60A5FA] uppercase tracking-wider">
-                    Cố Vấn Hướng Nghiệp Nexora: Lời Khuyên &amp; Định Hướng Nghề Nghiệp
-                  </span>
+            {/* Unified Glassmorphism Chatbot Terminal Card */}
+            <div className="rounded-2xl bg-[#090D18] border border-[#1E2E4A] shadow-2xl overflow-hidden flex flex-col">
+              {/* Sleek Chatbot Header */}
+              <div className="p-4 sm:p-5 border-b border-[#1E2E4A] bg-[#0C1222] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/30">
+                      <Bot className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#0C1222] animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-sm sm:text-base text-white tracking-wide">
+                        Cố Vấn Hướng Nghiệp Nexora
+                      </h3>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                        AI 1-on-1
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 hidden md:inline">
+                        {apiKey ? (apiKey.startsWith('gsk_') ? '⚡ Groq Llama-3.3' : '⚡ Gemini 2.0') : '⚡ Hybrid Engine (Không cần Key)'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 font-sans">
+                      Định hướng từng bước từ con số 0 · Đối thoại dựa trên bằng chứng thực tế
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   <button
                     type="button"
                     onClick={() => {
                       sfx.playUiClick();
                       setWorkflowStep('INTERMEDIATE_DISCOVERY');
                     }}
-                    className="text-[10px] font-mono text-[#60A5FA] hover:text-white flex items-center gap-1 bg-[#1E293B] hover:bg-[#2563EB] px-2 py-0.5 rounded border border-[#3B82F6]/30 transition-colors cursor-pointer"
+                    className="text-[11px] font-mono text-[#60A5FA] hover:text-white flex items-center gap-1.5 bg-[#162238] hover:bg-[#2563EB] px-3 py-1.5 rounded-lg border border-[#3B82F6]/30 transition-all cursor-pointer shadow-sm"
                   >
-                    <ArrowLeft className="w-3 h-3" />
-                    <span>Đổi lựa chọn thăm dò</span>
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>Thăm dò 4 bước</span>
                   </button>
-                  {!isAnalysisDone && (
-                    <button
-                      onClick={skipAnalysis}
-                      className="text-[10px] font-mono text-[#94A3B8] hover:text-white flex items-center gap-1 cursor-pointer"
-                    >
-                      <FastForward className="w-3 h-3" />
-                      <span>Xem nhanh</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sfx.playUiClick();
+                      handleReset();
+                    }}
+                    className="text-[11px] font-mono text-slate-400 hover:text-rose-300 flex items-center gap-1.5 bg-white/5 hover:bg-rose-950/40 px-3 py-1.5 rounded-lg border border-white/10 hover:border-rose-500/30 transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Bắt đầu lại</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Progressive typewriter streaming text */}
-              <div className="text-xs sm:text-sm text-[#E2E8F0] leading-relaxed whitespace-pre-line font-sans">
-                {streamAnalysis}
-                {!isAnalysisDone && <span className="inline-block w-2 h-4 ml-1 bg-[#60A5FA] animate-pulse" />}
+              {/* Evidence Status Tracker Mini-bar */}
+              <div className="px-4 py-2.5 bg-[#070B14] border-b border-[#1E293B]/70 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                <div className="flex items-center gap-3 text-slate-400">
+                  <span className="text-slate-500 hidden sm:inline">Hồ sơ đã thu thập:</span>
+                  <span className={`flex items-center gap-1 ${learnerEvidenceProfile?.statedInterests?.length ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                    {learnerEvidenceProfile?.statedInterests?.length ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <div className="w-2 h-2 rounded-full border border-slate-600" />}
+                    Sở thích ({learnerEvidenceProfile?.statedInterests?.length || 0})
+                  </span>
+                  <span className={`flex items-center gap-1 ${learnerEvidenceProfile?.academicStrengths?.length ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                    {learnerEvidenceProfile?.academicStrengths?.length ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <div className="w-2 h-2 rounded-full border border-slate-600" />}
+                    Năng lực ({learnerEvidenceProfile?.academicStrengths?.length || 0})
+                  </span>
+                  <span className={`flex items-center gap-1 ${(learnerEvidenceProfile?.workEnvironmentPrefs?.length || learnerEvidenceProfile?.personalValues?.length) ? 'text-emerald-400 font-semibold' : 'text-slate-500'}`}>
+                    {(learnerEvidenceProfile?.workEnvironmentPrefs?.length || learnerEvidenceProfile?.personalValues?.length) ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <div className="w-2 h-2 rounded-full border border-slate-600" />}
+                    Môi trường ({learnerEvidenceProfile?.workEnvironmentPrefs?.length || 0})
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500">Độ hoàn thiện:</span>
+                  <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                    evidenceReadiness.score >= 75
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : evidenceReadiness.score >= 45
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  }`}>
+                    {evidenceReadiness.score}/100đ
+                  </span>
+                </div>
               </div>
 
-              {/* Target Career Roles Revealed (Gate 2: Career Orientation From Scratch) */}
-              {isAnalysisDone && (suggestedCareers.length > 0 || suggestedCombos.length > 0) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="pt-3 border-t border-[#1E3A8A]/30 space-y-4"
-                >
-                  {/* Discovery Triage Banner if user is undecided or lacks direction */}
-                  {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput)) && (
-                    <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-[#172033] via-[#0F172A] to-[#111827] border border-[#3B82F6]/40 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-xl bg-[#2563EB]/25 text-[#60A5FA] mt-0.5 shrink-0 border border-[#3B82F6]/30">
-                          <Compass className="w-5 h-5 animate-pulse text-[#60A5FA]" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="text-xs font-bold text-white flex items-center gap-2">
-                            <span>Bạn vẫn đang bối rối &amp; chưa biết mình giỏi môn gì?</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">Đừng chọn vội!</span>
+              {/* Scrollable Conversation Stream */}
+              <div ref={chatScrollRef} className="p-4 sm:p-5 space-y-4 max-h-[600px] overflow-y-auto">
+                {(chatMessages.length > 0 ? chatMessages : [{ role: 'model' as const, content: analysisText }]).map((msg, idx) => {
+                  if (msg.role === 'user') {
+                    return (
+                      <div key={idx} className="flex justify-end my-2">
+                        <div className="max-w-[85%] sm:max-w-[75%] space-y-1">
+                          <div className="flex items-center justify-end gap-1.5 text-[10px] font-mono text-blue-300/80 mr-1">
+                            <span>Bạn</span>
+                            <User className="w-3 h-3 text-blue-400" />
                           </div>
-                          <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                            Không ai có thể chọn đúng nghề nếu chưa thu thập đủ yếu tố (loại trừ việc ngại nhất, môi trường làm việc RIASEC, điều kiện tài chính). Hãy để AI hỏi thêm 4 câu để định vị chuẩn xác!
-                          </p>
+                          <div className="p-3.5 rounded-2xl rounded-tr-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs sm:text-sm leading-relaxed shadow-lg whitespace-pre-line border border-blue-400/30">
+                            {msg.content}
+                          </div>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playUiClick();
-                          setDetectedDomainType('UNDECIDED');
-                          setWorkflowStep('INTERMEDIATE_DISCOVERY');
-                        }}
-                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 transition-transform active:scale-95 cursor-pointer"
-                      >
-                        <Sliders className="w-3.5 h-3.5" />
-                        <span>Mở 4 Bước Thăm Dò Năng Lực</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                    );
+                  }
+
+                  const isFirstModelMsg = idx === 1 || (chatMessages.length === 0 && idx === 0);
+                  const isCurrentLatestModel = idx === (chatMessages.length > 0 ? chatMessages.length - 1 : 0);
+
+                  return (
+                    <div key={idx} className="flex justify-start my-2">
+                      <div className="max-w-[95%] sm:max-w-[88%] space-y-1 w-full">
+                        <div className="flex items-center justify-between text-[10px] font-mono text-emerald-400 ml-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+                              <Bot className="w-2.5 h-2.5 text-emerald-400" />
+                            </div>
+                            <span className="font-semibold">Cố Vấn Nexora</span>
+                          </div>
+                          {isFirstModelMsg && !isAnalysisDone && (
+                            <button
+                              type="button"
+                              onClick={skipAnalysis}
+                              className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 cursor-pointer font-mono"
+                            >
+                              <FastForward className="w-3 h-3" />
+                              <span>Xem nhanh</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="p-4 sm:p-5 rounded-2xl rounded-tl-sm bg-[#0E1526] border border-[#1E2E4A] shadow-xl text-slate-200">
+                          {isFirstModelMsg && !isAnalysisDone ? (
+                            <div className="text-xs sm:text-sm text-[#E2E8F0] leading-relaxed whitespace-pre-line font-sans">
+                              {streamAnalysis}
+                              <span className="inline-block w-2 h-4 ml-1 bg-[#60A5FA] animate-pulse" />
+                            </div>
+                          ) : (
+                            <ChatMessageMarkdownView
+                              content={msg.content}
+                              isLatest={isCurrentLatestModel}
+                              onSelectOption={(text) => handleSendFollowUp(text)}
+                            />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  );
+                })}
 
-                  {/* Header of Gate 2 Career Cards */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E3A8A]/30 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
-                        <Briefcase className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-mono font-bold text-white uppercase tracking-wider block">
-                          Top 3 Vị Trí Việc Làm Mục Tiêu Đề Xuất (Gate 2: Target Career Roles)
-                        </span>
-                        <span className="text-[11px] text-[#94A3B8] font-mono">
-                          Định hướng từ con số 0: Chọn việc làm trước ➔ Hệ thống truy hồi Ngành học &amp; Tuyển sinh
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#3B82F6]/20 text-[#60A5FA] border border-[#3B82F6]/30 self-start sm:self-auto">
-                      Holland RIASEC + EXORA Match
-                    </span>
-                  </div>
-
-                  {/* 3 Target Career Role Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                    {suggestedCareers.map((career) => {
-                      const isSelected = selectedCareerId === career.id;
-                      return (
-                        <div
-                          key={career.id}
-                          onClick={() => handleSelectCareerDirectly(career)}
-                          className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
-                            isSelected
-                              ? 'bg-[#182338] border-[#3B82F6] shadow-[0_0_20px_rgba(59,130,246,0.35)] ring-1 ring-[#3B82F6] scale-[1.02]'
-                              : 'bg-[#10141D] border-[#222838] hover:border-[#3B82F6] hover:bg-[#131926]'
-                          }`}
-                        >
-                          <div className="space-y-2.5">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#3B82F6]/20 text-[#60A5FA] font-bold border border-[#3B82F6]/30">
-                                RIASEC: {career.riasecCode}
-                              </span>
-                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                Khớp {career.matchPercent}%
-                              </span>
-                            </div>
-
-                            <div>
-                              <span className="text-[10px] font-mono text-[#94A3B8] uppercase block">
-                                {career.sector}
-                              </span>
-                              <h4 className="font-bold text-sm sm:text-base text-white mt-0.5 leading-snug group-hover:text-[#60A5FA] transition-colors">
-                                {career.title}
-                              </h4>
-                            </div>
-
-                            <div className="space-y-1.5 pt-1">
-                              <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#10B981] font-semibold bg-[#064E3B]/30 px-2 py-1 rounded border border-[#064E3B]/40">
-                                <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                                <span>{career.salaryRange}</span>
-                              </div>
-                              <div className="text-[10px] text-[#CBD5E1] bg-white/5 px-2 py-1 rounded font-mono flex items-center justify-between">
-                                <span className="text-[#94A3B8]">Mức độ rủi ro AI:</span>
-                                <span className="text-emerald-400 font-bold">{career.automationRisk}</span>
-                              </div>
-                            </div>
-
-                            <p className="text-[11px] text-[#CBD5E1] leading-relaxed pt-1 line-clamp-3">
-                              {career.whyFit}
-                            </p>
-
-                            {career.whyNotOthers && (
-                              <div className="text-[10px] text-amber-300/90 bg-amber-950/30 border border-amber-900/40 p-2 rounded-lg leading-relaxed">
-                                <span className="font-semibold text-amber-400 font-mono">Loại trừ / Lưu ý: </span>
-                                {career.whyNotOthers}
-                              </div>
-                            )}
-
-                            {career.recommendedMajors && career.recommendedMajors.length > 0 && (
-                              <div className="text-[10px] font-mono text-[#94A3B8] pt-1 border-t border-[#1E293B]">
-                                <span className="text-[#64748B]">Ngành đào tạo: </span>
-                                <span className="text-white/90 font-medium">{career.recommendedMajors.join(' · ')}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs font-mono text-[#60A5FA] group-hover:underline">
-                            <span className="font-bold">Khám phá nghề này: Cần học ngành gì?</span>
-                            <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Optional Linked Combinations Preview */}
-                  {suggestedCombos.length > 0 && (
-                    <div className="p-3 rounded-xl bg-[#0B0F19] border border-[#1E293B] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
-                      <span className="text-[#94A3B8]">
-                        Tổ hợp môn xét tuyển liên đới (Gate 4):
+                {/* Typing Indicator */}
+                {isAskingFollowUp && (
+                  <div className="flex justify-start my-2">
+                    <div className="p-3.5 rounded-2xl rounded-tl-sm bg-[#0E1526] border border-[#1E2E4A] flex items-center gap-2 text-xs font-mono text-blue-300">
+                      <Bot className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                      <span>Nexora đang phân tích và đối chiếu hồ sơ...</span>
+                      <span className="flex gap-1 ml-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" />
                       </span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {suggestedCombos.map((cb) => (
-                          <button
-                            key={cb.code}
-                            type="button"
-                            onClick={() => handleSelectCombo(cb.code)}
-                            className="px-2.5 py-1 rounded-lg bg-[#161B26] hover:bg-[#2563EB] text-[#CBD5E1] hover:text-white border border-[#222838] transition-colors cursor-pointer flex items-center gap-1.5"
-                          >
-                            <span className="font-bold text-[#60A5FA] group-hover:text-white">{cb.code}</span>
-                            <span className="text-[10px] text-[#94A3B8]">({cb.matchPercent}%)</span>
-                          </button>
-                        ))}
-                      </div>
                     </div>
-                  )}
-                </motion.div>
+                  </div>
+                )}
+
+                {/* Target Career Roles Revealed (Gate 2: Target Career Roles) */}
+                {isAnalysisDone && (suggestedCareers.length > 0 || suggestedCombos.length > 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="pt-4 border-t border-[#1E3A8A]/40 space-y-4"
+                  >
+                    {/* Discovery Triage Banner if user is undecided or lacks direction */}
+                    {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput)) && (
+                      <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-[#172033] via-[#0F172A] to-[#111827] border border-[#3B82F6]/40 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 rounded-xl bg-[#2563EB]/25 text-[#60A5FA] mt-0.5 shrink-0 border border-[#3B82F6]/30">
+                            <Compass className="w-5 h-5 animate-pulse text-[#60A5FA]" />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs font-bold text-white flex items-center gap-2">
+                              <span>Bạn vẫn đang bối rối &amp; chưa biết mình giỏi môn gì?</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">Đừng chọn vội!</span>
+                            </div>
+                            <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                              Không ai có thể chọn đúng nghề nếu chưa thu thập đủ yếu tố (loại trừ việc ngại nhất, môi trường làm việc RIASEC, điều kiện tài chính). Hãy để AI hỏi thêm 4 câu để định vị chuẩn xác!
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playUiClick();
+                            setDetectedDomainType('UNDECIDED');
+                            setWorkflowStep('INTERMEDIATE_DISCOVERY');
+                          }}
+                          className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 transition-transform active:scale-95 cursor-pointer"
+                        >
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>Mở 4 Bước Thăm Dò Năng Lực</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Header of Gate 2 Career Cards */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E3A8A]/30 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                          <Briefcase className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-mono font-bold text-white uppercase tracking-wider block">
+                            Top 3 Vị Trí Việc Làm Mục Tiêu Đề Xuất (Gate 2: Target Career Roles)
+                          </span>
+                          <span className="text-[11px] text-[#94A3B8] font-mono">
+                            Định hướng từ con số 0: Chọn việc làm trước ➔ Hệ thống truy hồi Ngành học &amp; Tuyển sinh
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#3B82F6]/20 text-[#60A5FA] border border-[#3B82F6]/30 self-start sm:self-auto">
+                        Holland RIASEC + EXORA Match
+                      </span>
+                    </div>
+
+                    {/* 3 Target Career Role Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                      {suggestedCareers.map((career) => {
+                        const isSelected = selectedCareerId === career.id;
+                        return (
+                          <div
+                            key={career.id}
+                            onClick={() => handleSelectCareerDirectly(career)}
+                            className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                              isSelected
+                                ? 'bg-[#182338] border-[#3B82F6] shadow-[0_0_20px_rgba(59,130,246,0.35)] ring-1 ring-[#3B82F6] scale-[1.02]'
+                                : 'bg-[#10141D] border-[#222838] hover:border-[#3B82F6] hover:bg-[#131926]'
+                            }`}
+                          >
+                            <div className="space-y-2.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#3B82F6]/20 text-[#60A5FA] font-bold border border-[#3B82F6]/30">
+                                  RIASEC: {career.riasecCode}
+                                </span>
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  Khớp {career.matchPercent}%
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] font-mono text-[#94A3B8] uppercase block">
+                                  {career.sector}
+                                </span>
+                                <h4 className="font-bold text-sm sm:text-base text-white mt-0.5 leading-snug group-hover:text-[#60A5FA] transition-colors">
+                                  {career.title}
+                                </h4>
+                              </div>
+
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#10B981] font-semibold bg-[#064E3B]/30 px-2 py-1 rounded border border-[#064E3B]/40">
+                                  <DollarSign className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  <span>{career.salaryRange}</span>
+                                </div>
+                                <div className="text-[10px] text-[#CBD5E1] bg-white/5 px-2 py-1 rounded font-mono flex items-center justify-between">
+                                  <span className="text-[#94A3B8]">Mức độ rủi ro AI:</span>
+                                  <span className="text-emerald-400 font-bold">{career.automationRisk}</span>
+                                </div>
+                              </div>
+
+                              <p className="text-[11px] text-[#CBD5E1] leading-relaxed pt-1 line-clamp-3">
+                                {career.whyFit}
+                              </p>
+
+                              {career.whyNotOthers && (
+                                <div className="text-[10px] text-amber-300/90 bg-amber-950/30 border border-amber-900/40 p-2 rounded-lg leading-relaxed">
+                                  <span className="font-semibold text-amber-400 font-mono">Loại trừ / Lưu ý: </span>
+                                  {career.whyNotOthers}
+                                </div>
+                              )}
+
+                              {career.recommendedMajors && career.recommendedMajors.length > 0 && (
+                                <div className="text-[10px] font-mono text-[#94A3B8] pt-1 border-t border-[#1E293B]">
+                                  <span className="text-[#64748B]">Ngành đào tạo: </span>
+                                  <span className="text-white/90 font-medium">{career.recommendedMajors.join(' · ')}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs font-mono text-[#60A5FA] group-hover:underline">
+                              <span className="font-bold">Khám phá nghề này: Cần học ngành gì?</span>
+                              <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Optional Linked Combinations Preview */}
+                    {suggestedCombos.length > 0 && (
+                      <div className="p-3 rounded-xl bg-[#0B0F19] border border-[#1E293B] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
+                        <span className="text-[#94A3B8]">
+                          Tổ hợp môn xét tuyển liên đới (Gate 4):
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {suggestedCombos.map((cb) => (
+                            <button
+                              key={cb.code}
+                              type="button"
+                              onClick={() => handleSelectCombo(cb.code)}
+                              className="px-2.5 py-1 rounded-lg bg-[#161B26] hover:bg-[#2563EB] text-[#CBD5E1] hover:text-white border border-[#222838] transition-colors cursor-pointer flex items-center gap-1.5"
+                            >
+                              <span className="font-bold text-[#60A5FA] group-hover:text-white">{cb.code}</span>
+                              <span className="text-[10px] text-[#94A3B8]">({cb.matchPercent}%)</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Contextual Quick Suggestion Chips */}
+              {isAnalysisDone && (
+                <div className="px-4 py-2.5 bg-[#080D1A] border-t border-[#1E293B]/70 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  <span className="text-[10px] text-[#64748B] font-mono shrink-0">
+                    {adaptiveQuickReplies.length > 0 ? 'Gợi ý trả lời nhanh:' : 'Gợi ý hỏi tiếp:'}
+                  </span>
+                  {(
+                    adaptiveQuickReplies.length > 0
+                      ? adaptiveQuickReplies
+                      : (
+                          /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì/i.test(activePromptQuery || chatInput)
+                            ? [
+                                'Tôi thích cả 3, mỗi cái 1 chút',
+                                'Em nên chọn Tự nhiên hay Xã hội nếu chưa rõ sở thích?',
+                                'Làm sao để biết mình phù hợp với ngành nghề nào?',
+                                'Những công việc nào có môi trường ổn định, ít rủi ro?'
+                              ]
+                            : [
+                                'So sánh cơ hội việc làm & kỹ năng cần thiết?',
+                                'Trường nào xét tuyển ngành này tốt nhất?',
+                                'Học phí ngành này khoảng bao nhiêu một năm?'
+                              ]
+                        )
+                  ).map((sugg, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendFollowUp(sugg)}
+                      className="text-xs px-3 py-1 rounded-full bg-[#131E35] hover:bg-blue-600 text-slate-300 hover:text-white transition-colors border border-[#203358] hover:border-blue-400 cursor-pointer shrink-0 shadow-sm active:scale-95"
+                    >
+                      {sugg}
+                    </button>
+                  ))}
+                </div>
               )}
 
-              {/* =========================================================================
-                  INTERACTIVE AI Q&A EXPANSION: HỎI ĐÁP TIẾP NỐI VỚI AI QUA API KEY
-                  ========================================================================= */}
+              {/* Follow-up input form */}
               {isAnalysisDone && (
-                <div className="pt-4 border-t border-[#1E3A8A]/30 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-[#60A5FA] flex items-center gap-1.5 font-semibold uppercase">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                      Hỏi Đáp Hướng Nghiệp & Phân Tích Thực Chứng (DuckDB + ChromaDB + AI)
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
-                      {apiKey ? (apiKey.startsWith('gsk_') ? '⚡ Groq Llama-3.3' : '⚡ Gemini 2.0') : '⚡ Hybrid Engine (Không cần Key)'}
-                    </span>
-                  </div>
-
-                  {/* Follow-up chat history inside this card */}
-                  {chatMessages.length > 2 && (
-                    <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                      {chatMessages.slice(2).map((msg, i) => (
-                        <div
-                          key={i}
-                          className={`p-3 rounded-xl text-xs leading-relaxed ${
-                            msg.role === 'user'
-                              ? 'bg-[#1E293B] text-white ml-6 border border-[#334155]'
-                              : 'bg-[#10141D] text-[#CBD5E1] mr-4 border border-[#1E293B] whitespace-pre-line'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#94A3B8] mb-1">
-                            {msg.role === 'user' ? <User className="w-3 h-3 text-[#60A5FA]" /> : <Bot className="w-3 h-3 text-emerald-400" />}
-                            <span>{msg.role === 'user' ? 'Bạn' : 'Nexora AI'}</span>
-                          </div>
-                          <div>{msg.content}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Follow-up input form */}
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleSendFollowUp();
-                    }}
-                    className="relative flex items-center gap-2"
-                  >
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendFollowUp();
+                  }}
+                  className="p-3.5 sm:p-4 bg-[#0A0F1D] border-t border-[#1E293B] flex items-center gap-2.5"
+                >
+                  <div className="relative flex-1">
                     <input
                       type="text"
                       value={followUpInput}
                       onChange={(e) => setFollowUpInput(e.target.value)}
-                      placeholder="Đặt câu hỏi tiếp theo cho AI (VD: Điểm chuẩn năm nay thế nào? Tỷ lệ làm trái ngành theo CV?)..."
-                      className="flex-1 bg-[#10141D] border border-[#262D3D] focus:border-[#3B82F6] text-white px-3.5 py-2.5 text-xs rounded-xl placeholder-[#64748B] focus:outline-none transition-colors"
+                      placeholder="Nhập câu trả lời của bạn hoặc chia sẻ thêm với cố vấn..."
+                      className="w-full bg-[#101726] border border-[#22314E] focus:border-blue-500 text-white pl-4 pr-10 py-3 text-xs sm:text-sm rounded-xl placeholder-slate-500 focus:outline-none transition-colors shadow-inner"
                     />
-                    <button
-                      type="submit"
-                      disabled={isAskingFollowUp || !followUpInput.trim()}
-                      className="px-3.5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer shrink-0"
-                    >
-                      {isAskingFollowUp ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Đang trả lời...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Gửi</span>
-                          <Send className="w-3.5 h-3.5" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  {/* Contextual quick suggestion chips */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <span className="text-[10px] text-[#64748B] font-mono">
-                      {adaptiveQuickReplies.length > 0 ? 'Gợi ý trả lời nhanh:' : 'Gợi ý hỏi tiếp:'}
-                    </span>
-                    {(
-                      adaptiveQuickReplies.length > 0
-                        ? adaptiveQuickReplies
-                        : (
-                            /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì/i.test(activePromptQuery || chatInput)
-                              ? [
-                                  'Em nên chọn Tự nhiên hay Xã hội nếu chưa rõ sở thích?',
-                                  'Làm sao để biết mình phù hợp với ngành nghề nào?',
-                                  'Những công việc nào có môi trường ổn định, ít rủi ro?',
-                                  'Nên chọn trường top đầu hay chọn ngành mình thích?'
-                                ]
-                              : [
-                                  'So sánh cơ hội việc làm & kỹ năng cần thiết?',
-                                  'Trường nào xét tuyển ngành này tốt nhất?',
-                                  'Học phí ngành này khoảng bao nhiêu một năm?'
-                                ]
-                          )
-                    ).map((sugg, idx) => (
+                    {followUpInput && (
                       <button
-                        key={idx}
                         type="button"
-                        onClick={() => handleSendFollowUp(sugg)}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#161B26] text-[#94A3B8] hover:text-white hover:bg-[#2563EB] transition-colors border border-[#222838] cursor-pointer"
+                        onClick={() => setFollowUpInput('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
                       >
-                        {sugg}
+                        <X className="w-3.5 h-3.5" />
                       </button>
-                    ))}
+                    )}
                   </div>
-                </div>
+                  <button
+                    type="submit"
+                    disabled={isAskingFollowUp || !followUpInput.trim()}
+                    className="px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-40 text-white rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all active:scale-95 cursor-pointer shrink-0"
+                  >
+                    {isAskingFollowUp ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                        <span className="hidden sm:inline">Đang gửi...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Gửi</span>
+                        <Send className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </form>
               )}
             </div>
           </motion.section>

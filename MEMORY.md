@@ -138,22 +138,73 @@ Last Updated: 2026-10-18T17:42:00+07:00
     * `tsc --noEmit`: 0 errors.
     * `vite build`: Succeeded in 2.55s.
 
+- **Chatbot UI/UX Unified Conversation Refactor (Completed 2026-10-18)**:
+  - Addressed user feedback regarding broken chatbot layout and raw unrendered markdown syntax:
+    * Replaced fragmented dual-card layout (where Turn 1 remained statically frozen at the top while Turn 2 was crammed into a small inner box) with a single, unified, modern glassmorphism chat timeline (`ChatConversationStream`).
+    * Implemented `ChatMessageMarkdownView` & `renderFormattedInline` replacing raw `**...**` asterisks and bullet lines `- **Label**:` with clean bold HTML, mono evidence badges, and structured layouts.
+    * Implemented `extractNumberedOptions`: Automatically extracts numbered choices `(1)... (2)... (3)...` from diagnostic questions and renders them as clickable, high-contrast interactive option cards for one-tap answers.
+    * Transformed user messages into right-aligned gradient bubbles (`from-blue-600 to-indigo-600`) with distinct "Bạn" badge.
+    * Replaced irrelevant database search placeholder with empathetic counselor prompt: `"Nhập câu trả lời của bạn hoặc chia sẻ thêm với cố vấn..."`.
+    * Integrated a real-time Evidence Status Tracker Mini-bar displaying the 3 diagnostic pillars (Sở thích, Năng lực, Môi trường) and Readiness score (`/100đ`).
+    * Added auto-scroll to bottom (`chatScrollRef`) on each conversation turn.
+  - Verified across all test suites:
+    * `tsc --noEmit`: 0 errors.
+    * `vite build`: Succeeded in 19.56s.
+    * `scripts/verify_audit_points.mjs`: 7/7 PASSED.
+    * `scripts/test_decision_engine_behavior.mjs`: 24/24 PASSED.
+    * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED.
+    * `scripts/test_career_decision_quality_12scenarios.mjs`: 12/12 PASSED.
+
+- **Visual Brightening & Decluttering Milestone (Completed 2026-10-18)**:
+  - Addressed user directive: "chữ cứ sáng hết lên đừng để xám, chữ nào bỏ được hoặc không cần thiết cứ bỏ" based on 4 screenshots of university detail views, tabs, tables, and modal:
+    * **High-Contrast Text**: Eliminated dim gray `#888888`, `#8E929F`, `#64748B`, `#94A3B8`, `#CCCCCC` across `UNIROOTPlatform.tsx`, `MajorQuickDetailModal.tsx`, and `AIMajorSchoolAssistant.tsx`. Replaced with bright, readable `text-slate-100`, `text-slate-200`, `text-white`, `text-cyan-300`, and `text-[#C6F135]`.
+    * **Decluttered Database Jargon & Enums**:
+      - Eradicated raw database scale suffixes `(THANG_30)`: implemented `formatCutoffScore` to display clean `28.53` without ugly `(THANG_30)` clutter.
+      - Removed raw formula IDs (e.g. `F07_MATH_DOUBLE_30` badge) and redundant analytical metrics (e.g. `· Quy đổi chuẩn hóa 100: 95.1`).
+      - Humanized admission method IDs: `formatAdmissionMethod` converts `PT100_THPT` -> `Điểm thi THPT`, `PT402_DGTD` -> `Thi ĐGTD`, `PT401_DGNL` -> `Thi ĐGNL`.
+      - Humanized institution legal status: `ACTIVE_INDEPENDENT` -> `Đại học Công lập Độc lập (Chuẩn Quốc gia)`.
+      - Humanized sector enums: `KY_THUAT_CONG_NGHE` -> `Kỹ thuật & Công nghệ`.
+      - Fixed unrendered LaTeX syntax bug: `$\ge 22.5/30$` replaced with natural Vietnamese `từ 22.5/30 điểm trở lên`.
+    * **High-Contrast Tab Navigation & Buttons**: Inactive tab pills brightened to `text-slate-100 font-semibold border-[#36384a]`, and back buttons / action pills upgraded to crisp, accessible contrast.
+  - Verification:
+    * `tsc --noEmit`: 0 errors.
+    * `vite build`: Succeeded in 5.71s.
+    * `scripts/verify_audit_points.mjs`: 7/7 PASSED.
+    * `scripts/test_decision_engine_behavior.mjs`: 24/24 PASSED.
+    * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED.
+    * `scripts/test_career_decision_quality_12scenarios.mjs`: 12/12 PASSED.
+
+- **Real-Time Continuous Browser Test Runner (Completed 2026-10-18)**:
+  - Addressed user request: "cho tôi 1 bản test chạy liên tục thời gian thực trên browser":
+    * Created `src/services/realtimeBrowserTestSuite.ts`: Client-side automated test engine executing all 66 critical assertions (Decision Engine 24 assertions, P1 & P2 18 assertions, 12 Real-World Scenarios, Admissions Math 7 assertions, Data & UI Sanity 5 assertions) in sub-25ms latency with zero network calls.
+    * Created `src/components/RealtimeBrowserTestRunner.tsx`:
+      - Continuous loop timer engine with customizable intervals (1s, 2s, 3s, 5s, 10s) and Pause/Play toggle.
+      - Persistent floating live dock pill (bottom-right) displaying live cycle counter, latency in ms, pass count, and pulsing status dot.
+      - Full-screen / drawer modal with 6 telemetry cards, search input, category filtering (66 tests), expandable diagnostic inspector (expected vs actual), live ANSI-styled streaming STDOUT console, copy logs, and JSON export.
+      - Seamless access: Persistent floating dock pill, Header button in `BlueprintHeaderRuler`, URL query parameter `?test=true`, and global keyboard shortcut `Alt + T` / `Ctrl + Shift + T`.
+    * Integrated into `src/App.tsx`, `src/components/UNIROOTPlatform.tsx`, and `src/components/BlueprintHeaderRuler.tsx`.
+  - Verification:
+    * `npx tsx scripts/run_browser_suite_check.mjs`: 66/66 PASSED (100% in 17.4ms).
+    * `tsc --noEmit`: Clean (0 errors).
+    * `vite build`: Succeeded in 10.22s.
+    * All 3 CLI suites (`test_decision_engine_behavior.mjs`, `test_p1_p2_decision_engine.mjs`, `test_career_decision_quality_12scenarios.mjs`) and audit suite PASSED 100%.
+
 ## 3. Current Status & Git Branch
 - **Branch**: `main` (Dev server active on `http://localhost:8443` via `dev_server.mjs`).
-- **Commit**: `c6b221c` (`feat(engine): refactor decision engine with clause-aware NLP and evidence readiness (P1 & P2)`).
-- **Remote**: Successfully pushed to `origin main` (`https://github.com/khang224466/NX.git`). Vercel build automatically triggered.
-- **Modified & Staged Files**:
-  * `src/engine/careerDecisionEngine.ts` (clause-aware parser + 3-pillar readiness + medical + contradiction detector)
-  * `src/components/CareerPathwayNavigator.tsx` (integration + safe error boundaries)
-  * `scripts/test_p1_p2_decision_engine.mjs` (18 assertions for P1 & P2)
-  * `scripts/test_decision_engine_behavior.mjs` (24 assertions)
-  * `scripts/test_career_decision_quality_12scenarios.mjs` (12 scenarios quality benchmark)
-  * `scripts/verify_audit_points.mjs` (7 audit points)
+- **Modified & New Files**:
+  * `src/services/realtimeBrowserTestSuite.ts` (complete 66 assertions engine)
+  * `src/components/RealtimeBrowserTestRunner.tsx` (interactive continuous UI component)
+  * `scripts/run_browser_suite_check.mjs` (CLI verification harness for browser suite)
+  * `src/components/BlueprintHeaderRuler.tsx` (header quick button for live test runner)
+  * `src/components/UNIROOTPlatform.tsx` (header prop wiring)
+  * `src/App.tsx` (global mount & state management)
   * `MEMORY.md` (persistent project memory)
-- **Status**: Production push complete. 61/61 assertions passing across 4 test suites.
+- **Status**: 100% verified across 66 client-side assertions, all CLI suites, TypeScript compile, and Vite production build.
 
 ## 4. Operational Directives
 - Always consult `MEMORY.md` upon session start or reset.
 - Update `MEMORY.md` after major milestones, file changes, or architecture decisions.
 - Maintain concise conversation turns to conserve context window.
+
+
 

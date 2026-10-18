@@ -13,6 +13,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
+import { formatCutoffScore } from '../utils/formulaFormatter';
 
 export interface AIMajorSchoolAssistantProps {
   mode: 'combo' | 'school';
@@ -265,7 +266,7 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
             <h4 className="font-bold text-white text-xs sm:text-sm">
               Trợ Lý AI: Gợi Ý Chọn {mode === 'combo' ? `Ngành & Trường Theo Tổ Hợp ${contextId}` : `Ngành Phù Hợp Tại ${contextId}`}
             </h4>
-            <p className="text-[11px] text-[#8E929F] font-mono">
+            <p className="text-xs text-slate-200 font-mono">
               Phân tích tự động từ dữ liệu tuyển sinh 2026 đã kiểm toán &middot; Tốc độ phản hồi tức thì
             </p>
           </div>
@@ -275,7 +276,7 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
           <button
             type="button"
             onClick={handleReset}
-            className="text-[11px] font-mono text-[#8E929F] hover:text-[#60A5FA] flex items-center gap-1 transition-colors cursor-pointer"
+            className="text-xs font-mono text-slate-200 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3 h-3" />
             <span>Làm mới</span>
@@ -301,12 +302,12 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
                 ? `Nhập mong muốn (VD: Ngành có yếu tố quốc tế, điểm từ 21 - 24đ, việc làm sau ra trường...)`
                 : `Nhập sở thích hoặc điểm số (VD: Ngành quản trị, marketing, hoặc điểm từ 22 - 25đ...)`
             }
-            className="w-full bg-[#07090D] text-white pl-3.5 pr-28 py-2.5 rounded-xl border border-[#262D3D] focus:border-[#3B82F6] text-xs placeholder-[#64748B] focus:outline-none transition-colors"
+            className="w-full bg-[#07090D] text-white pl-3.5 pr-28 py-2.5 rounded-xl border border-[#262D3D] focus:border-[#3B82F6] text-xs placeholder-slate-400 focus:outline-none transition-colors"
           />
           <button
             type="submit"
             disabled={isGenerating || cooldown > 0 || !query.trim()}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#1E2536] disabled:text-[#64748B] text-white font-medium text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md disabled:cursor-not-allowed"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#1E2536] disabled:text-slate-400 text-white font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md disabled:cursor-not-allowed"
           >
             {isGenerating ? (
               <>
@@ -320,7 +321,7 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5 text-[#93C5FD]" />
+                <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
                 <span>AI Gợi Ý</span>
               </>
             )}
@@ -329,7 +330,7 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
 
         {/* Cooldown / Anti-spam warning */}
         {warningMessage && (
-          <div className="flex items-center gap-1.5 text-[11px] text-amber-400 font-mono bg-amber-950/30 border border-amber-800/40 p-2 rounded-lg animate-fadeIn">
+          <div className="flex items-center gap-1.5 text-xs text-amber-300 font-mono bg-amber-950/40 border border-amber-800/60 p-2 rounded-lg animate-fadeIn">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{warningMessage}</span>
           </div>
@@ -337,7 +338,7 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
 
         {/* Quick Chips */}
         <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-[10px] text-[#64748B] font-mono flex items-center gap-1">
+          <span className="text-xs text-slate-200 font-mono flex items-center gap-1 font-semibold">
             <Lightbulb className="w-3 h-3 text-amber-400" />
             Gợi ý nhanh:
           </span>
@@ -350,7 +351,7 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
                 setQuery(chip.prompt);
                 handleGenerate(chip.prompt);
               }}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-[#141A26] text-[#93C5FD] hover:text-white hover:bg-[#2563EB] transition-colors border border-[#1E293B] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-xs px-2.5 py-1 rounded-full bg-[#141A26] text-slate-100 hover:text-white hover:bg-[#2563EB] transition-colors border border-[#2c3852] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {chip.label}
             </button>
@@ -361,7 +362,7 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
       {/* Generated Suggestions Output */}
       {results && results.length > 0 && (
         <div className="pt-2 border-t border-[#2563EB]/20 space-y-2.5">
-          <div className="text-[11px] font-mono text-[#60A5FA] uppercase tracking-wider font-semibold flex items-center gap-1.5">
+          <div className="text-xs font-mono text-[#60A5FA] uppercase tracking-wider font-bold flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
             <span>Top {results.length} Ngành Đào Tạo Phù Hợp Nhất Do AI Đề Xuất:</span>
           </div>
@@ -370,15 +371,15 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
             {results.map((item, idx) => (
               <div
                 key={idx}
-                className="p-3.5 rounded-xl bg-[#090D14] border border-[#1E293B] hover:border-[#3B82F6] transition-all flex flex-col justify-between space-y-2 group"
+                className="p-3.5 rounded-xl bg-[#090D14] border border-[#262d3d] hover:border-[#3B82F6] transition-all flex flex-col justify-between space-y-2 group"
               >
                 <div>
-                  <div className="flex items-center justify-between text-[10px] font-mono mb-1">
-                    <span className="text-[#60A5FA] font-bold px-1.5 py-0.5 bg-[#2563EB]/15 rounded border border-[#3B82F6]/30">
+                  <div className="flex items-center justify-between text-xs font-mono mb-1">
+                    <span className="text-cyan-300 font-bold px-1.5 py-0.5 bg-[#2563EB]/20 rounded border border-[#3B82F6]/40">
                       [{item.schoolCode}]
                     </span>
                     <span className="text-[#10B981] font-bold">
-                      {item.cutoff} ({item.scale})
+                      {formatCutoffScore(item.cutoff, item.scale)}
                     </span>
                   </div>
 
@@ -386,28 +387,28 @@ export const AIMajorSchoolAssistant: React.FC<AIMajorSchoolAssistantProps> = ({
                     {item.majorName}
                   </h5>
 
-                  <p className="text-[11px] text-[#94A3B8] mt-1.5 leading-relaxed">
+                  <p className="text-xs text-slate-200 mt-1.5 leading-relaxed">
                     {item.matchReason}
                   </p>
 
-                  <div className="mt-2 text-[10px] text-[#8E929F] font-mono flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3 text-[#10B981]" />
+                  <div className="mt-2 text-xs text-slate-200 font-mono flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5 text-[#10B981]" />
                     <span className="line-clamp-1">{item.careerTrend}</span>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px]">
+                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
                   {onSelectSchoolWithMajor ? (
                     <button
                       type="button"
                       onClick={() => onSelectSchoolWithMajor(item.schoolCode, item.majorName)}
-                      className="text-[#60A5FA] hover:text-white font-mono font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                      className="text-cyan-400 hover:text-white font-mono font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                     >
                       <span>Xem vị trí ngành này</span>
-                      <ArrowRight className="w-3 h-3" />
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   ) : (
-                    <span className="text-[10px] text-[#64748B] font-mono">Tổ hợp: {item.combos.join(', ')}</span>
+                    <span className="text-xs text-slate-200 font-mono">Tổ hợp: {item.combos.join(', ')}</span>
                   )}
                 </div>
               </div>

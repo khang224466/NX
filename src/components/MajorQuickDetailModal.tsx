@@ -14,7 +14,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
-import { formatFormulaDisplay } from '../utils/formulaFormatter';
+import { formatFormulaDisplay, formatAdmissionMethod, formatCutoffScore } from '../utils/formulaFormatter';
 
 export interface MajorQuickDetailModalProps {
   isOpen: boolean;
@@ -67,7 +67,7 @@ export const MajorQuickDetailModal: React.FC<MajorQuickDetailModalProps> = ({
                 <span className="font-mono font-bold text-xs text-[#60A5FA] bg-[#2563EB]/15 px-2 py-0.5 rounded border border-[#3B82F6]/30">
                   [{record.institution_code}]
                 </span>
-                <span className="text-[11px] text-[#8E929F] font-mono">
+                <span className="text-xs text-slate-200 font-medium font-mono">
                   {schoolName || record.institution_code} &middot; {record.campus_location || 'Trụ sở chính'}
                 </span>
               </div>
@@ -82,77 +82,75 @@ export const MajorQuickDetailModal: React.FC<MajorQuickDetailModalProps> = ({
               sfx.playUiClick();
               onClose();
             }}
-            className="p-1.5 rounded-lg bg-[#182030] text-[#8E929F] hover:text-white hover:bg-[#25324E] transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-[#182030] text-slate-200 hover:text-white hover:bg-[#25324E] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-[#CCCCCC]">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-slate-100">
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="p-3 rounded-xl bg-[#121722] border border-[#1E293B]">
-              <span className="text-[10px] font-mono text-[#8E929F] uppercase">Điểm chuẩn 2026:</span>
+            <div className="p-3 rounded-xl bg-[#121722] border border-[#262838]">
+              <span className="text-[11px] font-mono text-slate-200 font-bold uppercase">Điểm chuẩn:</span>
               <div className="text-lg font-bold text-[#10B981] font-mono mt-0.5">
-                {record.audited_official_cutoff}{' '}
-                <span className="text-[10px] text-[#8E929F]">({record.audited_official_scale})</span>
+                {formatCutoffScore(record.audited_official_cutoff, record.audited_official_scale)}
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-[#121722] border border-[#1E293B]">
-              <span className="text-[10px] font-mono text-[#8E929F] uppercase">Tổ hợp xét tuyển:</span>
-              <div className="text-sm font-bold text-[#60A5FA] font-mono mt-0.5">
+            <div className="p-3 rounded-xl bg-[#121722] border border-[#262838]">
+              <span className="text-[11px] font-mono text-slate-200 font-bold uppercase">Tổ hợp xét tuyển:</span>
+              <div className="text-sm font-bold text-cyan-300 font-mono mt-0.5">
                 {record.subject_combinations.join(', ')}
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-[#121722] border border-[#1E293B] col-span-2 sm:col-span-1">
-              <span className="text-[10px] font-mono text-[#8E929F] uppercase">Phương thức xét:</span>
+            <div className="p-3 rounded-xl bg-[#121722] border border-[#262838] col-span-2 sm:col-span-1">
+              <span className="text-[11px] font-mono text-slate-200 font-bold uppercase">Phương thức xét:</span>
               <div className="text-xs font-bold text-white font-mono mt-0.5">
-                {record.method_id}
+                {formatAdmissionMethod(record.method_id)}
               </div>
             </div>
           </div>
 
           {/* Formula Details */}
-          <div className="p-4 rounded-xl bg-[#0E131E] border border-[#1E293B] space-y-2">
+          <div className="p-4 rounded-xl bg-[#0E131E] border border-[#262838] space-y-2">
             <h4 className="text-xs font-bold text-white flex items-center gap-1.5 font-mono">
               <ShieldCheck className="w-4 h-4 text-[#3B82F6]" />
               <span>Quy Chế Tính Điểm &amp; Tiêu Chí Phụ:</span>
             </h4>
-            <div className="space-y-1.5 text-[11px] font-mono text-[#94A3B8]">
-              <div>
-                • <strong className="text-white">Mã công thức:</strong> {record.formula_id}
-              </div>
+            <div className="space-y-2 text-xs font-mono text-slate-200">
               {record.formula_expression && (
                 <div>
                   • <strong className="text-white">Biểu thức tính điểm:</strong>{' '}
-                  <code className="text-[#60A5FA] px-1 py-0.5 bg-black/40 rounded">
+                  <code className="text-cyan-300 font-bold px-1.5 py-0.5 bg-black/60 rounded border border-cyan-500/20">
                     {formatFormulaDisplay(record.formula_expression)}
                   </code>
                 </div>
               )}
               {record.bonus_and_priority_rule && (
                 <div>
-                  • <strong className="text-white">Điểm ưu tiên &amp; thưởng:</strong> {record.bonus_and_priority_rule}
+                  • <strong className="text-white">Điểm ưu tiên &amp; thưởng:</strong>{' '}
+                  <span className="text-slate-100">{record.bonus_and_priority_rule}</span>
                 </div>
               )}
               {record.eligibility_and_tie_breaker && (
                 <div>
-                  • <strong className="text-white">Điều kiện phụ:</strong> {record.eligibility_and_tie_breaker}
+                  • <strong className="text-white">Điều kiện phụ:</strong>{' '}
+                  <span className="text-slate-100">{record.eligibility_and_tie_breaker}</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Career & Market Prospects */}
-          <div className="p-4 rounded-xl bg-[#0E131E] border border-[#1E293B] space-y-2">
+          <div className="p-4 rounded-xl bg-[#0E131E] border border-[#262838] space-y-2">
             <h4 className="text-xs font-bold text-white flex items-center gap-1.5 font-mono">
               <TrendingUp className="w-4 h-4 text-[#10B981]" />
               <span>Cơ Hội Nghề Nghiệp &amp; Triển Vọng Thị Trường:</span>
             </h4>
-            <p className="text-[11px] leading-relaxed text-[#94A3B8]">
+            <p className="text-xs leading-relaxed text-slate-100">
               Sinh viên tốt nghiệp ngành <strong className="text-white">{record.audited_major_name}</strong> tại{' '}
               <strong className="text-white">{record.institution_code}</strong> có thể làm việc tại các tập đoàn thương mại quốc tế, cơ quan xúc tiến đầu tư, đại sứ quán, doanh nghiệp FDI, hoặc phát triển theo hướng chuyên gia phân tích dữ liệu thị trường và đàm phán hợp đồng xuất nhập khẩu.
             </p>
@@ -170,7 +168,7 @@ export const MajorQuickDetailModal: React.FC<MajorQuickDetailModalProps> = ({
                   onClose();
                   onCalculateScore(record.record_id);
                 }}
-                className="px-3 py-2 rounded-xl bg-[#141C2B] hover:bg-[#1E293B] text-[#93C5FD] border border-[#2563EB]/30 transition-colors font-mono flex items-center gap-1.5 cursor-pointer text-xs"
+                className="px-3 py-2 rounded-xl bg-[#141C2B] hover:bg-[#1E293B] text-slate-100 hover:text-white border border-[#3B82F6]/50 transition-colors font-mono flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
               >
                 <Calculator className="w-3.5 h-3.5" />
                 <span>Thử tính điểm</span>
@@ -185,7 +183,7 @@ export const MajorQuickDetailModal: React.FC<MajorQuickDetailModalProps> = ({
                   onClose();
                   onOpenAIChat(`Tư vấn cho em chi tiết về ngành "${record.audited_major_name}" tại trường [${record.institution_code}] xét tổ hợp ${record.subject_combinations.join(', ')}`);
                 }}
-                className="px-3 py-2 rounded-xl bg-[#141C2B] hover:bg-[#1E293B] text-[#93C5FD] border border-[#2563EB]/30 transition-colors font-mono flex items-center gap-1.5 cursor-pointer text-xs"
+                className="px-3 py-2 rounded-xl bg-[#141C2B] hover:bg-[#1E293B] text-slate-100 hover:text-white border border-[#3B82F6]/50 transition-colors font-mono flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
               >
                 <span>Hỏi AI về ngành này</span>
               </button>

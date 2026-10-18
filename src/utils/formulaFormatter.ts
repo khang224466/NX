@@ -54,3 +54,31 @@ export function formatFormulaDisplay(expr?: string | null): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+export function formatAdmissionMethod(methodId?: string): string {
+  if (!methodId) return 'Điểm thi THPT';
+  const m = methodId.toUpperCase();
+  if (m.includes('PT100') || m.includes('THPT')) return 'Điểm thi THPT';
+  if (m.includes('PT200') || m.includes('HOCBA')) return 'Học bạ THPT';
+  if (m.includes('PT402') || m.includes('DGTD') || m.includes('TSA')) return 'Thi ĐGTD';
+  if (m.includes('PT401') || m.includes('DGNL') || m.includes('HSA')) return 'Thi ĐGNL';
+  if (m.includes('PT301') || m.includes('XTTT') || m.includes('TUYEN_THANG')) return 'Tuyển thẳng';
+  if (m.includes('PT500') || m.includes('IELTS')) return 'IELTS + THPT';
+  return methodId.replace(/^PT\d+_?/, '');
+}
+
+export function formatCutoffScore(cutoff: number | string, scale?: string): string {
+  const num = typeof cutoff === 'number' ? cutoff : parseFloat(String(cutoff));
+  if (isNaN(num)) return String(cutoff);
+  
+  if (!scale || scale === 'THANG_30') {
+    return `${num}`;
+  }
+  if (scale === 'THANG_40') {
+    return `${num} / 40`;
+  }
+  if (scale === 'THANG_100') {
+    return `${num} / 100`;
+  }
+  return `${num}`;
+}

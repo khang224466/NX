@@ -8,11 +8,13 @@ import { UserJourneyProvider } from './context/UserJourneyContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { SmoothScroll } from './components/SmoothScroll';
 import { ContourTerrainCanvas } from './components/ContourTerrainCanvas';
+import { RealtimeBrowserTestRunner } from './components/RealtimeBrowserTestRunner';
 
 export default function App() {
   const [isAICopilotOpen, setIsAICopilotOpen] = useState(false);
   const [aiCopilotQuery, setAiCopilotQuery] = useState('');
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
+  const [isTestRunnerOpen, setIsTestRunnerOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [forceShowIntro, setForceShowIntro] = useState(false);
 
@@ -53,6 +55,7 @@ export default function App() {
                 onOpenAIChat={handleOpenAIConsult}
                 onOpenDataModal={() => setIsDataModalOpen(true)}
                 onTriggerIntro={() => setForceShowIntro(true)}
+                onOpenTestRunner={() => setIsTestRunnerOpen(true)}
               />
             </div>
 
@@ -67,6 +70,12 @@ export default function App() {
             <DataIntegrityModal
               isOpen={isDataModalOpen}
               onClose={() => setIsDataModalOpen(false)}
+            />
+
+            {/* Continuous Real-Time In-Browser Test Runner */}
+            <RealtimeBrowserTestRunner 
+              isOpen={isTestRunnerOpen}
+              onOpenChange={setIsTestRunnerOpen}
             />
           </div>
         </SmoothScroll>
