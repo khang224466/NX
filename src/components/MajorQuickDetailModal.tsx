@@ -14,6 +14,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
+import { formatFormulaDisplay } from '../utils/formulaFormatter';
 
 export interface MajorQuickDetailModalProps {
   isOpen: boolean;
@@ -128,7 +129,7 @@ export const MajorQuickDetailModal: React.FC<MajorQuickDetailModalProps> = ({
                 <div>
                   • <strong className="text-white">Biểu thức tính điểm:</strong>{' '}
                   <code className="text-[#60A5FA] px-1 py-0.5 bg-black/40 rounded">
-                    {record.formula_expression}
+                    {formatFormulaDisplay(record.formula_expression)}
                   </code>
                 </div>
               )}

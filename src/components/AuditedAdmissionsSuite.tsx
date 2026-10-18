@@ -40,6 +40,7 @@ import {
   executeAdmissionsCalculation,
   EngineScoringBreakdown
 } from '../services/admissionsCalculationEngine';
+import { formatFormulaDisplay } from '../utils/formulaFormatter';
 import { sfx } from '../services/soundEffects';
 
 export type AuditedSuiteModule = 'profile' | 'calculator' | 'optimizer' | 'provenance';
@@ -959,7 +960,7 @@ export const AuditedAdmissionsSuite: React.FC = () => {
                   {activeRecord.audited_major_name} — {currentInstitution.official_name}
                 </h4>
                 <div className="text-xs text-blue-300 font-mono bg-blue-950/40 border border-blue-800/40 px-3 py-1.5 rounded-lg inline-block">
-                  Công thức toán: {activeFormula.formula_math}
+                  Công thức toán: <strong className="text-white">{formatFormulaDisplay(activeFormula.formula_math)}</strong>
                 </div>
               </div>
 
@@ -1056,14 +1057,18 @@ export const AuditedAdmissionsSuite: React.FC = () => {
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-blue-400">•</span>
-                    <span>Quy tắc trần điểm cộng: <span className="text-zinc-300">bonus_eff = min({calculationResult.scaleMax === 30 ? '3.0' : '10.0'}, bonus_raw) = {calculationResult.bonusEffective}đ</span></span>
+                    <span>Quy tắc trần điểm cộng: <span className="text-zinc-300">Điểm thưởng hiệu lực = min({calculationResult.scaleMax === 30 ? '3.0' : '10.0'}, điểm thưởng thô) = +{calculationResult.bonusEffective.toFixed(2)} điểm</span></span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-blue-400">•</span>
                     <span>Hàm giảm ưu tiên Thông tư 06: {calculationResult.isPriorityReduced ? (
-                      <span className="text-amber-400">S = { (calculationResult.rawScore + calculationResult.bonusEffective).toFixed(2) } &gt;= {(calculationResult.scaleMax * 0.75).toFixed(1)} =&gt; priority_eff = (({calculationResult.scaleMax} - S)/{(calculationResult.scaleMax * 0.25).toFixed(1)}) * {calculationResult.basePriority} = {calculationResult.effectivePriority.toFixed(3)}đ</span>
+                      <span className="text-amber-400">
+                        Tổng điểm S = {(calculationResult.rawScore + calculationResult.bonusEffective).toFixed(2)} (≥ {(calculationResult.scaleMax * 0.75).toFixed(1)}đ) ➔ Giảm ưu tiên: [({calculationResult.scaleMax} − S) / {(calculationResult.scaleMax * 0.25).toFixed(1)}] × {calculationResult.basePriority.toFixed(2)} = +{calculationResult.effectivePriority.toFixed(3)} điểm
+                      </span>
                     ) : (
-                      <span className="text-emerald-400">S &lt; {(calculationResult.scaleMax * 0.75).toFixed(1)} =&gt; Hưởng 100% ưu tiên gốc = {calculationResult.effectivePriority.toFixed(2)}đ</span>
+                      <span className="text-emerald-400">
+                        Tổng điểm S = {(calculationResult.rawScore + calculationResult.bonusEffective).toFixed(2)} (&lt; {(calculationResult.scaleMax * 0.75).toFixed(1)}đ) ➔ Hưởng trọn 100% ưu tiên gốc = +{calculationResult.effectivePriority.toFixed(2)} điểm
+                      </span>
                     )}</span>
                   </div>
                   <div className="flex items-start gap-2">
@@ -1508,7 +1513,7 @@ export const AuditedAdmissionsSuite: React.FC = () => {
                     </div>
 
                     <div className="bg-[#121217] p-2.5 rounded-lg border border-[#262630] text-xs font-mono text-emerald-400">
-                      f(x) = {f.formula_math}
+                      f(x) = {formatFormulaDisplay(f.formula_math)}
                     </div>
 
                     <div className="text-xs text-zinc-400 flex items-start gap-2">

@@ -55,6 +55,7 @@ import {
   executeAdmissionsCalculation,
   EngineScoringBreakdown
 } from '../services/admissionsCalculationEngine';
+import { formatFormulaDisplay } from '../utils/formulaFormatter';
 import { 
   VERIFIED_COMBINATIONS_219,
   VerifiedCombination,
@@ -3608,7 +3609,7 @@ const UniversityProfileView: React.FC<{
                   <span className="text-[#C6F135]">{r.formula_id}</span>
                 </div>
                 <div className="text-[11px] text-[#888888]">
-                  Biểu thức: <code className="text-[#60A5FA]">{r.formula_expression}</code>
+                  Biểu thức: <code className="text-[#60A5FA]">{formatFormulaDisplay(r.formula_expression)}</code>
                 </div>
                 <div className="text-[10px] text-[#777777]">
                   Thang điểm tối đa: {r.scale_max} · Quy đổi chuẩn hóa 100: {r.analytical_normalized_100}
@@ -4083,7 +4084,7 @@ const AdmissionCalculatorView: React.FC<{
               {/* Formula & Tie-Breaker Rule */}
               <div className="text-[10px] text-[#888888] pt-1.5 border-t border-[#1a1b20] space-y-1">
                 <div>
-                  <strong>Công thức tính:</strong> <code className="text-[#C6F135]">{selectedRecord.formula_id}</code> &middot; <span className="text-white">{selectedRecord.formula_expression}</span>
+                  <strong>Công thức tính:</strong> <code className="text-[#C6F135]">{selectedRecord.formula_id}</code> &middot; <span className="text-white">{formatFormulaDisplay(selectedRecord.formula_expression)}</span>
                 </div>
                 <div>
                   <strong>Tiêu chí phụ:</strong> <span className="text-[#CCCCCC]">{selectedRecord.eligibility_and_tie_breaker || majorCodeDetails.tieBreaker}</span>

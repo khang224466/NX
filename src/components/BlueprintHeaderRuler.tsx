@@ -207,10 +207,9 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             <button
               onClick={() => {
                 sfx.playUiClick();
-                // Toggle between standard 125% and 135%
-                setZoom(Math.round(zoomLevel * 100) === 135 ? 1.25 : 1.35);
+                setZoom(1.0);
               }}
-              title="Bấm để đổi nhanh giữa 125% và 135%"
+              title="Bấm để đặt lại về 100% mặc định"
               className="px-1 font-semibold text-[#60A5FA] hover:underline cursor-pointer select-none text-[11px]"
             >
               {Math.round(zoomLevel * 100)}%

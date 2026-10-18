@@ -16,7 +16,7 @@ const ThemeContext = createContext<ThemeContextType>({
   theme: 'dark',
   toggleTheme: () => {},
   setTheme: () => {},
-  zoomLevel: 1.35,
+  zoomLevel: 1.0,
   zoomIn: () => {},
   zoomOut: () => {},
   setZoom: () => {},
@@ -33,13 +33,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [zoomLevel, setZoomState] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem('nexora_ui_zoom');
+      // Clear legacy zoom key
+      localStorage.removeItem('nexora_ui_zoom');
+      const saved = localStorage.getItem('nexora_ui_zoom_v3');
       if (saved) {
         const parsed = parseFloat(saved);
-        if (!isNaN(parsed) && parsed >= 0.9 && parsed <= 1.8) return parsed;
+        if (!isNaN(parsed) && parsed >= 0.7 && parsed <= 1.5) return parsed;
       }
     } catch {}
-    return 1.35; // To hơn 125%: mặc định 135%
+    return 1.0; // Mặc định 100% hiển thị
   });
 
   const applyTheme = (mode: ThemeMode) => {
@@ -60,10 +62,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const applyZoom = (level: number) => {
     const root = document.documentElement;
-    root.style.zoom = String(level);
-    root.style.setProperty('--nx-ui-zoom', String(level));
+    // Mốc 100% (level = 1.0) tương đương 150% kích thước thực tế (zoom = 1.50)
+    const effectiveZoom = Math.round(level * 1.5 * 100) / 100;
+    root.style.zoom = String(effectiveZoom);
+    root.style.setProperty('--nx-ui-zoom', String(effectiveZoom));
     try {
-      localStorage.setItem('nexora_ui_zoom', String(level));
+      localStorage.setItem('nexora_ui_zoom_v3', String(level));
     } catch {}
   };
 
@@ -84,16 +88,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const setZoom = (level: number) => {
-    const clamped = Math.min(1.7, Math.max(0.95, Math.round(level * 100) / 100));
+    const clamped = Math.min(1.5, Math.max(0.7, Math.round(level * 100) / 100));
     setZoomState(clamped);
   };
 
   const zoomIn = () => {
-    setZoomState(prev => Math.min(1.7, Math.round((prev + 0.05) * 100) / 100));
+    setZoomState(prev => Math.min(1.5, Math.round((prev + 0.05) * 100) / 100));
   };
 
   const zoomOut = () => {
-    setZoomState(prev => Math.max(0.95, Math.round((prev - 0.05) * 100) / 100));
+    setZoomState(prev => Math.max(0.7, Math.round((prev - 0.05) * 100) / 100));
   };
 
   return (

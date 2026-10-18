@@ -269,19 +269,23 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
     // =========================================================================
     maxScale = 30;
     formulaTitle = 'Công thức Chuẩn Bách Khoa Hà Nội (Môn Toán hệ số 2 quy về 30)';
-    formulaExpression = '[(Toán x 2 + Môn 2 + Môn 3) * 3/4] + Điểm Ưu Tiên';
+    formulaExpression = '[(Toán × 2 + Môn 2 + Môn 3) × ¾] + Điểm Ưu Tiên';
 
     const mathScore = subjectScores.math;
     const rawHust = (mathScore * 2 + sub2 + sub3) * (3 / 4);
     rawScore = Number(rawHust.toFixed(2));
+
+    const s1Name = resolvedComboSubjects[0]?.label || 'Môn 1';
+    const s2Name = resolvedComboSubjects[1]?.label || 'Môn 2';
+    const s3Name = resolvedComboSubjects[2]?.label || 'Môn 3';
 
     const pri = calcNationalPriority30(candidateProfile, rawScore, incentiveBonus);
     effectivePriority = pri.priorityIncludeBonus;
     finalCalculatedScore = Number(Math.min(30, rawScore + effectivePriority + incentiveBonus).toFixed(2));
 
     auditNotes = [
-      `[HUST ĐẶC THÙ] Môn Toán (${mathScore}) nhân hệ số 2 theo công thức: (Toán x 2 + ${resolvedComboSubjects[1]?.label} + ${resolvedComboSubjects[2]?.label}) * 3/4.`,
-      `Chi tiết: (${mathScore} x 2 + ${sub2} + ${sub3}) * 0.75 = ${rawScore.toFixed(2)} điểm thuần.`,
+      `[HUST ĐẶC THÙ] Môn Toán (${mathScore}) nhân hệ số 2 theo công thức: (Toán × 2 + ${s2Name} + ${s3Name}) × ¾.`,
+      `Chi tiết: (${mathScore} × 2 + ${sub2} + ${sub3}) × 0.75 = ${rawScore.toFixed(2)} điểm thuần.`,
       `Ưu tiên khu vực/đối tượng theo Thông tư 06/2026/TT-BGDĐT: +${effectivePriority.toFixed(3)} điểm.`,
       ...pri.notes
     ];
@@ -295,7 +299,7 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
     // =========================================================================
     maxScale = 30;
     formulaTitle = 'Phương thức Điểm thi THPT Khối Y Dược (B00 / B08)';
-    formulaExpression = 'Toán + Hóa + Sinh (hoặc Anh) + Điểm Ưu Tiên (Bộ GD&ĐT)';
+    formulaExpression = 'Toán + Hóa + Sinh (hoặc Ngoại ngữ) + Điểm Ưu Tiên';
 
     const ydsRes = calcYDS2026(candidateProfile, 'Y_KHOA_RHM');
     finalCalculatedScore = ydsRes.finalScore;
@@ -312,7 +316,7 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
     // =========================================================================
     maxScale = 30;
     formulaTitle = 'Phương thức Điểm thi V-SAT & Học bạ Bách Phân Vị Cần Thơ';
-    formulaExpression = 'Tổng 3 môn V-SAT (hoặc Học bạ) + Điểm Ưu Tiên -> Tra Bách Phân Vị';
+    formulaExpression = 'Tổng 3 môn V-SAT (hoặc Học bạ) + Điểm Ưu Tiên ➔ Tra Bách Phân Vị';
 
     const tctRes = calcTCT2026(candidateProfile, 'VSAT');
     finalCalculatedScore = tctRes.finalScore;
@@ -330,14 +334,18 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
     rawScore = rawComboSum;
     formulaTitle = `Xét tuyển Tổ hợp ${selectedComboCode} (${currentComboMeta.name})`;
 
+    const s1Name = resolvedComboSubjects[0]?.label || 'Môn 1';
+    const s2Name = resolvedComboSubjects[1]?.label || 'Môn 2';
+    const s3Name = resolvedComboSubjects[2]?.label || 'Môn 3';
+
     // Check if program specifies a primary subject with multiplier
     if (selectedProg?.primarySubject && selectedProg.primarySubject.includes('Hệ số 2')) {
       const pSub = sub1;
       rawScore = Number(((pSub * 2 + sub2 + sub3) * 0.75).toFixed(2));
-      formulaExpression = `[(${resolvedComboSubjects[0]?.label} x 2 + ${resolvedComboSubjects[1]?.label} + ${resolvedComboSubjects[2]?.label}) * 3/4] + ĐƯT`;
-      auditNotes.push(`Môn chính (${resolvedComboSubjects[0]?.label}) nhân hệ số 2 quy đổi thang 30 (*3/4).`);
+      formulaExpression = `[(${s1Name} × 2 + ${s2Name} + ${s3Name}) × ¾] + Điểm Ưu Tiên`;
+      auditNotes.push(`Môn chính (${s1Name}) nhân hệ số 2 quy đổi thang 30 (× ¾).`);
     } else {
-      formulaExpression = `${resolvedComboSubjects[0]?.label} (${sub1}) + ${resolvedComboSubjects[1]?.label} (${sub2}) + ${resolvedComboSubjects[2]?.label} (${sub3}) + ĐƯT`;
+      formulaExpression = `${s1Name} (${sub1}) + ${s2Name} (${sub2}) + ${s3Name} (${sub3}) + Điểm Ưu Tiên`;
     }
 
     const pri = calcNationalPriority30(candidateProfile, rawScore, incentiveBonus);
@@ -346,7 +354,7 @@ export const UniversityScoringInspector: React.FC<UniversityScoringInspectorProp
 
     auditNotes = [
       `Tổ hợp ${selectedComboCode} (${currentComboMeta.name}): ${rawScore.toFixed(2)}/30 điểm thuần.`,
-      `Các môn thành phần: ${resolvedComboSubjects[0]?.label}=${sub1}, ${resolvedComboSubjects[1]?.label}=${sub2}, ${resolvedComboSubjects[2]?.label}=${sub3}.`,
+      `Các môn thành phần: ${s1Name}=${sub1}, ${s2Name}=${sub2}, ${s3Name}=${sub3}.`,
       ...pri.notes
     ];
 
