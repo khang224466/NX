@@ -1076,7 +1076,34 @@ export const sendAIChatMessage = async (
     }
   }
 
-  // 3. Fallback to Local Smart Advisor Engine
+  // 3. Try Backend Multi-Provider AI Gateway (/api/ai/gateway/chat)
+  try {
+    const gatewayRes = await fetch('/api/ai/gateway/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages,
+        provider,
+        model: selectedModel,
+        isSupremeMode: isSupreme,
+        customApiKey: geminiApiKey || groqApiKey || undefined
+      })
+    });
+    if (gatewayRes.ok) {
+      const data = await gatewayRes.json();
+      if (data?.data?.reply) {
+        return {
+          reply: data.data.reply,
+          sources: [],
+          modelUsed: `${data.data.modelUsed} (Gateway: ${data.data.poolUsed})`
+        };
+      }
+    }
+  } catch (gatewayErr) {
+    // Gateway not running or 404 on static Vercel hosting, proceed to local fallback
+  }
+
+  // 4. Fallback to Local Smart Advisor Engine
   const localReply = buildSmartAdvisorReply(lastMsg);
   const supremeNotice = !geminiApiKey && !groqApiKey
     ? `\n\n---\n🔑 **Kích hoạt MODE SUPREME Toàn Năng**: Bạn đã có API Key (Google Gemini hoặc Groq)? Hãy bấm vào nút **[⚙️ Cấu Hình API Key]** ở trên để dán API Key. Trí tuệ nhân tạo sẽ lập tức phân tích sâu 4 chiều theo đúng dữ liệu 300 trường đại học và 219 tổ hợp tuyển sinh 2026!`
@@ -1087,6 +1114,17 @@ export const sendAIChatMessage = async (
     sources: [],
     modelUsed: 'NEXORA Smart Local Engine'
   };
+};
+
+export const fetchGatewayMetrics = async () => {
+  try {
+    const res = await fetch('/api/ai/gateway/metrics');
+    if (res.ok) {
+      const data = await res.json();
+      return data.data;
+    }
+  } catch {}
+  return null;
 };
 
 export const sendGroqVisionMessage = async (

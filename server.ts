@@ -70,7 +70,113 @@ app.post('/api/ai/pacing-cancel', (req, res) => {
   res.json({ success: true, cancelled });
 });
 
-// Endpoint: Groq Console Chat qua Hàng đợi Pacing & Rate Limit
+// =============================================================================
+// BACKEND API: 100 CONCURRENT USERS MULTI-PROVIDER AI GATEWAY & SCHEDULER
+// =============================================================================
+import { globalAIGateway } from './src/services/aiGateway/index.ts';
+
+// Real-time Gateway Metrics (active clients, in-flight, circuit states, Q_i scores)
+app.get('/api/ai/gateway/metrics', (req, res) => {
+  res.json({
+    success: true,
+    data: globalAIGateway.getSystemMetrics()
+  });
+});
+
+// Full Multi-Provider Gateway Chat with Circuit Breaker, Scoring Scheduler & Failover
+app.post('/api/ai/gateway/chat', async (req, res) => {
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'anonymous';
+  const userId = req.body.userId || `user_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+  try {
+    const response = await globalAIGateway.handleChat({
+      id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      userIp: clientIp,
+      messages: req.body.messages || [],
+      modelPreference: req.body.model,
+      providerPreference: req.body.provider,
+      temperature: req.body.temperature,
+      maxTokens: req.body.max_tokens,
+      isSupremeMode: req.body.isSupremeMode,
+      byokApiKey: req.body.customApiKey,
+      createdAt: Date.now()
+    });
+
+    res.json({
+      success: true,
+      data: response
+    });
+  } catch (err: any) {
+    res.status(err.status || 500).json({
+      success: false,
+      error: err.message || 'Lỗi xử lý AI Gateway'
+    });
+  }
+});
+
+// SSE Streaming Endpoint supporting 100 concurrent clients
+app.post('/api/ai/gateway/stream', async (req, res) => {
+  const isAllowedClient = globalAIGateway.queue.registerClientConnection();
+  if (!isAllowedClient) {
+    return res.status(503).json({
+      success: false,
+      error: 'Hệ thống đã đạt giới hạn 100 kết nối đồng thời. Vui lòng thử lại sau.'
+    });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof (res as any).flushHeaders === 'function') {
+    (res as any).flushHeaders();
+  }
+
+  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'anonymous';
+  const userId = req.body.userId || `user_${clientIp.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+  let isCleanedUp = false;
+  const cleanup = () => {
+    if (!isCleanedUp) {
+      isCleanedUp = true;
+      globalAIGateway.queue.releaseClientConnection();
+    }
+  };
+
+  req.on('close', cleanup);
+
+  try {
+    const response = await globalAIGateway.handleChat({
+      id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      userIp: clientIp,
+      messages: req.body.messages || [],
+      modelPreference: req.body.model,
+      providerPreference: req.body.provider,
+      temperature: req.body.temperature,
+      maxTokens: req.body.max_tokens,
+      isSupremeMode: req.body.isSupremeMode,
+      byokApiKey: req.body.customApiKey,
+      createdAt: Date.now()
+    });
+
+    // Stream out words with pacing
+    const words = response.reply.split(' ');
+    for (let i = 0; i < words.length; i += 3) {
+      const chunk = words.slice(i, i + 3).join(' ') + ' ';
+      res.write(`data: ${JSON.stringify({ text: chunk, done: false })}\n\n`);
+      await new Promise(r => setTimeout(r, 20));
+    }
+
+    res.write(`data: ${JSON.stringify({ text: '', done: true, meta: response })}\n\n`);
+    res.end();
+  } catch (err: any) {
+    res.write(`data: ${JSON.stringify({ error: err.message || 'Lỗi AI Gateway', done: true })}\n\n`);
+    res.end();
+  } finally {
+    cleanup();
+  }
+});
 app.post('/api/ai/groq/chat', async (req, res) => {
   const { messages, model, temperature, max_tokens, customApiKey, systemPrompt } = req.body;
   const apiKey = customApiKey || process.env.GROQ_API_KEY;

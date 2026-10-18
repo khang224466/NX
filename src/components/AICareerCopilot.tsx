@@ -17,7 +17,8 @@ import {
   EyeOff, 
   ChevronRight, 
   ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  Cpu
 } from 'lucide-react';
 import { 
   getStoredApiKey, 
@@ -35,6 +36,7 @@ import {
   testGeminiApiKey,
   testGroqApiKey,
   fetchPacingStatus,
+  fetchGatewayMetrics,
   updateServerPacingConfig,
   cancelPacingTask,
   checkServerAIStatus, 
@@ -241,6 +243,8 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
     setSelectedModel(getStoredSelectedModel());
   }, []);
 
+  const [gatewayMetrics, setGatewayMetrics] = useState<any>(null);
+
   // Poll pacing queue status every 1.5s when dialog is open
   useEffect(() => {
     if (!isOpen) return;
@@ -250,6 +254,18 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
     }, 1500);
     return () => clearInterval(interval);
   }, [isOpen]);
+
+  // Poll Multi-Provider Gateway Metrics when config drawer is open
+  useEffect(() => {
+    if (!showKeyConfig) return;
+    const loadMetrics = async () => {
+      const data = await fetchGatewayMetrics();
+      if (data) setGatewayMetrics(data);
+    };
+    loadMetrics();
+    const interval = setInterval(loadMetrics, 2500);
+    return () => clearInterval(interval);
+  }, [showKeyConfig]);
 
   // Auto-focus input when opened
   useEffect(() => {
@@ -535,6 +551,35 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
                     {isSupremeMode ? 'ĐANG BẬT ⚡' : 'ĐANG TẮT'}
                   </button>
                 </div>
+
+                {/* 100-Concurrent-User AI Gateway Monitor Card */}
+                {gatewayMetrics && (
+                  <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/30 space-y-2">
+                    <div className="flex items-center justify-between text-blue-300 font-bold text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                        Trạng Thái Cụm Gateway Chịu Tải 100 Người Dùng Đồng Thời:
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-400">
+                        {gatewayMetrics.activeClients} / {gatewayMetrics.maxClients} Clients Kết Nối
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-zinc-300">
+                      <div className="p-2 rounded-lg bg-black/50 border border-white/5">
+                        <span className="text-zinc-500 block">In-Flight LLM:</span>
+                        <span className="text-amber-300 font-bold">{gatewayMetrics.inFlight} / {gatewayMetrics.maxInFlight} max</span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-black/50 border border-white/5">
+                        <span className="text-zinc-500 block">Queue Chờ:</span>
+                        <span className="text-cyan-300 font-bold">{gatewayMetrics.queuedTasks} / {gatewayMetrics.maxQueue}</span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-black/50 border border-white/5">
+                        <span className="text-zinc-500 block">Circuit State:</span>
+                        <span className="text-emerald-400 font-bold">{gatewayMetrics.pools?.[0]?.circuitState || 'HEALTHY'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Select AI Provider */}
