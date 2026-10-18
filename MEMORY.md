@@ -43,8 +43,14 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Added empirical triage response (grounded in KHKT survey of 9,200 students showing 41% confusion) with 3 actionable triage rules.
   - Dynamically swapped follow-up suggested Q&A chips to orientation triage questions when confused state is detected.
 
+- **Guided Triage & 3-Step Factor Discovery (Commit `fc9ab43` - Completed 2026-10-18)**:
+  - Addressed user feedback regarding premature forced combo selection for undecided users.
+  - Implemented `UNDECIDED` domain configuration in `INTERMEDIATE_CONFIGS` with 3 core factor discovery questions (disliked subjects elimination, RIASEC work environment, financial/tier goals).
+  - Automatically redirected undecided/confused students directly to `INTERMEDIATE_DISCOVERY` (with live confidence gauge 45% -> 95%) rather than jumping to combo cards.
+  - Added Discovery Triage Banner to `ANALYZED_COMBOS` and changed card action from forceful "Chọn tổ hợp này" to non-committal "Xem thử lộ trình tổ hợp này".
+
 ## 3. Current Status & Git Branch
-- **Branch**: `main` (Latest commit: `3e847c1` - *pushed to GitHub `origin/main` & Vercel deployment triggered*).
+- **Branch**: `main` (Latest commit: `fc9ab43` - *pushed to GitHub `origin/main` & Vercel deployment triggered*).
 - **Server**: Running on `http://localhost:8443` via `dev_server.mjs`.
 - **Hybrid DB State**: Initialized in `data/career_guidance.duckdb` (8+ tables & views) and `data/chroma_db` (797 vectors indexed).
 
