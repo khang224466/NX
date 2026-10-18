@@ -14,13 +14,19 @@ const LOCAL_KEY_STORAGE = 'nexora_gemini_api_key';
 const LOCAL_GROQ_KEY_STORAGE = 'nexora_groq_api_key';
 const LOCAL_PACING_DELAY_STORAGE = 'nexora_request_delay_ms';
 const LOCAL_AI_PROVIDER_STORAGE = 'nexora_ai_provider';
-const RECOMMENDED_MODEL = 'NEXORA-Intelligence-2026 (Zero-Latency)';
+export const LOCAL_SUPREME_MODE_STORAGE = 'nexora_supreme_mode';
+export const LOCAL_SELECTED_MODEL_STORAGE = 'nexora_selected_model';
+const RECOMMENDED_MODEL = 'gemini-2.0-flash (Mode Supreme)';
 
 export const getStoredApiKey = (): string => {
   try {
     const saved = localStorage.getItem(LOCAL_KEY_STORAGE);
-    if (saved && saved.trim().startsWith('AIza') && saved.trim().length >= 35) {
+    if (saved && saved.trim().length >= 20) {
       return saved.trim();
+    }
+    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    if (envKey && typeof envKey === 'string' && envKey.trim().length >= 20) {
+      return envKey.trim();
     }
   } catch {}
   return '';
@@ -40,8 +46,12 @@ export const setStoredApiKey = (key: string): void => {
 export const getStoredGroqKey = (): string => {
   try {
     const saved = localStorage.getItem(LOCAL_GROQ_KEY_STORAGE);
-    if (saved && saved.trim().startsWith('gsk_')) {
+    if (saved && saved.trim().length >= 20) {
       return saved.trim();
+    }
+    const envKey = (import.meta as any).env?.VITE_GROQ_API_KEY;
+    if (envKey && typeof envKey === 'string' && envKey.trim().length >= 20) {
+      return envKey.trim();
     }
   } catch {}
   return '';
@@ -55,6 +65,36 @@ export const setStoredGroqKey = (key: string): void => {
     } else {
       localStorage.removeItem(LOCAL_GROQ_KEY_STORAGE);
     }
+  } catch {}
+};
+
+export const getStoredSupremeMode = (): boolean => {
+  try {
+    const saved = localStorage.getItem(LOCAL_SUPREME_MODE_STORAGE);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {}
+  return true; // Default to true for MODE SUPREME
+};
+
+export const setStoredSupremeMode = (val: boolean): void => {
+  try {
+    localStorage.setItem(LOCAL_SUPREME_MODE_STORAGE, val ? 'true' : 'false');
+  } catch {}
+};
+
+export const getStoredSelectedModel = (): string => {
+  try {
+    const saved = localStorage.getItem(LOCAL_SELECTED_MODEL_STORAGE);
+    if (saved && saved.trim()) return saved.trim();
+  } catch {}
+  return 'gemini-2.0-flash';
+};
+
+export const setStoredSelectedModel = (model: string): void => {
+  try {
+    localStorage.setItem(LOCAL_SELECTED_MODEL_STORAGE, model.trim());
   } catch {}
 };
 
@@ -80,7 +120,11 @@ export const getStoredAiProvider = (): 'gemini' | 'groq' => {
     const saved = localStorage.getItem(LOCAL_AI_PROVIDER_STORAGE);
     if (saved === 'groq' || saved === 'gemini') return saved;
   } catch {}
-  return 'groq'; // default to high-speed rate-limited Groq engine
+  try {
+    if (getStoredApiKey()) return 'gemini';
+    if (getStoredGroqKey()) return 'groq';
+  } catch {}
+  return 'gemini';
 };
 
 export const setStoredAiProvider = (p: 'gemini' | 'groq'): void => {
@@ -88,6 +132,49 @@ export const setStoredAiProvider = (p: 'gemini' | 'groq'): void => {
     localStorage.setItem(LOCAL_AI_PROVIDER_STORAGE, p);
   } catch {}
 };
+
+export async function testGeminiApiKey(apiKey: string, modelName: string = 'gemini-2.0-flash'): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: 'Ping. Phản hồi "OK".' }] }]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, message: err?.error?.message || `HTTP ${res.status}` };
+    }
+    return { success: true, message: 'Kết nối Google Gemini thành công! (Mode Supreme đã sẵn sàng)' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Lỗi mạng khi kiểm tra API key' };
+  }
+}
+
+export async function testGroqApiKey(apiKey: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey.trim()}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: 'Ping' }],
+        max_tokens: 10
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, message: err?.error?.message || `HTTP ${res.status}` };
+    }
+    return { success: true, message: 'Kết nối Groq Llama-3.3 thành công! (Mode Supreme đã sẵn sàng)' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Lỗi mạng khi kiểm tra Groq key' };
+  }
+}
 
 export const checkServerAIStatus = async (): Promise<{ hasServerKey: boolean; hasGroqKey?: boolean; recommendedModel: string }> => {
   try {
@@ -734,68 +821,269 @@ export const runAIAnalysis = async (profile: LearnerProfile): Promise<AIAnalysis
   return buildSmartProfileAnalysis(profile);
 };
 
-export const sendAIChatMessage = async (
+export const SUPREME_CAREER_COUNSELOR_PROMPT = `Bạn là NEXORA SUPREME AI — Chuyên Gia Trưởng Ban Cố Vấn Hướng Nghiệp & Chiến Lược Tuyển Sinh Đại Học 2026 Cấp Quốc Gia tại Việt Nam.
+
+Nhiệm vụ của bạn là phân tích thấu đáo, đa chiều, chính xác tuyệt đối để giúp học sinh và phụ huynh định hướng chọn đúng Ngành — chọn đúng Nghề — chọn đúng Trường — xây dựng Lộ trình 4 năm Đại học tối ưu nhất.
+
+=== 1. NGUYÊN TẮC VÀ NGUỒN DỮ LIỆU ĐỐI SOÁT CHUẨN XÁC ===
+- Thông tư 06/2026/TT-BGDĐT: Quy chế tuyển sinh đại học (xét tuyển thẳng, điểm ưu tiên khu vực/đối tượng, quy đổi chứng chỉ quốc tế IELTS/SAT/VSTEP, xét tuyển kết hợp).
+- Thông tư 74/2026/TT-BGDĐT: Danh mục mã ngành đào tạo cấp IV (VD: 7480201 - Công nghệ thông tin, 7480107 - Trí tuệ nhân tạo, 7520202 - Thiết kế vi mạch, 7340101 - Quản trị kinh doanh, 7720101 - Y khoa, 7140217 - Sư phạm Toán, 7510605 - Logistics và Chuỗi cung ứng...).
+- Cơ sở dữ liệu 300 trường Đại học & Học viện tại Việt Nam và 219 tổ hợp môn (A00, A01, B00, C00, D01, D07, X06, X26, K01, V00, T00...).
+- Thang điểm chuẩn: Luôn lưu ý phân biệt thang điểm của từng trường:
+  * Thang 30: Phổ biến toàn quốc (tổng 3 môn thi tốt nghiệp THPT).
+  * Thang 40: Nhân hệ số 2 môn chính (Toán hoặc Ngoại ngữ) như ĐH Ngoại thương (NTH), ĐH Hà Nội (HANU), ULIS ĐHQGHN (QHF).
+  * Thang 100: Đề án riêng toàn diện của ĐH Bách khoa ĐHQG-HCM (QSB: điểm ĐGNL 70-75% + THPT 20% + Học bạ 5%).
+- Chính sách Nhà nước:
+  * Nghị định 116/2020/NĐ-CP: Miễn 100% học phí khối ngành Sư phạm và hỗ trợ 3,63 triệu đồng/tháng sinh hoạt phí.
+  * Quyết định 1826/QĐ-BGDĐT: Học bổng và tài trợ đào tạo 111 ngành STEM mũi nhọn (Vi mạch Bán dẫn, AI, Công nghệ Sinh học, Vật liệu mới).
+
+=== 2. MÔ HÌNH HƯỚNG NGHIỆP ĐƯỢC TÍCH HỢP TRONG PHÂN TÍCH ===
+1. Mô hình Holland RIASEC (6 nhóm tính cách & môi trường làm việc):
+   - R (Realistic - Kỹ thuật, thực hành, chế tạo)
+   - I (Investigative - Nghiên cứu, tư duy logic, khoa học)
+   - A (Artistic - Sáng tạo, thẩm mỹ, nghệ thuật)
+   - S (Social - Xã hội, con người, sư phạm, y tế)
+   - E (Enterprising - Quản trị, kinh doanh, lãnh đạo)
+   - C (Conventional - Quy chuẩn, dữ liệu, tài chính, kiểm toán)
+   Luôn suy luận ra Mã Holland 3 chữ cái đại diện cho người dùng (ví dụ: IRC, ESA, RIC, SAI...).
+2. Mô hình Ikigai (Giao thoa 4 vòng tròn): Đam mê - Sở trường học thuật - Nhu cầu thị trường tuyển dụng 2026–2030 - Mức thu nhập thực tế.
+3. Thang lương thực tế Tổng cục Thống kê (GSO) & Thị trường tuyển dụng Việt Nam (2026–2030):
+   - Mức P25 (Khởi điểm / Mới tốt nghiệp): thường 8 – 14 triệu/tháng.
+   - Mức P50 (Trung vị thị trường / 3-5 năm kinh nghiệm): thường 16 – 30 triệu/tháng.
+   - Mức P75 – P90 (Chuyên gia / Lead / Trưởng phòng): 35 – 70+ triệu/tháng (hoặc 2,000 – 4,000 USD trong ngành AI, Bán dẫn, Tài chính định lượng).
+4. Phân tích Tác động AI & Tự động hóa:
+   - Routine Automation Risk (Rủi ro tự động hóa): % tác vụ lặp có thể bị AI thay thế.
+   - AI Augmentation Index (Chỉ số cộng hưởng): Khả năng dùng AI làm đòn bẩy nhân 3-5 lần năng suất.
+
+=== 3. CẤU TRÚC PHẢN HỒI "MODE SUPREME" BẮT BUỘC ===
+Khi người dùng hỏi về chọn ngành, chọn nghề, chọn trường, hoặc chia sẻ điểm số, sở thích, tính cách, bạn hãy phân tích sâu sắc theo 4 phần chuẩn hóa sau:
+
+🧭 PHẦN 1: GIẢI MÃ THIÊN HƯỚNG TÂM LÝ & NĂNG LỰC HỌC THUẬT
+- Định vị Mã Holland RIASEC (3 chữ cái) & phân tích điểm mạnh tư duy vượt trội.
+- Nhận diện các tổ hợp môn thế mạnh tự nhiên và rào cản tâm lý/áp lực cần gỡ bỏ.
+
+🎯 PHẦN 2: TOP 3 NGÀNH & NGHỀ TỐI ƯU NHẤT (MATCH % & THỊ TRƯỜNG)
+Đưa ra chính xác Top 3 ngành học kèm:
+- Tên ngành & Mã ngành chuẩn (theo TT 74/2026/TT-BGDĐT).
+- Độ tương thích (Match %).
+- Dải thu nhập thực tế GSO (P25 Khởi điểm - P50 Trung vị - P90 Chuyên gia).
+- Chỉ số Tác động AI (Rủi ro thay thế vs Cơ hội cộng hưởng).
+- Lý do tại sao ngành này phù hợp với tính cách và năng lực của bạn.
+
+🏛️ PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG 2026
+Thiết lập chiến lược đặt nguyện vọng an toàn tuyệt đối:
+- Tầng 1: Mơ ước / Thử sức (NV 1–2 · Trường Top đầu, chuẩn cao, cơ hội bứt phá).
+- Tầng 2: Vừa sức / Mục tiêu chính (NV 3–5 · Trường Top 2 uy tín, cơ hội đỗ 75–85%).
+- Tầng 3: An toàn tuyệt đối / Bảo hiểm (NV 6–8 · Trường điểm chuẩn thấp hơn 1.5–3.0 điểm, không bao giờ trượt).
+* Kèm thông tin học phí thực tế từng trường (triệu/năm) và chính sách học bổng/miễn giảm.
+
+🗺️ PHẦN 4: LỘ TRÌNH HÀNH ĐỘNG 4 NĂM ĐẠI HỌC & KỸ NĂNG CỐT LÕI
+- Năm 1: Nền tảng học thuật & Ngoại ngữ (IELTS/TOEIC) & Tư duy logic.
+- Năm 2: Khối kiến thức chuyên ngành cốt lõi & Tham gia Lab / Dự án cá nhân.
+- Năm 3: Thực tập doanh nghiệp (Internship) & Luyện chứng chỉ chuyên môn quốc tế.
+- Năm 4: Khóa luận tốt nghiệp / Đồ án thực chiến & Hoàn thiện CV gia nhập thị trường.
+
+💡 HÀNH ĐỘNG CỤ THỂ HÔM NAY
+Gợi ý 1–2 việc bạn có thể làm ngay trên nền tảng (ví dụ: mở Máy tính điểm riêng từng trường, tra cứu chỉ tiêu 219 tổ hợp, hoặc rà soát học phí).
+
+=== PHONG CÁCH DIỄN ĐẠT ===
+- Đồng cảm, sâu sắc, thực tế, nói thẳng vào bản chất vấn đề, không sáo rỗng hay động viên chung chung.
+- Ngôn ngữ tiếng Việt chuẩn mực, giàu tính học thuật nhưng gần gũi, dễ hiểu.
+- Sử dụng markdown chuyên nghiệp (in đậm, bullet points, icon sinh động) để tạo trải nghiệm đọc trực quan, hiện đại.`;
+
+export const STANDARD_CAREER_COUNSELOR_PROMPT = `Bạn là Trợ lý AI Hướng nghiệp Nexora 2026 tại Việt Nam.
+Hãy giải đáp ngắn gọn, súc tích, thân thiện và chính xác các câu hỏi của học sinh về tuyển sinh, chọn ngành, chọn nghề, học phí và điểm chuẩn theo quy chế của Bộ GD&ĐT (Thông tư 06/2026/TT-BGDĐT và Thông tư 74/2026/TT-BGDĐT).`;
+
+export async function callDirectGeminiAPI(
+  apiKey: string,
   messages: { role: string; content: string }[],
-  profile?: LearnerProfile
-): Promise<AIChatResponse> => {
-  const lastMsg = messages[messages.length - 1]?.content || '';
-  const customApiKey = getStoredApiKey();
+  systemPrompt: string,
+  modelName: string = 'gemini-2.0-flash'
+): Promise<{ text: string; sources?: { title: string; url: string }[] }> {
+  const rawContents = messages.map(m => ({
+    role: (m.role === 'model' || m.role === 'assistant' ? 'model' : 'user') as 'user' | 'model',
+    parts: [{ text: m.content }]
+  }));
 
-  try {
-    const provider = getStoredAiProvider();
-    const groqApiKey = getStoredGroqKey();
-
-    // If Groq is selected and groqApiKey is present or configured, call Groq rate-limited endpoint directly
-    if (provider === 'groq' && groqApiKey) {
-      const groqRes = await fetch('/api/ai/groq/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: messages.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.content })),
-          customApiKey: groqApiKey,
-          model: 'llama-3.3-70b-versatile'
-        })
-      });
-      if (groqRes.ok) {
-        const groqData = await groqRes.json();
-        if (groqData && groqData.reply) {
-          return {
-            reply: groqData.reply,
-            sources: [],
-            modelUsed: groqData.modelUsed || 'llama-3.3-70b-versatile (Groq Speed)'
-          };
-        }
-      }
+  const contents: { role: 'user' | 'model'; parts: { text: string }[] }[] = [];
+  for (const item of rawContents) {
+    if (contents.length > 0 && contents[contents.length - 1].role === item.role) {
+      contents[contents.length - 1].parts[0].text += `\n\n${item.parts[0].text}`;
+    } else {
+      contents.push(item);
     }
-
-    const res = await fetch('/api/ai/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages,
-        userProfile: profile,
-        customApiKey: customApiKey || undefined,
-        provider,
-        groqApiKey: groqApiKey || undefined
-      })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.reply) {
-        return {
-          reply: data.reply,
-          sources: data.sources || [],
-          modelUsed: data.modelUsed
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Backend /api/ai/chat unreachable, using local smart advisor:', err);
   }
 
+  if (contents.length > 0 && contents[0].role !== 'user') {
+    contents.unshift({ role: 'user', parts: [{ text: 'Bắt đầu tư vấn định hướng tuyển sinh 2026' }] });
+  }
+
+  const payload: any = {
+    contents,
+    systemInstruction: {
+      parts: [{ text: systemPrompt }]
+    },
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 4096
+    }
+  };
+
+  const candidateModels = [modelName, 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const uniqueModels = Array.from(new Set(candidateModels));
+
+  let lastError: any = null;
+  for (const m of uniqueModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey.trim()}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || `HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      const candidate = data?.candidates?.[0];
+      const text = candidate?.content?.parts?.map((p: any) => p.text).join('') || '';
+
+      const sources: { title: string; url: string }[] = [];
+      if (candidate?.groundingMetadata?.groundingChunks) {
+        for (const chunk of candidate.groundingMetadata.groundingChunks) {
+          if (chunk.web?.uri) {
+            sources.push({
+              title: chunk.web.title || chunk.web.uri,
+              url: chunk.web.uri
+            });
+          }
+        }
+      }
+
+      if (text.trim()) {
+        return { text, sources };
+      }
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`Gemini direct call with model ${m} failed:`, err);
+    }
+  }
+
+  throw lastError || new Error('Không thể kết nối đến Google Gemini API');
+}
+
+export async function callDirectGroqAPI(
+  apiKey: string,
+  messages: { role: string; content: string }[],
+  systemPrompt: string,
+  modelName: string = 'llama-3.3-70b-versatile'
+): Promise<{ text: string }> {
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  const formatted = [
+    { role: 'system', content: systemPrompt },
+    ...messages.map(m => ({
+      role: m.role === 'model' ? 'assistant' : m.role,
+      content: m.content
+    }))
+  ];
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey.trim()}`
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: formatted,
+      temperature: 0.7,
+      max_tokens: 4096
+    })
+  });
+
+  if (!res.ok) {
+    const errJson = await res.json().catch(() => ({}));
+    throw new Error(errJson?.error?.message || `HTTP ${res.status}: ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content || '';
+  return { text };
+}
+
+export interface AIChatOptions {
+  isSupremeMode?: boolean;
+  selectedModel?: string;
+  provider?: 'gemini' | 'groq';
+}
+
+export const sendAIChatMessage = async (
+  messages: { role: string; content: string }[],
+  profile?: LearnerProfile,
+  options?: AIChatOptions
+): Promise<AIChatResponse> => {
+  const lastMsg = messages[messages.length - 1]?.content || '';
+  const isSupreme = options?.isSupremeMode ?? getStoredSupremeMode();
+  const selectedModel = options?.selectedModel || getStoredSelectedModel();
+  const provider = options?.provider || getStoredAiProvider();
+  const geminiApiKey = getStoredApiKey();
+  const groqApiKey = getStoredGroqKey();
+
+  let systemPrompt = isSupreme ? SUPREME_CAREER_COUNSELOR_PROMPT : STANDARD_CAREER_COUNSELOR_PROMPT;
+  if (profile) {
+    systemPrompt += `\n\n=== DỮ LIỆU HỒ SƠ THÍ SINH ĐANG TƯ VẤN ===
+- Môn thế mạnh: ${profile.strongSubjects?.join(', ') || 'Chưa cung cấp'}
+- Hoạt động yêu thích: ${profile.favoriteActivities?.join(', ') || 'Chưa cung cấp'}
+- Môi trường làm việc: ${profile.workEnvironment || 'Linh hoạt'}
+- Giá trị cá nhân: ${profile.personalValues?.join(', ') || 'Chưa xác định'}
+- Ngân sách học phí tối đa: ${profile.maxTuitionPerYearMln || 35} triệu đồng/năm
+- Khu vực ưu tiên: ${profile.preferredRegions?.join(', ') || 'Toàn quốc'}
+- Loại hình đào tạo: ${profile.targetEducationType || 'Đại học'}`;
+  }
+
+  // 1. Direct Google Gemini REST API (Client-side, 0 latency, Vercel-ready)
+  if (provider === 'gemini' && geminiApiKey) {
+    try {
+      const result = await callDirectGeminiAPI(geminiApiKey, messages, systemPrompt, selectedModel);
+      if (result.text && result.text.trim()) {
+        return {
+          reply: result.text,
+          sources: result.sources || [],
+          modelUsed: `${selectedModel} ${isSupreme ? '⚡ MODE SUPREME' : ''}`
+        };
+      }
+    } catch (err: any) {
+      console.warn('Direct Gemini API call failed:', err);
+    }
+  }
+
+  // 2. Direct Groq API (Client-side)
+  if (provider === 'groq' && groqApiKey) {
+    try {
+      const result = await callDirectGroqAPI(groqApiKey, messages, systemPrompt, 'llama-3.3-70b-versatile');
+      if (result.text && result.text.trim()) {
+        return {
+          reply: result.text,
+          sources: [],
+          modelUsed: `llama-3.3-70b-versatile (Groq) ${isSupreme ? '⚡ MODE SUPREME' : ''}`
+        };
+      }
+    } catch (err: any) {
+      console.warn('Direct Groq API call failed:', err);
+    }
+  }
+
+  // 3. Fallback to Local Smart Advisor Engine
+  const localReply = buildSmartAdvisorReply(lastMsg);
+  const supremeNotice = !geminiApiKey && !groqApiKey
+    ? `\n\n---\n🔑 **Kích hoạt MODE SUPREME Toàn Năng**: Bạn đã có API Key (Google Gemini hoặc Groq)? Hãy bấm vào nút **[⚙️ Cấu Hình API Key]** ở trên để dán API Key. Trí tuệ nhân tạo sẽ lập tức phân tích sâu 4 chiều theo đúng dữ liệu 300 trường đại học và 219 tổ hợp tuyển sinh 2026!`
+    : '';
+
   return {
-    reply: buildSmartAdvisorReply(lastMsg),
+    reply: localReply + supremeNotice,
     sources: [],
     modelUsed: 'NEXORA Smart Local Engine'
   };

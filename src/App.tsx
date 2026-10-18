@@ -3,7 +3,7 @@ import { UNIROOTPlatform } from './components/UNIROOTPlatform';
 import { AICareerCopilot } from './components/AICareerCopilot';
 import { DataIntegrityModal } from './components/DataIntegrityModal';
 import { CompileIntroPreloader } from './components/CompileIntroPreloader';
-import { getStoredApiKey, checkServerAIStatus } from './services/geminiService';
+import { getStoredApiKey, getStoredGroqKey, checkServerAIStatus } from './services/geminiService';
 import { UserJourneyProvider } from './context/UserJourneyContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { SmoothScroll } from './components/SmoothScroll';
@@ -17,7 +17,7 @@ export default function App() {
   const [forceShowIntro, setForceShowIntro] = useState(false);
 
   useEffect(() => {
-    const key = getStoredApiKey();
+    const key = getStoredApiKey() || getStoredGroqKey();
     if (key) {
       setHasApiKey(true);
     } else {

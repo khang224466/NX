@@ -9,9 +9,15 @@ import {
   User, 
   Check, 
   AlertCircle, 
-  HelpCircle,
-  ShieldCheck,
-  RotateCcw
+  Clock, 
+  RefreshCw, 
+  StopCircle, 
+  Sliders, 
+  Eye, 
+  EyeOff, 
+  ChevronRight, 
+  ExternalLink,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   getStoredApiKey, 
@@ -22,6 +28,12 @@ import {
   setStoredPacingDelay,
   getStoredAiProvider,
   setStoredAiProvider,
+  getStoredSupremeMode,
+  setStoredSupremeMode,
+  getStoredSelectedModel,
+  setStoredSelectedModel,
+  testGeminiApiKey,
+  testGroqApiKey,
   fetchPacingStatus,
   updateServerPacingConfig,
   cancelPacingTask,
@@ -29,13 +41,148 @@ import {
   sendAIChatMessage, 
   ChatMessage 
 } from '../services/geminiService';
-import { Clock, ShieldAlert, Cpu, RefreshCw, StopCircle, Sliders } from 'lucide-react';
 
 interface AICareerCopilotProps {
   isOpen: boolean;
   onClose: () => void;
   initialQuery?: string;
 }
+
+function renderFormattedInline(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const boldText = part.slice(2, -2);
+      if (boldText.includes('MATCH') || boldText.includes('%')) {
+        return (
+          <strong key={i} className="text-emerald-300 font-bold bg-emerald-500/15 px-1.5 py-0.5 rounded border border-emerald-500/30">
+            {boldText}
+          </strong>
+        );
+      }
+      if (boldText.includes('Lương') || boldText.includes('Thu nhập') || boldText.includes('P25') || boldText.includes('P90')) {
+        return (
+          <strong key={i} className="text-amber-300 font-bold bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/30">
+            {boldText}
+          </strong>
+        );
+      }
+      return <strong key={i} className="text-white font-bold">{boldText}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      const codeText = part.slice(1, -1);
+      return (
+        <code
+          key={i}
+          className="mx-0.5 px-1.5 py-0.5 rounded bg-blue-500/15 text-cyan-300 font-mono text-[11px] border border-blue-500/30 font-semibold"
+        >
+          {codeText}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
+const MarkdownMessageView: React.FC<{ content: string }> = ({ content }) => {
+  const lines = content.split('\n');
+
+  return (
+    <div className="space-y-2 text-xs sm:text-sm leading-relaxed text-[#D8DFEB]">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+
+        if (!trimmed) {
+          return <div key={idx} className="h-1.5" />;
+        }
+
+        if (trimmed === '---' || trimmed === '***') {
+          return <hr key={idx} className="border-white/10 my-3" />;
+        }
+
+        // Section Headers
+        if (
+          trimmed.includes('PHẦN 1:') ||
+          trimmed.includes('PHẦN 2:') ||
+          trimmed.includes('PHẦN 3:') ||
+          trimmed.includes('PHẦN 4:') ||
+          trimmed.includes('HÀNH ĐỘNG CỤ THỂ') ||
+          trimmed.startsWith('###') ||
+          trimmed.startsWith('##')
+        ) {
+          const isP1 = trimmed.includes('PHẦN 1') || trimmed.includes('THIÊN HƯỚNG');
+          const isP2 = trimmed.includes('PHẦN 2') || trimmed.includes('TOP 3');
+          const isP3 = trimmed.includes('PHẦN 3') || trimmed.includes('MA TRẬN');
+          const isP4 = trimmed.includes('PHẦN 4') || trimmed.includes('LỘ TRÌNH');
+          const isAction = trimmed.includes('HÀNH ĐỘNG');
+
+          const borderColor = isP1
+            ? 'border-cyan-500/50 bg-cyan-950/30 text-cyan-200'
+            : isP2
+            ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-200'
+            : isP3
+            ? 'border-amber-500/50 bg-amber-950/30 text-amber-200'
+            : isP4
+            ? 'border-purple-500/50 bg-purple-950/30 text-purple-200'
+            : isAction
+            ? 'border-blue-500/50 bg-blue-950/30 text-blue-200'
+            : 'border-white/20 bg-white/5 text-white';
+
+          const cleanTitle = trimmed.replace(/^#+\s*/, '').replace(/^\*\*|\*\*$/g, '');
+
+          return (
+            <div
+              key={idx}
+              className={`mt-4 mb-2 px-3.5 py-2 rounded-xl border font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm ${borderColor}`}
+            >
+              <Sparkles className="w-4 h-4 shrink-0 text-amber-400" />
+              <span>{cleanTitle}</span>
+            </div>
+          );
+        }
+
+        // Callout quote
+        if (trimmed.startsWith('>')) {
+          return (
+            <div
+              key={idx}
+              className="border-l-2 border-amber-400 pl-3 py-1.5 my-1.5 text-zinc-300 italic bg-amber-500/10 rounded-r text-xs"
+            >
+              {renderFormattedInline(trimmed.replace(/^>\s*/, ''))}
+            </div>
+          );
+        }
+
+        // Bullet item
+        if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+          const text = trimmed.replace(/^[•\-\*]\s*/, '');
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-2">
+              <span className="text-blue-400 font-bold shrink-0 mt-0.5">•</span>
+              <div className="flex-1">{renderFormattedInline(text)}</div>
+            </div>
+          );
+        }
+
+        // Numbered list item
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        if (numMatch) {
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-1 my-1">
+              <span className="w-5 h-5 rounded-md bg-blue-500/20 border border-blue-500/30 text-blue-300 font-mono text-[11px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                {numMatch[1]}
+              </span>
+              <div className="flex-1">{renderFormattedInline(numMatch[2])}</div>
+            </div>
+          );
+        }
+
+        return <p key={idx}>{renderFormattedInline(trimmed)}</p>;
+      })}
+    </div>
+  );
+};
 
 export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
   isOpen,
@@ -46,15 +193,16 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
     {
       id: 'welcome',
       role: 'model',
-      content: `Chào bạn! Mình là Nexora — Trợ lý AI Hướng nghiệp & Định hướng Tương lai 2026.
+      content: `Chào bạn! Mình là Nexora Supreme AI — Cố Vấn Chiến Lược Hướng Nghiệp & Tuyển Sinh 2026.
 
-Mình ở đây để đồng hành cùng bạn tìm ra lộ trình học tập và nghề nghiệp phù hợp nhất:
-1. 💡 **Thấu cảm & Phân tích thế mạnh**: Khám phá đam mê, tính cách và năng lực học tập tự nhiên.
-2. 🎯 **Đề xuất tổ hợp môn tối ưu**: Gợi ý các khối thi (A00, A01, D01, B00, C00...) mang lại lợi thế điểm số cao nhất.
-3. 💼 **Kết nối Trường — Ngành — Nghề**: Khám phá ngành học đón đầu xu hướng việc làm 2026–2030 và mức lương thực tế.
-4. 🏛️ **Ma trận trường đại học uy tín**: Định vị trường Top đầu và trường Vừa sức an toàn.
+Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, danh mục 300 trường đại học và 219 tổ hợp xét tuyển tại Việt Nam:
 
-Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở những môn học nào? Hãy chia sẻ với mình nhé!`,
+🧭 **1. Thiên Hướng Tâm Lý & Năng Lực**: Giải mã mô hình Holland RIASEC 6 chiều & Ikigai.
+🎯 **2. Top 3 Ngành Học & Nghề Phù Hợp**: Độ khớp (Match %), Mức lương thị trường GSO (P25 - P50 - P90) & Rủi ro tự động hóa AI.
+🏛️ **3. Ma Trận 3 Tầng Nguyện Vọng Chọn Trường**: Tầng Mơ ước (Top 1) - Tầng Vừa sức (Đỗ 80%) - Tầng An toàn 100%.
+🗺️ **4. Lộ Trình 4 Năm Đại Học & Kỹ Năng Cốt Lõi**: Định hướng từng năm học và chứng chỉ thực chiến.
+
+⚡ **Chế độ MODE SUPREME đang BẬT**. Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở những môn học nào? Hãy chia sẻ với mình nhé!`,
       timestamp: 'Ngay bây giờ'
     }
   ]);
@@ -64,7 +212,12 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
   const [showKeyConfig, setShowKeyConfig] = useState(false);
   const [customKey, setCustomKey] = useState('');
   const [customGroqKey, setCustomGroqKey] = useState('');
-  const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>('groq');
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>('gemini');
+  const [isSupremeMode, setIsSupremeMode] = useState<boolean>(true);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.0-flash');
+  const [showSecretKey, setShowSecretKey] = useState(false);
+  const [testKeyStatus, setTestKeyStatus] = useState<{ testing: boolean; message: string; success?: boolean } | null>(null);
+
   const [requestDelayMs, setRequestDelayMs] = useState<number>(2000);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [pacingStatus, setPacingStatus] = useState<any>(null);
@@ -72,7 +225,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
   const [serverStatus, setServerStatus] = useState<{ hasServerKey: boolean; hasGroqKey?: boolean; recommendedModel: string }>({
     hasServerKey: false,
     hasGroqKey: false,
-    recommendedModel: 'llama-3.3-70b-versatile (Groq Speed)'
+    recommendedModel: 'gemini-2.0-flash (Mode Supreme)'
   });
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -84,6 +237,8 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
     setCustomGroqKey(getStoredGroqKey());
     setAiProvider(getStoredAiProvider());
     setRequestDelayMs(getStoredPacingDelay());
+    setIsSupremeMode(getStoredSupremeMode());
+    setSelectedModel(getStoredSelectedModel());
   }, []);
 
   // Poll pacing queue status every 1.5s when dialog is open
@@ -129,10 +284,37 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleToggleSupremeMode = () => {
+    const nextVal = !isSupremeMode;
+    setIsSupremeMode(nextVal);
+    setStoredSupremeMode(nextVal);
+  };
+
+  const handleTestKey = async () => {
+    setTestKeyStatus({ testing: true, message: 'Đang gửi ping kiểm tra kết nối API trực tiếp...' });
+    if (aiProvider === 'gemini') {
+      if (!customKey.trim()) {
+        setTestKeyStatus({ testing: false, message: 'Vui lòng dán Google Gemini API Key trước!', success: false });
+        return;
+      }
+      const res = await testGeminiApiKey(customKey, selectedModel);
+      setTestKeyStatus({ testing: false, message: res.message, success: res.success });
+    } else {
+      if (!customGroqKey.trim()) {
+        setTestKeyStatus({ testing: false, message: 'Vui lòng dán Groq API Key trước!', success: false });
+        return;
+      }
+      const res = await testGroqApiKey(customGroqKey);
+      setTestKeyStatus({ testing: false, message: res.message, success: res.success });
+    }
+  };
+
   const handleSaveSettings = async () => {
     setStoredApiKey(customKey);
     setStoredGroqKey(customGroqKey);
     setStoredAiProvider(aiProvider);
+    setStoredSupremeMode(isSupremeMode);
+    setStoredSelectedModel(selectedModel);
     setStoredPacingDelay(requestDelayMs);
     await updateServerPacingConfig({
       requestDelayMs,
@@ -140,6 +322,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
       defaultGroqModel: 'llama-3.3-70b-versatile'
     });
     setShowKeyConfig(false);
+    setTestKeyStatus(null);
   };
 
   const handleCancelActiveTask = async () => {
@@ -173,7 +356,11 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
         content: m.content
       }));
 
-      const res = await sendAIChatMessage(history);
+      const res = await sendAIChatMessage(history, undefined, {
+        isSupremeMode,
+        selectedModel,
+        provider: aiProvider
+      });
       
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -189,7 +376,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        content: `Rất tiếc, đã có lỗi kết nối với mô hình AI: ${err?.message || 'Vui lòng kiểm tra lại cấu hình'}.`,
+        content: `Rất tiếc, đã có lỗi kết nối với mô hình AI: ${err?.message || 'Vui lòng kiểm tra lại API Key hoặc mạng'}.`,
         timestamp: 'Lỗi'
       };
       setMessages(prev => [...prev, errorMsg]);
@@ -200,14 +387,16 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
   };
 
   const sampleQuestions = [
-    'Em thích công nghệ và máy tính nhưng ngại giao tiếp, nên chọn ngành gì?',
-    'Em học khá Toán và Tiếng Anh, thích kinh doanh thì nên chọn ngành nào?',
-    'Tổ hợp A01 (Toán, Lý, Anh) ra trường làm được những nghề gì và học trường nào?',
-    'Em muốn theo ngành Y Dược thì cần chuẩn bị điểm số và khối thi ra sao?',
-    'Lương và cơ hội việc làm của ngành Thiết kế Vi mạch & Bán dẫn tại Việt Nam?'
+    '⚡ Phân tích Mode Supreme: Em thích Toán & Tin, điểm tầm 26.5',
+    '🧭 Đánh giá thiên hướng Holland RIASEC & Khối thi tối ưu cho em',
+    '🏛️ Lập ma trận 3 tầng trường (Mơ ước - Vừa sức - An toàn) với mức 25.5 điểm',
+    '💼 Soi mức lương P25–P90 & Nguy cơ bị AI thay thế của ngành Kinh tế',
+    '🔄 Chiến lược rẽ ngang (Pivot) an toàn khi lỡ chọn ngành không hợp'
   ];
 
   if (!isOpen) return null;
+
+  const hasConfiguredKey = (aiProvider === 'gemini' && !!customKey) || (aiProvider === 'groq' && !!customGroqKey);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md">
@@ -220,16 +409,16 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0F141D]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-              <Bot className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/30 to-amber-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shrink-0">
+              <Bot className="w-5 h-5 text-amber-300" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-syne text-lg font-bold text-white">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-syne text-lg font-bold text-white flex items-center gap-1.5">
                   Nexora AI Hướng Nghiệp
                 </h3>
                 <span className="text-[10px] font-mono bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 font-medium">
-                  Cố Vấn 2026
+                  Tuyển Sinh 2026
                 </span>
                 {pacingStatus?.isCoolingDown && (
                   <span className="text-[10px] font-mono bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1 animate-pulse">
@@ -239,21 +428,51 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
                 )}
               </div>
               <p className="text-[11px] text-[#A1A1AA]">
-                Trợ lý AI Hướng nghiệp & Định hướng Tương lai · Kết nối Trường — Ngành — Nghề
+                Cố Vấn Hướng Nghiệp Tối Cao · 300 Trường Đại Học · 219 Tổ Hợp Tuyển Sinh
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Mode Supreme Toggle Pill in Header */}
+            <button
+              type="button"
+              onClick={handleToggleSupremeMode}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-sm ${
+                isSupremeMode
+                  ? 'bg-gradient-to-r from-amber-500/25 via-orange-500/25 to-yellow-500/25 border-amber-400/60 text-amber-300 shadow-amber-500/20'
+                  : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+              }`}
+              title="Bật/Tắt chế độ phân tích chuyên sâu 4 chiều (Holland RIASEC, Top 3 ngành, Ma trận 3 tầng trường, Lộ trình 4 năm)"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isSupremeMode ? 'text-amber-400 animate-pulse' : 'text-zinc-500'}`} />
+              <span className="hidden sm:inline">MODE SUPREME:</span>
+              <span>{isSupremeMode ? 'BẬT ⚡' : 'TẮT'}</span>
+            </button>
+
+            {/* API Key / Provider Button */}
             <button
               onClick={() => setShowKeyConfig(!showKeyConfig)}
-              className="px-3 py-1.5 rounded-lg bg-[#141A25] hover:bg-[#1B2433] text-xs text-blue-400 border border-blue-500/30 flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Cấu hình Pacing & Khóa API"
+              className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+                hasConfiguredKey
+                  ? 'bg-[#141A25] hover:bg-[#1B2433] text-emerald-400 border-emerald-500/40'
+                  : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-400/50 animate-pulse'
+              }`}
+              title="Cấu hình API Key & Mô hình"
             >
-              <Sliders className="w-3.5 h-3.5" />
-              <span className="font-mono text-[11px]">
-                {requestDelayMs}ms · {aiProvider.toUpperCase()}
-              </span>
+              {hasConfiguredKey ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="font-mono text-[11px]">
+                    {aiProvider === 'gemini' ? (selectedModel.includes('2.0') ? 'Gemini 2.0' : 'Gemini') : 'Groq 70B'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="font-semibold text-[11px]">Cài API Key</span>
+                </>
+              )}
             </button>
 
             <button
@@ -267,7 +486,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
           </div>
         </div>
 
-        {/* Rate Limiting & Pacing Configuration Drawer */}
+        {/* Configuration Drawer */}
         <AnimatePresence>
           {showKeyConfig && (
             <motion.div
@@ -280,113 +499,229 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
                   <span className="font-bold text-white text-sm flex items-center gap-1.5">
                     <Sliders className="w-4 h-4 text-blue-400" />
-                    Cấu Hình Điều Tiết Tốc Độ (Request Pacing & Rate Limit)
+                    Cấu Hình API Key & Trí Tuệ Nhân Tạo Mode Supreme
                   </span>
-                  <span className="text-[11px] text-emerald-400 font-mono">
-                    Hạn chế lỗi 429 • Max 3 Retries
+                  <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Bảo Mật Trực Tiếp Trong Trình Duyệt (Local Only)
                   </span>
+                </div>
+
+                {/* Mode Supreme Spotlight Toggle */}
+                <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                        <span>MODE SUPREME: Phân Tích Chuyên Gia 4 Chiều</span>
+                        <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">KHUYÊN DÙNG</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-300">
+                        (1) Holland RIASEC & Ikigai • (2) Top 3 ngành & lương GSO • (3) Ma trận 3 tầng trường 2026 • (4) Lộ trình 4 năm
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSupremeMode(!isSupremeMode)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      isSupremeMode
+                        ? 'bg-amber-400 text-black font-bold shadow-md shadow-amber-500/30'
+                        : 'bg-white/10 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    {isSupremeMode ? 'ĐANG BẬT ⚡' : 'ĐANG TẮT'}
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Select AI Provider */}
                   <div>
-                    <label className="text-zinc-300 font-medium block mb-1">Nhà Cung Cấp Mô Hình AI:</label>
+                    <label className="text-zinc-300 font-medium block mb-1">Chọn Động Cơ AI:</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setAiProvider('groq')}
-                        className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
-                          aiProvider === 'groq'
-                            ? 'bg-blue-600/20 border-blue-500 text-white font-bold'
+                        onClick={() => setAiProvider('gemini')}
+                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                          aiProvider === 'gemini'
+                            ? 'bg-blue-600/25 border-blue-500 text-white font-bold'
                             : 'bg-[#0E141D] border-[#2A3444] text-zinc-400 hover:text-white'
                         }`}
                       >
-                        <div className="font-bold">Groq Console</div>
-                        <div className="text-[10px] text-zinc-400">Llama-3.3-70B • Tốc độ siêu tốc</div>
+                        <div className="font-bold flex items-center gap-1 text-xs">
+                          <span>Google Gemini</span>
+                          <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 rounded">Ưu tiên</span>
+                        </div>
+                        <div className="text-[10px] text-zinc-400 mt-0.5">Gemini 2.0 Flash • 1.5 Pro</div>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setAiProvider('gemini')}
-                        className={`p-2 rounded-lg border text-left cursor-pointer transition-all ${
-                          aiProvider === 'gemini'
-                            ? 'bg-blue-600/20 border-blue-500 text-white font-bold'
+                        onClick={() => setAiProvider('groq')}
+                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                          aiProvider === 'groq'
+                            ? 'bg-blue-600/25 border-blue-500 text-white font-bold'
                             : 'bg-[#0E141D] border-[#2A3444] text-zinc-400 hover:text-white'
                         }`}
                       >
-                        <div className="font-bold">Google Gemini</div>
-                        <div className="text-[10px] text-zinc-400">Search Grounding • Tra cứu web</div>
+                        <div className="font-bold text-xs">Groq Console</div>
+                        <div className="text-[10px] text-zinc-400 mt-0.5">Llama-3.3-70B • Siêu tốc</div>
                       </button>
                     </div>
                   </div>
 
-                  {/* Configurable REQUEST_DELAY_MS */}
+                  {/* Select Model if Gemini */}
+                  {aiProvider === 'gemini' ? (
+                    <div>
+                      <label className="text-zinc-300 font-medium block mb-1">Phiên Bản Mô Hình Gemini:</label>
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="gemini-2.0-flash">gemini-2.0-flash (Mới nhất, siêu nhanh & thông minh)</option>
+                        <option value="gemini-1.5-pro">gemini-1.5-pro (Lý luận sâu sắc, phân tích học thuật)</option>
+                        <option value="gemini-1.5-flash">gemini-1.5-flash (Tốc độ tối ưu)</option>
+                      </select>
+                      <p className="text-[10px] text-zinc-400 mt-1">
+                        Khuyên dùng <code className="text-cyan-300">gemini-2.0-flash</code> để đạt hiệu suất cao nhất.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-zinc-300 font-medium block mb-1">Mô Hình Groq:</label>
+                      <input
+                        type="text"
+                        disabled
+                        value="llama-3.3-70b-versatile (70 Tỷ Tham Số)"
+                        className="w-full px-3 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-zinc-300 font-mono opacity-80"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* API Key Inputs */}
+                {aiProvider === 'gemini' ? (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-zinc-300 font-medium">Khoảng Nghỉ Giữa Request (REQUEST_DELAY_MS):</label>
-                      <span className="font-mono font-bold text-blue-400">{requestDelayMs} ms</span>
+                      <label className="text-zinc-300 font-medium flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5 text-blue-400" />
+                        Google Gemini API Key:
+                      </label>
+                      <a
+                        href="https://aistudio.google.com/apikey"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1 font-sans"
+                      >
+                        <span>Lấy API key miễn phí tại Google AI Studio</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
                     </div>
-                    <input
-                      type="range"
-                      min="500"
-                      max="8000"
-                      step="250"
-                      value={requestDelayMs}
-                      onChange={(e) => setRequestDelayMs(parseInt(e.target.value, 10))}
-                      className="w-full accent-blue-500 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-zinc-500 font-mono mt-0.5">
-                      <span>500ms (Nhanh)</span>
-                      <span>2000ms (Mặc định đề xuất)</span>
-                      <span>8000ms (Bảo vệ 429)</span>
+                    <div className="relative">
+                      <input
+                        type={showSecretKey ? 'text' : 'password'}
+                        placeholder="Dán Gemini API Key (bắt đầu bằng AIzaSy...)"
+                        value={customKey}
+                        onChange={(e) => setCustomKey(e.target.value)}
+                        className="w-full px-3 py-2 pr-10 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSecretKey(!showSecretKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                      >
+                        {showSecretKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
-                </div>
-
-                {/* Groq API Key Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-zinc-300 font-medium">Groq API Key (từ console.groq.com):</label>
-                    <span className="text-[10px] text-zinc-400 font-mono">Bảo mật cục bộ (Local Only)</span>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-zinc-300 font-medium flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5 text-blue-400" />
+                        Groq API Key:
+                      </label>
+                      <a
+                        href="https://console.groq.com/keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1 font-sans"
+                      >
+                        <span>Lấy API key tại Groq Console</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showSecretKey ? 'text' : 'password'}
+                        placeholder="Dán Groq API Key (bắt đầu bằng gsk_...)"
+                        value={customGroqKey}
+                        onChange={(e) => setCustomGroqKey(e.target.value)}
+                        className="w-full px-3 py-2 pr-10 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSecretKey(!showSecretKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                      >
+                        {showSecretKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
-                  <input
-                    type="password"
-                    placeholder="Dán Groq API Key (gsk_...)"
-                    value={customGroqKey}
-                    onChange={(e) => setCustomGroqKey(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500"
-                  />
-                </div>
+                )}
 
-                {/* Gemini API Key Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-zinc-300 font-medium">Google Gemini API Key (tùy chọn):</label>
-                    <span className="text-[10px] text-zinc-400 font-mono">{customKey ? 'Đã lưu' : 'Mặc định dùng key hệ thống'}</span>
+                {/* Test Key Status Banner */}
+                {testKeyStatus && (
+                  <div
+                    className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs ${
+                      testKeyStatus.testing
+                        ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+                        : testKeyStatus.success
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                        : 'bg-red-500/10 border-red-500/30 text-red-300'
+                    }`}
+                  >
+                    {testKeyStatus.testing ? (
+                      <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                    ) : testKeyStatus.success ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    )}
+                    <span>{testKeyStatus.message}</span>
                   </div>
-                  <input
-                    type="password"
-                    placeholder="Dán Gemini API Key (AIzaSy...)"
-                    value={customKey}
-                    onChange={(e) => setCustomKey(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500"
-                  />
-                </div>
+                )}
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
+                {/* Footer Buttons */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
                   <button
                     type="button"
-                    onClick={() => setShowKeyConfig(false)}
-                    className="px-4 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+                    onClick={handleTestKey}
+                    disabled={testKeyStatus?.testing}
+                    className="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    Đóng
+                    <RefreshCw className={`w-3.5 h-3.5 ${testKeyStatus?.testing ? 'animate-spin' : ''}`} />
+                    <span>Kiểm Tra Kết Nối Key</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveSettings}
-                    className="px-5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold cursor-pointer transition-all shadow-md"
-                  >
-                    Lưu Cấu Hình Pacing
-                  </button>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowKeyConfig(false)}
+                      className="px-4 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+                    >
+                      Đóng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveSettings}
+                      className="px-5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold cursor-pointer transition-all shadow-md"
+                    >
+                      Lưu & Kích Hoạt
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -401,9 +736,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
               <span>
                 {pacingStatus?.isCoolingDown
                   ? `Đang chờ API hết giới hạn (Cooldown: ${Math.ceil(pacingStatus.remainingCooldownMs / 1000)}s)...`
-                  : pacingStatus?.queueLength > 1
-                  ? `Đang chờ lượt gửi request (Vị trí #${pacingStatus.queueLength} trong hàng đợi)...`
-                  : `Đang gửi request qua hàng đợi điều tiết (${requestDelayMs}ms pacing)...`}
+                  : `Đang phân tích đa chiều Mode Supreme & đối soát 300 trường...`}
               </span>
             </div>
             <button
@@ -419,6 +752,53 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
 
         {/* Chat message stream */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          {/* Top Banner Notice when Key is missing */}
+          {!hasConfiguredKey && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-purple-500/15 border border-amber-400/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Kích Hoạt Trí Tuệ MODE SUPREME Bằng API Key</span>
+                    <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">Khuyên Dùng</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 mt-0.5">
+                    Bạn đã có API Key (Google Gemini hoặc Groq)? Kết nối ngay để AI phân tích trực tiếp 100%, đối soát 300 trường đại học và 219 tổ hợp tuyển sinh 2026!
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowKeyConfig(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-bold text-xs shrink-0 cursor-pointer shadow-md flex items-center gap-1.5 transition-all"
+              >
+                <span>Nhập API Key Ngay</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Active Key Status Pill */}
+          {hasConfiguredKey && (
+            <div className="px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-400">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>
+                  Đang kết nối: <strong>{aiProvider === 'gemini' ? selectedModel : 'Groq Llama-3.3-70B'}</strong>
+                  {isSupremeMode ? ' · ⚡ MODE SUPREME BẬT (Phân tích 4 chiều)' : ''}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowKeyConfig(true)}
+                className="text-zinc-400 hover:text-white underline text-[11px] cursor-pointer"
+              >
+                Đổi cấu hình
+              </button>
+            </div>
+          )}
+
           {messages.map((msg) => {
             const isUser = msg.role === 'user';
             return (
@@ -427,8 +807,8 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
                 className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
               >
                 {!isUser && (
-                  <div className="w-8 h-8 rounded-xl bg-[#14231E] border border-[#00FF88]/40 flex items-center justify-center text-[#00FF88] shrink-0 mt-1">
-                    <Bot className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-xl bg-[#14231E] border border-[#00FF88]/40 flex items-center justify-center text-[#00FF88] shrink-0 mt-1 shadow-sm">
+                    <Bot className="w-4 h-4 text-amber-300" />
                   </div>
                 )}
 
@@ -439,7 +819,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
                       : 'bg-[#0E141D] border border-white/[0.08] text-[#D8DFEB] rounded-tl-sm'
                   }`}
                 >
-                  <div className="whitespace-pre-line">{msg.content}</div>
+                  <MarkdownMessageView content={msg.content} />
 
                   {/* Grounding sources from Google Search if available */}
                   {msg.sources && msg.sources.length > 0 && (
@@ -467,7 +847,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
                   <div className="flex items-center justify-between text-[10px] text-[#64748B] mt-2 font-tabular">
                     <span>{msg.timestamp}</span>
                     {msg.modelUsed && (
-                      <span className="text-white/30 text-[9px] uppercase">
+                      <span className="text-white/40 text-[9px] uppercase font-mono">
                         {msg.modelUsed}
                       </span>
                     )}
@@ -488,7 +868,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
               <div className="w-7 h-7 rounded-lg bg-[#00F0FF]/20 flex items-center justify-center text-[#00F0FF]">
                 <Sparkles className="w-4 h-4 animate-spin" />
               </div>
-              <span className="italic">NEXORA Copilot đang tìm kiếm Google & sinh phân tích chiến lược...</span>
+              <span className="italic">Nexora AI đang phân tích dữ liệu 300 trường & sinh lộ trình chiến lược...</span>
             </div>
           )}
 
@@ -516,7 +896,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
           <input
             ref={inputRef}
             type="text"
-            placeholder="Hỏi về sở thích, chọn tổ hợp môn, định hướng nghề nghiệp, mức lương..."
+            placeholder="Hỏi về chọn ngành, tổ hợp thi, điểm chuẩn 2026, ma trận trường hoặc lộ trình học..."
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
             onKeyDown={(e) => {
@@ -527,7 +907,7 @@ Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở nh�
           <button
             onClick={() => handleSend()}
             disabled={!inputPrompt.trim() || isSending}
-            className="px-5 py-3 rounded-xl bg-[#C5A880] text-[#07090D] font-bold text-xs sm:text-sm hover:bg-[#D4B384] transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#C5A880] to-[#E5C8A0] text-[#07090D] font-bold text-xs sm:text-sm hover:from-[#D4B384] hover:to-[#F5D8B0] transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-md"
           >
             <Send className="w-4 h-4" />
             <span className="hidden sm:inline">Gửi</span>
