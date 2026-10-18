@@ -655,7 +655,19 @@ function useTypewriter(fullText: string, speedMs: number = 14) {
 // =========================================================================
 // 2.2 REAL AI PARSER & SMART SEMANTIC FALLBACK ENGINE
 // =========================================================================
-export function parseCombosFromAIResponse(text: string): { code: string; matchPercent: number; reason: string }[] {
+export interface SuggestedComboItem {
+  code: string;
+  matchPercent: number;
+  reason: string;
+  matchLabel?: string;
+}
+
+export function cleanComboReason(reason: string): string {
+  if (!reason) return '';
+  return reason.replace(/^(?:Toán|Ngữ văn|Văn|Vật lý|Lý|Hóa học|Hóa|Sinh học|Sinh|Tiếng Anh|Ngoại ngữ|Tin học|Tin|Lịch sử|Sử|Địa lý|Địa|Giáo dục kinh tế|Vẽ mỹ thuật|Vẽ hình họa|Vẽ nghệ thuật|Năng khiếu)[^:]*:\s*/i, '').trim();
+}
+
+export function parseCombosFromAIResponse(text: string): SuggestedComboItem[] {
   // 1. Try parsing JSON code block
   const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
   if (jsonMatch && jsonMatch[1]) {
@@ -665,7 +677,8 @@ export function parseCombosFromAIResponse(text: string): { code: string; matchPe
         return parsed.combos.slice(0, 3).map((c: any) => ({
           code: String(c.code || '').toUpperCase().trim(),
           matchPercent: Number(c.matchPercent) || 90,
-          reason: String(c.reason || 'Tổ hợp được AI đề xuất tối ưu theo câu hỏi của bạn.')
+          matchLabel: c.matchLabel || 'Khớp',
+          reason: cleanComboReason(String(c.reason || 'Tổ hợp được AI đề xuất tối ưu theo câu hỏi của bạn.'))
         }));
       }
     } catch {}
@@ -686,21 +699,76 @@ export function parseCombosFromAIResponse(text: string): { code: string; matchPe
     return foundCodes.map((code, idx) => ({
       code,
       matchPercent: idx === 0 ? 96 : (idx === 1 ? 89 : 82),
+      matchLabel: 'Khớp',
       reason: `Tổ hợp [${code}] được AI phân tích tối ưu cho định hướng của bạn.`
     }));
   }
 
   // 3. Fallback default
   return [
-    { code: 'D01', matchPercent: 95, reason: 'Toán - Ngữ văn - Tiếng Anh: Tổ hợp đa năng linh hoạt số 1 toàn quốc.' },
-    { code: 'A01', matchPercent: 88, reason: 'Toán - Vật lý - Tiếng Anh: Cân bằng logic tự nhiên và ngoại ngữ.' },
-    { code: 'A00', matchPercent: 80, reason: 'Toán - Vật lý - Hóa học: Nền tảng khoa học tự nhiên kinh điển.' }
+    { code: 'D01', matchPercent: 95, matchLabel: 'Độ phủ', reason: 'Tổ hợp đa năng linh hoạt số 1 toàn quốc, tuyển sinh hơn 1.200 ngành.' },
+    { code: 'A01', matchPercent: 88, matchLabel: 'Linh hoạt', reason: 'Cân bằng logic tự nhiên và ngoại ngữ hội nhập.' },
+    { code: 'A00', matchPercent: 80, matchLabel: 'Nền tảng', reason: 'Nền tảng khoa học tự nhiên kinh điển cho mọi ngành kỹ thuật và kinh tế.' }
   ];
 }
 
-export function generateSmartSemanticAnalysis(text: string): { text: string; combos: { code: string; matchPercent: number; reason: string }[] } {
-  const lower = (text || '').toLowerCase();
+export function generateSmartSemanticAnalysis(text: string): { text: string; combos: SuggestedComboItem[] } {
+  const lower = (text || '').toLowerCase().trim();
   
+  // 0. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang, chọn bừa
+  const isLostOrUnsure = 
+    lower.includes('chưa biết') ||
+    lower.includes('không biết') ||
+    lower.includes('chưa rõ') ||
+    lower.includes('mất định hướng') ||
+    lower.includes('hoang mang') ||
+    lower.includes('mông lung') ||
+    lower.includes('mù tịt') ||
+    lower.includes('làm gì hết') ||
+    lower.includes('phải làm gì') ||
+    lower.includes('chọn ngành gì') ||
+    lower.includes('chưa có định hướng') ||
+    lower.includes('bối rối') ||
+    lower.includes('không có sở thích') ||
+    lower.includes('không biết học gì') ||
+    lower.includes('tư vấn giúp');
+
+  if (isLostOrUnsure) {
+    return {
+      text: `🧭 CHIẾN LƯỢC ĐỊNH HƯỚNG CẤP TỐC: KHI BẠN "CHƯA BIẾT PHẢI LÀM GÌ"
+• Dữ liệu Thực chứng Trấn an bạn: Theo Khảo sát thực tế 9.200 sinh viên tại 10 trường ĐH (2026), có tới 41% sinh viên từng trải qua trạng thái hoang mang, chọn bừa hoặc muốn đổi ngành vì quyết định theo cảm tính. Trạng thái "chưa biết làm gì" lúc này là hoàn toàn bình thường và là cơ hội để bạn xây dựng lộ trình an toàn có căn cứ!
+
+• 3 Nguyên tắc gỡ rối thực chiến 2026:
+  1. Giữ "Cánh cửa mở rộng nhất": Khi chưa tìm ra đam mê hẹp, tuyệt đối không chọn tổ hợp quá đặc thù. Hãy chọn tổ hợp có số lượng ngành tuyển sinh nhiều nhất toàn quốc (từ 800 - 1.200 ngành) để giữ tối đa quyền chủ động cho 2 năm đại cương.
+  2. Định vị 2 bán cầu năng lực:
+     - Bạn thấy "ngại" môn nào nhất ở trường? (Nếu sợ Toán -> đi trục Xã hội C00/D01; Nếu sợ Văn/Ngoại ngữ -> đi trục Tự nhiên A00/A01).
+     - Bạn thích làm việc với Máy tính/Dữ liệu (STEM) hay Con người/Truyền thông (Kinh tế/Xã hội)?
+  3. Khám phá sâu hơn: Bạn có thể bấm vào các gợi ý câu hỏi bên dưới để AI phân tích chi tiết từng trường hợp, hoặc làm trắc nghiệm Holland RIASEC.
+
+Dưới đây là 3 tổ hợp môn có ĐỘ PHỦ TUYỂN SINH RỘNG NHẤT TOÀN QUỐC (Đảm bảo an toàn tối đa cho tương lai):`,
+      combos: [
+        {
+          code: 'D01',
+          matchPercent: 98,
+          matchLabel: 'Độ phủ',
+          reason: 'Độ phủ rộng nhất toàn quốc (>1.200 ngành từ Kinh tế, Luật, Marketing, Truyền thông đến Ngôn ngữ). Giúp bạn linh hoạt chọn chuyên ngành sau khi đã vững tâm lý.'
+        },
+        {
+          code: 'A01',
+          matchPercent: 94,
+          matchLabel: 'Độ phủ',
+          reason: 'Cân bằng hoàn hảo giữa tư duy logic tự nhiên và ngoại ngữ hội nhập (Công nghệ, AI, Bán dẫn, FinTech, Logistics quốc tế).'
+        },
+        {
+          code: 'A00',
+          matchPercent: 88,
+          matchLabel: 'Độ phủ',
+          reason: 'Tổ hợp kinh điển của khối Khoa học Tự nhiên & Kỹ thuật, mở rộng vào mọi trường Bách Khoa, Giao Thông, Xây Dựng và Kinh Tế lớn.'
+        }
+      ]
+    };
+  }
+
   // 1. Thể thao / Đá bóng / TDTT
   if (
     lower.includes('đá banh') || 
@@ -729,9 +797,9 @@ export function generateSmartSemanticAnalysis(text: string): { text: string; com
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
-        { code: 'T00', matchPercent: 99, reason: 'Toán - Sinh - Năng khiếu TDTT: Tổ hợp chuẩn vàng cho Huấn luyện viên, Giáo dục Thể chất và Y học Thể thao.' },
-        { code: 'D01', matchPercent: 94, reason: 'Toán - Văn - Tiếng Anh: Xét tuyển thẳng ngành Quản lý Thể thao & Sự kiện (DTT), Kinh doanh & Truyền thông Thể thao.' },
-        { code: 'C00', matchPercent: 88, reason: 'Văn - Sử - Địa: Lợi thế vào Giáo dục Thể chất (Miễn 100% học phí NĐ 116) và Bình luận viên bóng đá.' }
+        { code: 'T00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp chuẩn vàng cho Huấn luyện viên, Giáo dục Thể chất và Y học Thể thao.' },
+        { code: 'D01', matchPercent: 94, matchLabel: 'Khớp', reason: 'Xét tuyển thẳng ngành Quản lý Thể thao & Sự kiện (DTT), Kinh doanh & Truyền thông Thể thao.' },
+        { code: 'C00', matchPercent: 88, matchLabel: 'Khớp', reason: 'Lợi thế vào Giáo dục Thể chất (Miễn 100% học phí NĐ 116) và Bình luận viên bóng đá.' }
       ]
     };
   }
@@ -746,9 +814,9 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
-        { code: 'B00', matchPercent: 99, reason: 'Toán - Hóa - Sinh: Tổ hợp độc quyền vàng cho Bác sĩ Đa khoa, Dược học và Răng Hàm Mặt.' },
-        { code: 'D07', matchPercent: 88, reason: 'Toán - Hóa - Tiếng Anh: Mũi nhọn cho ngành Hóa Dược và Công nghệ Sinh học Y sinh quốc tế.' },
-        { code: 'A00', matchPercent: 82, reason: 'Toán - Lý - Hóa: Mở rộng sang Kỹ thuật Y sinh và Thiết bị Y tế công nghệ cao.' }
+        { code: 'B00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp độc quyền vàng cho Bác sĩ Đa khoa, Dược học và Răng Hàm Mặt.' },
+        { code: 'D07', matchPercent: 88, matchLabel: 'Khớp', reason: 'Mũi nhọn cho ngành Hóa Dược và Công nghệ Sinh học Y sinh quốc tế.' },
+        { code: 'A00', matchPercent: 82, matchLabel: 'Khớp', reason: 'Mở rộng sang Kỹ thuật Y sinh và Thiết bị Y tế công nghệ cao.' }
       ]
     };
   }
@@ -763,9 +831,9 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
-        { code: 'D01', matchPercent: 98, reason: 'Toán - Văn - Tiếng Anh: Tổ hợp đa năng số 1 cho Kinh doanh Quốc tế, Marketing và Quản trị Doanh nghiệp.' },
-        { code: 'A01', matchPercent: 94, reason: 'Toán - Lý - Tiếng Anh: Lợi thế vượt trội vào FinTech, Logistics, Tài chính định lượng và Phân tích dữ liệu.' },
-        { code: 'D07', matchPercent: 87, reason: 'Toán - Hóa - Tiếng Anh: Tổ hợp xét tuyển mới nổi bật cho khối Tài chính Doanh nghiệp và Thuế.' }
+        { code: 'D01', matchPercent: 98, matchLabel: 'Khớp', reason: 'Tổ hợp đa năng số 1 cho Kinh doanh Quốc tế, Marketing và Quản trị Doanh nghiệp.' },
+        { code: 'A01', matchPercent: 94, matchLabel: 'Khớp', reason: 'Lợi thế vượt trội vào FinTech, Logistics, Tài chính định lượng và Phân tích dữ liệu.' },
+        { code: 'D07', matchPercent: 87, matchLabel: 'Khớp', reason: 'Tổ hợp xét tuyển mới nổi bật cho khối Tài chính Doanh nghiệp và Thuế.' }
       ]
     };
   }
@@ -780,9 +848,9 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
-        { code: 'V00', matchPercent: 99, reason: 'Toán - Lý - Vẽ hình họa: Tổ hợp vàng chuẩn quốc gia cho Kiến trúc và Quy hoạch đô thị.' },
-        { code: 'H00', matchPercent: 94, reason: 'Văn - Vẽ nghệ thuật 1 - Vẽ nghệ thuật 2: Chuyên sâu cho Thiết kế Đồ họa và Nội thất.' },
-        { code: 'V01', matchPercent: 86, reason: 'Toán - Văn - Vẽ mỹ thuật: Phương án thay thế môn Lý giúp phát huy năng lực tư duy biểu đạt.' }
+        { code: 'V00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp vàng chuẩn quốc gia cho Kiến trúc và Quy hoạch đô thị.' },
+        { code: 'H00', matchPercent: 94, matchLabel: 'Khớp', reason: 'Chuyên sâu cho Thiết kế Đồ họa và Nội thất.' },
+        { code: 'V01', matchPercent: 86, matchLabel: 'Khớp', reason: 'Phương án thay thế môn Lý giúp phát huy năng lực tư duy biểu đạt.' }
       ]
     };
   }
@@ -797,9 +865,9 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
-        { code: 'A01', matchPercent: 98, reason: 'Toán - Lý - Tiếng Anh: Tổ hợp toàn diện nhất cho AI và Phần mềm với lợi thế ngoại ngữ.' },
-        { code: 'A00', matchPercent: 92, reason: 'Toán - Lý - Hóa: Nền tảng tự nhiên kinh điển cho mọi chuyên ngành Kỹ thuật và Bán dẫn.' },
-        { code: 'X06', matchPercent: 88, reason: 'Toán - Tin học - Tiếng Anh: Tổ hợp xét tuyển mới phát huy tối đa thế mạnh Tin học của bạn.' }
+        { code: 'A01', matchPercent: 98, matchLabel: 'Khớp', reason: 'Tổ hợp toàn diện nhất cho AI và Phần mềm với lợi thế ngoại ngữ.' },
+        { code: 'A00', matchPercent: 92, matchLabel: 'Khớp', reason: 'Nền tảng tự nhiên kinh điển cho mọi chuyên ngành Kỹ thuật và Bán dẫn.' },
+        { code: 'X06', matchPercent: 88, matchLabel: 'Khớp', reason: 'Tổ hợp xét tuyển mới phát huy tối đa thế mạnh Tin học của bạn.' }
       ]
     };
   }
@@ -814,24 +882,24 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
-        { code: 'D01', matchPercent: 96, reason: 'Toán - Văn - Tiếng Anh: Tổ hợp linh hoạt số 1 cho Truyền thông, Marketing, Luật và Ngôn ngữ.' },
-        { code: 'C00', matchPercent: 92, reason: 'Văn - Sử - Địa: Ưu thế số 1 vào Sư phạm (Miễn HP), Báo chí và Luật.' },
-        { code: 'A01', matchPercent: 84, reason: 'Toán - Lý - Tiếng Anh: Mở rộng vào Phân tích dữ liệu truyền thông và Quản trị thông tin.' }
+        { code: 'D01', matchPercent: 96, matchLabel: 'Khớp', reason: 'Tổ hợp linh hoạt số 1 cho Truyền thông, Marketing, Luật và Ngôn ngữ.' },
+        { code: 'C00', matchPercent: 92, matchLabel: 'Khớp', reason: 'Ưu thế số 1 vào Sư phạm (Miễn HP), Báo chí và Luật.' },
+        { code: 'A01', matchPercent: 84, matchLabel: 'Khớp', reason: 'Mở rộng vào Phân tích dữ liệu truyền thông và Quản trị thông tin.' }
       ]
     };
   }
 
   // General fallback
   return {
-    text: `🧭 PHÂN TÍCH TOÀN DIỆN ĐỊNH HƯỚNG NĂNG LỰC:
-• Phân tích mong muốn: "${text}"
-• Lời khuyên chiến lược 2026: Bạn nên ưu tiên các tổ hợp môn có tính liên ngành và độ phủ lớn nhất (xét tuyển hơn 1.200 ngành) để giữ quyền chủ động tối đa cho tương lai.
+    text: `🧭 PHÂN TÍCH ĐỊNH HƯỚNG NĂNG LỰC TOÀN DIỆN:
+• Tóm lược nhu cầu: Hệ thống ghi nhận bạn đang tìm kiếm lộ trình linh hoạt mở rộng cơ hội cho tương lai.
+• Lời khuyên chiến lược 2026: Ưu tiên các tổ hợp môn có tính liên ngành và độ phủ lớn (xét tuyển hơn 1.200 ngành) để giữ quyền chủ động tối đa cho tương lai.
 
 Dưới đây là 3 tổ hợp môn linh hoạt và toàn diện nhất đề xuất cho bạn:`,
     combos: [
-      { code: 'D01', matchPercent: 95, reason: 'Toán - Ngữ văn - Tiếng Anh: Độ phủ rộng nhất toàn quốc, tuyển sinh hơn 1.200 ngành học.' },
-      { code: 'A01', matchPercent: 90, reason: 'Toán - Vật lý - Tiếng Anh: Cân bằng hoàn hảo giữa tư duy logic kỹ thuật và hội nhập quốc tế.' },
-      { code: 'A00', matchPercent: 82, reason: 'Toán - Vật lý - Hóa học: Nền tảng tự nhiên kinh điển cho mọi trường Kỹ thuật và Kinh tế.' }
+      { code: 'D01', matchPercent: 95, matchLabel: 'Độ phủ', reason: 'Độ phủ rộng nhất toàn quốc, tuyển sinh hơn 1.200 ngành học đa lĩnh vực.' },
+      { code: 'A01', matchPercent: 90, matchLabel: 'Linh hoạt', reason: 'Cân bằng hoàn hảo giữa tư duy logic kỹ thuật và hội nhập quốc tế.' },
+      { code: 'A00', matchPercent: 82, matchLabel: 'Nền tảng', reason: 'Nền tảng tự nhiên kinh điển cho mọi trường Kỹ thuật và Kinh tế lớn.' }
     ]
   };
 }
@@ -1255,9 +1323,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
   // Analysis result for Step 1
   const [analysisText, setAnalysisText] = useState('');
-  const [suggestedCombos, setSuggestedCombos] = useState<
-    { code: string; matchPercent: number; reason: string }[]
-  >([]);
+  const [suggestedCombos, setSuggestedCombos] = useState<SuggestedComboItem[]>([]);
 
   // Selected state
   const [selectedComboCode, setSelectedComboCode] = useState<string | null>(null);
@@ -1351,20 +1417,26 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       try {
         const systemPrompt = `Bạn là NEXORA SUPREME AI — Chuyên Gia Trưởng Ban Cố Vấn Tuyển Sinh & Hướng Nghiệp Đại Học 2026 tại Việt Nam.
 Nhiệm vụ của bạn:
-1. TRẢ LỜI TRỰC TIẾP, ĐÚNG TRỌNG TÂM câu hỏi hoặc sở thích của người dùng: "${text}".
-   - Nếu người dùng nói "thích đá bóng" -> hãy phân tích sâu các hướng đi thể thao: Quản lý Thể thao & Sự kiện (Sports Management), Huấn luyện Thể thao/Bóng đá chuyên nghiệp, Y học thể thao phục hồi chấn thương, Kinh doanh và Truyền thông thể thao. TUYỆT ĐỐI KHÔNG trả lời lạc đề sang ngành khác như CNTT.
-   - Tương tự cho bất kỳ ngành nghề hay môn học nào người dùng nhắc tới.
-2. ĐỊNH VỊ NĂNG LỰC & MÃ HOLLAND RIASEC (ví dụ: R-S-E cho thể thao vận động/quản lý).
-3. ĐỀ XUẤT CHÍNH XÁC TOP 3 TỔ HỢP MÔN THI THPT 2026 TỐI ƯU NHẤT (ví dụ: T00, D01, C00...) kèm tỷ lệ Match % và phân tích ngắn gọn lý do vì sao tổ hợp đó mở ra cơ hội vào các trường hàng đầu.
-4. ĐẶT 1-2 CÂU HỎI GỢI MỞ ĐỂ TIẾP TỤC HƯỚNG DẪN HỌC SINH LỰA CHỌN CỤ THỂ.
+1. TRẢ LỜI ĐỒNG CẢM, CHUYÊN NGHIỆP, THỰC CHỨNG & ĐÚNG TRỌNG TÂM:
+   - TUYỆT ĐỐI KHÔNG lặp lại máy móc câu của người dùng dạng: '• Phân tích mong muốn: "..."'. Hãy đi thẳng vào phân tích tâm lý, số liệu hoặc giải pháp gỡ rối.
+   - TRƯỜNG HỢP NGƯỜI DÙNG "CHƯA BIẾT LÀM GÌ", "MẤT ĐỊNH HƯỚNG", "HOANG MANG":
+     + Trấn an bằng số liệu thực chứng (VD: Theo khảo sát KHKT trên 9.200 sinh viên tại 10 trường ĐH, 41% từng trải qua hoang mang hoặc muốn đổi ngành vì quyết định theo cảm tính. Đây là trạng thái bình thường).
+     + Đưa ra 3 nguyên tắc gỡ rối: Giữ cánh cửa mở rộng nhất (chọn tổ hợp có độ phủ cao nhất toàn quốc >1.000 ngành như D01, A01 để linh hoạt thích ứng), định vị 2 bán cầu năng lực (Tự nhiên vs Xã hội, ghét/ngại môn nào nhất), và phương pháp loại trừ dần.
+     + Ở khối JSON, dùng "matchLabel": "Độ phủ" hoặc "Độ an toàn" thay vì "Khớp" (vì người dùng chưa có mục tiêu ngành hẹp).
+   - TRƯỜNG HỢP CÓ SỞ THÍCH HOẶC ĐỊNH HƯỚNG CỤ THỂ (VD: "thích đá bóng", "yêu thích AI", "muốn kinh doanh"):
+     + Phân tích sâu các hướng đi thực tế, triển vọng và kỹ năng.
+2. ĐỊNH VỊ NĂNG LỰC & MÃ HOLLAND RIASEC phù hợp.
+3. ĐỀ XUẤT TOP 3 TỔ HỢP MÔN THI THPT 2026 TỐI ƯU KÈM LÝ DO THỰC CHIẾN:
+   - TUYỆT ĐỐI KHÔNG lặp lại tên các môn ở đầu lý do (ví dụ: KHÔNG viết "Toán - Ngữ văn - Tiếng Anh: ..."), vì giao diện đã hiển thị sẵn danh sách môn thi.
+4. ĐẶT 1-2 CÂU HỎI GỢI MỞ HỮU ÍCH ĐỂ TIẾP TỤC HƯỚNG DẪN HỌC SINH LỰA CHỌN CỤ THỂ.
 
-BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ THỐNG HIỂN THỊ CÁC THẺ TỔ HỢP TƯƠNG TÁC:
+BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
 \`\`\`json
 {
   "combos": [
-    { "code": "MÃ_TỔ_HỢP_1", "matchPercent": 96, "reason": "Lý do ngắn gọn..." },
-    { "code": "MÃ_TỔ_HỢP_2", "matchPercent": 90, "reason": "Lý do ngắn gọn..." },
-    { "code": "MÃ_TỔ_HỢP_3", "matchPercent": 84, "reason": "Lý do ngắn gọn..." }
+    { "code": "MÃ_TỔ_HỢP_1", "matchPercent": 98, "matchLabel": "Độ phủ", "reason": "Lý do súc tích không lặp tên môn..." },
+    { "code": "MÃ_TỔ_HỢP_2", "matchPercent": 94, "matchLabel": "Độ phủ", "reason": "Lý do súc tích không lặp tên môn..." },
+    { "code": "MÃ_TỔ_HỢP_3", "matchPercent": 88, "matchLabel": "Độ an toàn", "reason": "Lý do súc tích không lặp tên môn..." }
   ]
 }
 \`\`\``;
@@ -1389,7 +1461,10 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ
         }
 
         const combos = parseCombosFromAIResponse(rawResponse);
-        const cleanDisplayText = rawResponse.replace(/```(?:json)?\s*[\s\S]*?```/g, '').trim();
+        const rawDisplayText = rawResponse.replace(/```(?:json)?\s*[\s\S]*?```/g, '').trim();
+        const cleanDisplayText = rawDisplayText
+          .replace(/^•?\s*Phân tích mong muốn:\s*["“'][^"”\n]+["”']\s*\n?/im, '')
+          .trim();
 
         setAnalysisText(cleanDisplayText);
         setSuggestedCombos(combos);
@@ -2207,14 +2282,14 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                 isSelected ? 'bg-white text-[#2563EB]' : 'bg-[#3B82F6]/20 text-[#60A5FA]'
                               }`}>
-                                Khớp {combo.matchPercent}%
+                                {combo.matchLabel ? `${combo.matchLabel} ${combo.matchPercent}%` : `Khớp ${combo.matchPercent}%`}
                               </span>
                             </div>
                             <div className={`text-xs font-mono font-medium mt-1 ${isSelected ? 'text-white/90' : 'text-[#94A3B8]'}`}>
                               {cData ? cData.subjects : combo.code}
                             </div>
                             <p className={`text-[11px] mt-2 leading-relaxed ${isSelected ? 'text-white/85' : 'text-[#7A8699]'}`}>
-                              {combo.reason}
+                              {cleanComboReason(combo.reason)}
                             </p>
                           </div>
 
@@ -2307,12 +2382,21 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ
                   {/* Contextual quick suggestion chips */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                     <span className="text-[10px] text-[#64748B] font-mono">Gợi ý hỏi tiếp:</span>
-                    {[
-                      'Tỷ lệ làm trái ngành của nhóm này theo CV là bao nhiêu?',
-                      'So sánh cơ hội việc làm & kỹ năng cần thiết?',
-                      'Trường nào xét tuyển tổ hợp này tốt nhất?',
-                      'Học phí ngành này khoảng bao nhiêu một năm?'
-                    ].map((sugg, idx) => (
+                    {(
+                      /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì/i.test(activePromptQuery || chatInput)
+                        ? [
+                            'Em nên chọn Tự nhiên hay Xã hội nếu chưa rõ sở thích?',
+                            'Làm sao để biết mình phù hợp với ngành nghề nào?',
+                            'Những ngành nào ít có nguy cơ làm trái ngành nhất theo thống kê CV?',
+                            'Nên chọn trường top đầu hay chọn ngành mình thích?'
+                          ]
+                        : [
+                            'Tỷ lệ làm trái ngành của nhóm này theo CV là bao nhiêu?',
+                            'So sánh cơ hội việc làm & kỹ năng cần thiết?',
+                            'Trường nào xét tuyển tổ hợp này tốt nhất?',
+                            'Học phí ngành này khoảng bao nhiêu một năm?'
+                          ]
+                    ).map((sugg, idx) => (
                       <button
                         key={idx}
                         type="button"

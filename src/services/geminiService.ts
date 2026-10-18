@@ -866,6 +866,33 @@ Chào bạn! Đây là khối ngành có tính quốc tế hóa cao, môi trư�
 3. **Tiếp viên Hàng không**: Yêu cầu ngoại hình cân đối, tiếng Anh lưu loát (TOEIC >= 600), tuyển dụng trực tiếp qua các hãng Vietnam Airlines, Vietjet, Bamboo với thu nhập \`25–50 tr/tháng\`.`;
   }
 
+  if (
+    q.includes('chưa biết') ||
+    q.includes('không biết') ||
+    q.includes('mất định hướng') ||
+    q.includes('hoang mang') ||
+    q.includes('làm gì hết') ||
+    q.includes('phải làm gì') ||
+    q.includes('chưa rõ') ||
+    q.includes('mông lung')
+  ) {
+    return `**[NEXORA AI Copilot · Chiến Lược Định Hướng Cấp Tốc Khi "Chưa Biết Phải Làm Gì"]**
+
+Chào bạn! Dựa trên Khảo sát thực tế trên 9.200 sinh viên tại 10 trường ĐH (2026), có tới **41% sinh viên** từng trải qua trạng thái hoang mang, chọn bừa hoặc muốn đổi ngành vì quyết định theo cảm tính. Trạng thái "chưa biết làm gì" lúc này là **hoàn toàn bình thường** và là thời điểm tốt nhất để bạn định hình lộ trình an toàn có căn cứ!
+
+🧭 **3 Nguyên Tắc Gỡ Rối Thực Chiến 2026**:
+1. **Giữ "Cánh Cửa Mở Rộng Nhất" (Max Coverage)**:
+   • Khi chưa rõ sở thích chuyên sâu, tuyệt đối không nên chọn tổ hợp quá hẹp. Hãy ưu tiên các tổ hợp có độ phủ lớn nhất toàn quốc:
+   • **D01 (Toán, Văn, Anh)**: Độ phủ >1.200 ngành từ Kinh tế, Luật, Truyền thông đến Ngôn ngữ & Dịch vụ.
+   • **A01 (Toán, Lý, Anh)**: Cân bằng tư duy STEM và hội nhập quốc tế (CNTT, AI, Bán dẫn, FinTech, Logistics).
+   • **A00 (Toán, Lý, Hóa)**: Nền tảng kỹ thuật và công nghệ kinh điển.
+2. **Phương Pháp Loại Trừ & Định Vị 2 Bán Cầu Năng Lực**:
+   • Xác định môn bạn "ngại nhất" hoặc điểm thấp nhất ở trường để loại bỏ nhóm ngành tương ứng (ví dụ: Sợ Toán -> Đi trục Xã hội/Ngôn ngữ; Ngại viết lách/Văn -> Đi trục Tự nhiên/Kỹ thuật).
+   • Bạn thích tương tác với **Máy tính/Dữ liệu** hay **Con người/Xã hội**?
+3. **Thực Hiện Bài Đánh Giá Toàn Diện**:
+   • Hãy chuyển sang tab **Trắc Nghiệm Holland RIASEC** trên hệ thống để trả lời các câu hỏi nhanh và tìm ra 3 chữ cái đại diện cho thiên hướng của bạn!`;
+  }
+
   // Mặc định: Nếu người dùng hỏi "Tôi muốn bắt đầu lập kế hoạch định hướng ngành học và nghề nghiệp" hoặc câu hỏi mở
   return `**[NEXORA AI Copilot · Lộ Trình 4 Bước Lập Kế Hoạch Định Hướng Ngành & Nghề 2026]**
 
