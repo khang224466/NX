@@ -38,6 +38,8 @@ async function start() {
       middlewareMode: true,
       watch: {
         ignored: [
+          '**/vite.config.*',
+          '**/.env*',
           '**/.figma/**',
           '**/node_modules/**',
           '**/data/**',
@@ -47,7 +49,14 @@ async function start() {
           '**/VMware*/**',
           '**/dist/**',
           '**/.git/**',
-          '**/nx-nexora-*/**'
+          '**/nx-nexora*/**',
+          '**/*Culture Trends*/**',
+          '**/*SiriusXM*/**',
+          '**/AI/**',
+          '**/$RECYCLE.BIN/**',
+          '**/System Volume Information/**',
+          '**/*.log',
+          '**/*.tmp'
         ]
       }
     },

@@ -46,6 +46,8 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       watch: {
         ignored: [
+          '**/vite.config.*',
+          '**/.env*',
           '**/.figma/**',
           '**/node_modules/**',
           '**/data/**',
@@ -55,7 +57,14 @@ export default defineConfig(({ mode }) => {
           '**/VMware*/**',
           '**/dist/**',
           '**/.git/**',
-          '**/nx-nexora-*/**'
+          '**/nx-nexora*/**',
+          '**/*Culture Trends*/**',
+          '**/*SiriusXM*/**',
+          '**/AI/**',
+          '**/$RECYCLE.BIN/**',
+          '**/System Volume Information/**',
+          '**/*.log',
+          '**/*.tmp'
         ],
       },
     },
