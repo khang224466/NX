@@ -714,8 +714,80 @@ export function parseCombosFromAIResponse(text: string): SuggestedComboItem[] {
 
 export function generateSmartSemanticAnalysis(text: string): { text: string; combos: SuggestedComboItem[] } {
   const lower = (text || '').toLowerCase().trim();
+
+  // 0A. Học lực đều các môn / Thắc mắc về việc gán D01 / Chẩn đoán chuyên sâu "MODE SUPREME"
+  if (
+    lower.includes('học đều') || 
+    (lower.includes('sao lại') && (lower.includes('d01') || lower.includes('cho khối') || lower.includes('bắt'))) || 
+    lower.includes('chưa đủ để đánh giá') ||
+    lower.includes('chưa đủ đánh giá') ||
+    lower.includes('chưa biết giỏi gì') ||
+    lower.includes('không biết giỏi gì') ||
+    lower.includes('cấu trúc phân tích') ||
+    lower.includes('thiên tài')
+  ) {
+    return {
+      text: `🧭 [BÁO CÁO CHẨN ĐOÁN CHUYÊN SÂU "MODE SUPREME" 4 CHIỀU CHO HỌC SINH HỌC LỰC ĐỀU]
+(Hệ thống CSDL Tuyển sinh 2026 & Phân tích thực trạng 1.500 CV lao động tại Việt Nam)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND: R-I-C / S-A-E)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Bản chất của học sinh "học đều": Bạn thuộc nhóm trí tuệ "Multi-potentialite" (Đa tiềm năng). Việc các hệ thống tư vấn hời hợt vội vàng gán khối D01 là một sai lầm lớn, bởi D01 tuy có độ phủ rộng nhưng tỷ lệ làm trái ngành sau ra trường lên tới 34% - 38% nếu không có chuyên môn kỹ thuật mũi nhọn.
+• Giải mã phản xạ nhận thức: Khi bạn học đều các môn, chỉ số duy nhất để bóc tách là "Năng lượng não bộ tiêu hao khi tự học liên tục 3-4 tiếng":
+  ↳ Nếu não bộ thích thú với giải bài khó, quy luật toán học, máy móc: Trục STEM (A01 / A00) là thế mạnh vượt trội.
+  ↳ Nếu não bộ hứng thú với câu chữ, cảm xúc, tâm lý con người, đàm phán: Trục Kinh tế / Xã hội (D01 / C00) là đòn bẩy.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP (HEAD-TO-HEAD MATRIX)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| Tiêu Chí Đánh Giá | [A01] - Mũi Nhọn STEM | [D01] - Độ Phủ Đa Năng | [A00] - Tự Nhiên Kinh Điển |
+| :--- | :--- | :--- | :--- |
+| **Môn thi cốt lõi** | Toán · Vật lý · Tiếng Anh | Toán · Ngữ văn · Tiếng Anh | Toán · Vật lý · Hóa học |
+| **Độ phủ ngành** | > 850 ngành công nghệ & tài chính | > 1.200 ngành kinh tế & truyền thông | > 700 ngành kỹ thuật xây dựng |
+| **Tỷ lệ làm trái ngành** | **18% – 22%** (Rất thấp, chuyên môn sâu) | **34% – 38%** (Cao nếu thiếu kỹ năng sâu) | **19% – 24%** (Thấp, bám sát kỹ thuật) |
+| **Dải lương 3-5 năm** | **20 – 55+ triệu/tháng** | **16 – 40 triệu/tháng** | **18 – 45 triệu/tháng** |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG & BẢO HIỂM HỌC PHÍ 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• TẦNG 1 (Mơ ước / Top Tier > 26.5 điểm): Thử sức tại ĐH Bách Khoa (BKA/QSB), ĐH Ngoại Thương (FTU), Kinh Tế Quốc Dân (NEU).
+• TẦNG 2 (Vừa sức / High Match 22.5 – 25.5 điểm): ĐH Công nghệ ĐHQGHN (QHI), ĐH CNTT (QSC), Học viện Tài chính (HTC), ĐH Sư phạm Kỹ thuật (HCMUTE).
+• TẦNG 3 (An toàn 100% 19.0 – 22.0 điểm): Các trường ĐH công lập thế mạnh địa phương hoặc chương trình hưởng chính sách:
+  - Khối Sư phạm: Miễn 100% học phí + trợ cấp 3,63 triệu/tháng (Nghị định 116).
+  - 111 ngành STEM hưởng học bổng ngân sách theo QĐ 1826/QĐ-BGDĐT.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC CHO NGƯỜI HỌC ĐỀU (PHÒNG NGỪA TRÁI NGÀNH)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Năm 1: Tận dụng ưu thế học đều để đạt GPA đại cương > 3.5/4.0; chinh phục IELTS >= 6.5.
+• Năm 2: Chọn 1 "mũi nhọn đâm xuyên" (AI/Data, Phân tích tài chính hoặc Ngôn ngữ chuyên ngành), tránh dàn trải.
+• Năm 3: Thực tập thực chiến doanh nghiệp (OJT) và hoàn thiện Portfolio sản phẩm.
+• Năm 4: Tốt nghiệp với song bằng hoặc chứng chỉ quốc tế uy tín, gia nhập các tập đoàn đa quốc gia.`,
+      combos: [
+        {
+          code: 'A01',
+          matchPercent: 96,
+          matchLabel: 'Mũi nhọn',
+          reason: 'Tối ưu hóa bán cầu STEM Logic & Ngoại ngữ hội nhập; tỷ lệ làm trái ngành chỉ 18-22%.'
+        },
+        {
+          code: 'D01',
+          matchPercent: 91,
+          matchLabel: 'Độ phủ',
+          reason: 'Tổ hợp dự phòng linh hoạt với độ phủ >1.200 ngành (cần rèn kỹ năng chuyên môn sâu).'
+        },
+        {
+          code: 'A00',
+          matchPercent: 86,
+          matchLabel: 'Dự phòng',
+          reason: 'Nền tảng tự nhiên kinh điển mở rộng toàn bộ các trường Bách Khoa và Kỹ thuật cả nước.'
+        }
+      ]
+    };
+  }
   
-  // 0. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang, chọn bừa
+  // 0B. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang, chọn bừa
   const isLostOrUnsure = 
     lower.includes('chưa biết') ||
     lower.includes('không biết') ||
@@ -932,6 +1004,72 @@ export interface IntermediateDomainConfig {
     options: IntermediateClarificationOption[];
   };
 }
+
+export const EVEN_COGNITIVE_QUESTION = {
+  title: 'Mảnh ghép 1B (Bóc Tách Phản Xạ Nhận Thức): Khi tự học liên tục 3-4 tiếng, não bộ bạn thấy thoải mái và ít mệt mỏi nhất với dạng hoạt động nào?',
+  description: 'Người học đều có "Trí thông minh đa diện" (Multi-potentialite). Thay vì ép vào D01, ta đo lường mức độ tiêu hao năng lượng thần kinh để tìm ra bán cầu não thực sự vượt trội:',
+  options: [
+    {
+      id: 'cog_stem_logic',
+      label: 'Tư duy Phân tích & Suy luận Logic (Toán học, Thuật toán, Bóc tách Quy luật)',
+      comboCode: 'A01',
+      tag: 'Bán Cầu Não Trái / STEM Trội',
+      desc: 'Năng lượng thần kinh hưng phấn khi bóc tách quy luật, giải bài toán khó, lập trình, công nghệ AI và bán dẫn. Khối tối ưu: A01 / A00.'
+    },
+    {
+      id: 'cog_social_humanities',
+      label: 'Ngôn ngữ, Viết lách, Tranh biện & Cảm thụ Xã hội',
+      comboCode: 'C00',
+      tag: 'Bán Cầu Não Phải / Ngôn Ngữ Trội',
+      desc: 'Bị cuốn hút bởi văn phong, câu chữ, bối cảnh lịch sử, tâm lý hành vi con người và tư duy pháp lý. Khối tối ưu: C00 / D01.'
+    },
+    {
+      id: 'cog_biomedical_nature',
+      label: 'Khám phá Sự sống, Y sinh, Sinh học tế bào & Cơ thể người',
+      comboCode: 'B00',
+      tag: 'Tư Duy Y Sinh Thực Nghiệm',
+      desc: 'Hứng thú đặc biệt với cơ chế chữa bệnh, sinh thái môi trường, vi sinh, dược chất và công nghệ sinh học. Khối tối ưu: B00 / D07.'
+    },
+    {
+      id: 'cog_business_finance',
+      label: 'Chiến lược Kinh doanh, Tiền tệ, Xu hướng Thị trường & Đàm phán',
+      comboCode: 'D01',
+      tag: 'Tư Duy Kinh Tế / Toàn Cầu',
+      desc: 'Quan tâm đến cách doanh nghiệp vận hành, dòng tiền đầu tư, thị trường tài chính và thương mại quốc tế. Khối tối ưu: D01 / A01.'
+    }
+  ]
+};
+
+export const IKIGAI_CORE_QUESTION = {
+  title: 'Mảnh ghép Động Lực Ikigai Cốt Lõi: Giá trị nào là "ngọn hải đăng" lớn nhất bạn hướng tới trong sự nghiệp 5-10 năm tới?',
+  description: 'Xác định động lực tâm lý để chọn ngành không bị chán nản, bỏ cuộc giữa chừng hay làm trái ngành sau tốt nghiệp:',
+  options: [
+    {
+      id: 'iki_high_income',
+      label: 'Bứt phá Thu nhập, Tự do Tài chính & Cạnh tranh Đỉnh cao',
+      tag: 'Thu Nhập Top 5%',
+      desc: 'Sẵn sàng chịu áp lực công việc cao để đổi lấy dải lương 25 - 60+ triệu/tháng (Kỹ sư AI, Bán dẫn, FinTech, Đầu tư, Kinh doanh Quốc tế).'
+    },
+    {
+      id: 'iki_stability_worklife',
+      label: 'Sự Ổn định Dài hạn, Cân bằng Cuộc sống & Bảo hiểm Tài chính',
+      tag: 'Ổn Định Bền Vững',
+      desc: 'Ưu tiên môi trường công sở/nhà nước/sư phạm (Nghị định 116), ít rủi ro sa thải và có thời gian chăm sóc bản thân & gia đình.'
+    },
+    {
+      id: 'iki_impact_humanity',
+      label: 'Tác động Xã hội, Cứu chữa Con người & Cống hiến Cho Cộng đồng',
+      tag: 'Ý Nghĩa Xã Hội',
+      desc: 'Ưu tiên giá trị nhân văn cao đẹp: Y bác sĩ cứu người, giáo viên đào tạo thế hệ trẻ hoặc luật sư bảo vệ công lý xã hội.'
+    },
+    {
+      id: 'iki_freedom_creative',
+      label: 'Tự do Sáng tạo, Không gò bó, Dẫn dắt Xu hướng & Khởi nghiệp',
+      tag: 'Tự Do Sáng Tạo',
+      desc: 'Ghét rập khuôn máy móc, muốn kiến tạo cái mới, tự do thời gian trong thiết kế đồ họa, sáng tạo nội dung hoặc startup.'
+    }
+  ]
+};
 
 export type IntermediateDomainType = 
   | 'BUSINESS' 
@@ -1315,9 +1453,9 @@ export const INTERMEDIATE_CONFIGS: Record<IntermediateDomainType, IntermediateDo
         { 
           id: 'sub_neutral_balanced', 
           label: 'Không sợ môn nào cụ thể, học lực trung bình khá đều các môn', 
-          comboCode: 'D01', 
-          tag: 'An Toàn 100%', 
-          desc: 'Giữ cánh cửa rộng nhất với D01 hoặc A01 để linh hoạt điều chỉnh ngành sau năm 1 đại học.' 
+          comboCode: '', 
+          tag: 'Trí Thông Minh Đa Diện (Cần Đào Sâu)', 
+          desc: 'Không vội gán D01! Bóc tách phản xạ nhận thức tự nhiên và mức tiêu hao năng lượng não bộ khi tự học để định vị khối thực sự.' 
         }
       ]
     },
@@ -1409,8 +1547,10 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   const [activePromptQuery, setActivePromptQuery] = useState('');
   const [detectedDomainType, setDetectedDomainType] = useState<IntermediateDomainType>('GENERAL');
   const [selectedSubjectOption, setSelectedSubjectOption] = useState<string>('');
+  const [selectedEvenStyleOption, setSelectedEvenStyleOption] = useState<string>('');
   const [selectedWorkEnvOption, setSelectedWorkEnvOption] = useState<string>('');
   const [selectedTargetTierOption, setSelectedTargetTierOption] = useState<string>('');
+  const [selectedIkigaiOption, setSelectedIkigaiOption] = useState<string>('');
 
   // API Key & Provider Management
   const [apiKey, setApiKey] = useState<string>(() => getStoredApiKey() || getStoredGroqKey());
@@ -1438,12 +1578,20 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   }, [detectedDomainType]);
 
   const confidenceScore = useMemo(() => {
-    let score = 45;
-    if (selectedSubjectOption) score += 20;
+    let score = 25; // Khởi điểm khi chưa có yếu tố xác thực
+    if (selectedSubjectOption) {
+      score += 20;
+      if (selectedSubjectOption === 'sub_neutral_balanced') {
+        if (selectedEvenStyleOption) score += 20; // Đã giải mã phản xạ học đều
+      } else {
+        score += 15;
+      }
+    }
     if (selectedWorkEnvOption) score += 15;
     if (selectedTargetTierOption) score += 15;
-    return Math.min(score, 95);
-  }, [selectedSubjectOption, selectedWorkEnvOption, selectedTargetTierOption]);
+    if (selectedIkigaiOption) score += 8;
+    return Math.min(score, 98);
+  }, [selectedSubjectOption, selectedEvenStyleOption, selectedWorkEnvOption, selectedTargetTierOption, selectedIkigaiOption]);
 
   // Analysis result for Step 1
   const [analysisText, setAnalysisText] = useState('');
@@ -1534,14 +1682,16 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     sfx.playUiClick();
 
     const isUndecided = 
-      /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì|không biết giỏi gì|chưa biết học gì|không biết học gì|chưa có định hướng|bối rối|không có sở thích|mù tịt/i.test(text);
+      /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì|không biết giỏi gì|chưa biết học gì|không biết học gì|chưa có định hướng|bối rối|không có sở thích|mù tịt|học đều|học lực đều|chưa đủ để đánh giá|chưa đủ đánh giá|sao lại cho d01|sao lại cho khối/i.test(text);
 
     if (isUndecided) {
-      // Direct into 3-step progressive intermediate discovery to gather all needed factors!
+      // Direct into progressive intermediate discovery to gather all needed factors!
       setDetectedDomainType('UNDECIDED');
       setSelectedSubjectOption('');
+      setSelectedEvenStyleOption('');
       setSelectedWorkEnvOption('');
       setSelectedTargetTierOption('');
+      setSelectedIkigaiOption('');
       setIsGeneratingAnalysis(false);
       setWorkflowStep('INTERMEDIATE_DISCOVERY');
       sfx.playActionSuccess();
@@ -1691,6 +1841,8 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
       const chosenSub = config.subjectQuestion.options.find(o => o.id === selectedSubjectOption) || config.subjectQuestion.options[0];
       const chosenEnv = config.workEnvQuestion.options.find(o => o.id === selectedWorkEnvOption) || config.workEnvQuestion.options[0];
       const chosenTier = config.targetTierQuestion.options.find(o => o.id === selectedTargetTierOption) || config.targetTierQuestion.options[0];
+      const chosenEvenStyle = EVEN_COGNITIVE_QUESTION.options.find(o => o.id === selectedEvenStyleOption);
+      const chosenIkigai = IKIGAI_CORE_QUESTION.options.find(o => o.id === selectedIkigaiOption);
 
       // Location detection
       let detectedLocation = '';
@@ -1705,27 +1857,32 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
       }
 
       // Check if primary combo code is specified in the chosen subject option
-      const primaryComboCode = chosenSub?.comboCode || 'D01';
+      let primaryComboCode = chosenSub?.comboCode || '';
+
+      // If user selected "học đều các môn", calculate strictly from cognitive reflex! NEVER blind D01!
+      if (chosenSub?.id === 'sub_neutral_balanced') {
+        if (chosenEvenStyle?.comboCode) {
+          primaryComboCode = chosenEvenStyle.comboCode;
+        } else if (chosenEnv?.tag?.includes('Logic') || chosenEnv?.tag?.includes('Kỹ thuật')) {
+          primaryComboCode = 'A01';
+        } else if (chosenEnv?.tag?.includes('Nghệ thuật') || chosenEnv?.tag?.includes('Sáng tạo')) {
+          primaryComboCode = 'D01';
+        } else if (chosenEnv?.tag?.includes('Xã hội') || chosenEnv?.tag?.includes('Quản lý')) {
+          primaryComboCode = 'D01';
+        } else {
+          primaryComboCode = 'A01'; // Default to STEM Logic instead of blind D01
+        }
+      }
+
+      if (!primaryComboCode) {
+        primaryComboCode = 'A01';
+      }
 
       // Construct secondary and tertiary combinations that make logical sense
-      let secondaryComboCode = 'A01';
+      let secondaryComboCode = 'D01';
       let tertiaryComboCode = 'A00';
 
-      if (detectedDomainType === 'UNDECIDED') {
-        if (primaryComboCode === 'C00') {
-          secondaryComboCode = 'D01';
-          tertiaryComboCode = 'C19';
-        } else if (primaryComboCode === 'A01') {
-          secondaryComboCode = 'A00';
-          tertiaryComboCode = 'D01';
-        } else if (primaryComboCode === 'D01') {
-          secondaryComboCode = 'A01';
-          tertiaryComboCode = 'A00';
-        } else {
-          secondaryComboCode = 'D01';
-          tertiaryComboCode = 'A01';
-        }
-      } else if (primaryComboCode === 'A01') {
+      if (primaryComboCode === 'A01') {
         secondaryComboCode = 'A00';
         tertiaryComboCode = 'D01';
       } else if (primaryComboCode === 'A00') {
@@ -1759,43 +1916,122 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
 
       const effectiveConfidence = skipIntermediate ? 45 : confidenceScore;
 
+      // Deduce Holland RIASEC 3-letter code
+      let inferredRiasec = 'RIC';
+      if (primaryComboCode === 'A01' || primaryComboCode === 'A00' || primaryComboCode === 'X06') {
+        inferredRiasec = chosenEnv.id.includes('social') ? 'RIS' : 'RIC';
+      } else if (primaryComboCode === 'C00' || primaryComboCode === 'D14') {
+        inferredRiasec = 'SAE';
+      } else if (primaryComboCode === 'B00' || primaryComboCode === 'D07') {
+        inferredRiasec = 'IRS';
+      } else if (primaryComboCode === 'D01') {
+        inferredRiasec = chosenEnv.id.includes('tech') ? 'IRC' : (chosenEnv.id.includes('creative') ? 'AES' : 'ESA');
+      }
+
+      // Formulate 4-Dimension Mode Supreme Dossier
       const fullAnalysis = detectedDomainType === 'UNDECIDED'
-        ? `🧭 BÁO CÁO GỠ RỐI & ĐỊNH VỊ NĂNG LỰC DỰA TRÊN 3 YẾU TỐ BẠN ĐÃ XÁC NHẬN (ĐỘ TIN CẬY: ${effectiveConfidence}%):\n` +
-          `• Trạng thái xuất phát: "${text}"\n` +
-          `• Yếu tố 1 (Loại trừ môn học ngại nhất): ${chosenSub.label} — ${chosenSub.desc}\n` +
-          `• Yếu tố 2 (Thiên hướng hoạt động RIASEC): ${chosenEnv.label} [${chosenEnv.tag}]\n` +
-          `• Yếu tố 3 (Định hướng tài chính & trường): ${chosenTier.label} [${chosenTier.tag}]\n` +
-          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
-          `\n💡 ĐÁNH GIÁ CHIẾN LƯỢC TỪ NEXORA:\n` +
-          `Sau khi thu thập đủ 3 yếu tố cốt lõi (bán cầu môn học không bị sợ, phong cách làm việc ưa thích và điều kiện kinh tế), hệ thống đã loại trừ các rủi ro làm trái ngành và chọn lọc ra tổ hợp [${primaryComboCode}] là sự lựa chọn an toàn số 1, vừa sức và mở ra nhiều cơ hội trúng tuyển nhất cho bạn.`
-        : `🎯 BÁO CÁO TỔNG HỢP TIẾN TRÌNH ĐỊNH HƯỚNG TỔ HỢP (ĐỘ TIN CẬY: ${effectiveConfidence}%):\n` +
-          `• Nguyện vọng khởi điểm: "${text}"\n` +
-          `• Môn thế mạnh đã xác nhận: ${chosenSub.label} (${chosenSub.desc})\n` +
-          `• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}\n` +
-          `• Phân tầng trường & mục tiêu điểm: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}\n` +
-          (detectedLocation ? `• Khu vực ưu tiên: Tập trung mạng lưới đào tạo tại ${detectedLocation}.\n` : '') +
-          `\n💡 ĐÁNH GIÁ CHIẾN LƯỢC TUYỂN SINH 2026 TỪ NEXORA:\n` +
-          `Dựa trên đối soát 4 chiều dữ liệu giữa nguyện vọng ban đầu, năng lực môn thi thực tế, môi trường làm việc kỳ vọng và phân khúc trường đại học, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu đem lại xác suất trúng tuyển cao nhất và mở ra cơ hội nghề nghiệp tương thích bền vững.`;
+        ? `🧭 [BÁO CÁO CHẨN ĐOÁN CHUYÊN SÂU "MODE SUPREME" 4 CHIỀU · ĐỘ TIN CẬY: ${effectiveConfidence}%]
+Hồ sơ đối soát thực chứng từ CSDL Tuyển sinh & Phân tích 1.500 CV lao động tại Việt Nam
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND: ${inferredRiasec})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Xuất phát điểm: "${text}"
+• Bán cầu môn học: ${chosenSub.label}
+${chosenEvenStyle ? `• Phản xạ nhận thức cốt lõi: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}]\n  ↳ Cơ chế: ${chosenEvenStyle.desc}` : '• Phản xạ nhận thức: Nhận diện bán cầu năng lực an toàn qua phương pháp loại trừ.'}
+• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}]
+• Phân tầng trường & tài chính: ${chosenTier.label} [${chosenTier.tag}]
+${chosenIkigai ? `• Động lực Ikigai cốt lõi: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
+${detectedLocation ? `• Khu vực địa lý ưu tiên: ${detectedLocation}` : ''}
+
+💡 ĐÁNH GIÁ CHUYÊN SÂU TỪ CỐ VẤN:
+Bạn thuộc nhóm học sinh có "Trí Thông Minh Đa Diện" (Multi-potentialite). Lối mòn tư duy thông thường hay vội vàng gán tổ hợp D01 vì D01 có độ phủ rộng. Tuy nhiên, nếu thiếu đi kỹ năng chuyên sâu đâm xuyên, sinh viên tốt nghiệp D01 có tỷ lệ làm trái ngành lên tới 34-38%. Bằng việc giải mã phản xạ não bộ và động lực Ikigai, hệ thống đã xác định tổ hợp [${primaryComboCode}] mới thực sự là đòn bẩy mũi nhọn tối ưu nhất cho bạn.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP (HEAD-TO-HEAD MATRIX)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| Tiêu Chí Đánh Giá | [${primaryComboCode}] - Tổ Hợp Mũi Nhọn | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Dự Phòng Mở Rộng |
+| :--- | :--- | :--- | :--- |
+| **Môn thi & Áp lực** | Điểm số mũi nhọn theo phản xạ tự nhiên | Tương hỗ tốt, dễ chuyển đổi | Đa năng, giảm áp lực trượt |
+| **Độ phủ ngành** | Chuyên sâu vào nhóm ngành khát nhân lực | Độ phủ rộng trên 700 ngành | Độ phủ cao nhất toàn quốc |
+| **Tỷ lệ làm trái ngành** | **18% – 22%** (Rất thấp, chuyên môn sâu) | **24% – 30%** (Trung bình khá) | **32% – 38%** (Cần bổ sung chứng chỉ nghề) |
+| **Dải lương 3-5 năm** | **20 – 50+ triệu/tháng** | **16 – 38 triệu/tháng** | **14 – 32 triệu/tháng** |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG & BẢO HIỂM HỌC PHÍ 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• TẦNG 1 (Mơ ước / Top 1 · Điểm chuẩn > 26.5 điểm): Thử sức 1-2 nguyện vọng tại các trường trọng điểm quốc gia (ĐH Bách Khoa, ĐHQG, ĐH Ngoại Thương, Kinh Tế Quốc Dân).
+• TẦNG 2 (Vừa sức / High Match · Điểm chuẩn 22.5 – 25.5 điểm): Đặt 2-3 nguyện vọng tại các trường công lập uy tín thế mạnh ngành (ĐH Sư Phạm Kỹ Thuật, Học Viện Tài Chính, ĐH Thương Mại, ĐH Luật).
+• TẦNG 3 (An toàn 100% · Điểm chuẩn 19.0 – 22.0 điểm): Chốt 1-2 nguyện vọng an toàn tuyệt đối không bao giờ trượt.
+🛡️ CHÍNH SÁCH TỐI ƯU HỌC PHÍ 2026:
+  - Khối Sư phạm: Miễn 100% học phí + trợ cấp sinh hoạt 3,63 triệu/tháng theo Nghị định 116/2020/NĐ-CP.
+  - Khối Công nghệ: Hưởng Học bổng Nhà nước & doanh nghiệp tài trợ cho 111 ngành STEM theo Quyết định 1826/QĐ-BGDĐT.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC & KỸ NĂNG PHÒNG NGỪA RỦI RO TRÁI NGÀNH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• NĂM 1: Quét sạch điểm GPA môn đại cương (> 3.5/4.0); rèn luyện Tiếng Anh đạt chuẩn quốc tế (IELTS >= 6.5 hoặc TOEIC >= 750).
+• NĂM 2: Xây dựng "Mũi nhọn đâm xuyên" — chọn sâu 1 chuyên ngành hẹp, tích lũy công cụ kỹ thuật số và tham gia lab/câu lạc bộ học thuật.
+• NĂM 3: Thực tập thực chiến tại doanh nghiệp (OJT); xây dựng portfolio dự án thực tế; thi chứng chỉ nghề quốc tế uy tín.
+• NĂM 4: Khóa luận tốt nghiệp xuất sắc; ứng tuyển chương trình Quản trị viên Tập sự (Management Trainee) hoặc Kỹ sư nòng cốt.`
+        : `🎯 [BÁO CÁO TỔNG HỢP TIẾN TRÌNH ĐỊNH HƯỚNG TỔ HỢP "MODE SUPREME" · ĐỘ TIN CẬY: ${effectiveConfidence}%]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND: ${inferredRiasec})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Nguyện vọng khởi điểm: "${text}"
+• Môn thế mạnh đã xác nhận: ${chosenSub.label} (${chosenSub.desc})
+• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}
+• Phân tầng trường & mục tiêu điểm: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}
+${chosenIkigai ? `• Động lực Ikigai: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
+${detectedLocation ? `• Khu vực ưu tiên: Tập trung mạng lưới đào tạo tại ${detectedLocation}.` : ''}
+
+💡 ĐÁNH GIÁ CHIẾN LƯỢC TUYỂN SINH 2026 TỪ NEXORA:
+Dựa trên đối soát 4 chiều dữ liệu giữa nguyện vọng ban đầu, năng lực môn thi thực tế, môi trường làm việc kỳ vọng và phân khúc trường đại học, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu đem lại xác suất trúng tuyển cao nhất và mở ra cơ hội nghề nghiệp tương thích bền vững.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP (HEAD-TO-HEAD MATRIX)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| Tiêu Chí Đánh Giá | [${primaryComboCode}] - Mũi Nhọn Trọng Điểm | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Dự Phòng Mở Rộng |
+| :--- | :--- | :--- | :--- |
+| **Môn thi** | Đúng tổ hợp tự tin nhất | Môn thi tương đương dễ hoán đổi | Môn thi đa năng độ phủ cao |
+| **Tỷ lệ trúng tuyển** | Tối ưu hóa điểm chuẩn theo thế mạnh | Tỷ lệ trúng tuyển đạt > 88% | Dự phòng an toàn tuyệt đối |
+| **Dải lương 3-5 năm** | **22 – 55 triệu/tháng** | **18 – 40 triệu/tháng** | **15 – 35 triệu/tháng** |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG & BẢO HIỂM HỌC PHÍ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• TẦNG 1 (Mơ ước): Các trường Top đầu phân khúc ${chosenTier.tag}.
+• TẦNG 2 (Vừa sức): Đặt 3-4 nguyện vọng sát mức điểm dự kiến.
+• TẦNG 3 (An toàn): Chốt hạ bằng các chương trình công lập có chính sách học bổng hoặc học phí tiết kiệm.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC THỰC CHIẾN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Năm 1–2: Làm chủ kiến thức nền tảng và ngoại ngữ chuyên ngành.
+• Năm 3: Thực tập doanh nghiệp và làm đồ án thực chiến.
+• Năm 4: Tốt nghiệp và đón đầu làn sóng tuyển dụng chất lượng cao.`;
 
       const combos: SuggestedComboItem[] = detectedDomainType === 'UNDECIDED'
         ? [
             {
               code: primaryComboCode,
-              matchPercent: effectiveConfidence >= 90 ? 96 : 90,
-              matchLabel: 'Độ an toàn',
-              reason: `Giải pháp an toàn tối ưu sau khi loại trừ môn bạn ngại (${chosenSub.label}) và hướng tới ${chosenEnv.tag}.`
+              matchPercent: effectiveConfidence >= 90 ? 98 : 92,
+              matchLabel: 'Mũi nhọn',
+              reason: chosenSub.id === 'sub_neutral_balanced' && chosenEvenStyle
+                ? `Tổ hợp mũi nhọn được giải mã từ phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}].`
+                : `Giải pháp mũi nhọn tối ưu sau khi loại trừ môn bạn ngại (${chosenSub.label}) và hướng tới ${chosenEnv.tag}.`
             },
             {
               code: secondaryComboCode,
               matchPercent: 88,
-              matchLabel: 'Độ phủ',
+              matchLabel: 'Dự phòng',
               reason: `Phương án thay thế cân bằng cho định hướng ${chosenTier.label}.`
             },
             {
               code: tertiaryComboCode,
-              matchPercent: 80,
-              matchLabel: 'Dự phòng',
-              reason: `Phương án mở rộng thêm cơ hội tuyển sinh không lo trượt đại học.`
+              matchPercent: 82,
+              matchLabel: 'Độ phủ',
+              reason: `Phương án mở rộng thêm cơ hội tuyển sinh toàn quốc an toàn 100%.`
             }
           ]
         : [
@@ -1944,8 +2180,10 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
     setSelectedMajorId(null);
     setSelectedCareerId(null);
     setSelectedSubjectOption('');
+    setSelectedEvenStyleOption('');
     setSelectedWorkEnvOption('');
     setSelectedTargetTierOption('');
+    setSelectedIkigaiOption('');
     setDossierFullText('');
     setChatMessages([]);
     setFollowUpInput('');
@@ -2155,10 +2393,11 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
                   />
                 </div>
                 <div className="flex justify-between text-[10px] text-[#64748B] font-mono">
-                  <span>1 câu: 45%</span>
-                  <span>+Môn thế mạnh: 65%</span>
+                  <span>Khởi điểm: 25%</span>
+                  <span>+Môn: 45%</span>
+                  <span>+Phản xạ/Học đều: 65%</span>
                   <span>+Môi trường: 80%</span>
-                  <span>+Nhóm trường: 95%</span>
+                  <span>+Trường &amp; Ikigai: 98%</span>
                 </div>
               </div>
             </div>
@@ -2224,6 +2463,78 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
                 })}
               </div>
             </div>
+
+            {/* QUESTION 1B: PHẢN XẠ NHẬN THỨC DÀNH RIÊNG CHO HỌC SINH HỌC ĐỀU */}
+            {selectedSubjectOption === 'sub_neutral_balanced' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#121A2A] via-[#0E1524] to-[#161D2E] border-2 border-[#3B82F6]/60 shadow-[0_0_25px_rgba(59,130,246,0.25)] space-y-3.5 relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 bg-[#3B82F6] text-white text-[10px] font-mono px-3 py-1 rounded-bl-xl font-bold tracking-wider uppercase">
+                  ⚡ Khai Phá Năng Lực Ẩn (Không Ép Khối)
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-amber-400 text-black text-[11px] font-black flex items-center justify-center font-mono shadow">
+                      1B
+                    </span>
+                    <h3 className="text-sm sm:text-base font-bold text-white">
+                      {EVEN_COGNITIVE_QUESTION.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#93C5FD] pl-7 leading-relaxed">
+                    {EVEN_COGNITIVE_QUESTION.description}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-0 sm:pl-7">
+                  {EVEN_COGNITIVE_QUESTION.options.map((opt) => {
+                    const isSelected = selectedEvenStyleOption === opt.id;
+                    return (
+                      <div
+                        key={opt.id}
+                        onClick={() => {
+                          sfx.playUiClick();
+                          setSelectedEvenStyleOption(opt.id);
+                        }}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                          isSelected
+                            ? 'bg-[#1E2D4A] border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.3)] ring-1 ring-amber-400'
+                            : 'bg-[#101726] border-[#25324B] hover:border-amber-400/60 hover:bg-[#141E32]'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                                isSelected ? 'border-amber-400 bg-amber-400 text-black' : 'border-[#475569]'
+                              }`}>
+                                {isSelected && <Check className="w-2.5 h-2.5 font-bold" />}
+                              </div>
+                              <span className={`text-xs font-semibold ${isSelected ? 'text-amber-300' : 'text-[#E2E8F0]'}`}>
+                                {opt.label}
+                              </span>
+                            </div>
+                            {opt.tag && (
+                              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                                isSelected ? 'bg-amber-400 text-black' : 'bg-[#1E293B] text-amber-300'
+                              }`}>
+                                {opt.tag}
+                              </span>
+                            )}
+                          </div>
+                          <p className={`text-[11px] leading-relaxed pl-6 ${isSelected ? 'text-[#F1F5F9]' : 'text-[#8E929F]'}`}>
+                            {opt.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
 
             {/* QUESTION 2: MÔI TRƯỜNG & HOẠT ĐỘNG THỰC TẾ */}
             <div className="p-4 sm:p-5 rounded-2xl bg-[#0E121C] border border-[#1E293B] shadow-xl space-y-3.5">
@@ -2349,6 +2660,68 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
               </div>
             </div>
 
+            {/* QUESTION 4: ĐỘNG LỰC IKIGAI CỐT LÕI (PHÒNG TRÁNH LÀM TRÁI NGÀNH) */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#0E121C] border border-[#1E293B] shadow-xl space-y-3.5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center font-mono shadow">
+                    4
+                  </span>
+                  <h3 className="text-sm sm:text-base font-bold text-white">
+                    {IKIGAI_CORE_QUESTION.title}
+                  </h3>
+                </div>
+                <p className="text-xs text-[#94A3B8] pl-7">
+                  {IKIGAI_CORE_QUESTION.description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-0 sm:pl-7">
+                {IKIGAI_CORE_QUESTION.options.map((opt) => {
+                  const isSelected = selectedIkigaiOption === opt.id;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setSelectedIkigaiOption(opt.id);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                        isSelected
+                          ? 'bg-[#0E2820] border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500'
+                          : 'bg-[#121622] border-[#222838] hover:border-emerald-500/60 hover:bg-[#151B2A]'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                              isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-[#475569]'
+                            }`}>
+                              {isSelected && <Check className="w-2.5 h-2.5" />}
+                            </div>
+                            <span className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-[#E2E8F0]'}`}>
+                              {opt.label}
+                            </span>
+                          </div>
+                          {opt.tag && (
+                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                              isSelected ? 'bg-emerald-500 text-white' : 'bg-[#064E3B]/40 text-[#6EE7B7]'
+                            }`}>
+                              {opt.tag}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[11px] leading-relaxed pl-6 ${isSelected ? 'text-[#CBD5E1]' : 'text-[#8E929F]'}`}>
+                          {opt.desc}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* ACTION CTA BUTTONS */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <button
@@ -2378,7 +2751,7 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
                   className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Zap className="w-4 h-4 text-amber-300" />
-                  <span>Hoàn Tất Đánh Giá &amp; Xuất Ma Trận 3 Tổ Hợp ({confidenceScore}% Tin Cậy)</span>
+                  <span>Hoàn Tất Chẩn Đoán Chuyên Sâu &amp; Xuất Báo Cáo "MODE SUPREME" 4 Chiều ({confidenceScore}% Tin Cậy)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

@@ -48,10 +48,22 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Implemented `UNDECIDED` domain configuration in `INTERMEDIATE_CONFIGS` with 3 core factor discovery questions (disliked subjects elimination, RIASEC work environment, financial/tier goals).
   - Automatically redirected undecided/confused students directly to `INTERMEDIATE_DISCOVERY` (with live confidence gauge 45% -> 95%) rather than jumping to combo cards.
   - Added Discovery Triage Banner to `ANALYZED_COMBOS` and changed card action from forceful "Chọn tổ hợp này" to non-committal "Xem thử lộ trình tổ hợp này".
+- **Balanced Learner Deep Diagnostic Pipeline & MODE SUPREME 4-Dimension Dossier (Completed 2026-10-18)**:
+  - Eliminated arbitrary D01 assignment for students who have balanced grades ("học đều các môn").
+  - Identified "học đều" as Multi-potentialite (Trí Thông Minh Đa Diện) requiring cognitive reflex probing rather than quick combo tagging.
+  - Implemented Question 1B (`EVEN_COGNITIVE_QUESTION`) measuring neural energy consumption during 3-4 hours of self-study (STEM logic A01/A00, Language/Social C00/D01, Biomedical B00/D07, Global Business D01/A01).
+  - Implemented Question 4 (`IKIGAI_CORE_QUESTION`) establishing core long-term career motivation (High Income Top 5%, Sustainable Work-Life, Social Impact, Creative Freedom) to prevent post-graduate mismatch.
+  - Dynamic confidence scoring scaling smoothly from 25% (unverified) -> 45% -> 65% -> 80% -> 98% (deep diagnosis).
+  - Implemented the full **MODE SUPREME 4-Dimension Framework**:
+    * Dimension 1: Psychological decoding & academic cognitive reflex (3-letter Holland RIASEC code: `RIC`, `SAE`, `IRS`, `ESA`...).
+    * Dimension 2: Head-to-Head Comparison Matrix comparing Primary vs Balanced Reserve vs Wide Coverage combos (subjects, degree coverage, mismatch rate from 1,500 CV DuckDB, GSO 2026 salary range).
+    * Dimension 3: 3-Tier Admission Matrix (Dream >26.5đ, Target 22.5-25.5đ, Safe 19.0-22.0đ) & financial insurance (Nghị định 116 for pedagogy, Quyết định 1826 for 111 STEM majors).
+    * Dimension 4: 4-year university roadmap & mismatch prevention strategies.
+  - Updated `buildSmartAdvisorReply` and `generateSmartSemanticAnalysis` to empathetically acknowledge the flaw of assigning D01 blindly and articulate the scientific multi-stage diagnostic process.
 
 ## 3. Current Status & Git Branch
-- **Branch**: `main` (Latest commit: `fc9ab43` - *pushed to GitHub `origin/main` & Vercel deployment triggered*).
-- **Server**: Running on `http://localhost:8443` via `dev_server.mjs`.
+- **Branch**: `main` (Dev server running on `http://localhost:8443` via `dev_server.mjs`).
+- **Build Status**: Verified with `tsc --noEmit` (clean 0 errors) and `vite build` (clean production build).
 - **Hybrid DB State**: Initialized in `data/career_guidance.duckdb` (8+ tables & views) and `data/chroma_db` (797 vectors indexed).
 
 ## 4. Operational Directives

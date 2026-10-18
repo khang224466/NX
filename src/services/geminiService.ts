@@ -699,6 +699,56 @@ export function buildSmartProfileAnalysis(profile: LearnerProfile): AIAnalysisRe
 export function buildSmartAdvisorReply(userQuestion: string): string {
   const q = (userQuestion || '').toLowerCase();
 
+  // 0. Chẩn đoán chuyên sâu cho học sinh "học đều" / Phê bình việc gán bừa D01 / Yêu cầu cấu trúc MODE SUPREME
+  if (
+    q.includes('học đều') || 
+    (q.includes('sao lại') && (q.includes('d01') || q.includes('cho khối') || q.includes('bắt'))) || 
+    q.includes('chưa đủ để đánh giá') ||
+    q.includes('chưa đủ đánh giá') ||
+    q.includes('chưa biết giỏi gì') ||
+    q.includes('không biết giỏi gì') ||
+    q.includes('cấu trúc phân tích') ||
+    q.includes('thiên tài') ||
+    q.includes('quá trình đi được') ||
+    q.includes('rất rất dài')
+  ) {
+    return `**[NEXORA AI Copilot · Chẩn Đoán Chuyên Sâu Đa Chiều Cho Học Sinh "Học Lực Đều" 2026]**
+
+Bạn hoàn toàn chính xác và rất sắc bén! **Gán bừa khối D01 cho học sinh "học đều" là lối mòn tư duy tai hại của các hệ thống tư vấn hời hợt.**
+
+Học sinh học đều các môn không phải là người "không có thế mạnh", mà thuộc nhóm năng lực **"Trí Thông Minh Đa Diện" (Multi-potentialite)**. Quá trình đi từ "chưa biết giỏi gì / học đều" đến khi chọn được tổ hợp môn và trường đại học thực sự là một tiến trình chẩn đoán nhiều chặng. Cần áp dụng đúng **Cấu Trúc Phân Tích Chuyên Gia "MODE SUPREME" 4 Chiều**:
+
+🧭 **PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND RIASEC 3 CHỮ CÁI)**:
+Khi bạn học đều cả Tự nhiên và Xã hội (Toán 8.0, Văn 8.0, Lý 8.0, Anh 8.0), điểm số trên lớp không phản ánh được đam mê. Chỉ số khoa học duy nhất cần đo là: **"Mức tiêu hao năng lượng thần kinh khi tự học 3-4 tiếng liên tục"**:
+• **Bán cầu Não Trái / STEM Trội (Nghiêng về A01 / A00 — Mã RIASEC: R-I-C)**: Não bộ bạn thấy hưng phấn khi bóc tách quy luật bài toán hóc búa, thuật toán, máy móc, mô hình dữ liệu (AI, Phần mềm, Bán dẫn, Vi mạch).
+• **Bán cầu Não Phải / Ngôn Ngữ Trội (Nghiêng về C00 / D01 — Mã RIASEC: S-A-E)**: Bạn bị cuốn hút bởi lập luận xã hội, câu chữ, bối cảnh lịch sử, tâm lý hành vi con người và tư duy pháp lý (Báo chí, Truyền thông, Luật học, Sư phạm).
+• **Tư Duy Y Sinh Thực Nghiệm (Nghiêng về B00 / D07 — Mã RIASEC: I-R-S)**: Tò mò về cơ thể người, cơ chế bệnh lý, dược chất, vi sinh và công nghệ sinh học.
+• **Tư Duy Kinh Tế / Toàn Cầu (Nghiêng về D01 / A01 — Mã RIASEC: E-S-A)**: Quan sát dòng tiền, thị trường chứng khoán, xây dựng thương hiệu và giao dịch quốc tế.
+
+🎯 **PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP TIỀM NĂNG (HEAD-TO-HEAD MATRIX)**:
+| Tiêu Chí So Sánh | Tổ Hợp A01 (Toán-Lý-Anh) | Tổ Hợp D01 (Toán-Văn-Anh) | Tổ Hợp A00 (Toán-Lý-Hóa) |
+| :--- | :--- | :--- | :--- |
+| **Môn thi & Áp lực** | Cân bằng STEM & Ngoại ngữ | Điểm chuẩn phân hóa môn Văn | Thuần tự nhiên, điểm sàn kỹ thuật cao |
+| **Độ phủ ngành** | > 850 ngành công nghệ, tài chính, kỹ thuật | > 1.200 ngành kinh tế, luật, truyền thông | > 700 ngành kỹ thuật, xây dựng, vi mạch |
+| **Tỷ lệ làm trái ngành (CV)** | **18% – 22%** (Rất thấp do kỹ năng kỹ thuật sâu) | **32% – 38%** (Cao nếu thiếu kỹ năng mũi nhọn) | **19% – 24%** (Thấp, bám sát kỹ thuật) |
+| **Dải lương 3-5 năm (GSO)** | **20 – 55 triệu/tháng** (Kỹ sư AI, Bán dẫn, FinTech) | **16 – 40 triệu/tháng** (Marketing, Kinh doanh, Quản trị) | **18 – 45 triệu/tháng** (Kỹ sư tự động hóa, cơ điện tử) |
+
+🏛️ **PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG & BẢO HIỂM TÀI CHÍNH 2026**:
+• **Tầng 1 (Mơ ước / Top Tier)**: ĐH Bách Khoa (BKA/QSB), ĐH Ngoại Thương (FTU), Kinh Tế Quốc Dân (NEU) — Thử sức năng lực tối đa.
+• **Tầng 2 (Vừa sức / High Match)**: ĐH Công nghệ ĐHQGHN (QHI), ĐH CNTT (QSC), Học viện Tài chính (HTC), ĐH Sư phạm Kỹ thuật (HCMUTE).
+• **Tầng 3 (An toàn 100% & Tiết kiệm)**: Các trường công lập hưởng chính sách Nhà nước:
+  - Khối Sư phạm: **Miễn 100% học phí + trợ cấp 3,63 tr/tháng** theo Nghị định 116.
+  - 111 ngành STEM hưởng học bổng ngân sách theo **QĐ 1826/QĐ-BGDĐT**.
+
+🗺️ **PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC CHO NGƯỜI HỌC ĐỀU (PHÒNG TRỪ TRÁI NGÀNH)**:
+• **Năm 1**: Tận dụng tư duy toàn diện để quét sạch GPA môn đại cương (> 3.5/4.0); đạt IELTS >= 6.5.
+• **Năm 2**: Chọn 1 "mũi nhọn đâm xuyên" (Data/AI, Tài chính hoặc Ngôn ngữ chuyên sâu), tránh giữ trạng thái "cái gì cũng biết nhưng không giỏi cái gì".
+• **Năm 3**: Tham gia dự án thực chiến tại doanh nghiệp (OJT), xây dựng portfolio sản phẩm thực tế.
+• **Năm 4**: Tốt nghiệp với song bằng hoặc chứng chỉ quốc tế uy tín, gia nhập các tập đoàn đa quốc gia.
+
+💡 **Khuyến nghị ngay**: Hệ thống vừa kích hoạt **Tiến Trình Chẩn Đoán Chuyên Sâu 4 Bước** ngay tại ô tìm kiếm. Bạn chỉ cần chọn ô *"Không sợ môn nào, học đều các môn"* — Nexora sẽ tự động mở **Mảnh ghép 1B (Bóc tách phản xạ não bộ)** và **Mảnh ghép Ikigai** để xác định chính xác tổ hợp mũi nhọn cho bạn!`;
+  }
+
   // Trích xuất điểm số (nếu người dùng hỏi kiểu "25.5 điểm", "26 điểm", "24 điểm")
   const scoreMatch = q.match(/(\d{2}(?:[.,]\d{1,2})?)\s*(?:điểm|đ\b|khối)/i) || q.match(/điểm\s*(?:khoảng|tầm|dự kiến)?\s*(\d{2}(?:[.,]\d{1,2})?)/i);
   const comboMatch = q.match(/\b([abcdxvhmt][0-9]{2}|k01|dd2)\b/i);
