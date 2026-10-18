@@ -230,7 +230,7 @@ export const cancelPacingTask = async (taskId: string) => {
  */
 export function buildSmartOmniDecomposition(query: string) {
   const qLower = (query || '').toLowerCase();
-  let theme: 'semiconductor' | 'data-ai' | 'logistics' | 'medical' | 'pedagogy' | 'architecture' | 'law-social' | 'alternative' | 'robotics' = 'robotics';
+  let theme: 'semiconductor' | 'data-ai' | 'logistics' | 'medical' | 'pedagogy' | 'architecture' | 'law-social' | 'alternative' | 'sports' | 'robotics' = 'robotics';
 
   if (qLower.includes('vi mạch') || qLower.includes('bán dẫn') || qLower.includes('chip') || qLower.includes('điện tử')) theme = 'semiconductor';
   else if (qLower.includes('dữ liệu') || qLower.includes('ai') || qLower.includes('trí tuệ nhân tạo') || qLower.includes('code') || qLower.includes('cntt') || qLower.includes('phần mềm') || qLower.includes('tin học')) theme = 'data-ai';
@@ -239,6 +239,7 @@ export function buildSmartOmniDecomposition(query: string) {
   else if (qLower.includes('sư phạm') || qLower.includes('giáo viên') || qLower.includes('mầm non') || qLower.includes('miễn học phí')) theme = 'pedagogy';
   else if (qLower.includes('kiến trúc') || qLower.includes('vẽ') || qLower.includes('đồ họa') || qLower.includes('mỹ thuật') || qLower.includes('thiết kế')) theme = 'architecture';
   else if (qLower.includes('luật') || qLower.includes('báo chí') || qLower.includes('quan hệ quốc tế') || qLower.includes('ngôn ngữ') || qLower.includes('văn') || qLower.includes('sử')) theme = 'law-social';
+  else if (qLower.includes('đá banh') || qLower.includes('bóng đá') || qLower.includes('thể thao') || qLower.includes('cầu thủ') || qLower.includes('gym') || qLower.includes('huấn luyện viên') || qLower.includes('vận động viên') || qLower.includes('thể chất') || qLower.includes('t00')) theme = 'sports';
   else if (qLower.includes('nghề') || qLower.includes('không đỗ') || qLower.includes('cao đẳng') || qLower.includes('thực hành') || qLower.includes('học phí thấp') || qLower.includes('khó khăn')) theme = 'alternative';
 
   const themeConfig = {
@@ -538,6 +539,40 @@ export function buildSmartOmniDecomposition(query: string) {
         'Giải pháp tối ưu nhất cho gia đình muốn hoàn vốn học phí dưới 12 tháng'
       ],
       targetTab: 'alternatives'
+    },
+    'sports': {
+      strengths: ['Thể lực dẻo dai, phản xạ vận động & tinh thần đồng đội', 'Tư duy chiến thuật, điều hành & quản lý thi đấu', 'Kỹ năng truyền cảm hứng & huấn luyện thể chất'],
+      combos: [
+        'Tổ hợp mũi nhọn: T00 (Toán-Sinh-Năng khiếu TDTT), D01 (Toán-Văn-Anh), C00 (Văn-Sử-Địa), A01',
+        'Phương thức riêng: Điểm thi THPT + Thi Năng khiếu TDTT (Chạy 100m, Bật xa, Năng khiếu bóng đá/thể thao)',
+        'Đặc thù Sư phạm TDTT: Miễn 100% học phí + trợ cấp 3,63 tr/tháng theo Nghị định 116'
+      ],
+      majors: [
+        'Quản lý Thể thao & Sự kiện (Mã 7810301 — Số 1 tại ĐH Tôn Đức Thắng TDTU & ĐH TDTT TPHCM)',
+        'Giáo dục Thể chất / Sư phạm TDTT (Mã 7140224 — Miễn 100% học phí tại TDH, STS, TTD)',
+        'Huấn luyện Thể thao & Y học Thể thao / Phục hồi chấn thương (Mã 7140225 & 7720603 — TDS, TDB)'
+      ],
+      schools: [
+        'ĐH Tôn Đức Thắng (DTT): Khoa Khoa học Thể thao hàng đầu VN, Quản lý Thể thao & Sân Golf (Học phí 26–38 tr/năm)',
+        'ĐH Sư phạm TDTT Hà Nội (TDH) & ĐH SP TDTT TPHCM (STS): Miễn 100% học phí + nhận 3,63 tr/tháng',
+        'ĐH TDTT TPHCM (TDS), ĐH TDTT Bắc Ninh (TDB), ĐH TDTT Đà Nẵng (TTD): Học phí công lập 16–20 tr/năm'
+      ],
+      careers: [
+        'Fresher (0–1 năm): 12 – 18 triệu/tháng (Chuyên viên Sự kiện Thể thao, Trợ lý HLV, Giáo viên Thể chất)',
+        'Junior–Senior (2–5 năm): 25 – 50 triệu/tháng (HLV Thể lực V-League, Quản lý CLB Thể thao, Master PT Gym)',
+        'Director (>5 năm): 60 – 120+ triệu/tháng (Giám đốc Điều hành CLB, Đại diện Cầu thủ, Sports Agent)'
+      ],
+      backup: [
+        'Phương án A: Quản trị Kinh doanh / Marketing (xét D01/A01) rồi làm Marketing Thể thao & Bản quyền',
+        'Phương án B: Sư phạm Giáo dục Thể chất tại các trường ĐH Vùng (ĐH Cần Thơ, ĐH Đà Nẵng, ĐH Quy Nhơn)',
+        'Phương án C: Chứng chỉ HLV Thể hình Quốc tế (NASM, ACE) kết hợp kinh doanh Fitness'
+      ],
+      market: [
+        'Thị trường thể thao và giải trí Việt Nam đang tăng trưởng hơn 25%/năm với làn sóng đầu tư vào CLB chuyên nghiệp',
+        'AI không thể thay thế năng lực vận động vật lý, trị liệu cơ xương khớp hay cảm xúc trên sân cỏ (Rủi ro AI < 5%)',
+        'Nhu cầu HLV cá nhân và chuyên gia y học thể thao cao cấp tại các thành phố lớn cực kỳ thiếu hụt'
+      ],
+      targetTab: 'combinations'
     }
   }[theme];
 
@@ -749,6 +784,86 @@ Hệ thống NEXORA tách bạch rõ **2 chỉ số đối lập** của làn s�
    • **Kỹ sư Trí tuệ nhân tạo, Dữ liệu & An ninh mạng (\`480107 / 480208\`)**: AI Augmentation đạt **96%** — người thiết kế và vận hành mô hình AI có thu nhập cao gấp 2–3 lần lập trình viên truyền thống.
    • **Y khoa, Răng Hàm Mặt & Dược lâm sàng (\`720101 / 720501\`)**: Rủi ro bị thay thế chỉ **8%** do yêu cầu pháp lý hành nghề, phẫu thuật và giao tiếp trực tiếp với bệnh nhân.
    • **Kỹ thuật Điều khiển Tự động hóa & Robot (\`520216 / 520114\`)**: AI không thể tự lắp đặt, đấu nối tủ điện PLC hay bảo trì dây chuyền vật lý tại nhà máy VinFast, Samsung, Intel.`;
+  }
+
+  if (
+    q.includes('đá banh') || 
+    q.includes('đá bóng') || 
+    q.includes('bóng đá') || 
+    q.includes('thể thao') || 
+    q.includes('cầu thủ') || 
+    q.includes('gym') || 
+    q.includes('thể hình') || 
+    q.includes('huấn luyện viên') || 
+    q.includes('bơi lội') || 
+    q.includes('vận động viên') || 
+    q.includes('thể chất') ||
+    q.includes('t00')
+  ) {
+    return `**[NEXORA AI Copilot · Phân Tích Định Hướng Ngành Thể Thao & Bóng Đá 2026]**
+
+Chào bạn! Đam mê thể thao, vận động và bóng đá là một lợi thế rất lớn. Trong giai đoạn 2026–2030, ngành Công nghiệp Thể thao và Kinh tế Thể thao tại Việt Nam đang tăng trưởng hơn 25%/năm:
+
+🧭 **1. Thiên Hướng Năng Lực (Mã Holland: R-S-E)**:
+• **Realistic (Vận động - Thực tế)**: Phản xạ thể chất vượt trội, thể lực bền bỉ và tư duy chiến thuật trên sân cỏ.
+• **Social (Xã hội - Tinh thần đồng đội)**: Khả năng gắn kết tập thể, truyền lửa và hướng dẫn đồng đội.
+• **Enterprising (Quản trị - Dẫn dắt)**: Khát khao chiến thắng, tư duy tổ chức sự kiện thi đấu và kinh doanh thể thao.
+
+🎯 **2. Top 4 Ngành Đại Học Tối Ưu Cho Người Mê Thể Thao & Bóng Đá**:
+1. **Quản Lý Thể Thao & Sự Kiện (Sports Management — Mã TT74: 7810301)**:
+   • **Độ khớp (Match)**: \`98%\` · **Tổ hợp xét tuyển**: \`D01, A01, T00, A00\`.
+   • **Thu nhập thực tế (GSO)**: P25 Khởi điểm \`14–18 tr/tháng\` · P50 Trung vị \`25–45 tr/tháng\` · Quản lý/Giám đốc CLB \`60–100+ tr/tháng\`.
+   • **Cơ hội nghề nghiệp**: Quản lý CLB bóng đá chuyên nghiệp (V-League), đại diện chuyển nhượng cầu thủ, tổ chức giải đấu thể thao, khai thác thương quyền và tài trợ áo đấu.
+   • **Trường đào tạo hàng đầu**: Đại học Tôn Đức Thắng (DTT — Khoa Khoa học Thể thao hàng đầu cả nước), ĐH Kinh tế Quốc dân (NEU), ĐH TDTT TPHCM.
+
+2. **Giáo Dục Thể Chất / Sư Phạm TDTT (Mã TT74: 7140224)**:
+   • **Độ khớp (Match)**: \`94%\` · **Tổ hợp xét tuyển**: \`T00, C00, D01\`.
+   • **Chính sách Nhà nước cực lớn**: **MIỄN 100% HỌC PHÍ + Trợ cấp sinh hoạt 3,63 triệu/tháng** (theo Nghị định 116/2020/NĐ-CP).
+   • **Cơ hội nghề nghiệp**: Giáo viên/Giảng viên thể chất trường học, mở CLB bóng đá cộng đồng (thu nhập 18–40 tr/tháng).
+   • **Trường trọng điểm**: ĐH Sư phạm TDTT Hà Nội (TDH), ĐH Sư phạm TDTT TPHCM (STS), ĐH Sư phạm Hà Nội (SPH).
+
+3. **Huấn Luyện Thể Thao & Bóng Đá Chuyên Nghiệp (Mã TT74: 7140225)**:
+   • **Độ khớp (Match)**: \`92%\` · **Tổ hợp xét tuyển**: \`T00, T01, T04\`.
+   • **Thu nhập thực tế**: \`20–55 tr/tháng\` (HLV bóng đá chuyên nghiệp, Master PT Gym, HLV thể lực tại các học viện đào tạo trẻ PVF, Viettel, HAGL).
+   • **Trường đào tạo**: ĐH TDTT TPHCM (TDS), ĐH TDTT Bắc Ninh (TDB), ĐH TDTT Đà Nẵng (TTD).
+
+4. **Y Học Thể Thao & Trị Liệu Phục Hồi Chấn Thương (Mã TT74: 7720603)**:
+   • **Độ khớp (Match)**: \`90%\` · **Tổ hợp xét tuyển**: \`B00, T00, D07\`.
+   • **Thu nhập thực tế**: \`22–60 tr/tháng\`. Điều trị và phục hồi dây chằng, cơ xương khớp cho cầu thủ; chuyên gia dinh dưỡng và thể lực đội tuyển.
+
+🏛️ **3. Ma Trận 3 Tầng Nguyện Vọng Đề Xuất**:
+• **Tầng 1 (Mơ ước · Top 1)**: Ngành Quản lý Thể thao tại ĐH Tôn Đức Thắng (DTT) hoặc ĐH Kinh tế Quốc dân (NEU).
+• **Tầng 2 (Vừa sức · Chuyên sâu TDTT)**: ĐH TDTT TPHCM (TDS), ĐH TDTT Bắc Ninh (TDB), ĐH TDTT Đà Nẵng (TTD).
+• **Tầng 3 (An toàn · Miễn 100% học phí)**: Sư phạm Thể chất tại ĐH Sư phạm TDTT Hà Nội (TDH) hoặc ĐH Sư phạm TDTT TPHCM (STS).
+
+🗺️ **4. Lộ Trình 4 Năm Đại Học Thực Chiến**:
+• **Năm 1–2**: Nắm vững giải phẫu sinh lý học vận động, luật thi đấu quốc tế và trau dồi Tiếng Anh giao tiếp (IELTS >= 6.0).
+• **Năm 3**: Thi lấy chứng chỉ HLV bóng đá cấp chứng chỉ AFC / FIFA hoặc chứng chỉ HLV thể hình quốc tế (NASM / ACE). Thực tập tại các CLB, trung tâm Fitness cao cấp.
+• **Năm 4**: Tốt nghiệp, tham gia ban huấn luyện hoặc bộ phận tổ chức giải đấu chuyên nghiệp.
+
+💡 **Mẹo hôm nay**: Bạn có thể mở mục **Trợ Lý Phân Tích Lộ Trình** hoặc **Tra cứu Tổ hợp** và gõ **T00** hoặc **D01** để xem điểm chuẩn và lộ trình đào tạo chi tiết của ĐH Tôn Đức Thắng và các trường TDTT!`;
+  }
+
+  if (q.includes('nấu ăn') || q.includes('đầu bếp') || q.includes('ẩm thực') || q.includes('làm bánh') || q.includes('nhà hàng') || q.includes('pha chế')) {
+    return `**[NEXORA AI Copilot · Phân Tích Định Hướng Ngành Ẩm Thực, Đầu Bếp & Quản Trị Nhà Hàng 2026]**
+
+Chào bạn! Đam mê ẩm thực và chế biến món ăn mở ra rất nhiều cơ hội nghề nghiệp hấp dẫn trong ngành F&B (Food & Beverage) và Công nghệ Thực phẩm:
+
+🎯 **Top Ngành Phù Hợp**:
+1. **Quản trị Nhà hàng & Dịch vụ Ăn uống (Mã 7810202)**: Xét \`D01, A00, A01\`. Làm Giám đốc F&B, Quản lý chuỗi nhà hàng cao cấp với lương \`18–50 tr/tháng\` tại ĐH Kinh tế TP.HCM (UEH), ĐH Thương Mại (TMU), ĐH Công nghiệp TP.HCM (IUH).
+2. **Công nghệ Thực phẩm (Mã 7540101)**: Xét \`A00, B00, D07\`. Chuyên gia R&D sản phẩm thực phẩm, kiểm soát chất lượng QA/QC tại Masan, Vinamilk, Nestlé với lương \`16–42 tr/tháng\` tại ĐH Bách Khoa (BKA, QSB), ĐH Nông Lâm.
+3. **Nghệ thuật Ẩm thực & Bếp trưởng Quốc tế**: Đào tạo chứng chỉ bếp bánh/bếp Âu chuyên nghiệp tại các trường quốc tế, làm việc tại khách sạn 5 sao.`;
+  }
+
+  if (q.includes('du lịch') || q.includes('hướng dẫn viên') || q.includes('khách sạn') || q.includes('lữ hành') || q.includes('hàng không') || q.includes('phi công') || q.includes('tiếp viên')) {
+    return `**[NEXORA AI Copilot · Phân Tích Định Hướng Ngành Du Lịch, Khách Sạn & Hàng Không 2026]**
+
+Chào bạn! Đây là khối ngành có tính quốc tế hóa cao, môi trường làm việc năng động và thu nhập hấp dẫn:
+
+🎯 **Top Ngành Phù Hợp**:
+1. **Quản trị Dịch vụ Du lịch & Lữ hành / Khách sạn (7810103 / 7810201)**: Xét \`D01, C00, A01\`. Đào tạo tại ĐH Hà Nội (HANU), ĐH Kinh tế Quốc dân (NEU), ĐH KHXH&NV, ĐH Tôn Đức Thắng (DTT).
+2. **Quản lý Hoạt động Bay & Kỹ thuật Hàng không**: Xét \`A00, A01, D01\` tại Học viện Hàng không Việt Nam (VAA), ĐHBK Hà Nội / ĐHBK TP.HCM.
+3. **Tiếp viên Hàng không**: Yêu cầu ngoại hình cân đối, tiếng Anh lưu loát (TOEIC >= 600), tuyển dụng trực tiếp qua các hãng Vietnam Airlines, Vietjet, Bamboo với thu nhập \`25–50 tr/tháng\`.`;
   }
 
   // Mặc định: Nếu người dùng hỏi "Tôi muốn bắt đầu lập kế hoạch định hướng ngành học và nghề nghiệp" hoặc câu hỏi mở

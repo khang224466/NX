@@ -195,16 +195,11 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
     {
       id: 'welcome',
       role: 'model',
-      content: `Chào bạn! Mình là Nexora Supreme AI — Cố Vấn Chiến Lược Hướng Nghiệp & Tuyển Sinh 2026.
+      content: `Chào bạn! Mình là **Nexora AI** — Cố vấn hướng nghiệp & tuyển sinh đại học 2026.
 
-Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, danh mục 300 trường đại học và 219 tổ hợp xét tuyển tại Việt Nam:
+Bạn đang quan tâm đến ngành nghề nào hoặc muốn tìm trường theo điểm thi và sở thích (như thể thao, công nghệ, kinh doanh, nghệ thuật...)? Hãy nhắn cho mình nhé!
 
-🧭 **1. Thiên Hướng Tâm Lý & Năng Lực**: Giải mã mô hình Holland RIASEC 6 chiều & Ikigai.
-🎯 **2. Top 3 Ngành Học & Nghề Phù Hợp**: Độ khớp (Match %), Mức lương thị trường GSO (P25 - P50 - P90) & Rủi ro tự động hóa AI.
-🏛️ **3. Ma Trận 3 Tầng Nguyện Vọng Chọn Trường**: Tầng Mơ ước (Top 1) - Tầng Vừa sức (Đỗ 80%) - Tầng An toàn 100%.
-🗺️ **4. Lộ Trình 4 Năm Đại Học & Kỹ Năng Cốt Lõi**: Định hướng từng năm học và chứng chỉ thực chiến.
-
-⚡ **Chế độ MODE SUPREME đang BẬT**. Bạn đang quan tâm đến ngành nghề nào hoặc có thế mạnh ở những môn học nào? Hãy chia sẻ với mình nhé!`,
+💡 *Mẹo: Bạn có thể chọn các câu hỏi gợi ý bên dưới hoặc bấm nút **[Cài API Key]** ở góc trên để kết nối trực tiếp Gemini / Groq.*`,
       timestamp: 'Ngay bây giờ'
     }
   ]);
@@ -403,11 +398,11 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
   };
 
   const sampleQuestions = [
-    '⚡ Phân tích Mode Supreme: Em thích Toán & Tin, điểm tầm 26.5',
-    '🧭 Đánh giá thiên hướng Holland RIASEC & Khối thi tối ưu cho em',
-    '🏛️ Lập ma trận 3 tầng trường (Mơ ước - Vừa sức - An toàn) với mức 25.5 điểm',
-    '💼 Soi mức lương P25–P90 & Nguy cơ bị AI thay thế của ngành Kinh tế',
-    '🔄 Chiến lược rẽ ngang (Pivot) an toàn khi lỡ chọn ngành không hợp'
+    '⚽ Em thích đá banh / thể thao thì học ngành gì, trường nào?',
+    '💻 Tư vấn định hướng Công nghệ thông tin & Trí tuệ nhân tạo',
+    '💼 Ngành Kinh doanh, Marketing & Logistics cơ hội ra sao?',
+    '🏛️ Điểm tầm 24–26 nên lập ma trận 3 tầng trường thế nào?',
+    '🔄 Khi lỡ chọn ngành không hợp thì có cách chuyển hướng an toàn nào?'
   ];
 
   if (!isOpen) return null;
@@ -415,12 +410,12 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
   const hasConfiguredKey = (aiProvider === 'gemini' && !!customKey) || (aiProvider === 'groq' && !!customGroqKey);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md">
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 15 }}
-        className="w-full max-w-4xl h-[88vh] bg-[#0A0E15] border border-white/15 rounded-3xl flex flex-col shadow-2xl overflow-hidden"
+        className="w-full max-w-3xl h-[82vh] max-h-[740px] min-h-[460px] bg-[#0A0E15] border border-white/15 rounded-2xl flex flex-col shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0F141D]">
@@ -796,50 +791,21 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
         )}
 
         {/* Chat message stream */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          {/* Top Banner Notice when Key is missing */}
-          {!hasConfiguredKey && (
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-blue-500/15 to-purple-500/15 border border-amber-400/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
-                  <KeyRound className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span>Kích Hoạt Trí Tuệ MODE SUPREME Bằng API Key</span>
-                    <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">Khuyên Dùng</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-300 mt-0.5">
-                    Bạn đã có API Key (Google Gemini hoặc Groq)? Kết nối ngay để AI phân tích trực tiếp 100%, đối soát 300 trường đại học và 219 tổ hợp tuyển sinh 2026!
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowKeyConfig(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-bold text-xs shrink-0 cursor-pointer shadow-md flex items-center gap-1.5 transition-all"
-              >
-                <span>Nhập API Key Ngay</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
-          {/* Active Key Status Pill */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {hasConfiguredKey && (
-            <div className="px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-400">
+            <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-400">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span>
                   Đang kết nối: <strong>{aiProvider === 'gemini' ? selectedModel : 'Groq Llama-3.3-70B'}</strong>
-                  {isSupremeMode ? ' · ⚡ MODE SUPREME BẬT (Phân tích 4 chiều)' : ''}
+                  {isSupremeMode ? ' · ⚡ MODE SUPREME BẬT' : ''}
                 </span>
               </div>
               <button
                 onClick={() => setShowKeyConfig(true)}
-                className="text-zinc-400 hover:text-white underline text-[11px] cursor-pointer"
+                className="text-zinc-400 hover:text-white underline cursor-pointer"
               >
-                Đổi cấu hình
+                Cấu hình
               </button>
             </div>
           )}
@@ -921,15 +887,15 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
         </div>
 
         {/* Suggested Prompt Chips */}
-        <div className="px-6 py-2.5 border-t border-white/[0.04] bg-[#0B0F16] flex gap-2 overflow-x-auto scrollbar-none text-[11px]">
+        <div className="px-4 py-2 border-t border-white/[0.04] bg-[#0B0F16] flex gap-2 overflow-x-auto scrollbar-none text-[11px]">
           <span className="text-[#71717A] shrink-0 self-center text-[10px] uppercase font-bold tracking-wider">
-            Gợi ý hỏi:
+            Gợi ý:
           </span>
           {sampleQuestions.map((q, i) => (
             <button
               key={i}
               onClick={() => handleSend(q)}
-              className="whitespace-nowrap px-3 py-1 rounded-full bg-[#141A25] hover:bg-white/10 text-[#A1A1AA] hover:text-white border border-white/10 transition-all cursor-pointer"
+              className="whitespace-nowrap px-3 py-1 rounded-full bg-[#141A25] hover:bg-white/10 text-[#A1A1AA] hover:text-white border border-white/10 transition-all cursor-pointer text-xs"
             >
               {q}
             </button>
@@ -937,7 +903,7 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
         </div>
 
         {/* Input Bar */}
-        <div className="p-4 border-t border-white/[0.08] bg-[#0E131C] flex gap-2">
+        <div className="p-3 sm:p-3.5 border-t border-white/[0.08] bg-[#0E131C] flex gap-2">
           <input
             ref={inputRef}
             type="text"
@@ -947,12 +913,12 @@ Hệ thống được thiết kế theo chuẩn Thông tư 06/2026/TT-BGDĐT, da
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSend();
             }}
-            className="flex-1 px-4 py-3 rounded-xl bg-[#080B10] border border-white/10 text-xs sm:text-sm text-[#ECEEF2] placeholder-[#64748B] outline-none focus:border-[#C5A880]"
+            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#080B10] border border-white/10 text-xs sm:text-sm text-[#ECEEF2] placeholder-[#64748B] outline-none focus:border-[#C5A880]"
           />
           <button
             onClick={() => handleSend()}
             disabled={!inputPrompt.trim() || isSending}
-            className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#C5A880] to-[#E5C8A0] text-[#07090D] font-bold text-xs sm:text-sm hover:from-[#D4B384] hover:to-[#F5D8B0] transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-md"
+            className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#C5A880] to-[#E5C8A0] text-[#07090D] font-bold text-xs sm:text-sm hover:from-[#D4B384] hover:to-[#F5D8B0] transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-md shrink-0"
           >
             <Send className="w-4 h-4" />
             <span className="hidden sm:inline">Gửi</span>

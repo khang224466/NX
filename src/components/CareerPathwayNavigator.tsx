@@ -224,6 +224,35 @@ export const CAREER_PATHWAY_DATABASE: Record<string, ComboPathwayData> = {
       { id: 'c_d02_trade', title: 'Chuyên Viên Kinh Doanh Quốc Tế Thị Trường Nga & EAEU', sector: 'Thương Mại Quốc Tế & Xuất Nhập Khẩu', desc: 'Đàm phán hợp đồng xuất nhập khẩu nông sản, máy móc và năng lượng với thị trường Nga, Belarus, Kazakhstan.', salaryP50: '20 – 50 triệu', salaryRange: 'Khởi điểm: 16M · P75: 45M · Giám đốc: 75M+', automationRisk: 'Cực thấp (6%)', requiredMajors: ['m_d02_ktdn', 'm_d02_kdqt'] },
       { id: 'c_d02_translator', title: 'Biên – Phiên Dịch Viên Tiếng Nga Cấp Cao', sector: 'Dịch Thuật & Ngoại Giao', desc: 'Dịch cabin hội nghị quốc tế, làm việc tại cơ quan đại diện ngoại giao hoặc tập đoàn dầu khí Vietsovpetro.', salaryP50: '18 – 45 triệu', salaryRange: 'Khởi điểm: 14M · P75: 40M · Chuyên gia: 65M+', automationRisk: 'Thấp (12%)', requiredMajors: ['m_d02_nn_nga'] },
     ]
+  },
+  'T00': {
+    code: 'T00',
+    name: 'Toán – Sinh học – Năng khiếu TDTT',
+    subjects: 'Toán · Sinh học · Năng khiếu TDTT',
+    highlights: 'Tổ hợp mũi nhọn cho khối ngành Thể dục Thể thao, Quản lý Thể thao, Huấn luyện thể thao thành tích cao và Y học Thể thao.',
+    schools: [
+      { code: 'DTT', name: 'Đại học Tôn Đức Thắng (TDTU)', city: 'TP.HCM', region: 'Nam', badge: 'Số 1 Quản Lý Thể Thao & Golf', offeredMajors: ['m_t00_qltt', 'm_t00_kdtt', 'm_t00_gdtc'], tuitionYearEst: '26 – 38 triệu/năm', admissionMethods: 'Thi ĐGNL + Điểm thi THPT + Điểm Năng khiếu TDTT' },
+      { code: 'TDS', name: 'Trường ĐH Thể Dục Thể Thao TPHCM', city: 'TP.HCM', region: 'Nam', badge: 'Trọng điểm TDTT Miền Nam', offeredMajors: ['m_t00_hltt', 'm_t00_qltt', 'm_t00_yhtt'], tuitionYearEst: '16 – 20 triệu/năm', admissionMethods: 'Thi THPT + Thi Năng khiếu TDTT' },
+      { code: 'TDH', name: 'Trường ĐH Sư Phạm TDTT Hà Nội', city: 'Hà Nội', region: 'Bắc', badge: 'Trọng điểm Sư phạm Thể chất (Miễn HP)', offeredMajors: ['m_t00_gdtc', 'm_t00_hltt'], tuitionYearEst: '0 đ (Miễn 100% NĐ 116)', admissionMethods: 'Xét tuyển + Thi Năng khiếu TDTT' },
+      { code: 'TDB', name: 'Trường ĐH Thể Dục Thể Thao Bắc Ninh', city: 'Bắc Ninh', region: 'Bắc', badge: 'Cái nôi Huấn luyện VĐV Quốc gia', offeredMajors: ['m_t00_hltt', 'm_t00_yhtt', 'm_t00_qltt'], tuitionYearEst: '15 – 18 triệu/năm', admissionMethods: 'Thi Năng khiếu + Điểm thi THPT' },
+      { code: 'TTD', name: 'Trường ĐH Thể Dục Thể Thao Đà Nẵng', city: 'Đà Nẵng', region: 'Trung', badge: 'Trọng điểm TDTT Miền Trung', offeredMajors: ['m_t00_hltt', 'm_t00_gdtc', 'm_t00_qltt'], tuitionYearEst: '15 – 19 triệu/năm', admissionMethods: 'Thi THPT + Thi Năng khiếu TDTT' },
+      { code: 'STS', name: 'Trường ĐH Sư Phạm TDTT TPHCM', city: 'TP.HCM', region: 'Nam', badge: 'Sư phạm Thể dục Miền Nam (Miễn HP)', offeredMajors: ['m_t00_gdtc'], tuitionYearEst: '0 đ (Miễn 100% NĐ 116)', admissionMethods: 'Thi THPT + Thi Năng khiếu TDTT' }
+    ],
+    majors: [
+      { id: 'm_t00_qltt', name: 'Quản Lý Thể Thao & Sự Kiện (Sports Management)', code: '7810301', desc: 'Đào tạo quản lý CLB bóng đá chuyên nghiệp, điều hành giải đấu, đại diện cầu thủ và phát triển kinh doanh thể thao số.', relatedCareers: ['c_t00_qlclb', 'c_t00_mkt_sport'], schools: ['DTT', 'TDS', 'TDB'], salaryRange: '16 – 45 triệu/tháng', benchmark2026Est: '23.5 – 26.8 / 30' },
+      { id: 'm_t00_gdtc', name: 'Giáo Dục Thể Chất (Sư phạm TDTT)', code: '7140224', desc: 'Giáo viên thể chất chuẩn quốc gia, hưởng chính sách Miễn 100% học phí + trợ cấp 3,63 triệu/tháng theo Nghị định 116.', relatedCareers: ['c_t00_gv_thechat'], schools: ['TDH', 'STS', 'TTD'], salaryRange: '12 – 28 triệu/tháng', benchmark2026Est: '21.0 – 24.5 / 30' },
+      { id: 'm_t00_hltt', name: 'Huấn Luyện Thể Thao & Bóng Đá Chuyên Nghiệp', code: '7140225', desc: 'Đào tạo HLV bóng đá, thể lực, chiến thuật và phát triển tài năng trẻ tại các học viện bóng đá và CLB.', relatedCareers: ['c_t00_hlv_bongda', 'c_t00_fitness_coach'], schools: ['TDS', 'TDB', 'TTD'], salaryRange: '18 – 50 triệu/tháng', benchmark2026Est: '22.0 – 25.5 / 30' },
+      { id: 'm_t00_yhtt', name: 'Y Học Thể Thao & Trị Liệu Phục Hồi Chấn Thương', code: '7720603', desc: 'Chuyên gia y sinh thể thao, điều trị phục hồi chấn thương dây chằng, cơ bắp cho vận động viên chuyên nghiệp.', relatedCareers: ['c_t00_y_hoc_tt'], schools: ['TDS', 'TDB'], salaryRange: '20 – 55 triệu/tháng', benchmark2026Est: '24.0 – 27.2 / 30' },
+      { id: 'm_t00_kdtt', name: 'Kinh Doanh & Tiếp Thị Thể Thao (Sports Marketing)', code: '7810302', desc: 'Khai thác thương mại bản quyền truyền hình, tài trợ áo đấu, bán vé giải đấu và phát triển thương hiệu thể thao.', relatedCareers: ['c_t00_mkt_sport', 'c_t00_qlclb'], schools: ['DTT', 'TDS'], salaryRange: '18 – 48 triệu/tháng', benchmark2026Est: '23.0 – 26.5 / 30' }
+    ],
+    careers: [
+      { id: 'c_t00_qlclb', title: 'Giám Đốc / Quản Lý CLB Thể Thao & Học Viện Bóng Đá', sector: 'Quản Lý Thể Thao Chuyên Nghiệp', desc: 'Điều hành chiến lược phát triển CLB bóng đá, học viện thể thao, ký hợp đồng tài trợ và đối ngoại thể thao.', salaryP50: '25 – 60 triệu', salaryRange: 'Khởi điểm: 16M · P75: 45M · Giám đốc điều hành: 80M+', automationRisk: 'Cực thấp (5%)', requiredMajors: ['m_t00_qltt', 'm_t00_kdtt'] },
+      { id: 'c_t00_hlv_bongda', title: 'Huấn Luyện Viên Bóng Đá & Chuyên Gia Thể Lực', sector: 'Huấn Luyện Chuyên Sâu', desc: 'Huấn luyện kỹ thuật, chiến thuật, thể lực và phân tích hiệu suất thi đấu cho cầu thủ và học viên thể thao.', salaryP50: '22 – 55 triệu', salaryRange: 'Khởi điểm: 15M · P75: 42M · HLV Trưởng / ĐTQG: 75M+', automationRisk: 'Cực thấp (4%)', requiredMajors: ['m_t00_hltt', 'm_t00_gdtc'] },
+      { id: 'c_t00_mkt_sport', title: 'Chuyên Viên Marketing Thể Thao & Tổ Chức Sự Kiện Giải Đấu', sector: 'Kinh Doanh & Truyền Thông Thể Thao', desc: 'Tổ chức các giải bóng đá chuyên nghiệp, khai thác thương mại, truyền thông số và tài trợ thể thao.', salaryP50: '20 – 45 triệu', salaryRange: 'Khởi điểm: 14M · P75: 38M · Trưởng ban: 65M+', automationRisk: 'Thấp (10%)', requiredMajors: ['m_t00_qltt', 'm_t00_kdtt'] },
+      { id: 'c_t00_y_hoc_tt', title: 'Chuyên Viên Y Học Thể Thao & Phục Hồi Chấn Thương', sector: 'Y Sinh & Trị Liệu Vận Động', desc: 'Chăm sóc sức khỏe thể thao, phục hồi cơ xương khớp sau thi đấu và tối ưu hóa chế độ dinh dưỡng vận động viên.', salaryP50: '24 – 52 triệu', salaryRange: 'Khởi điểm: 18M · P75: 45M · Trưởng khoa Y: 70M+', automationRisk: 'Cực thấp (6%)', requiredMajors: ['m_t00_yhtt'] },
+      { id: 'c_t00_gv_thechat', title: 'Giáo Viên Giáo Dục Thể Chất / Giảng Viên TDTT', sector: 'Giáo Dục & Sư Phạm', desc: 'Giảng dạy thể dục thể thao tại hệ thống trường phổ thông, đại học; miễn 100% học phí khi theo học.', salaryP50: '15 – 32 triệu', salaryRange: 'Khởi điểm: 10M + phụ cấp · Thâm niên: 25M · Dạy thêm/CLB: 40M+', automationRisk: 'Cực thấp (3%)', requiredMajors: ['m_t00_gdtc'] },
+      { id: 'c_t00_fitness_coach', title: 'Master Trainer & Huấn Luyện Viên Cá Nhân (PT)', sector: 'Sức Khỏe & Thể Hình Cao Cấp', desc: 'Thiết kế giáo án tập luyện chuyên biệt cho vận động viên, người tập gym cao cấp và khách hàng VIP.', salaryP50: '20 – 48 triệu', salaryRange: 'Khởi điểm: 12M · Khách VIP: 35M · Quản lý phòng Gym: 55M+', automationRisk: 'Cực thấp (5%)', requiredMajors: ['m_t00_hltt', 'm_t00_gdtc'] }
+    ]
   }
 };
 
@@ -471,9 +500,21 @@ export function getOrSynthesizeComboData(code: string): ComboPathwayData {
         'Xã hội học & Quản lý Phát triển',
         'Quản trị Lữ hành & Văn hóa Du lịch'
       ];
+    } else if (subStr.includes('tdtt') || subStr.includes('thể thao') || subStr.includes('thể dục') || subStr.includes('năng khiếu')) {
+      sampleMajorNames = [
+        'Quản Trị & Kinh Doanh Thể Thao',
+        'Giáo Dục Thể Chất (Sư phạm TDTT)',
+        'Huấn Luyện Thể Thao Chuyên Nghiệp',
+        'Y Học Thể Thao & Phục Hồi Chức Năng',
+        'Truyền Thông & Báo Chí Thể Thao',
+        'Quản Lý Sự Kiện & Thể Thao Giải Trí'
+      ];
     }
 
-    const sampleSchoolCodes = ['KHA', 'NTH', 'BKA', 'QSB', 'KSA', 'DAV', 'SPH', 'QHI'];
+    const isSportsCombo = subStr.includes('tdtt') || subStr.includes('thể thao') || subStr.includes('thể dục');
+    const sampleSchoolCodes = isSportsCombo 
+      ? ['DTT', 'TDS', 'TDH', 'TDB', 'TTD', 'STS'] 
+      : ['KHA', 'NTH', 'BKA', 'QSB', 'KSA', 'DAV', 'SPH', 'QHI'];
     schools = sampleSchoolCodes.map(sCode => {
       const inst = AUDITED_INSTITUTIONS_300.find(i => i.code === sCode);
       return {
@@ -844,17 +885,80 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
           { code: 'D01', matchPercent: 94, reason: 'Tổ hợp cân bằng nhất cho Marketing, Kinh doanh Quốc tế và Quản trị Doanh nghiệp số.' },
           { code: 'D07', matchPercent: 88, reason: 'Toán - Hóa - Tiếng Anh: Tổ hợp xét tuyển mới nổi bật cho khối Tài chính và Quản trị chuỗi cung ứng.' },
         ];
-      } else {
-        // Tech, logic, AI, default
+      } else if (
+        lower.includes('đá banh') || 
+        lower.includes('đá bóng') || 
+        lower.includes('bóng đá') || 
+        lower.includes('thể thao') || 
+        lower.includes('cầu thủ') || 
+        lower.includes('gym') || 
+        lower.includes('thể hình') || 
+        lower.includes('huấn luyện viên') || 
+        lower.includes('bơi lội') || 
+        lower.includes('vận động viên') || 
+        lower.includes('thể chất') ||
+        lower.includes('tdtt') ||
+        lower.includes('t00')
+      ) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
+          '• Thiên hướng: Bạn có niềm đam mê mãnh liệt với thể thao, vận động thể chất, tinh thần đồng đội và yêu thích môi trường huấn luyện, quản lý sự kiện thi đấu hoặc kinh doanh thể thao.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng thị trường 2026: Ngành Công nghiệp Thể thao & Giải trí tại Việt Nam đang bùng nổ. Nhu cầu chuyên gia Quản lý Thể thao (Sports Management), Huấn luyện viên thể lực/bóng đá, Y học thể thao phục hồi chấn thương và Kinh doanh thể thao đang tăng trưởng trên 25%/năm.\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
+        combos = [
+          { code: 'T00', matchPercent: 99, reason: 'Tổ hợp vàng Toán - Sinh - Năng khiếu TDTT cho Sư phạm Thể chất, Huấn luyện Thể thao và Y học Thể thao (ĐH Tôn Đức Thắng, ĐH TDTT TPHCM, ĐH Sư phạm TDTT Hà Nội).' },
+          { code: 'D01', matchPercent: 94, reason: 'Toán - Văn - Tiếng Anh: Tuyển thẳng ngành Quản lý Thể thao & Sự kiện tại ĐH Tôn Đức Thắng (DTT), Kinh doanh Thể thao và Báo chí Thể thao.' },
+          { code: 'C00', matchPercent: 88, reason: 'Văn - Sử - Địa: Lợi thế vào Giáo dục Thể chất (Miễn 100% học phí theo NĐ 116), Bình luận viên và Truyền thông Thể thao.' },
+        ];
+      } else if (lower.includes('nấu ăn') || lower.includes('đầu bếp') || lower.includes('ẩm thực') || lower.includes('làm bánh') || lower.includes('nhà hàng') || lower.includes('pha chế')) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
+          '• Thiên hướng: Bạn có gu cảm thụ ẩm thực tinh tế, tính kiên nhẫn và đam mê nghệ thuật chế biến thực phẩm kết hợp quản trị dịch vụ chuẩn quốc tế.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng thị trường 2026: Ngành Quản trị Ẩm thực & Nhà hàng Khách sạn và Công nghệ Thực phẩm đang có nhu cầu nhân lực chất lượng cao rất lớn tại các chuỗi resort 5 sao và tập đoàn F&B quốc tế.\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu nhất cho bạn:';
+        combos = [
+          { code: 'D01', matchPercent: 96, reason: 'Toán - Văn - Tiếng Anh: Tối ưu cho Quản trị Nhà hàng, Dịch vụ Ăn uống và Khách sạn Quốc tế.' },
+          { code: 'B00', matchPercent: 91, reason: 'Toán - Hóa - Sinh: Tổ hợp cốt lõi cho Công nghệ Thực phẩm & Chế biến Dinh dưỡng tại ĐHBK, ĐH Nông Lâm.' },
+          { code: 'A00', matchPercent: 85, reason: 'Toán - Lý - Hóa: Mở rộng vào Quản trị Chuỗi cung ứng Thực phẩm và Kỹ thuật chế biến.' },
+        ];
+      } else if (lower.includes('du lịch') || lower.includes('hướng dẫn viên') || lower.includes('khách sạn') || lower.includes('lữ hành') || lower.includes('hàng không') || lower.includes('phi công') || lower.includes('tiếp viên')) {
+        fullIntroText = 
+          'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
+          '• Thiên hướng: Bạn yêu thích xê dịch, giao tiếp đa văn hóa, kỹ năng đối ngoại linh hoạt và phong thái dịch vụ chuyên nghiệp chuẩn quốc tế.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Triển vọng thị trường 2026: Du lịch quốc tế và Hàng không Việt Nam phục hồi tăng tốc, mở rộng mạnh đường bay châu Âu - Bắc Mỹ với dải thu nhập và phụ cấp ngoại tệ hấp dẫn.\n' +
+          'Dưới đây là 3 tổ hợp môn tối ưu nhất cho bạn:';
+        combos = [
+          { code: 'D01', matchPercent: 98, reason: 'Toán - Văn - Tiếng Anh: Tổ hợp vàng cho Quản trị Lữ hành, Khách sạn Quốc tế và Tiếp viên/Quản lý Hàng không (VAA, HANU, NEU, USSH).' },
+          { code: 'A01', matchPercent: 91, reason: 'Toán - Lý - Tiếng Anh: Mũi nhọn cho Kỹ thuật Hàng không, Quản lý Hoạt động Bay và Logistics Hàng không.' },
+          { code: 'C00', matchPercent: 86, reason: 'Văn - Sử - Địa: Ưu thế văn hóa lịch sử vượt trội cho Hướng dẫn viên Du lịch Quốc tế và Văn hóa Du lịch.' },
+        ];
+      } else if (lower.includes('tin') || lower.includes('cntt') || lower.includes('it') || lower.includes('máy tính') || lower.includes('code') || lower.includes('lập trình') || lower.includes('ai') || lower.includes('bán dẫn') || lower.includes('vi mạch') || lower.includes('kỹ thuật') || lower.includes('robot') || lower.includes('công nghệ') || lower.includes('điện tử')) {
         fullIntroText = 
           'Nexora đã tiếp nhận và phân tích hồ sơ năng lực của bạn:\n' +
           '• Thiên hướng: Bạn có thế mạnh về tư duy logic, đam mê công nghệ máy tính, giải quyết vấn đề kỹ thuật và khát khao làm chủ tương lai số.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
           '• Triển vọng thị trường 2026: Trí tuệ nhân tạo (AI), Kỹ thuật Phần mềm và Thiết kế Vi mạch Bán dẫn đang là tâm điểm ưu tiên phát triển quốc gia với mức thu nhập vượt trội.\n' +
           'Dưới đây là 3 tổ hợp môn tối ưu nhất được phân tích riêng cho bạn:';
         combos = [
           { code: 'A01', matchPercent: 98, reason: 'Tổ hợp vàng toàn diện cho CNTT, AI và Bán dẫn tại Bách Khoa, ĐHQG với lợi thế môn Tiếng Anh.' },
           { code: 'A00', matchPercent: 90, reason: 'Nền tảng Toán - Lý kinh điển cho mọi chuyên ngành Kỹ thuật Công nghệ cao và Ô tô điện.' },
           { code: 'D07', matchPercent: 86, reason: 'Toán - Hóa - Tiếng Anh rất hợp cho Kỹ thuật Hóa Dược, Vật liệu bán dẫn và Công nghệ số.' },
+        ];
+      } else {
+        // Universal multi-disciplinary overview — never assume coding/IT!
+        fullIntroText = 
+          'Nexora đã tiếp nhận hồ sơ năng lực của bạn:\n' +
+          '• Thiên hướng: Bạn đang trong giai đoạn khám phá đa chiều các lĩnh vực học tập và nghề nghiệp để tìm ra ngã rẽ phù hợp nhất với bản thân.\n' +
+          (detectedLocation ? `• Khu vực ưu tiên: ${detectedLocation}.\n` : '') +
+          '• Chiến lược 2026: Hãy ưu tiên các tổ hợp đa năng có độ phủ lớn nhất (xét tuyển hơn 1.200 ngành từ Kinh tế, Luật, Ngoại ngữ đến Kỹ thuật và Xã hội) để giữ quyền chủ động tối đa.\n' +
+          'Dưới đây là 3 tổ hợp môn linh hoạt và toàn diện nhất đề xuất cho bạn:';
+        combos = [
+          { code: 'D01', matchPercent: 96, reason: 'Toán - Ngữ văn - Tiếng Anh: Tổ hợp linh hoạt số 1 toàn quốc, mở cánh cửa vào hơn 1.200 ngành Kinh tế, Truyền thông, Luật và Quản trị.' },
+          { code: 'A01', matchPercent: 92, reason: 'Toán - Vật lý - Tiếng Anh: Cân bằng giữa tư duy logic tự nhiên và ngoại ngữ, ứng dụng cho mọi ngành Công nghệ, Kỹ thuật và Tài chính.' },
+          { code: 'C00', matchPercent: 86, reason: 'Ngữ văn - Lịch sử - Địa lý: Nền tảng khoa học xã hội vững chắc, Sư phạm (miễn 100% học phí theo NĐ 116), Báo chí và Luật.' },
         ];
       }
 
