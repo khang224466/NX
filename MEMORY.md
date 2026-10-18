@@ -89,10 +89,65 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Integrated full learner profile history into follow-up chat turns to guarantee conversation continuity.
   - Verified across all 8 audit criteria via `scripts/verify_audit_points.mjs`, `tsc --noEmit` (0 errors), and `vite build`.
 
+- **Career Decision Engine Refactor & Adaptive FSM (Completed 2026-10-18)**:
+  - Addressed core feedback: eliminated premature generation of 3 career cards after a single message.
+  - Implemented `src/engine/careerDecisionEngine.ts`:
+    * `LearnerEvidenceProfile` tracking raw inputs, stated interests, academic strengths/weaknesses, work environment preferences, real-life constraints, verified evidence, unverified hypotheses, and missing evidence.
+    * `evaluateEvidenceReadiness`: Strict gating requiring sufficient verified evidence before unlocking `CAREER_SHORTLIST`.
+    * `processDecisionTurn`: Adaptive FSM returning structured actions (`ASK_QUESTION`, `EXPLORE_INTERESTS`, `CAREER_SHORTLIST`, `MAJOR_MAPPING`, `ADMISSIONS_PLAN`, `ROADMAP`).
+    * `mapCareerToMajors`: Reverse mapping from target career role to 3 educational pathways (Direct, Adjacent, Skills/Certifications).
+    * `mapMajorToAdmissions`: Grounded university & combination options with audited historical benchmark notes.
+  - Integrated into `src/components/CareerPathwayNavigator.tsx`:
+    * Single messages now trigger empathetic acknowledgment + 1 core diagnostic question + contextual quick-reply chips.
+    * Career cards are hidden (`suggestedCareers = []`) until sufficient evidence accumulates.
+    * "Khám phá nghề này: Cần học ngành gì?" reverse-engineers major and admissions pathways.
+    * Completely excised unverified stats ("38% D01 mismatch", hallucinated 96% match, "tiêu hao năng lượng thần kinh").
+  - Test suite created: `scripts/test_decision_engine_behavior.mjs` covering all 8 behavior test cases.
+
+- **Safe Error Handling & Audit Suite Modernization (Completed 2026-10-18)**:
+  - Addressed Goal 1: Updated `scripts/verify_audit_points.mjs` Test 6 from obsolete static prompt string search (`[HỒ SƠ ĐÃ THU THẬP TỪ NGƯỜI HỌC]:`) to comprehensive verification of `LearnerEvidenceProfile` state wiring + live execution of multi-turn behavioral accumulation (7/7 PASSED).
+  - Addressed Goal 2: Fortified `CareerPathwayNavigator.tsx` (`handleAnalyzeInput` & `handleSendFollowUp`) with robust `try...catch` boundaries:
+    * Preserves existing learner profile intact upon processing errors (no half-baked writes).
+    * Never transitions workflow to success state or creates hallucinated careers/combos on failure.
+    * Resets loading indicators (`isGeneratingAnalysis`, `isAskingFollowUp`) immediately to prevent UI lockup.
+    * Displays natural Vietnamese error explanations with inline retry actions in Hero and Reality-Check steps.
+  - Verified across full stack:
+    * `npx tsx scripts/test_decision_engine_behavior.mjs`: 24/24 PASSED.
+    * `node scripts/verify_audit_points.mjs`: 7/7 PASSED.
+    * `tsc --noEmit`: Clean (0 errors).
+    * `vite build`: Succeeded in 8.64s.
+
+- **P1 & P2 Decision Engine Core Refactor (Completed 2026-10-18)**:
+  - Addressed P1 (Readiness & Unlocking):
+    * Excised `profile.turnsCount >= 3` as an unlock condition for `CAREER_SHORTLIST`.
+    * Implemented strict 3-pillar evidence accumulator in `evaluateEvidenceReadiness`: Interests (30đ) + Capabilities (25đ) + Work Environment/Values (25đ) >= 75đ AND 0 unresolved contradictions.
+    * Turn 2 immediately unlocks if all 3 pillars are satisfied; turns > 3 with vague inputs ("...", "ko biet", "sao cung duoc") stay in exploration with situation-based prompts (`suggestedCareers: []`).
+    * Proactively catches and resolves contradictions (e.g. hates desk work vs wants 8h desk office) before proposing careers.
+    * Resists pushy demands ("chốt luôn cho em 3 nghề") with empathetic refusal, explaining mismatch risks.
+  - Addressed P2 (Clause-Aware Negation & Semantic Parsing):
+    * Excised naive global `.includes()` in `updateProfileWithInput`.
+    * Implemented `splitIntoClauses` segmenting sentences by contrastive conjunctions (`nhưng`, `tuy nhiên`, `song`, `chứ không`), commas, and pivot cues.
+    * Disambiguated refuted negations (`không phải ghét Toán`), untested activities (`chưa thử thiết kế` -> `untestedInterests`), and retractions (`nghĩ lại rồi`).
+    * Disambiguated domain interest vs rejected sub-activities ("thích công nghệ nhưng không muốn lập trình").
+    * Closed medical domain blind spot (`c_medical_doctor` pathway in career proposals, major mapping `7720101`, and admissions at HMU / UMP).
+  - Verified across all test suites:
+    * `npx tsx scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED (100%).
+    * `npx tsx scripts/test_decision_engine_behavior.mjs`: 24/24 PASSED (100%).
+    * `node scripts/verify_audit_points.mjs`: 7/7 PASSED (100%).
+    * `npx tsx scripts/test_career_decision_quality_12scenarios.mjs`: 12/12 PASSED (100%, 0 failures).
+    * `tsc --noEmit`: 0 errors.
+    * `vite build`: Succeeded in 2.55s.
+
 ## 3. Current Status & Git Branch
-- **Branch**: `main` (Dev server running on `http://localhost:8443` via `dev_server.mjs`).
-- **Build Status**: Verified with `tsc --noEmit` (clean 0 errors), `vite build` (5.14s), and `verify_audit_points.mjs` (all 7 suites PASSED).
-- **Hybrid DB State**: Initialized in `data/career_guidance.duckdb` (8+ tables & views) and `data/chroma_db` (797 vectors indexed).
+- **Branch**: `main` (Dev server active on `http://localhost:8443` via `dev_server.mjs`).
+- **Modified/New Files**:
+  * `src/engine/careerDecisionEngine.ts` (clause-aware parser + 3-pillar readiness + medical + contradiction detector)
+  * `src/components/CareerPathwayNavigator.tsx` (integration + safe boundaries)
+  * `scripts/test_p1_p2_decision_engine.mjs` (new - 18 assertions for P1 & P2)
+  * `scripts/test_decision_engine_behavior.mjs` (24 assertions)
+  * `scripts/test_career_decision_quality_12scenarios.mjs` (12 scenarios quality benchmark)
+  * `scripts/verify_audit_points.mjs` (7 audit points)
+- **Status**: P1 & P2 core decision engine flaws completely solved and mathematically verified across 61 total automated assertions. Zero commit, push, or deployment performed.
 
 ## 4. Operational Directives
 - Always consult `MEMORY.md` upon session start or reset.

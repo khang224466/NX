@@ -55,6 +55,19 @@ import {
   setStoredAiProvider,
   sendAIChatMessage
 } from '../services/geminiService';
+import { 
+  processDecisionTurn, 
+  mapCareerToMajors, 
+  mapMajorToAdmissions,
+  getStoredLearnerProfile,
+  saveLearnerProfile,
+  clearStoredLearnerProfile,
+  LearnerEvidenceProfile,
+  AdaptiveCareerProposal,
+  MajorMappingPathway,
+  AdmissionsOption,
+  DecisionActionType
+} from '../engine/careerDecisionEngine';
 
 export interface CareerPathwayNavigatorProps {
   onSelectSchool?: (schoolCode: string) => void;
@@ -660,11 +673,17 @@ export interface SuggestedCareerItem {
   title: string;
   sector: string;
   riasecCode: string;
+  riasecBasis?: string;
   matchPercent: number;
+  evidenceBasis?: string[];
+  unverifiedPrerequisites?: string[];
   salaryRange: string;
+  salarySource?: string;
   automationRisk: string;
+  automationNotes?: string;
   whyFit: string;
   whyNotOthers?: string;
+  selfVerificationTask?: string;
   linkedComboCode: string;
   recommendedMajors: string[];
 }
@@ -832,93 +851,19 @@ export function generateSmartSemanticAnalysis(text: string): {
 } {
   const lower = (text || '').toLowerCase().trim();
 
-  // 0A. Học lực đều các môn / Thắc mắc về việc gán D01 / Chưa biết giỏi gì / Bắt đầu từ con số 0
-  if (
+  // 0. Xử lý qua Adaptive Decision Engine cho các câu hỏi về định hướng từ con số 0,
+  // học đều, băn khoăn D01, công nghệ & toán, sáng tạo & độc lập, chưa rõ sở thích...
+  const isAdaptiveQuery = 
     lower.includes('học đều') || 
-    (lower.includes('sao lại') && (lower.includes('d01') || lower.includes('cho khối') || lower.includes('bắt'))) || 
+    lower.includes('sao lại') || 
     lower.includes('chưa đủ để đánh giá') ||
     lower.includes('chưa đủ đánh giá') ||
     lower.includes('chưa biết giỏi gì') ||
     lower.includes('không biết giỏi gì') ||
-    lower.includes('cấu trúc phân tích') ||
-    lower.includes('thiên tài') ||
-    lower.includes('con số 0')
-  ) {
-    return {
-      text: `Chào bạn! Bạn nhận xét hoàn toàn chính xác và rất sâu sắc. Việc vội vàng gán khối D01 cho một bạn học sinh "học đều" hay "chưa biết giỏi gì" là một lối mòn tư vấn rất tai hại và thiếu chiều sâu.
-
-Theo mô hình Cây Nghề Nghiệp (Career Tree - Phoenix Ho) và quy tắc định hướng EXORA Protocol:
-1. GỐC RỄ (Bản thân bạn): Khi điểm số các môn đang sàn sàn nhau, bạn không thể nhìn vào điểm trường để chọn ngành được. Cốt lõi nằm ở mức độ tiêu hao năng lượng não bộ: Khi ngồi một mình, bạn thấy mình thoải mái nhất với việc bóc tách quy luật, tư duy logic (hướng Tự nhiên/Kỹ thuật) hay thích đọc, viết, quan sát hành vi con người và thị trường (hướng Xã hội/Kinh doanh)?
-2. TÁN LÁ HOA QUẢ (Vị trí việc làm): Vội vàng ép bạn chọn tổ hợp môn thi hay chọn trường đại học ngay lúc này là đi ngược từ ngọn. Bạn phải nhìn thấy cụ thể ngoài xã hội có những vị trí nghề nghiệp nào, công việc 8 tiếng mỗi ngày ra sao, dải lương thế nào, rồi từ nghề mới truy ngược lại cần học ngành gì và thi khối nào.
-3. RỦI RO TRÁI NGÀNH: Nếu chọn đại D01 chỉ vì "nhiều ngành", bạn rất dễ bị loãng, lên đại học thiếu động lực và nguy cơ làm trái ngành sau tốt nghiệp lên tới 38%.
-
-Dưới đây là 3 VỊ TRÍ VIỆC LÀM MỤC TIÊU (Gate 2) được thiết kế riêng cho người có trí thông minh đa diện để bạn khám phá trước. Bạn thấy bản thân có cảm tình hơn với hướng phân tích dữ liệu hay hướng giao tiếp sáng tạo? Cứ thoải mái chia sẻ thêm với mình nhé!`,
-      careers: [
-        {
-          id: 'c_data_analyst',
-          title: 'Chuyên Viên Phân Tích Dữ Liệu & Kinh Doanh (Business/Data Analyst)',
-          sector: 'Kinh Tế Số & Dữ Liệu',
-          riasecCode: 'IRC',
-          matchPercent: 96,
-          salaryRange: '18 – 42 triệu/tháng',
-          automationRisk: 'Thấp (12%)',
-          whyFit: 'Điểm giao thoa lý tưởng cho người học đều: vừa dùng tư duy phân tích logic, vừa ứng dụng giải quyết bài toán thị trường thực tế.',
-          whyNotOthers: 'Chưa ưu tiên các ngành y tế hoặc nghiên cứu cơ bản vì đòi hỏi học chế dài và áp lực chuyên biệt cao.',
-          linkedComboCode: 'A01',
-          recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
-        },
-        {
-          id: 'c_digital_growth',
-          title: 'Chuyên Viên Marketing Kỹ Thuật Số & Tăng Trưởng (Digital Growth)',
-          sector: 'Thương Mại & Truyền Thông',
-          riasecCode: 'ESA',
-          matchPercent: 90,
-          salaryRange: '15 – 38 triệu/tháng',
-          automationRisk: 'Thấp (15%)',
-          whyFit: 'Phát huy khả năng giao tiếp, nắm bắt xu hướng thị trường và tâm lý khách hàng đa kênh.',
-          whyNotOthers: 'Chưa ưu tiên các ngành kỹ thuật phần cứng và máy móc nặng do cần năng khiếu cơ khí.',
-          linkedComboCode: 'D01',
-          recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
-        },
-        {
-          id: 'c_software_eng',
-          title: 'Kỹ Sư Phần Mềm & Phát Triển Hệ Thống (Software Engineer)',
-          sector: 'Công Nghệ Thông Tin',
-          riasecCode: 'RIC',
-          matchPercent: 84,
-          salaryRange: '18 – 45 triệu/tháng',
-          automationRisk: 'Trung bình thấp (18%)',
-          whyFit: 'Môi trường làm việc chuẩn mực, rõ ràng, tập trung xây dựng sản phẩm công nghệ thực tiễn.',
-          whyNotOthers: 'Chưa ưu tiên nhóm hành chính công hay sư phạm do người học hướng tới tự do chuyên môn.',
-          linkedComboCode: 'A01',
-          recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
-        }
-      ],
-      combos: [
-        {
-          code: 'A01',
-          matchPercent: 95,
-          matchLabel: 'Logic & Công nghệ',
-          reason: 'Cân bằng tư duy logic và tiếng Anh, mở ra nhóm ngành công nghệ, tài chính số ít rủi ro trái ngành.'
-        },
-        {
-          code: 'D01',
-          matchPercent: 90,
-          matchLabel: 'Kinh tế & Xã hội',
-          reason: 'Lựa chọn rộng nếu bạn muốn học kinh doanh, marketing hoặc truyền thông (nên trau dồi thêm kỹ năng chuyên sâu).'
-        },
-        {
-          code: 'A00',
-          matchPercent: 85,
-          matchLabel: 'Kỹ thuật',
-          reason: 'Nền tảng tự nhiên vững chắc nếu bạn yêu thích máy móc, kỹ thuật công trình.'
-        }
-      ]
-    };
-  }
-  
-  // 0B. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang, bắt đầu từ con số 0
-  const isLostOrUnsure = 
+    lower.includes('chưa biết mình thích gì') ||
+    lower.includes('chưa biết thích gì') ||
+    lower.includes('không biết thích gì') ||
+    lower.includes('học lực bình thường') ||
     lower.includes('chưa biết') ||
     lower.includes('không biết') ||
     lower.includes('chưa rõ') ||
@@ -931,81 +876,21 @@ Dưới đây là 3 VỊ TRÍ VIỆC LÀM MỤC TIÊU (Gate 2) được thiết 
     lower.includes('chọn ngành gì') ||
     lower.includes('chưa có định hướng') ||
     lower.includes('bối rối') ||
-    lower.includes('không có sở thích') ||
-    lower.includes('không biết học gì') ||
-    lower.includes('tư vấn giúp');
+    lower.includes('con số 0') ||
+    lower.includes('cứ chọn d01') ||
+    lower.includes('toán chưa tốt') ||
+    lower.includes('kém toán') ||
+    lower.includes('yếu toán') ||
+    lower.includes('không thích giao tiếp') ||
+    lower.includes('ít giao tiếp') ||
+    lower.includes('công việc ổn định');
 
-  if (isLostOrUnsure) {
+  if (isAdaptiveQuery) {
+    const decision = processDecisionTurn(text);
     return {
-      text: `Chào bạn! Trước hết, bạn hãy thở phào nhẹ nhõm nhé. Ở độ tuổi học sinh, việc "chưa biết mình muốn làm gì hay giỏi gì" là chuyện hoàn toàn bình thường — thực tế hơn 70% các bạn trẻ đều trải qua cảm giác mông lung này.
-
-Bắt đầu từ con số 0 chính là cơ hội tốt nhất để bạn xây dựng lộ trình chuẩn xác theo nguyên tắc hướng nghiệp khoa học:
-1. ÁP DỤNG NGUYÊN TẮC LOẠI TRỪ: Thay vì tự hỏi mình thích gì (thường rất mông lung), bạn hãy loại trừ trước những công việc bạn "chắc chắn ghét hoặc không bao giờ muốn làm" (như sợ máu, rất ngại viết văn dài, sợ tính toán số liệu phức tạp, hoặc ngại nói trước đám đông).
-2. XEM TRƯỚC VỊ TRÍ NGHỀ NGHIỆP CỤ THỂ (Gate 2): Đừng vội chọn khối thi hay chọn trường đại học. Chúng ta phải nhìn vào công việc thực tế ngoài đời, dải lương và rủi ro bị AI thay thế trước.
-3. TRUY HỒI NGÀNH VÀ KHỐI THI (Gate 3 & 4): Khi bạn đã chọn được 1 nghề nghiệp ưng ý, hệ thống sẽ tự động chỉ ra ngành đại học đào tạo và tổ hợp môn thi nhẹ nhàng nhất cho bạn.
-
-Dưới đây là 3 vị trí việc làm an toàn, đa năng và bền vững nhất để bạn bắt đầu tìm hiểu:`,
-      careers: [
-        {
-          id: 'c_data_analyst',
-          title: 'Chuyên Viên Phân Tích Dữ Liệu & Kinh Doanh (Business Analyst)',
-          sector: 'Kinh Tế Số & Dữ Liệu',
-          riasecCode: 'IRC',
-          matchPercent: 96,
-          salaryRange: '18 – 42 triệu/tháng',
-          automationRisk: 'Thấp (12%)',
-          whyFit: 'Lựa chọn an toàn cho người chưa rõ sở thích: kết hợp tư duy số liệu và giải quyết bài toán kinh doanh.',
-          whyNotOthers: 'Chưa ưu tiên khối nghệ thuật hay y sinh thực nghiệm do cần năng khiếu hoặc cam kết học chế 6 năm.',
-          linkedComboCode: 'A01',
-          recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
-        },
-        {
-          id: 'c_digital_growth',
-          title: 'Chuyên Viên Marketing Kỹ Thuật Số & Truyền Thông (Digital Marketing)',
-          sector: 'Thương Mại & Truyền Thông',
-          riasecCode: 'ESA',
-          matchPercent: 90,
-          salaryRange: '15 – 38 triệu/tháng',
-          automationRisk: 'Thấp (15%)',
-          whyFit: 'Môi trường làm việc năng động, linh hoạt, mở rộng mạng lưới quan hệ và hiểu biết thị trường.',
-          whyNotOthers: 'Chưa ưu tiên khối kỹ thuật xưởng nặng do yêu cầu máy móc cơ điện tử.',
-          linkedComboCode: 'D01',
-          recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
-        },
-        {
-          id: 'c_software_eng',
-          title: 'Kỹ Sư Phần Mềm & Ứng Dụng (Software Engineer)',
-          sector: 'Công Nghệ Thông Tin',
-          riasecCode: 'RIC',
-          matchPercent: 84,
-          salaryRange: '18 – 45 triệu/tháng',
-          automationRisk: 'Trung bình thấp (18%)',
-          whyFit: 'Kỹ năng chuyên môn cụ thể, nhu cầu tuyển dụng toàn cầu cao và không phụ thuộc vào độ khéo ăn nói.',
-          whyNotOthers: 'Chưa ưu tiên khối bán hàng đối ngoại áp lực KPI doanh số cao.',
-          linkedComboCode: 'A01',
-          recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
-        }
-      ],
-      combos: [
-        {
-          code: 'D01',
-          matchPercent: 95,
-          matchLabel: 'Linh hoạt',
-          reason: 'Tổ hợp rộng nhất, tuyển sinh rất nhiều ngành kinh tế, xã hội, truyền thông, giúp bạn có thêm thời gian tìm hiểu.'
-        },
-        {
-          code: 'A01',
-          matchPercent: 90,
-          matchLabel: 'Đa dụng',
-          reason: 'Cân bằng giữa tư duy logic và tiếng Anh, mở ra cả khối công nghệ lẫn kinh tế số.'
-        },
-        {
-          code: 'A00',
-          matchPercent: 85,
-          matchLabel: 'Tự nhiên',
-          reason: 'Tổ hợp nền tảng kinh điển cho các trường kỹ thuật và công nghệ.'
-        }
-      ]
+      text: decision.replyText,
+      careers: (decision.suggestedCareers || []) as SuggestedCareerItem[],
+      combos: (decision.suggestedCombos || []) as SuggestedComboItem[]
     };
   }
 
@@ -1417,22 +1302,22 @@ export interface IntermediateDomainConfig {
 }
 
 export const EVEN_COGNITIVE_QUESTION = {
-  title: 'Mảnh ghép 1B (Bóc Tách Phản Xạ Nhận Thức): Khi tự học liên tục 3-4 tiếng, não bộ bạn thấy thoải mái và ít mệt mỏi nhất với dạng hoạt động nào?',
-  description: 'Người học đều có "Trí thông minh đa diện" (Multi-potentialite). Thay vì ép vào D01, ta đo lường mức độ tiêu hao năng lượng thần kinh để tìm ra bán cầu não thực sự vượt trội:',
+  title: 'Mảnh ghép 1B (Khám Phá Hoạt Động Hứng Thú Tự Nhiên): Khi tự học hoặc tìm tòi từ 3-4 tiếng, bạn cảm thấy duy trì được sự tập trung và thoải mái nhất với dạng hoạt động nào?',
+  description: 'Người học đều các môn có thiên hướng đa năng (Multi-potentialite). Hãy xem hoạt động học tập nào giúp bạn duy trì hứng thú và tập trung tự nhiên nhất mà không bị quá tải:',
   options: [
     {
       id: 'cog_stem_logic',
       label: 'Tư duy Phân tích & Suy luận Logic (Toán học, Thuật toán, Bóc tách Quy luật)',
       comboCode: 'A01',
-      tag: 'Bán Cầu Não Trái / STEM Trội',
-      desc: 'Năng lượng thần kinh hưng phấn khi bóc tách quy luật, giải bài toán khó, lập trình, công nghệ AI và bán dẫn. Khối tối ưu: A01 / A00.'
+      tag: 'Thiên Hướng STEM & Logic',
+      desc: 'Cảm thấy cuốn hút khi bóc tách quy luật, giải bài toán khó, lập trình ứng dụng hoặc cơ chế công nghệ. Khối tham chiếu: A01 / A00.'
     },
     {
       id: 'cog_social_humanities',
       label: 'Ngôn ngữ, Viết lách, Tranh biện & Cảm thụ Xã hội',
       comboCode: 'C00',
-      tag: 'Bán Cầu Não Phải / Ngôn Ngữ Trội',
-      desc: 'Bị cuốn hút bởi văn phong, câu chữ, bối cảnh lịch sử, tâm lý hành vi con người và tư duy pháp lý. Khối tối ưu: C00 / D01.'
+      tag: 'Thiên Hướng Ngôn Ngữ & Xã Hội',
+      desc: 'Bị cuốn hút bởi văn phong, câu chữ, bối cảnh lịch sử, tâm lý hành vi con người và tư duy phản biện. Khối tham chiếu: C00 / D01.'
     },
     {
       id: 'cog_biomedical_nature',
@@ -1966,6 +1851,11 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     selectedIkigai?: string;
   }>({});
 
+  // Persistent Evidence-Accumulating Learner Profile for Adaptive Engine
+  const [learnerEvidenceProfile, setLearnerEvidenceProfile] = useState<LearnerEvidenceProfile | null>(() => getStoredLearnerProfile());
+  const [adaptiveQuickReplies, setAdaptiveQuickReplies] = useState<string[]>([]);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
   // Intermediate progressive discovery state
   const [activePromptQuery, setActivePromptQuery] = useState('');
   const [detectedDomainType, setDetectedDomainType] = useState<IntermediateDomainType>('GENERAL');
@@ -2128,19 +2018,12 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     }));
 
     const text = activePromptQuery || chatInput;
-    const isUndecided = detectDomain(text) === 'UNDECIDED';
-
-    if (isUndecided) {
-      // Direct undecided learners to multi-factor discovery (Gate 0 & 1)
-      setWorkflowStep('INTERMEDIATE_DISCOVERY');
-    } else {
-      // Proceed to analyze with full context including reality check
-      handleAnalyzeInput(text, answer);
-    }
+    // Always enter the adaptive conversation flow from scratch
+    handleAnalyzeInput(text, answer);
   };
 
   // =========================================================================
-  // STEP 1: REAL AI ANALYZER (API KEY DRIVEN + QUESTION ANSWERING)
+  // STEP 1: ADAPTIVE DECISION ANALYZER (EVIDENCE-GROUNDED ADAPTIVE ENGINE)
   // =========================================================================
   const handleAnalyzeInput = async (textToAnalyze?: string, realityAnswer?: string) => {
     const text = (textToAnalyze || chatInput).trim();
@@ -2150,147 +2033,65 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     setActivePromptQuery(text);
     sfx.playUiClick();
 
-    // Detect domain type for contextual reference, but DO NOT interrupt the conversational chat flow
     const domain = detectDomain(text);
     setDetectedDomainType(domain);
-
     setIsGeneratingAnalysis(true);
+    setAnalysisError(null);
 
-    const currentKey = apiKey || getStoredApiKey() || getStoredGroqKey();
+    const userPromptContent = rAnswer 
+      ? `Băn khoăn ban đầu: "${text}"\nCâu trả lời tự vấn thực tế: "${rAnswer}"`
+      : text;
 
-    if (currentKey) {
-      // Call REAL AI via API Key!
-      try {
-        const systemPrompt = `Bạn là Nexora — Chuyên gia Cố vấn Hướng nghiệp và Định vị Tương lai từ con số 0 (theo chuẩn EXORA Protocol kết hợp Holland RIASEC, Cây Nghề Nghiệp Phoenix Ho, Schein Career Anchors và Ikigai).
+    try {
+      // Run through adaptive decision engine to determine proper state & action
+      const decision = processDecisionTurn(text, learnerEvidenceProfile, rAnswer);
+      setLearnerEvidenceProfile(decision.updatedProfile);
+      saveLearnerProfile(decision.updatedProfile);
 
-NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
-1. ĐỊNH HƯỚNG NGHỀ NGHIỆP TỪ CON SỐ 0 — TUYỆT ĐỐI KHÔNG BẮT HỌC SINH CHỌN TỔ HỢP MÔN NGAY TỪ ĐẦU!
-   - Quá trình đi từ "chưa biết gì / học đều" đến chọn tổ hợp xét tuyển là một hành trình dài gồm:
-     [Gate 0: Hiểu bản thân] ➔ [Gate 1: Định vị cá nhân] ➔ [Gate 2: Vị trí nghề nghiệp mục tiêu] ➔ [Gate 3: Chuyên ngành đào tạo] ➔ [Gate 4: Chiến lược tuyển sinh & Tổ hợp môn].
-   - Trả lời tự nhiên, ấm áp, đồng cảm như một người thầy, người anh/chị đi trước (xưng hô "mình" và gọi học sinh là "bạn" hoặc "em").
-   - NÓI CHUYỆN TỰ NHIÊN NHƯ CON NGƯỜI, TUYỆT ĐỐI KHÔNG DÙNG TỪ NGỮ ROBOT MÁY MÓC:
-     + Không xưng là "AI", không nói "Hệ thống ghi nhận", "Báo cáo chẩn đoán", "MODE SUPREME", "Ma trận đối soát", không dùng các đường kẻ gạch '━━━━'.
-   - Phân biệt rõ trong nội dung:
-     + [Thông tin bạn chia sẻ]: Ghi nhận chính xác băn khoăn và câu trả lời tự vấn thực tế của người học.
-     + [Giả thuyết định hướng]: Đưa ra nhận định gợi mở thăm dò.
-     + [Bằng chứng thực chứng 2026]: Dải thu nhập GSO, rủi ro tự động hóa và thị trường.
-   - Nếu học sinh chia sẻ chưa biết giỏi gì, học đều, hoặc hoang mang:
-     + Trấn an học sinh: đó là tâm lý rất bình thường của học sinh THPT.
-     + Chỉ ra rõ sai lầm nếu vội vã chọn khối D01 (chọn vì đông người học, dẫn đến loãng ngành, thiếu động lực và nguy cơ làm trái ngành lên tới 38%).
-     + Phân tích gợi mở dựa trên Cây Nghề Nghiệp: Gốc rễ là bản thân (sở thích, tính cách, phản xạ học tập ít tốn năng lượng não bộ nhất) ➔ Thân cành là năng lực ➔ Tán lá hoa quả là Nghề nghiệp & Thu nhập.
-   - Đưa ra 3 VỊ TRÍ NGHỀ NGHIỆP CỤ THỂ TRONG XÃ HỘI (Gate 2) phù hợp để học sinh hình dung rõ công việc hàng ngày, dải thu nhập và mức độ ảnh hưởng của AI.
-   - Với mỗi nghề, giải thích súc tích: vì sao đề xuất (whyFit) và lưu ý/tại sao chưa ưu tiên hướng khác (whyNotOthers).
-   - Cuối câu trả lời, hãy đặt 1 câu hỏi gợi mở thân thiện để bạn ấy thoải mái tâm sự tiếp.
-
-2. BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ THỐNG HIỂN THỊ 3 VỊ TRÍ NGHỀ NGHIỆP MỤC TIÊU (GATE 2):
-\`\`\`json
-{
-  "careers": [
-    {
-      "id": "c_career_1",
-      "title": "Tên Vị Trí Việc Làm Cụ Thể 1",
-      "sector": "Lĩnh Vực Ngành",
-      "riasecCode": "MÃ_RIASEC_3_CHỮ_CÁI",
-      "matchPercent": 96,
-      "salaryRange": "Dải lương P25 - P50 - P90 (VD: 18 – 45 triệu/tháng)",
-      "automationRisk": "Mức độ ảnh hưởng AI (VD: Rất thấp (8%))",
-      "whyFit": "Lý do súc tích vì sao nghề này vừa vặn với bản thân từ con số 0...",
-      "whyNotOthers": "Lý do súc tích vì sao chưa ưu tiên nhóm ngành khác...",
-      "linkedComboCode": "A01",
-      "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
-    },
-    {
-      "id": "c_career_2",
-      "title": "Tên Vị Trí Việc Làm Cụ Thể 2",
-      "sector": "Lĩnh Vực Ngành",
-      "riasecCode": "MÃ_RIASEC_3_CHỮ_CÁI",
-      "matchPercent": 90,
-      "salaryRange": "Dải lương (VD: 16 – 40 triệu/tháng)",
-      "automationRisk": "Mức độ ảnh hưởng AI (VD: Thấp (12%))",
-      "whyFit": "Lý do súc tích...",
-      "whyNotOthers": "Lý do súc tích...",
-      "linkedComboCode": "D01",
-      "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
-    },
-    {
-      "id": "c_career_3",
-      "title": "Tên Vị Trí Việc Làm Cụ Thể 3",
-      "sector": "Lĩnh Vực Ngành",
-      "riasecCode": "MÃ_RIASEC_3_CHỮ_CÁI",
-      "matchPercent": 84,
-      "salaryRange": "Dải lương (VD: 15 – 38 triệu/tháng)",
-      "automationRisk": "Mức độ ảnh hưởng AI (VD: Trung bình (18%))",
-      "whyFit": "Lý do súc tích...",
-      "whyNotOthers": "Lý do súc tích...",
-      "linkedComboCode": "A00",
-      "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
-    }
-  ]
-}
-\`\`\``;
-
-        const userPromptContent = rAnswer 
-          ? `Băn khoăn ban đầu: "${text}"\nCâu trả lời tự vấn thực tế: "${rAnswer}"`
-          : text;
-
-        let rawResponse = '';
-        if (currentKey.startsWith('gsk_')) {
-          const res = await callDirectGroqAPI(
-            currentKey,
-            [{ role: 'user', content: userPromptContent }],
-            systemPrompt,
-            'llama-3.3-70b-versatile'
-          );
-          rawResponse = res.text;
-        } else {
-          const res = await callDirectGeminiAPI(
-            currentKey,
-            [{ role: 'user', content: userPromptContent }],
-            systemPrompt,
-            'gemini-2.0-flash'
-          );
-          rawResponse = res.text;
-        }
-
-        const careers = parseCareersFromAIResponse(rawResponse);
-        const combos = parseCombosFromAIResponse(rawResponse);
-        const rawDisplayText = rawResponse.replace(/```(?:json)?\s*[\s\S]*?```/g, '').trim();
-        const cleanDisplayText = rawDisplayText
-          .replace(/^•?\s*Phân tích mong muốn:\s*["“'][^"”\n]+["”']\s*\n?/im, '')
-          .trim();
-
-        setAnalysisText(cleanDisplayText);
-        setSuggestedCareers(careers);
-        setSuggestedCombos(combos);
+      // If decision is to ask a question or explore interests, DO NOT force 3 career cards!
+      if (decision.action === 'ASK_QUESTION' || decision.action === 'EXPLORE_INTERESTS') {
+        setAnalysisText(decision.replyText);
+        setSuggestedCareers([]);
+        setSuggestedCombos([]);
         setChatMessages([
           { role: 'user', content: userPromptContent },
-          { role: 'model', content: cleanDisplayText }
+          { role: 'model', content: decision.replyText }
         ]);
+        if (decision.quickReplies && decision.quickReplies.length > 0) {
+          setAdaptiveQuickReplies(decision.quickReplies);
+        }
         setIsGeneratingAnalysis(false);
         setWorkflowStep('ANALYZED_COMBOS');
         sfx.playActionSuccess();
         return;
-      } catch (err: any) {
-        console.warn('Real AI API call failed, using smart semantic fallback:', err);
       }
-    }
 
-    // Fallback if no key or API call failed:
-    const fallback = generateSmartSemanticAnalysis(text);
-    setAnalysisText(fallback.text);
-    setSuggestedCareers(fallback.careers);
-    setSuggestedCombos(fallback.combos);
-    setChatMessages([
-      { role: 'user', content: text },
-      { role: 'model', content: fallback.text }
-    ]);
-    setIsGeneratingAnalysis(false);
-    setWorkflowStep('ANALYZED_COMBOS');
-    sfx.playActionSuccess();
+      // If decision is CAREER_SHORTLIST (enough evidence accumulated)
+      setAnalysisText(decision.replyText);
+      setSuggestedCareers((decision.suggestedCareers || []) as SuggestedCareerItem[]);
+      setSuggestedCombos((decision.suggestedCombos || []) as SuggestedComboItem[]);
+      setChatMessages([
+        { role: 'user', content: userPromptContent },
+        { role: 'model', content: decision.replyText }
+      ]);
+      if (decision.quickReplies && decision.quickReplies.length > 0) {
+        setAdaptiveQuickReplies(decision.quickReplies);
+      }
+      setIsGeneratingAnalysis(false);
+      setWorkflowStep('ANALYZED_COMBOS');
+      sfx.playActionSuccess();
+    } catch (error) {
+      console.error('[Nexora Decision Engine Error]:', error);
+      setIsGeneratingAnalysis(false);
+      // Không lưu profile dở dang, không chuyển workflow sang ANALYZED_COMBOS
+      // Không tự tạo nghề hoặc tổ hợp môn dự phòng không căn cứ
+      // Giữ nguyên hồ sơ và hiển thị thông báo tiếng Việt tự nhiên cho phép thử lại
+      setAnalysisError('Hệ thống cố vấn Nexora vừa gặp gián đoạn tạm thời khi phân tích. Hồ sơ của bạn vẫn được bảo toàn nguyên vẹn, bạn vui lòng thử lại nhé.');
+    }
   };
 
   // =========================================================================
-  // FOLLOW-UP Q&A HANDLER (HYBRID DUCKDB + CHROMADB + API KEY INTERACTIVE CHAT)
+  // FOLLOW-UP Q&A HANDLER (EVIDENCE-ACCUMULATING ADAPTIVE INTERACTIVE CHAT)
   // =========================================================================
   const handleSendFollowUp = async (customQuery?: string) => {
     const q = (customQuery || followUpInput).trim();
@@ -2303,45 +2104,39 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
     const newMessages = [...chatMessages, { role: 'user' as const, content: q }];
     setChatMessages(newMessages);
 
-    const currentKey = apiKey || getStoredApiKey() || getStoredGroqKey();
-
     try {
-      const historyWithContext = [
-        {
-          role: 'user' as const,
-          content: `[HỒ SƠ ĐÃ THU THẬP TỪ NGƯỜI HỌC]:
-• Băn khoăn ban đầu: "${activePromptQuery || chatInput}"
-${learnerProfile.realityCheckAnswer ? `• Tâm thế đối diện thực tế: "${learnerProfile.realityCheckAnswer}"` : ''}
-${selectedSubjectOption ? `• Môn thế mạnh/loại trừ: ${selectedSubjectOption}` : ''}
-${selectedWorkEnvOption ? `• Phong cách môi trường RIASEC: ${selectedWorkEnvOption}` : ''}
-${selectedTargetTierOption ? `• Phân khúc trường/Tài chính: ${selectedTargetTierOption}` : ''}
-${selectedIkigaiOption ? `• Động lực Ikigai: ${selectedIkigaiOption}` : ''}
+      // Process this turn through adaptive decision engine with accumulated evidence
+      const decision = processDecisionTurn(q, learnerEvidenceProfile);
+      setLearnerEvidenceProfile(decision.updatedProfile);
+      saveLearnerProfile(decision.updatedProfile);
 
-[YÊU CẦU ĐỐI THOẠI]:
-Hãy trả lời câu hỏi tiếp theo của học sinh một cách chân thành, tự nhiên, phân tích sâu sắc từ con số 0, phân biệt rõ dữ liệu tự khai và bằng chứng thị trường, không dùng từ ngữ robot máy móc.`
-        },
-        ...newMessages.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      ];
+      // If this turn accumulated enough evidence to reveal careers:
+      if (decision.action === 'CAREER_SHORTLIST' && decision.suggestedCareers && decision.suggestedCareers.length > 0) {
+        setSuggestedCareers(decision.suggestedCareers as SuggestedCareerItem[]);
+        setSuggestedCombos((decision.suggestedCombos || []) as SuggestedComboItem[]);
+      }
 
-      const res = await sendAIChatMessage(historyWithContext, undefined, {
-        isSupremeMode: true,
-        selectedModel: 'gemini-2.0-flash',
-        provider: currentKey?.startsWith('gsk_') ? 'groq' : 'gemini'
-      });
+      if (decision.quickReplies && decision.quickReplies.length > 0) {
+        setAdaptiveQuickReplies(decision.quickReplies);
+      }
 
-      setChatMessages([...newMessages, { role: 'model' as const, content: res.reply }]);
+      setChatMessages([...newMessages, { role: 'model' as const, content: decision.replyText }]);
+      setIsAskingFollowUp(false);
       sfx.playActionSuccess();
-    } catch (err: any) {
-      console.error('Follow-up AI failed:', err);
+    } catch (error) {
+      console.error('[Nexora Follow-Up Error]:', error);
+      setIsAskingFollowUp(false);
+      // Không lưu profile dở dang, không xóa profile hiện có
+      // Không tự tạo nghề hoặc tổ hợp môn dự phòng không căn cứ
+      // Hiển thị thông báo tiếng Việt tự nhiên và cho phép thử lại
       setChatMessages([
         ...newMessages,
-        { role: 'model' as const, content: `Xin lỗi, có lỗi kết nối: ${err?.message || 'Vui lòng thử lại sau.'}.` }
+        { 
+          role: 'model' as const, 
+          content: 'Xin lỗi bạn, hệ thống cố vấn vừa gặp gián đoạn tạm thời khi phân tích câu hỏi này. Dữ liệu đã thu thập của bạn vẫn an toàn. Bạn hãy bấm vào gợi ý bên dưới để thử lại hoặc diễn đạt theo cách khác nhé.' 
+        }
       ]);
-    } finally {
-      setIsAskingFollowUp(false);
+      setAdaptiveQuickReplies([q, 'Chia sẻ thêm về trải nghiệm học tập của bạn']);
     }
   };
 
@@ -2574,7 +2369,7 @@ ${detectedLocation ? `• Khu vực địa lý ưu tiên: ${detectedLocation}` :
 
 🔍 **[Giả Thuyết Định Hướng Của Cố Vấn (AI Suy Luận)]**:
 ${chosenSub?.id === 'sub_neutral_balanced'
-  ? `Người học có trí thông minh đa diện ("học đều") tuyệt đối không nên chọn vội D01 chỉ vì đông người học. Tỷ lệ làm trái ngành của D01 lên tới 34% - 38% nếu thiếu kỹ năng mũi nhọn. Chúng tôi đề xuất tập trung vào vị trí công việc có tư duy phân tích dữ liệu & số liệu làm nền tảng.`
+  ? `Người học có học lực đồng đều các môn cần tiếp cận từ loại công việc và kỹ năng cụ thể trước khi chọn tổ hợp thi. Việc chọn khối chỉ vì đông người đăng ký có thể khiến bạn thiếu động lực chuyên sâu trong 4 năm đại học.`
   : `Dựa trên thông tin đã chia sẻ, bạn có thiên hướng phù hợp với môi trường ứng dụng và làm việc có quy trình rõ ràng. Việc tiếp cận từ vị trí công việc cụ thể (Gate 2) sẽ giúp bạn nhìn thấy rõ con đường trước khi chốt ngành hay khối thi.`}
 
 📊 **[BẰNG CHỨNG THỰC CHỨNG 2026 (THỐNG KÊ TUYỂN DỤNG & TUYỂN SINH)]**:
@@ -2633,11 +2428,11 @@ ${chosenSub?.id === 'sub_neutral_balanced'
   // =========================================================================
   const handleGenerateDossier = (type: 'school' | 'major' | 'career', id: string, customCareer?: SuggestedCareerItem) => {
     sfx.playUiClick();
-    if (!activeCombo) return;
+    if (!activeCombo && type !== 'career') return;
 
     let fullDossier = '';
 
-    if (type === 'school') {
+    if (type === 'school' && activeCombo) {
       setSelectedSchoolCode(id);
       const school = activeCombo.schools.find(s => s.code === id) || activeCombo.schools[0];
       const majors = activeCombo.majors.filter(m => school.offeredMajors.includes(m.id));
@@ -2659,7 +2454,7 @@ ${chosenSub?.id === 'sub_neutral_balanced'
         `• Tập trung tối đa cho kỳ thi ĐGNL / ĐGTD đợt 1 để giữ suất xét tuyển sớm.\n` +
         `• Điểm môn Toán trong tổ hợp ${activeCombo.code} nên đạt từ 8.5+ để cạnh tranh các ngành hot của trường.\n` +
         `• Chuẩn bị chứng chỉ ngoại ngữ (IELTS từ 6.5+) để được quy đổi điểm 10 hoặc cộng điểm thưởng.`;
-    } else if (type === 'major') {
+    } else if (type === 'major' && activeCombo) {
       setSelectedMajorId(id);
       const major = activeCombo.majors.find(m => m.id === id) || activeCombo.majors[0];
       const schools = activeCombo.schools.filter(s => major.schools.includes(s.code));
@@ -2680,51 +2475,65 @@ ${chosenSub?.id === 'sub_neutral_balanced'
         `• Đặt nguyện vọng 2 vào các trường trọng điểm vùng có cùng mã ngành để đảm bảo cơ hội trúng tuyển.`;
     } else if (type === 'career') {
       setSelectedCareerId(id);
-      let career = activeCombo.careers.find(c => c.id === id);
-      if (!career && customCareer) {
-        career = {
-          id: customCareer.id,
-          title: customCareer.title,
-          sector: customCareer.sector,
-          desc: customCareer.whyFit,
-          salaryP50: customCareer.salaryRange,
-          salaryRange: customCareer.salaryRange,
-          automationRisk: customCareer.automationRisk,
-          requiredMajors: activeCombo.majors.slice(0, 2).map(m => m.id)
-        };
-      }
-      if (!career) {
-        career = activeCombo.careers[0];
-      }
+      const careerTitle = customCareer?.title || id;
+      const mapping = mapCareerToMajors(careerTitle);
+      const primaryMajor = mapping.directMajors[0] || {
+        code: '7480103',
+        name: 'Kỹ thuật Phần mềm (Software Engineering)',
+        coreDisciplines: ['Quy trình Agile', 'Thiết kế hệ thống', 'Kiểm thử'],
+        entryCompetencies: ['Tư duy logic quy trình'],
+        studyDuration: '4 năm',
+        considerations: 'Chương trình định hướng thực hành',
+        dataSource: 'Thông tư 74/2026/TT-BGDĐT'
+      };
 
-      let majors = activeCombo.majors.filter(m => career.requiredMajors.includes(m.id));
-      if (majors.length === 0) {
-        majors = activeCombo.majors.slice(0, 3);
-      }
-      const schoolCodes = new Set<string>();
-      majors.forEach(m => m.schools.forEach(s => schoolCodes.add(s)));
-      let schools = activeCombo.schools.filter(s => schoolCodes.has(s.code));
-      if (schools.length === 0) {
-        schools = activeCombo.schools.slice(0, 4);
-      }
+      const admissions = mapMajorToAdmissions(primaryMajor.code, learnerEvidenceProfile || undefined);
 
       fullDossier = 
-        `💼 HỒ SƠ ĐỊNH HƯỚNG NGHỀ NGHIỆP: ${career.title.toUpperCase()}\n\n` +
-        `1. THỊ TRƯỜNG LAO ĐỘNG & THU NHẬP THỰC TẾ (GATE 2: CAREER ROLE):\n` +
-        `• Lĩnh vực: ${career.sector}\n` +
-        `• Mô tả công việc: ${career.desc}\n` +
-        `• Mức thu nhập tham khảo: ${career.salaryRange}\n` +
-        `• Mức độ tác động của AI/Tự động hóa: ${career.automationRisk}\n` +
-        `• Đặc tính Holland RIASEC: Tương thích cao với phong cách làm việc của bạn\n\n` +
-        `2. CHUYÊN NGÀNH ĐÀO TẠO ĐẠI HỌC DẪN ĐẾN NGHỀ NÀY (GATE 3: MAJORS):\n` +
-        majors.map(m => `• [${m.code}] ${m.name} (Tổ hợp ${activeCombo.code}) — Điểm chuẩn 2026 dự kiến: ${m.benchmark2026Est}\n  ↳ Mô tả: ${m.desc}`).join('\n') + '\n\n' +
-        `3. TRƯỜNG ĐẠI HỌC ĐÀO TẠO & TỔ HỢP XÉT TUYỂN (GATE 4: ADMISSION STRATEGY):\n` +
-        schools.map(s => `• [${s.code}] ${s.name} (${s.city}) — ${s.badge}\n  ↳ Học phí: ${s.tuitionYearEst} | Phương thức: ${s.admissionMethods}`).join('\n') + '\n\n' +
+        `💼 HỒ SƠ ĐỊNH HƯỚNG NGHỀ NGHIỆP: ${(customCareer?.title || id).toUpperCase()}\n\n` +
+        `1. THỊ TRƯỜNG LAO ĐỘNG & BẰNG CHỨNG THỰC CHỨNG (GATE 2: CAREER ROLE):\n` +
+        `• Lĩnh vực: ${customCareer?.sector || 'Chuyên môn & Kỹ thuật số'}\n` +
+        `• Nhóm Holland RIASEC: ${customCareer?.riasecCode || 'Đang cập nhật'} ${customCareer?.riasecBasis ? `(${customCareer.riasecBasis})` : ''}\n` +
+        `• Dải thu nhập thực tế: ${customCareer?.salaryRange || '15 – 35 triệu/tháng'} ${customCareer?.salarySource ? `[Nguồn: ${customCareer.salarySource}]` : '[Ước tính tham khảo]'}\n` +
+        `• Rủi ro tác vụ lặp AI: ${customCareer?.automationRisk || 'Thấp'} ${customCareer?.automationNotes ? `(${customCareer.automationNotes})` : ''}\n` +
+        (customCareer?.evidenceBasis && customCareer.evidenceBasis.length > 0 ? `• Bằng chứng hỗ trợ từ hồ sơ của bạn:\n${customCareer.evidenceBasis.map(e => `  + ${e}`).join('\n')}\n` : '') +
+        (customCareer?.unverifiedPrerequisites && customCareer.unverifiedPrerequisites.length > 0 ? `• Yêu cầu năng lực bạn cần lưu ý / chưa xác minh:\n${customCareer.unverifiedPrerequisites.map(u => `  ! ${u}`).join('\n')}\n` : '') +
+        (customCareer?.whyNotOthers ? `• Lý do cân nhắc / Loại trừ hướng khác: ${customCareer.whyNotOthers}\n` : '') +
+        (customCareer?.selfVerificationTask ? `• Bài kiểm tra thực tế để bạn tự xác minh: ${customCareer.selfVerificationTask}\n` : '') +
+        `\n2. CÁC CON ĐƯỜNG ĐÀO TẠO ĐẠI HỌC DẪN ĐẾN NGHỀ NÀY (GATE 3: MAJORS):\n` +
+        `► CON ĐƯỜNG ĐÀO TẠO TRỰC TIẾP:\n` +
+        mapping.directMajors.map(m => 
+          `• [${m.code}] ${m.name} (${m.studyDuration})\n` +
+          `  ↳ Môn học cốt lõi: ${m.coreDisciplines.join(', ')}\n` +
+          `  ↳ Năng lực đầu vào cần thiết: ${m.entryCompetencies.join(', ')}\n` +
+          `  ↳ Lưu ý thực tế: ${m.considerations}\n` +
+          `  ↳ Nguồn tra cứu: ${m.dataSource}`
+        ).join('\n\n') + '\n\n' +
+        `► CON ĐƯỜNG GẦN / LIÊN NGÀNH (ADJACENT PATHWAYS):\n` +
+        mapping.adjacentMajors.map(a => 
+          `• [${a.code}] ${a.name}: ${a.rationale}\n` +
+          `  ↳ Hướng rẽ linh hoạt: ${a.transitionPivots.join(' · ')}`
+        ).join('\n') + '\n\n' +
+        `► LỘ TRÌNH KỸ NĂNG & CHỨNG CHỈ (SKILLS & ALTERNATIVE PATHWAYS):\n` +
+        mapping.skillsPathways.map(s => 
+          `• ${s.pathTitle}: ${s.description}\n` +
+          `  ↳ Chứng chỉ quốc tế khuyến nghị: ${s.targetCertifications.join(' · ')}`
+        ).join('\n') + '\n\n' +
+        `3. CHIẾN LƯỢC TUYỂN SINH & TỔ HỢP MÔN THỰC TẾ (GATE 4: ADMISSION STRATEGY):\n` +
+        admissions.map(adm => 
+          `• [${adm.schoolCode}] ${adm.schoolName} (${adm.city}):\n` +
+          `  ↳ Ngành: ${adm.majorName} [${adm.majorCode}]\n` +
+          `  ↳ Tổ hợp xét tuyển thực tế: ${adm.admissionCombinations.join(' · ')}\n` +
+          `  ↳ Học phí tham khảo: ${adm.tuitionPerYear}\n` +
+          `  ↳ Phương thức chính: ${adm.admissionMethods.join(' · ')}\n` +
+          `  ↳ Ghi chú điểm chuẩn: ${adm.historicalBenchmarkNote}\n` +
+          `  ↳ Lưu ý kiểm toán: ${adm.verificationNote}`
+        ).join('\n\n') + '\n\n' +
         `4. LỘ TRÌNH 4 NĂM ĐẠI HỌC & HỒ SƠ NĂNG LỰC (STAGE 5: 4-YEAR ROADMAP):\n` +
         `• Năm 1: Nắm chắc các môn cơ sở ngành, đạt chuẩn tiếng Anh (IELTS 6.0+), rèn luyện tác phong làm việc độc lập.\n` +
-        `• Năm 2: Học sâu kỹ năng chuyên môn mũi nhọn, tham gia nghiên cứu khoa học hoặc CLB học thuật.\n` +
-        `• Năm 3: Thực tập doanh nghiệp (OJT), xây dựng hồ sơ năng lực (portfolio / dự án thực tế).\n` +
-        `• Năm 4: Làm đồ án tốt nghiệp gắn với bài toán thực tế và đón đầu cơ hội tuyển dụng chính thức.`;
+        `• Năm 2: Học sâu kỹ năng chuyên môn mũi nhọn, tham gia nghiên cứu khoa học, làm bài tập lớn và dự án lab thực hành.\n` +
+        `• Năm 3: Thực tập doanh nghiệp (OJT), xây dựng hồ sơ năng lực thực tế (Portfolio / GitHub / Báo cáo nghiệp vụ).\n` +
+        `• Năm 4: Làm đồ án tốt nghiệp gắn liền bài toán thực tế và đón đầu cơ hội tuyển dụng chính thức.`;
     }
 
     setDossierFullText(fullDossier);
@@ -2734,6 +2543,10 @@ ${chosenSub?.id === 'sub_neutral_balanced'
   // Reset all to Step 0 (Initial Image 2 state)
   const handleReset = () => {
     sfx.playUiClick();
+    clearStoredLearnerProfile();
+    setLearnerEvidenceProfile(null);
+    setAdaptiveQuickReplies([]);
+    setAnalysisError(null);
     setWorkflowStep('INITIAL');
     setChatInput('');
     setActivePromptQuery('');
@@ -2873,6 +2686,20 @@ ${chosenSub?.id === 'sub_neutral_balanced'
               </button>
             </div>
           </form>
+
+          {/* Analysis Error Alert */}
+          {analysisError && workflowStep === 'INITIAL' && (
+            <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-200 text-xs flex items-center justify-between gap-3">
+              <span>{analysisError}</span>
+              <button
+                type="button"
+                onClick={() => handleAnalyzeInput()}
+                className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+              >
+                Thử lại
+              </button>
+            </div>
+          )}
 
           {/* Quick Prompt Chips */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -3014,6 +2841,20 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                   />
                 </div>
               </div>
+
+              {/* Analysis Error Alert */}
+              {analysisError && (
+                <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-200 text-xs flex items-center justify-between gap-3">
+                  <span>{analysisError}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmRealityCheck()}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              )}
 
               {/* Submit Action */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#1E293B]">
@@ -3768,21 +3609,26 @@ ${chosenSub?.id === 'sub_neutral_balanced'
 
                   {/* Contextual quick suggestion chips */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <span className="text-[10px] text-[#64748B] font-mono">Gợi ý hỏi tiếp:</span>
+                    <span className="text-[10px] text-[#64748B] font-mono">
+                      {adaptiveQuickReplies.length > 0 ? 'Gợi ý trả lời nhanh:' : 'Gợi ý hỏi tiếp:'}
+                    </span>
                     {(
-                      /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì/i.test(activePromptQuery || chatInput)
-                        ? [
-                            'Em nên chọn Tự nhiên hay Xã hội nếu chưa rõ sở thích?',
-                            'Làm sao để biết mình phù hợp với ngành nghề nào?',
-                            'Những ngành nào ít có nguy cơ làm trái ngành nhất theo thống kê CV?',
-                            'Nên chọn trường top đầu hay chọn ngành mình thích?'
-                          ]
-                        : [
-                            'Tỷ lệ làm trái ngành của nhóm này theo CV là bao nhiêu?',
-                            'So sánh cơ hội việc làm & kỹ năng cần thiết?',
-                            'Trường nào xét tuyển tổ hợp này tốt nhất?',
-                            'Học phí ngành này khoảng bao nhiêu một năm?'
-                          ]
+                      adaptiveQuickReplies.length > 0
+                        ? adaptiveQuickReplies
+                        : (
+                            /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì/i.test(activePromptQuery || chatInput)
+                              ? [
+                                  'Em nên chọn Tự nhiên hay Xã hội nếu chưa rõ sở thích?',
+                                  'Làm sao để biết mình phù hợp với ngành nghề nào?',
+                                  'Những công việc nào có môi trường ổn định, ít rủi ro?',
+                                  'Nên chọn trường top đầu hay chọn ngành mình thích?'
+                                ]
+                              : [
+                                  'So sánh cơ hội việc làm & kỹ năng cần thiết?',
+                                  'Trường nào xét tuyển ngành này tốt nhất?',
+                                  'Học phí ngành này khoảng bao nhiêu một năm?'
+                                ]
+                          )
                     ).map((sugg, idx) => (
                       <button
                         key={idx}

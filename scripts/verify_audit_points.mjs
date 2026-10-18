@@ -31,10 +31,36 @@ const hasWhyNotOthersInInterface = source.includes('whyNotOthers?: string;');
 const hasWhyNotOthersInCard = source.includes('career.whyNotOthers');
 console.log('Test 5 (Career Trade-off & Elimination Explanation whyNotOthers):', (hasWhyNotOthersInInterface && hasWhyNotOthersInCard) ? 'PASSED ✅' : 'FAILED ❌');
 
-// Test 6: Learner Profile & Conversation Continuity in Follow-Up
-const hasLearnerProfileState = source.includes('learnerProfile');
-const hasProfileInFollowUp = source.includes('[HỒ SƠ ĐÃ THU THẬP TỪ NGƯỜI HỌC]:');
-console.log('Test 6 (Conversation State & Profile Persistence):', (hasLearnerProfileState && hasProfileInFollowUp) ? 'PASSED ✅' : 'FAILED ❌');
+// Test 6: Learner Profile & Conversation Continuity in Follow-Up (Adaptive Architecture & Multi-Turn Behavior Audit)
+const hasLearnerEvidenceState = source.includes('learnerEvidenceProfile') && source.includes('getStoredLearnerProfile');
+const hasProfileInAnalyzeInput = /processDecisionTurn\s*\(\s*text\s*,\s*learnerEvidenceProfile/.test(source) &&
+  source.includes('saveLearnerProfile(decision.updatedProfile)');
+const hasProfileInFollowUp = /processDecisionTurn\s*\(\s*q\s*,\s*learnerEvidenceProfile\s*\)/.test(source) &&
+  source.includes('setLearnerEvidenceProfile(decision.updatedProfile)');
+
+// Kiểm tra hành vi tích lũy hồ sơ thực tế qua nhiều lượt bằng test runner
+let isBehaviorAccumulationVerified = false;
+let behaviorErrorDetail = '';
+try {
+  const { execSync } = await import('child_process');
+  const testOutput = execSync('npx tsx scripts/test_decision_engine_behavior.mjs', { 
+    encoding: 'utf-8', 
+    stdio: ['pipe', 'pipe', 'ignore'] 
+  });
+  isBehaviorAccumulationVerified = testOutput.includes('Test 6.2: Turn 2 đã tích lũy được Sở thích và Điểm yếu môn Toán') &&
+    testOutput.includes('Test 6.4: Đã tích lũy đủ 3 trụ cột');
+} catch (e) {
+  behaviorErrorDetail = e.message || String(e);
+}
+
+const test6Passed = hasLearnerEvidenceState && hasProfileInAnalyzeInput && hasProfileInFollowUp && isBehaviorAccumulationVerified;
+console.log('Test 6 (Conversation State & Profile Persistence):', test6Passed ? 'PASSED ✅' : 'FAILED ❌');
+if (!test6Passed) {
+  if (!hasLearnerEvidenceState) console.error('   ↳ Thiếu state learnerEvidenceProfile hoặc hàm getStoredLearnerProfile');
+  if (!hasProfileInAnalyzeInput) console.error('   ↳ handleAnalyzeInput không truyền learnerEvidenceProfile vào processDecisionTurn hoặc không lưu profile');
+  if (!hasProfileInFollowUp) console.error('   ↳ handleSendFollowUp không truyền learnerEvidenceProfile vào processDecisionTurn hoặc không cập nhật state');
+  if (!isBehaviorAccumulationVerified) console.error('   ↳ Hành vi tích lũy qua nhiều lượt chat không đạt:', behaviorErrorDetail);
+}
 
 // Test 7: Target Career First (Gate 2) -> Major (Gate 3) -> Admission & Combos (Gate 4)
 const hasGate2BeforeGate3 = source.includes('Gate 2: Target Career Roles') && source.includes('Khám phá nghề này: Cần học ngành gì?');
