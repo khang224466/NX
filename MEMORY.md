@@ -60,6 +60,12 @@ Last Updated: 2026-10-18T17:42:00+07:00
     * Dimension 3: 3-Tier Admission Matrix (Dream >26.5đ, Target 22.5-25.5đ, Safe 19.0-22.0đ) & financial insurance (Nghị định 116 for pedagogy, Quyết định 1826 for 111 STEM majors).
     * Dimension 4: 4-year university roadmap & mismatch prevention strategies.
   - Updated `buildSmartAdvisorReply` and `generateSmartSemanticAnalysis` to empathetically acknowledge the flaw of assigning D01 blindly and articulate the scientific multi-stage diagnostic process.
+- **Conversational Chatbot Flow & Human Counselor Persona Refactor (Commit `main` - 2026-10-18)**:
+  - Addressed user feedback regarding artificiality, forced questionnaires, and robotic AI jargon.
+  - Removed query hijacking in `handleAnalyzeInput` that previously forced users into `INTERMEDIATE_DISCOVERY` survey mode instead of answering directly in chat.
+  - Transformed the interaction into a genuine two-way conversational chatbot (multi-turn chat) with instant responses, 3 contextual combo reference cards, and direct follow-up input.
+  - Eliminated all robotic jargon ("MODE SUPREME", "Bán cầu não", "Ma trận đối soát", ASCII divider lines `━━━━`) across both live LLM prompts and fallback engines in `CareerPathwayNavigator.tsx` and `geminiService.ts`.
+  - Replaced with a warm, empathetic, human counselor persona ("mình" - "bạn/em") that speaks practically, explains the nuances of "học đều" and career mismatch naturally, and ends with friendly exploratory questions.
 
 ## 3. Current Status & Git Branch
 - **Branch**: `main` (Dev server running on `http://localhost:8443` via `dev_server.mjs`).

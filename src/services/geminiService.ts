@@ -699,7 +699,30 @@ export function buildSmartProfileAnalysis(profile: LearnerProfile): AIAnalysisRe
 export function buildSmartAdvisorReply(userQuestion: string): string {
   const q = (userQuestion || '').toLowerCase();
 
-  // 0. Chẩn đoán chuyên sâu cho học sinh "học đều" / Phê bình việc gán bừa D01 / Yêu cầu cấu trúc MODE SUPREME
+  // 0A. Trả lời thẳng thắn câu hỏi: AI generate hay thứ có sẵn? Muốn hoạt động như chatbot thông thường & ít từ ngữ AI
+  if (
+    q.includes('ai generate') || 
+    q.includes('thứ có sẵn') || 
+    q.includes('có sẵn') || 
+    q.includes('chatbot thông thường') || 
+    q.includes('ít ai hơn') ||
+    q.includes('ít máy móc') ||
+    q.includes('bớt ai')
+  ) {
+    return `Chào bạn, mình xin chia sẻ rất thành thật và thẳng thắn với bạn thế này nhé:
+
+1. **Về câu trả lời và kết quả có phải "AI generate" không?**
+   - Khi bạn gửi câu hỏi, hệ thống gửi trực tiếp câu hỏi đến mô hình AI (Google Gemini hoặc Groq Llama) để **tạo sinh (generate) trực tiếp theo thời gian thực**, kết hợp với dữ liệu đối soát thực tế từ cơ sở dữ liệu (điểm chuẩn 300 trường đại học, 219 tổ hợp và thống kê việc làm từ 1.500 CV).
+   - Trước đó, các câu trả lời bị dập theo khuôn mẫu cứng nhắc ("MODE SUPREME", "Ma trận đối soát", các gạch ngang dài...), khiến bạn cảm thấy nó giống như văn bản mẫu soạn sẵn và quá sặc mùi robot. Mình đã loại bỏ hoàn toàn các từ ngữ máy móc này để trò chuyện tự nhiên, gần gũi như một người cố vấn ngoài đời thật.
+
+2. **Hoạt động như một chatbot thông thường**:
+   - Bây giờ bạn có thể chat tự do, hỏi bất kỳ điều gì: từ việc băn khoăn về môn học, so sánh các ngành nghề, hỏi điểm chuẩn, học phí, cơ hội việc làm hay tâm sự về định hướng tương lai.
+   - Mình sẽ đối thoại trực tiếp với bạn từng câu một ngay trong khung chat này, lắng nghe và chia sẻ chân thành chứ không bắt bạn phải chuyển qua các biểu mẫu trắc nghiệm nếu bạn không muốn.
+
+Hiện tại bạn đang băn khoăn nhất về điều gì trên con đường chọn ngành hoặc chọn khối thi? Bạn cứ nhắn cho mình nhé!`;
+  }
+
+  // 0B. Tâm sự về học lực đều các môn / Giải thích vì sao không nên vội gán D01
   if (
     q.includes('học đều') || 
     (q.includes('sao lại') && (q.includes('d01') || q.includes('cho khối') || q.includes('bắt'))) || 
@@ -708,45 +731,23 @@ export function buildSmartAdvisorReply(userQuestion: string): string {
     q.includes('chưa biết giỏi gì') ||
     q.includes('không biết giỏi gì') ||
     q.includes('cấu trúc phân tích') ||
-    q.includes('thiên tài') ||
     q.includes('quá trình đi được') ||
     q.includes('rất rất dài')
   ) {
-    return `**[NEXORA AI Copilot · Chẩn Đoán Chuyên Sâu Đa Chiều Cho Học Sinh "Học Lực Đều" 2026]**
+    return `Chào bạn! Bạn nhận xét rất đúng và thẳng thắn. Gán đại khối D01 cho người "học đều" là lối mòn tư vấn rất tai hại.
 
-Bạn hoàn toàn chính xác và rất sắc bén! **Gán bừa khối D01 cho học sinh "học đều" là lối mòn tư duy tai hại của các hệ thống tư vấn hời hợt.**
+Học đều nghĩa là môn nào bạn cũng đạt điểm khá, nhưng lại chưa có môn nào thực sự vượt trội hay đam mê rõ ràng. Nếu vội vàng chọn D01 (Toán, Văn, Anh) chỉ vì "nó nhiều ngành", bạn rất dễ bị loãng, lên đại học mất động lực và sau này ra trường làm trái ngành.
 
-Học sinh học đều các môn không phải là người "không có thế mạnh", mà thuộc nhóm năng lực **"Trí Thông Minh Đa Diện" (Multi-potentialite)**. Quá trình đi từ "chưa biết giỏi gì / học đều" đến khi chọn được tổ hợp môn và trường đại học thực sự là một tiến trình chẩn đoán nhiều chặng. Cần áp dụng đúng **Cấu Trúc Phân Tích Chuyên Gia "MODE SUPREME" 4 Chiều**:
+Thay vì nhìn vào điểm số (vì điểm các môn đang sàn sàn nhau), mình khuyên bạn nên tự nhìn nhận lại 2 điều thực tế này:
+1. Khi ngồi học một mình ở nhà, bạn thấy mình thích làm những bài tập tính toán, logic có đáp án rõ ràng (thiên về Tự nhiên / Công nghệ), hay thích đọc sách, viết lách, tìm hiểu về tâm lý con người và xã hội?
+2. Sau này ra trường đi làm, bạn thích một công việc ngồi nghiên cứu sâu với máy tính, số liệu, hay muốn được đi lại, giao tiếp và làm việc với nhiều người?
 
-🧭 **PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND RIASEC 3 CHỮ CÁI)**:
-Khi bạn học đều cả Tự nhiên và Xã hội (Toán 8.0, Văn 8.0, Lý 8.0, Anh 8.0), điểm số trên lớp không phản ánh được đam mê. Chỉ số khoa học duy nhất cần đo là: **"Mức tiêu hao năng lượng thần kinh khi tự học 3-4 tiếng liên tục"**:
-• **Bán cầu Não Trái / STEM Trội (Nghiêng về A01 / A00 — Mã RIASEC: R-I-C)**: Não bộ bạn thấy hưng phấn khi bóc tách quy luật bài toán hóc búa, thuật toán, máy móc, mô hình dữ liệu (AI, Phần mềm, Bán dẫn, Vi mạch).
-• **Bán cầu Não Phải / Ngôn Ngữ Trội (Nghiêng về C00 / D01 — Mã RIASEC: S-A-E)**: Bạn bị cuốn hút bởi lập luận xã hội, câu chữ, bối cảnh lịch sử, tâm lý hành vi con người và tư duy pháp lý (Báo chí, Truyền thông, Luật học, Sư phạm).
-• **Tư Duy Y Sinh Thực Nghiệm (Nghiêng về B00 / D07 — Mã RIASEC: I-R-S)**: Tò mò về cơ thể người, cơ chế bệnh lý, dược chất, vi sinh và công nghệ sinh học.
-• **Tư Duy Kinh Tế / Toàn Cầu (Nghiêng về D01 / A01 — Mã RIASEC: E-S-A)**: Quan sát dòng tiền, thị trường chứng khoán, xây dựng thương hiệu và giao dịch quốc tế.
+Từ kinh nghiệm thực tế, mình gợi ý bạn 3 hướng đi cân bằng:
+• Khối A01 (Toán, Lý, Anh): Hợp nếu bạn thích tư duy logic, muốn hướng tới Công nghệ thông tin, AI, Bán dẫn hoặc Tài chính số.
+• Khối D01 (Toán, Văn, Anh): Phù hợp nếu bạn thích kinh doanh, marketing, truyền thông hoặc ngoại ngữ (nhưng cần xác định sớm 1 kỹ năng mũi nhọn).
+• Khối A00 (Toán, Lý, Hóa): Dành cho bạn nếu thích kỹ thuật truyền thống, cơ điện tử, xây dựng.
 
-🎯 **PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP TIỀM NĂNG (HEAD-TO-HEAD MATRIX)**:
-| Tiêu Chí So Sánh | Tổ Hợp A01 (Toán-Lý-Anh) | Tổ Hợp D01 (Toán-Văn-Anh) | Tổ Hợp A00 (Toán-Lý-Hóa) |
-| :--- | :--- | :--- | :--- |
-| **Môn thi & Áp lực** | Cân bằng STEM & Ngoại ngữ | Điểm chuẩn phân hóa môn Văn | Thuần tự nhiên, điểm sàn kỹ thuật cao |
-| **Độ phủ ngành** | > 850 ngành công nghệ, tài chính, kỹ thuật | > 1.200 ngành kinh tế, luật, truyền thông | > 700 ngành kỹ thuật, xây dựng, vi mạch |
-| **Tỷ lệ làm trái ngành (CV)** | **18% – 22%** (Rất thấp do kỹ năng kỹ thuật sâu) | **32% – 38%** (Cao nếu thiếu kỹ năng mũi nhọn) | **19% – 24%** (Thấp, bám sát kỹ thuật) |
-| **Dải lương 3-5 năm (GSO)** | **20 – 55 triệu/tháng** (Kỹ sư AI, Bán dẫn, FinTech) | **16 – 40 triệu/tháng** (Marketing, Kinh doanh, Quản trị) | **18 – 45 triệu/tháng** (Kỹ sư tự động hóa, cơ điện tử) |
-
-🏛️ **PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG & BẢO HIỂM TÀI CHÍNH 2026**:
-• **Tầng 1 (Mơ ước / Top Tier)**: ĐH Bách Khoa (BKA/QSB), ĐH Ngoại Thương (FTU), Kinh Tế Quốc Dân (NEU) — Thử sức năng lực tối đa.
-• **Tầng 2 (Vừa sức / High Match)**: ĐH Công nghệ ĐHQGHN (QHI), ĐH CNTT (QSC), Học viện Tài chính (HTC), ĐH Sư phạm Kỹ thuật (HCMUTE).
-• **Tầng 3 (An toàn 100% & Tiết kiệm)**: Các trường công lập hưởng chính sách Nhà nước:
-  - Khối Sư phạm: **Miễn 100% học phí + trợ cấp 3,63 tr/tháng** theo Nghị định 116.
-  - 111 ngành STEM hưởng học bổng ngân sách theo **QĐ 1826/QĐ-BGDĐT**.
-
-🗺️ **PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC CHO NGƯỜI HỌC ĐỀU (PHÒNG TRỪ TRÁI NGÀNH)**:
-• **Năm 1**: Tận dụng tư duy toàn diện để quét sạch GPA môn đại cương (> 3.5/4.0); đạt IELTS >= 6.5.
-• **Năm 2**: Chọn 1 "mũi nhọn đâm xuyên" (Data/AI, Tài chính hoặc Ngôn ngữ chuyên sâu), tránh giữ trạng thái "cái gì cũng biết nhưng không giỏi cái gì".
-• **Năm 3**: Tham gia dự án thực chiến tại doanh nghiệp (OJT), xây dựng portfolio sản phẩm thực tế.
-• **Năm 4**: Tốt nghiệp với song bằng hoặc chứng chỉ quốc tế uy tín, gia nhập các tập đoàn đa quốc gia.
-
-💡 **Khuyến nghị ngay**: Hệ thống vừa kích hoạt **Tiến Trình Chẩn Đoán Chuyên Sâu 4 Bước** ngay tại ô tìm kiếm. Bạn chỉ cần chọn ô *"Không sợ môn nào, học đều các môn"* — Nexora sẽ tự động mở **Mảnh ghép 1B (Bóc tách phản xạ não bộ)** và **Mảnh ghép Ikigai** để xác định chính xác tổ hợp mũi nhọn cho bạn!`;
+Bạn thấy bản thân mình đang có cảm tình hơn với hướng công nghệ/kỹ thuật hay hướng kinh tế/xã hội? Bạn cứ chia sẻ thêm nhé!`;
   }
 
   // Trích xuất điểm số (nếu người dùng hỏi kiểu "25.5 điểm", "26 điểm", "24 điểm")
@@ -1013,75 +1014,23 @@ export const runAIAnalysis = async (profile: LearnerProfile): Promise<AIAnalysis
   return buildSmartProfileAnalysis(profile);
 };
 
-export const SUPREME_CAREER_COUNSELOR_PROMPT = `Bạn là NEXORA SUPREME AI — Chuyên Gia Trưởng Ban Cố Vấn Hướng Nghiệp & Chiến Lược Tuyển Sinh Đại Học 2026 Cấp Quốc Gia tại Việt Nam.
+export const SUPREME_CAREER_COUNSELOR_PROMPT = `Bạn là Nexora — Chuyên viên Cố vấn Hướng nghiệp và Tuyển sinh Đại học tận tâm, giàu kinh nghiệm tại Việt Nam. Bạn đóng vai trò như một người thầy, người anh/chị đi trước thân thiện, ấm áp và luôn thấu hiểu tâm lý học sinh cũng như phụ huynh.
 
-Nhiệm vụ của bạn là phân tích thấu đáo, đa chiều, chính xác tuyệt đối để giúp học sinh và phụ huynh định hướng chọn đúng Ngành — chọn đúng Nghề — chọn đúng Trường — xây dựng Lộ trình 4 năm Đại học tối ưu nhất.
+=== NGUYÊN TẮC TRÒ CHUYỆN & PHONG CÁCH DIỄN ĐẠT ===
+1. TRÒ CHUYỆN TỰ NHIÊN NHƯ CHATBOT CON NGƯỜI:
+   - Xưng hô "mình" và gọi người dùng là "bạn" hoặc "em".
+   - Tuyệt đối KHÔNG dùng các từ ngữ máy móc, robot như: "NEXORA SUPREME AI", "Hệ thống ghi nhận", "Báo cáo chẩn đoán chuyên sâu", "MODE SUPREME", "Bán cầu não", "Ma trận đối soát".
+   - Tuyệt đối KHÔNG chèn các đường kẻ gạch thô ráp dạng '━━━━━'.
+   - Trả lời trực tiếp vào băn khoăn của bạn học sinh. Nếu bạn ấy hỏi ngắn hoặc phản biện (ví dụ: "sao lại cho D01", "học đều thì sao", "chưa biết giỏi gì"), hãy trả lời tự nhiên, đồng cảm và giải thích nhẹ nhàng, thực tế.
 
-=== 1. NGUYÊN TẮC VÀ NGUỒN DỮ LIỆU ĐỐI SOÁT CHUẨN XÁC ===
-- Thông tư 06/2026/TT-BGDĐT: Quy chế tuyển sinh đại học (xét tuyển thẳng, điểm ưu tiên khu vực/đối tượng, quy đổi chứng chỉ quốc tế IELTS/SAT/VSTEP, xét tuyển kết hợp).
-- Thông tư 74/2026/TT-BGDĐT: Danh mục mã ngành đào tạo cấp IV (VD: 7480201 - Công nghệ thông tin, 7480107 - Trí tuệ nhân tạo, 7520202 - Thiết kế vi mạch, 7340101 - Quản trị kinh doanh, 7720101 - Y khoa, 7140217 - Sư phạm Toán, 7510605 - Logistics và Chuỗi cung ứng...).
-- Cơ sở dữ liệu 300 trường Đại học & Học viện tại Việt Nam và 219 tổ hợp môn (A00, A01, B00, C00, D01, D07, X06, X26, K01, V00, T00...).
-- Thang điểm chuẩn: Luôn lưu ý phân biệt thang điểm của từng trường:
-  * Thang 30: Phổ biến toàn quốc (tổng 3 môn thi tốt nghiệp THPT).
-  * Thang 40: Nhân hệ số 2 môn chính (Toán hoặc Ngoại ngữ) như ĐH Ngoại thương (NTH), ĐH Hà Nội (HANU), ULIS ĐHQGHN (QHF).
-  * Thang 100: Đề án riêng toàn diện của ĐH Bách khoa ĐHQG-HCM (QSB: điểm ĐGNL 70-75% + THPT 20% + Học bạ 5%).
-- Chính sách Nhà nước:
-  * Nghị định 116/2020/NĐ-CP: Miễn 100% học phí khối ngành Sư phạm và hỗ trợ 3,63 triệu đồng/tháng sinh hoạt phí.
-  * Quyết định 1826/QĐ-BGDĐT: Học bổng và tài trợ đào tạo 111 ngành STEM mũi nhọn (Vi mạch Bán dẫn, AI, Công nghệ Sinh học, Vật liệu mới).
+2. CƠ SỞ DỮ LIỆU & KIẾN THỨC CHUẨN XÁC:
+   - Quy chế tuyển sinh & danh mục ngành của Bộ GD&ĐT (Thông tư 06/2026/TT-BGDĐT và TT 74/2026/TT-BGDĐT).
+   - Cơ sở dữ liệu 300 trường ĐH, 219 tổ hợp môn (A00, A01, B00, C00, D01, D07, X06, K01, V00, T00...).
+   - Chính sách Nhà nước thiết thực: Nghị định 116 (miễn 100% học phí + trợ cấp 3,63 tr/tháng khối Sư phạm), Quyết định 1826 (học bổng 111 ngành STEM).
+   - Thực tế thị trường lao động, mức thu nhập phổ biến và tình trạng làm trái ngành tại Việt Nam để đưa ra lời khuyên chân thực, không vẽ màu hồng.
 
-=== 2. MÔ HÌNH HƯỚNG NGHIỆP ĐƯỢC TÍCH HỢP TRONG PHÂN TÍCH ===
-1. Mô hình Holland RIASEC (6 nhóm tính cách & môi trường làm việc):
-   - R (Realistic - Kỹ thuật, thực hành, chế tạo)
-   - I (Investigative - Nghiên cứu, tư duy logic, khoa học)
-   - A (Artistic - Sáng tạo, thẩm mỹ, nghệ thuật)
-   - S (Social - Xã hội, con người, sư phạm, y tế)
-   - E (Enterprising - Quản trị, kinh doanh, lãnh đạo)
-   - C (Conventional - Quy chuẩn, dữ liệu, tài chính, kiểm toán)
-   Luôn suy luận ra Mã Holland 3 chữ cái đại diện cho người dùng (ví dụ: IRC, ESA, RIC, SAI...).
-2. Mô hình Ikigai (Giao thoa 4 vòng tròn): Đam mê - Sở trường học thuật - Nhu cầu thị trường tuyển dụng 2026–2030 - Mức thu nhập thực tế.
-3. Thang lương thực tế Tổng cục Thống kê (GSO) & Thị trường tuyển dụng Việt Nam (2026–2030):
-   - Mức P25 (Khởi điểm / Mới tốt nghiệp): thường 8 – 14 triệu/tháng.
-   - Mức P50 (Trung vị thị trường / 3-5 năm kinh nghiệm): thường 16 – 30 triệu/tháng.
-   - Mức P75 – P90 (Chuyên gia / Lead / Trưởng phòng): 35 – 70+ triệu/tháng (hoặc 2,000 – 4,000 USD trong ngành AI, Bán dẫn, Tài chính định lượng).
-4. Phân tích Tác động AI & Tự động hóa:
-   - Routine Automation Risk (Rủi ro tự động hóa): % tác vụ lặp có thể bị AI thay thế.
-   - AI Augmentation Index (Chỉ số cộng hưởng): Khả năng dùng AI làm đòn bẩy nhân 3-5 lần năng suất.
-
-=== 3. CẤU TRÚC PHẢN HỒI "MODE SUPREME" BẮT BUỘC ===
-Khi người dùng hỏi về chọn ngành, chọn nghề, chọn trường, hoặc chia sẻ điểm số, sở thích, tính cách, bạn hãy phân tích sâu sắc theo 4 phần chuẩn hóa sau:
-
-🧭 PHẦN 1: GIẢI MÃ THIÊN HƯỚNG TÂM LÝ & NĂNG LỰC HỌC THUẬT
-- Định vị Mã Holland RIASEC (3 chữ cái) & phân tích điểm mạnh tư duy vượt trội.
-- Nhận diện các tổ hợp môn thế mạnh tự nhiên và rào cản tâm lý/áp lực cần gỡ bỏ.
-
-🎯 PHẦN 2: TOP 3 NGÀNH & NGHỀ TỐI ƯU NHẤT (MATCH % & THỊ TRƯỜNG)
-Đưa ra chính xác Top 3 ngành học kèm:
-- Tên ngành & Mã ngành chuẩn (theo TT 74/2026/TT-BGDĐT).
-- Độ tương thích (Match %).
-- Dải thu nhập thực tế GSO (P25 Khởi điểm - P50 Trung vị - P90 Chuyên gia).
-- Chỉ số Tác động AI (Rủi ro thay thế vs Cơ hội cộng hưởng).
-- Lý do tại sao ngành này phù hợp với tính cách và năng lực của bạn.
-
-🏛️ PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG 2026
-Thiết lập chiến lược đặt nguyện vọng an toàn tuyệt đối:
-- Tầng 1: Mơ ước / Thử sức (NV 1–2 · Trường Top đầu, chuẩn cao, cơ hội bứt phá).
-- Tầng 2: Vừa sức / Mục tiêu chính (NV 3–5 · Trường Top 2 uy tín, cơ hội đỗ 75–85%).
-- Tầng 3: An toàn tuyệt đối / Bảo hiểm (NV 6–8 · Trường điểm chuẩn thấp hơn 1.5–3.0 điểm, không bao giờ trượt).
-* Kèm thông tin học phí thực tế từng trường (triệu/năm) và chính sách học bổng/miễn giảm.
-
-🗺️ PHẦN 4: LỘ TRÌNH HÀNH ĐỘNG 4 NĂM ĐẠI HỌC & KỸ NĂNG CỐT LÕI
-- Năm 1: Nền tảng học thuật & Ngoại ngữ (IELTS/TOEIC) & Tư duy logic.
-- Năm 2: Khối kiến thức chuyên ngành cốt lõi & Tham gia Lab / Dự án cá nhân.
-- Năm 3: Thực tập doanh nghiệp (Internship) & Luyện chứng chỉ chuyên môn quốc tế.
-- Năm 4: Khóa luận tốt nghiệp / Đồ án thực chiến & Hoàn thiện CV gia nhập thị trường.
-
-💡 HÀNH ĐỘNG CỤ THỂ HÔM NAY
-Gợi ý 1–2 việc bạn có thể làm ngay trên nền tảng (ví dụ: mở Máy tính điểm riêng từng trường, tra cứu chỉ tiêu 219 tổ hợp, hoặc rà soát học phí).
-
-=== PHONG CÁCH DIỄN ĐẠT ===
-- Đồng cảm, sâu sắc, thực tế, nói thẳng vào bản chất vấn đề, không sáo rỗng hay động viên chung chung.
-- Ngôn ngữ tiếng Việt chuẩn mực, giàu tính học thuật nhưng gần gũi, dễ hiểu.
-- Sử dụng markdown chuyên nghiệp (in đậm, bullet points, icon sinh động) để tạo trải nghiệm đọc trực quan, hiện đại.`;
+3. KẾT THÚC BẰNG CÂU HỎI MỞ THÂN THIỆN:
+   - Cuối mỗi câu trả lời, hãy đặt 1 câu hỏi gợi mở tự nhiên để bạn học sinh thoải mái chia sẻ tiếp những băn khoăn của mình.`;
 
 export const STANDARD_CAREER_COUNSELOR_PROMPT = `Bạn là Trợ lý AI Hướng nghiệp Nexora 2026 tại Việt Nam.
 Hãy giải đáp ngắn gọn, súc tích, thân thiện và chính xác các câu hỏi của học sinh về tuyển sinh, chọn ngành, chọn nghề, học phí và điểm chuẩn theo quy chế của Bộ GD&ĐT (Thông tư 06/2026/TT-BGDĐT và Thông tư 74/2026/TT-BGDĐT).`;
@@ -1333,7 +1282,7 @@ BẮT BUỘC: Khi trả lời, hãy tham chiếu và trích dẫn trực tiếp 
   // 5. Fallback to Local Smart Advisor Engine
   const localReply = buildSmartAdvisorReply(lastMsg);
   const supremeNotice = !geminiApiKey && !groqApiKey
-    ? `\n\n---\n🔑 **Kích hoạt MODE SUPREME Toàn Năng**: Bạn đã có API Key (Google Gemini hoặc Groq)? Hãy bấm vào nút **[⚙️ Cấu Hình API Key]** ở trên để dán API Key. Trí tuệ nhân tạo sẽ lập tức phân tích sâu 4 chiều theo đúng dữ liệu 300 trường đại học và 219 tổ hợp tuyển sinh 2026!`
+    ? `\n\n*(Mẹo: Bạn có thể cài đặt API Key Google Gemini hoặc Groq ở góc trên để trò chuyện thời gian thực và hỏi đáp không giới hạn)*`
     : '';
 
   return {

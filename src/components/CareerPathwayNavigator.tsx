@@ -715,7 +715,7 @@ export function parseCombosFromAIResponse(text: string): SuggestedComboItem[] {
 export function generateSmartSemanticAnalysis(text: string): { text: string; combos: SuggestedComboItem[] } {
   const lower = (text || '').toLowerCase().trim();
 
-  // 0A. Học lực đều các môn / Thắc mắc về việc gán D01 / Chẩn đoán chuyên sâu "MODE SUPREME"
+  // 0A. Học lực đều các môn / Thắc mắc về việc gán D01
   if (
     lower.includes('học đều') || 
     (lower.includes('sao lại') && (lower.includes('d01') || lower.includes('cho khối') || lower.includes('bắt'))) || 
@@ -727,67 +727,44 @@ export function generateSmartSemanticAnalysis(text: string): { text: string; com
     lower.includes('thiên tài')
   ) {
     return {
-      text: `🧭 [BÁO CÁO CHẨN ĐOÁN CHUYÊN SÂU "MODE SUPREME" 4 CHIỀU CHO HỌC SINH HỌC LỰC ĐỀU]
-(Hệ thống CSDL Tuyển sinh 2026 & Phân tích thực trạng 1.500 CV lao động tại Việt Nam)
+      text: `Chào bạn! Bạn nhận xét rất đúng và thẳng thắn. Việc vội vàng gán khối D01 cho học sinh "học đều" là lối mòn tư vấn rất vội vã và thiếu chiều sâu.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND: R-I-C / S-A-E)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Bản chất của học sinh "học đều": Bạn thuộc nhóm trí tuệ "Multi-potentialite" (Đa tiềm năng). Việc các hệ thống tư vấn hời hợt vội vàng gán khối D01 là một sai lầm lớn, bởi D01 tuy có độ phủ rộng nhưng tỷ lệ làm trái ngành sau ra trường lên tới 34% - 38% nếu không có chuyên môn kỹ thuật mũi nhọn.
-• Giải mã phản xạ nhận thức: Khi bạn học đều các môn, chỉ số duy nhất để bóc tách là "Năng lượng não bộ tiêu hao khi tự học liên tục 3-4 tiếng":
-  ↳ Nếu não bộ thích thú với giải bài khó, quy luật toán học, máy móc: Trục STEM (A01 / A00) là thế mạnh vượt trội.
-  ↳ Nếu não bộ hứng thú với câu chữ, cảm xúc, tâm lý con người, đàm phán: Trục Kinh tế / Xã hội (D01 / C00) là đòn bẩy.
+Học đều nghĩa là điểm số các môn đang sàn sàn nhau, bạn chưa thấy môn nào vượt trội hay đam mê rõ ràng. Nếu chọn đại D01 (Toán, Văn, Anh) chỉ vì "nhiều ngành", bạn rất dễ bị loãng, lên đại học thiếu động lực và nguy cơ ra trường làm trái ngành sau này là rất cao.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP (HEAD-TO-HEAD MATRIX)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Tiêu Chí Đánh Giá | [A01] - Mũi Nhọn STEM | [D01] - Độ Phủ Đa Năng | [A00] - Tự Nhiên Kinh Điển |
-| :--- | :--- | :--- | :--- |
-| **Môn thi cốt lõi** | Toán · Vật lý · Tiếng Anh | Toán · Ngữ văn · Tiếng Anh | Toán · Vật lý · Hóa học |
-| **Độ phủ ngành** | > 850 ngành công nghệ & tài chính | > 1.200 ngành kinh tế & truyền thông | > 700 ngành kỹ thuật xây dựng |
-| **Tỷ lệ làm trái ngành** | **18% – 22%** (Rất thấp, chuyên môn sâu) | **34% – 38%** (Cao nếu thiếu kỹ năng sâu) | **19% – 24%** (Thấp, bám sát kỹ thuật) |
-| **Dải lương 3-5 năm** | **20 – 55+ triệu/tháng** | **16 – 40 triệu/tháng** | **18 – 45 triệu/tháng** |
+Thay vì nhìn vào điểm số, mình khuyên bạn thử tự cảm nhận lại 2 điều thực tế này:
+1. Khi ngồi học hoặc tìm tòi một mình ở nhà, bạn thấy mình thích làm những việc logic, tính toán, máy tính, công nghệ (hướng Tự nhiên), hay bạn thích đọc, viết, tìm hiểu về con người, kinh doanh, truyền thông và xã hội?
+2. Trong cuộc sống hàng ngày, bạn muốn sau này làm công việc gắn với số liệu, kỹ thuật hay muốn được giao tiếp, kết nối với nhiều người?
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG & BẢO HIỂM HỌC PHÍ 2026
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• TẦNG 1 (Mơ ước / Top Tier > 26.5 điểm): Thử sức tại ĐH Bách Khoa (BKA/QSB), ĐH Ngoại Thương (FTU), Kinh Tế Quốc Dân (NEU).
-• TẦNG 2 (Vừa sức / High Match 22.5 – 25.5 điểm): ĐH Công nghệ ĐHQGHN (QHI), ĐH CNTT (QSC), Học viện Tài chính (HTC), ĐH Sư phạm Kỹ thuật (HCMUTE).
-• TẦNG 3 (An toàn 100% 19.0 – 22.0 điểm): Các trường ĐH công lập thế mạnh địa phương hoặc chương trình hưởng chính sách:
-  - Khối Sư phạm: Miễn 100% học phí + trợ cấp 3,63 triệu/tháng (Nghị định 116).
-  - 111 ngành STEM hưởng học bổng ngân sách theo QĐ 1826/QĐ-BGDĐT.
+Từ thực tế tuyển sinh và thị trường việc làm, mình gợi ý bạn 3 hướng đi cân bằng để tham khảo:
+• Khối A01 (Toán, Lý, Anh): Dành cho bạn nếu thích tư duy logic, muốn hướng tới Công nghệ thông tin, AI hoặc Tài chính số (nhóm ngành này có tỷ lệ làm đúng chuyên ngành rất cao).
+• Khối D01 (Toán, Văn, Anh): Phù hợp nếu bạn nghiêng về kinh doanh, marketing, truyền thông hoặc ngoại ngữ (nhưng nên xác định sớm 1 kỹ năng mũi nhọn).
+• Khối A00 (Toán, Lý, Hóa): Dành cho bạn nếu thích kỹ thuật truyền thống, cơ điện tử, xây dựng.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC CHO NGƯỜI HỌC ĐỀU (PHÒNG NGỪA TRÁI NGÀNH)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Năm 1: Tận dụng ưu thế học đều để đạt GPA đại cương > 3.5/4.0; chinh phục IELTS >= 6.5.
-• Năm 2: Chọn 1 "mũi nhọn đâm xuyên" (AI/Data, Phân tích tài chính hoặc Ngôn ngữ chuyên ngành), tránh dàn trải.
-• Năm 3: Thực tập thực chiến doanh nghiệp (OJT) và hoàn thiện Portfolio sản phẩm.
-• Năm 4: Tốt nghiệp với song bằng hoặc chứng chỉ quốc tế uy tín, gia nhập các tập đoàn đa quốc gia.`,
+Bạn thấy bản thân mình đang có cảm tình hơn với hướng công nghệ/kỹ thuật hay hướng kinh doanh/xã hội? Bạn cứ chia sẻ thêm với mình nhé!`,
       combos: [
         {
           code: 'A01',
-          matchPercent: 96,
-          matchLabel: 'Mũi nhọn',
-          reason: 'Tối ưu hóa bán cầu STEM Logic & Ngoại ngữ hội nhập; tỷ lệ làm trái ngành chỉ 18-22%.'
+          matchPercent: 95,
+          matchLabel: 'Logic & Công nghệ',
+          reason: 'Cân bằng tư duy logic và tiếng Anh, mở ra nhóm ngành công nghệ, tài chính số ít rủi ro trái ngành.'
         },
         {
           code: 'D01',
-          matchPercent: 91,
-          matchLabel: 'Độ phủ',
-          reason: 'Tổ hợp dự phòng linh hoạt với độ phủ >1.200 ngành (cần rèn kỹ năng chuyên môn sâu).'
+          matchPercent: 90,
+          matchLabel: 'Kinh tế & Xã hội',
+          reason: 'Lựa chọn rộng nếu bạn muốn học kinh doanh, marketing hoặc truyền thông (nên trau dồi thêm kỹ năng chuyên sâu).'
         },
         {
           code: 'A00',
-          matchPercent: 86,
-          matchLabel: 'Dự phòng',
-          reason: 'Nền tảng tự nhiên kinh điển mở rộng toàn bộ các trường Bách Khoa và Kỹ thuật cả nước.'
+          matchPercent: 85,
+          matchLabel: 'Kỹ thuật',
+          reason: 'Nền tảng tự nhiên vững chắc nếu bạn yêu thích máy móc, kỹ thuật công trình.'
         }
       ]
     };
   }
   
-  // 0B. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang, chọn bừa
+  // 0B. Nhóm: Người học chưa biết làm gì, mất định hướng, hoang mang
   const isLostOrUnsure = 
     lower.includes('chưa biết') ||
     lower.includes('không biết') ||
@@ -807,35 +784,34 @@ PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC CHO NGƯỜI HỌC ĐỀU (PHÒNG NG�
 
   if (isLostOrUnsure) {
     return {
-      text: `🧭 CHIẾN LƯỢC ĐỊNH HƯỚNG CẤP TỐC: KHI BẠN "CHƯA BIẾT PHẢI LÀM GÌ"
-• Dữ liệu Thực chứng Trấn an bạn: Theo Khảo sát thực tế 9.200 sinh viên tại 10 trường ĐH (2026), có tới 41% sinh viên từng trải qua trạng thái hoang mang, chọn bừa hoặc muốn đổi ngành vì quyết định theo cảm tính. Trạng thái "chưa biết làm gì" lúc này là hoàn toàn bình thường và là cơ hội để bạn xây dựng lộ trình an toàn có căn cứ!
+      text: `Chào bạn! Trước hết, bạn đừng quá lo lắng hay tự tạo áp lực cho mình nhé. Ở độ tuổi học sinh, việc "chưa biết mình muốn làm gì hay giỏi gì" là chuyện rất bình thường mà hầu như ai cũng từng trải qua.
 
-• 3 Nguyên tắc gỡ rối thực chiến 2026:
-  1. Giữ "Cánh cửa mở rộng nhất": Khi chưa tìm ra đam mê hẹp, tuyệt đối không chọn tổ hợp quá đặc thù. Hãy chọn tổ hợp có số lượng ngành tuyển sinh nhiều nhất toàn quốc (từ 800 - 1.200 ngành) để giữ tối đa quyền chủ động cho 2 năm đại cương.
-  2. Định vị 2 bán cầu năng lực:
-     - Bạn thấy "ngại" môn nào nhất ở trường? (Nếu sợ Toán -> đi trục Xã hội C00/D01; Nếu sợ Văn/Ngoại ngữ -> đi trục Tự nhiên A00/A01).
-     - Bạn thích làm việc với Máy tính/Dữ liệu (STEM) hay Con người/Truyền thông (Kinh tế/Xã hội)?
-  3. Khám phá sâu hơn: Bạn có thể bấm vào các gợi ý câu hỏi bên dưới để AI phân tích chi tiết từng trường hợp, hoặc làm trắc nghiệm Holland RIASEC.
+Quá trình từ chỗ "chưa biết gì" đến lúc chọn được ngành và trường phù hợp là một hành trình dài cần lắng nghe bản thân từng bước, không thể bắt ép chọn vội trong ngày một ngày hai được.
 
-Dưới đây là 3 tổ hợp môn có ĐỘ PHỦ TUYỂN SINH RỘNG NHẤT TOÀN QUỐC (Đảm bảo an toàn tối đa cho tương lai):`,
+Để cùng nhau gỡ rối từng chút một, mình gợi ý bạn 3 cách nhìn nhận gần gũi:
+1. Thử loại trừ trước: Thay vì nghĩ mình thích gì (thường rất khó), bạn hãy nghĩ xem môn học nào hoặc dạng công việc nào bạn "ngại nhất" hoặc chắc chắn không muốn làm? (Ví dụ: rất sợ tính toán phức tạp, hoặc rất ngại viết văn dài, ngại giao tiếp đám đông...)
+2. Quan sát thói quen tự nhiên: Khi có thời gian rảnh, bạn hay thích xem hoặc làm gì nhất? Bạn thích tìm tòi máy tính, vẽ vời sáng tạo, xem tin tức kinh doanh, hay chơi thể thao vận động?
+3. Giữ lựa chọn an toàn: Trong lúc đang tìm hiểu bản thân, chọn các tổ hợp có độ phủ ngành rộng sẽ giúp bạn không bị thu hẹp cơ hội khi xét tuyển đại học.
+
+Dưới đây là 3 tổ hợp môn linh hoạt và phổ biến nhất toàn quốc để bạn tham khảo trước. Bạn cứ thoải mái chia sẻ thêm với mình về những điều bạn thích hoặc môn bạn thấy đỡ ngại nhất nhé!`,
       combos: [
         {
           code: 'D01',
-          matchPercent: 98,
-          matchLabel: 'Độ phủ',
-          reason: 'Độ phủ rộng nhất toàn quốc (>1.200 ngành từ Kinh tế, Luật, Marketing, Truyền thông đến Ngôn ngữ). Giúp bạn linh hoạt chọn chuyên ngành sau khi đã vững tâm lý.'
+          matchPercent: 95,
+          matchLabel: 'Linh hoạt',
+          reason: 'Tổ hợp rộng nhất, tuyển sinh rất nhiều ngành kinh tế, xã hội, truyền thông, giúp bạn có thêm thời gian tìm hiểu.'
         },
         {
           code: 'A01',
-          matchPercent: 94,
-          matchLabel: 'Độ phủ',
-          reason: 'Cân bằng hoàn hảo giữa tư duy logic tự nhiên và ngoại ngữ hội nhập (Công nghệ, AI, Bán dẫn, FinTech, Logistics quốc tế).'
+          matchPercent: 90,
+          matchLabel: 'Đa dụng',
+          reason: 'Cân bằng giữa tư duy logic và tiếng Anh, mở ra cả khối công nghệ lẫn kinh tế số.'
         },
         {
           code: 'A00',
-          matchPercent: 88,
-          matchLabel: 'Độ phủ',
-          reason: 'Tổ hợp kinh điển của khối Khoa học Tự nhiên & Kỹ thuật, mở rộng vào mọi trường Bách Khoa, Giao Thông, Xây Dựng và Kinh Tế lớn.'
+          matchPercent: 85,
+          matchLabel: 'Tự nhiên',
+          reason: 'Tổ hợp nền tảng kinh điển cho các trường kỹ thuật và công nghệ.'
         }
       ]
     };
@@ -858,20 +834,19 @@ Dưới đây là 3 tổ hợp môn có ĐỘ PHỦ TUYỂN SINH RỘNG NHẤT T
     lower.includes('t00')
   ) {
     return {
-      text: `⚽ PHÂN TÍCH CHUYÊN SÂU LĨNH VỰC THỂ DỤC THỂ THAO & BÓNG ĐÁ:
-• Định vị năng lực (Mã Holland: R-S-E - Vận động, Xã hội, Quản trị): Bạn có thể lực tốt, tinh thần đồng đội cao, tư duy chiến thuật và đam mê môi trường thi đấu/huấn luyện thể thao.
-• 4 Hướng đi sự nghiệp thực tế đón đầu thị trường 2026:
-  1. Quản Lý Thể Thao & Sự Kiện (Sports Management): Vận hành CLB bóng đá chuyên nghiệp, quản lý giải đấu, đàm phán hợp đồng cầu thủ và thương mại hóa bản quyền giải đấu.
-  2. Huấn Luyện Thể Thao & Bóng Đá: Đào tạo cầu thủ trẻ tại các học viện bóng đá (PVF, Viettel, HAGL...), chuyên gia thể lực và trợ lý chiến thuật.
-  3. Y Học Thể Thao & Phục Hồi Chấn Thương: Bác sĩ/Chuyên viên vật lý trị liệu, phục hồi dây chằng và cơ bắp cho vận động viên thi đấu đỉnh cao.
-  4. Truyền Thông & Báo Chí Thể Thao: Bình luận viên bóng đá, biên tập viên thể thao và quản trị truyền thông hình ảnh cho các vận động viên.
-• Trường đào tạo trọng điểm: ĐH Tôn Đức Thắng (DTT - Số 1 về Quản lý Thể thao & Golf), ĐH TDTT TP.HCM (TDS), ĐH Sư Phạm TDTT Hà Nội (TDH - Miễn 100% học phí theo NĐ 116), ĐH TDTT Bắc Ninh (TDB).
+      text: `Chào bạn! Đam mê thể thao, vận động và bóng đá là một thế mạnh rất tuyệt vời. Ngành thể thao hiện nay không chỉ dừng lại ở thi đấu chuyên nghiệp, mà còn mở ra nhiều hướng đi nghề nghiệp rất hấp dẫn:
+• Quản lý thể thao & sự kiện: Vận hành CLB bóng đá chuyên nghiệp, quản lý giải đấu và thương mại hóa bản quyền hình ảnh.
+• Huấn luyện thể thao & đào tạo trẻ: Làm việc tại các học viện bóng đá (PVF, Viettel, HAGL...), chuyên gia thể lực hoặc trợ lý chiến thuật.
+• Y học thể thao & phục hồi chấn thương: Chuyên viên vật lý trị liệu, phục hồi thể lực và cơ bắp cho vận động viên.
+• Truyền thông & báo chí thể thao: Bình luận viên bóng đá, sáng tạo nội dung và quản trị hình ảnh vận động viên.
 
-Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+Các trường đào tạo trọng điểm gồm: ĐH Tôn Đức Thắng (DTT), ĐH TDTT TP.HCM (TDS), ĐH Sư Phạm TDTT Hà Nội (TDH - miễn 100% học phí theo NĐ 116), ĐH TDTT Bắc Ninh (TDB).
+
+Dưới đây là 3 tổ hợp môn xét tuyển phù hợp nhất cho bạn:`,
       combos: [
         { code: 'T00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp chuẩn vàng cho Huấn luyện viên, Giáo dục Thể chất và Y học Thể thao.' },
         { code: 'D01', matchPercent: 94, matchLabel: 'Khớp', reason: 'Xét tuyển thẳng ngành Quản lý Thể thao & Sự kiện (DTT), Kinh doanh & Truyền thông Thể thao.' },
-        { code: 'C00', matchPercent: 88, matchLabel: 'Khớp', reason: 'Lợi thế vào Giáo dục Thể chất (Miễn 100% học phí NĐ 116) và Bình luận viên bóng đá.' }
+        { code: 'C00', matchPercent: 88, matchLabel: 'Khớp', reason: 'Lợi thế vào Giáo dục Thể chất (Miễn 100% học phí NĐ 116) và Bình luận viên thể thao.' }
       ]
     };
   }
@@ -879,10 +854,9 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
   // 2. Y Tế / Dược / Bác sĩ
   if (lower.includes('y ') || lower.includes('bác sĩ') || lower.includes('dược') || lower.includes('nha khoa') || lower.includes('chữa bệnh') || lower.includes('y tế') || lower.includes('b00')) {
     return {
-      text: `🩺 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KHOA HỌC SỨC KHỎE & Y DƯỢC:
-• Định vị năng lực (Mã Holland: I-S-C - Nghiên cứu, Phục vụ xã hội, Chuẩn xác): Kiên nhẫn, đạo đức nghề nghiệp cao và tư duy ghi nhớ logic sinh học - hóa học sâu sắc.
-• Triển vọng thị trường 2026: Ngành Y Dược là ngành an toàn nhất trước làn sóng AI (AI không thể thay thế bàn tay bác sĩ lâm sàng và nha sĩ). Nhu cầu nhân lực chất lượng cao tại các bệnh viện công lập và quốc tế luôn đạt mức cao nhất.
-• Trường đào tạo trọng điểm: ĐH Y Hà Nội (HMU), ĐH Y Dược TP.HCM (YDS), ĐH Y Dược Cần Thơ (YCT), ĐH Y Dược Huế.
+      text: `Chào bạn! Nguyện vọng theo học ngành Y Dược và chăm sóc sức khỏe là một lựa chọn rất đáng trân trọng. Khối ngành này đòi hỏi sự kiên trì, tỉ mỉ và nền tảng Sinh - Hóa vững vàng. Đổi lại, đây là ngành nghề có giá trị nhân văn cao, công việc luôn ổn định lâu dài và ít chịu rủi ro bị AI thay thế.
+
+Các trường đào tạo hàng đầu gồm: ĐH Y Hà Nội (HMU), ĐH Y Dược TP.HCM (YDS), ĐH Y Dược Cần Thơ (YCT), Học viện Quân Y (miễn 100% học phí và chi phí sinh hoạt).
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
@@ -896,10 +870,9 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
   // 3. Kinh doanh / Tài chính / Marketing / Logistics
   if (lower.includes('kinh doanh') || lower.includes('kinh tế') || lower.includes('tài chính') || lower.includes('marketing') || lower.includes('tiền') || lower.includes('đàm phán') || lower.includes('ngân hàng') || lower.includes('chứng khoán') || lower.includes('logistics')) {
     return {
-      text: `📈 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KINH DOANH, TÀI CHÍNH & THƯƠNG MẠI:
-• Định vị năng lực (Mã Holland: E-C-S - Quản trị, Dữ liệu, Giao tiếp): Nhạy bén với thị trường, tư duy định lượng tốt và khả năng thuyết phục, thương lượng đối tác.
-• Triển vọng thị trường 2026: Bùng nổ nhu cầu nhân sự FinTech (Công nghệ Tài chính), Chuỗi cung ứng quốc tế và E-Commerce xuyên biên giới.
-• Trường đào tạo trọng điểm: ĐH Ngoại Thương (FTU), ĐH Kinh Tế Quốc Dân (NEU), ĐH Kinh Tế TP.HCM (UEH), Học viện Tài Chính (HTC).
+      text: `Chào bạn! Khối ngành Kinh doanh, Tài chính và Marketing luôn là một trong những lựa chọn năng động và nhiều cơ hội việc làm nhất. Lĩnh vực này rất phù hợp nếu bạn thích giao tiếp, nhạy bén với thị trường, thích quan sát cách dòng tiền và các doanh nghiệp vận hành.
+
+Các trường đào tạo hàng đầu gồm: ĐH Ngoại Thương (FTU), ĐH Kinh Tế Quốc Dân (NEU), ĐH Kinh Tế TP.HCM (UEH), Học viện Tài Chính (HTC).
 
 Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
       combos: [
@@ -913,12 +886,11 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
   // 4. Mỹ thuật / Kiến trúc / Thiết kế / Vẽ
   if (lower.includes('vẽ') || lower.includes('kiến trúc') || lower.includes('thiết kế') || lower.includes('mỹ thuật') || lower.includes('đồ họa') || lower.includes('nội thất')) {
     return {
-      text: `🎨 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KIẾN TRÚC & THIẾT KẾ SÁNG TẠO:
-• Định vị năng lực (Mã Holland: A-R-I - Nghệ thuật, Kỹ thuật, Trực giác): Cảm thụ thị giác vượt trội, tư duy không gian 3 chiều và khả năng phối trộn thẩm mỹ với giải pháp kỹ thuật.
-• Triển vọng thị trường 2026: Thiết kế Game 3D, Đồ họa truyền thông thị giác và Kiến trúc công trình sinh thái đang phát triển thần tốc.
-• Trường đào tạo trọng điểm: ĐH Kiến Trúc Hà Nội (KTA), ĐH Kiến Trúc TP.HCM (KTS), ĐH Mỹ Thuật Công Nghiệp.
+      text: `Chào bạn! Nếu bạn có năng khiếu thẩm mỹ, cảm thụ không gian và thích vẽ vời, các ngành Kiến trúc công trình, Thiết kế đồ họa và Thiết kế nội thất/game là môi trường rất tuyệt vời để bạn thỏa sức sáng tạo.
 
-Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+Các trường đào tạo trọng điểm gồm: ĐH Kiến Trúc Hà Nội (KTA), ĐH Kiến Trúc TP.HCM (KTS), ĐH Mỹ Thuật Công Nghiệp.
+
+Dưới đây là các tổ hợp môn xét tuyển phù hợp nhất cho bạn:`,
       combos: [
         { code: 'V00', matchPercent: 99, matchLabel: 'Khớp', reason: 'Tổ hợp vàng chuẩn quốc gia cho Kiến trúc và Quy hoạch đô thị.' },
         { code: 'H00', matchPercent: 94, matchLabel: 'Khớp', reason: 'Chuyên sâu cho Thiết kế Đồ họa và Nội thất.' },
@@ -930,12 +902,11 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
   // 5. Công nghệ / Lập trình / AI / Kỹ thuật
   if (lower.includes('máy tính') || lower.includes('cntt') || lower.includes('it') || lower.includes('lập trình') || lower.includes('code') || lower.includes('ai') || lower.includes('phần mềm') || lower.includes('bán dẫn') || lower.includes('robot') || lower.includes('kỹ thuật')) {
     return {
-      text: `💻 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH CÔNG NGHỆ, TRÍ TUỆ NHÂN TẠO & KỸ THUẬT SỐ:
-• Định vị năng lực (Mã Holland: I-R-C - Nghiên cứu, Kỹ thuật, Logic): Tư duy logic cấu trúc, khả năng trừu tượng hóa vấn đề và đam mê ứng dụng máy tính.
-• Triển vọng thị trường 2026: Trí tuệ nhân tạo (AI), Kỹ thuật Phần mềm và Thiết kế Vi mạch Bán dẫn là trụ cột ưu tiên số 1 của quốc gia.
-• Trường đào tạo trọng điểm: ĐH Bách Khoa Hà Nội (BKA), ĐH Bách Khoa TP.HCM (QSB), ĐH Công Nghệ ĐHQGHN (QHI), ĐH CNTT ĐHQG-HCM (QST).
+      text: `Chào bạn! Định hướng theo Công nghệ thông tin, Lập trình và Trí tuệ nhân tạo (AI) là lựa chọn đón đầu xu thế rất mạnh mẽ. Nếu bạn có tư duy logic, thích tìm tòi máy tính hoặc giải quyết các bài toán kỹ thuật thì đây là môi trường rất phù hợp.
 
-Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+Các trường đào tạo trọng điểm gồm: ĐH Bách Khoa Hà Nội (BKA), ĐH Bách Khoa TP.HCM (QSB), ĐH Công Nghệ ĐHQGHN (QHI), ĐH CNTT ĐHQG-HCM (QST).
+
+Dưới đây là 3 tổ hợp môn xét tuyển hàng đầu:`,
       combos: [
         { code: 'A01', matchPercent: 98, matchLabel: 'Khớp', reason: 'Tổ hợp toàn diện nhất cho AI và Phần mềm với lợi thế ngoại ngữ.' },
         { code: 'A00', matchPercent: 92, matchLabel: 'Khớp', reason: 'Nền tảng tự nhiên kinh điển cho mọi chuyên ngành Kỹ thuật và Bán dẫn.' },
@@ -947,15 +918,14 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
   // 6. Ngôn ngữ / Xã hội / Sư phạm / Báo chí / Luật
   if (lower.includes('văn') || lower.includes('sử') || lower.includes('địa') || lower.includes('báo') || lower.includes('truyền thông') || lower.includes('luật') || lower.includes('sư phạm') || lower.includes('xã hội')) {
     return {
-      text: `📚 PHÂN TÍCH CHUYÊN SÂU KHỐI NGÀNH KHOA HỌC XÃ HỘI, BÁO CHÍ, LUẬT & SƯ PHẠM:
-• Định vị năng lực (Mã Holland: S-A-E - Xã hội, Ngôn ngữ, Lập luận): Khả năng diễn đạt ngôn ngữ tinh tế, trực giác xã hội và tư duy phản biện.
-• Triển vọng thị trường 2026: Khối ngành Sư phạm được Miễn 100% học phí và trợ cấp sinh hoạt theo NĐ 116. Truyền thông số và Luật thương mại quốc tế có nhu cầu nhân sự rất cao.
-• Trường đào tạo trọng điểm: ĐH Sư Phạm Hà Nội (SPH), ĐH Sư Phạm TP.HCM (SPS), ĐH Luật Hà Nội, Học viện Báo chí & Tuyên truyền (HBT), ĐH KHXH&NV.
+      text: `Chào bạn! Các ngành Truyền thông, Báo chí, Luật và Sư phạm rất phù hợp nếu bạn yêu thích ngôn ngữ, viết lách, thích tìm hiểu về con người và các vấn đề xã hội. Đặc biệt, khối ngành Sư phạm hiện nay còn được Nhà nước miễn 100% học phí và hỗ trợ sinh hoạt phí 3,63 triệu/tháng theo Nghị định 116.
 
-Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
+Các trường đào tạo trọng điểm gồm: ĐH Sư Phạm Hà Nội (SPH), ĐH Sư Phạm TP.HCM (SPS), ĐH Luật Hà Nội, Học viện Báo chí & Tuyên truyền (HBT), ĐH KHXH&NV.
+
+Dưới đây là 3 tổ hợp môn xét tuyển thế mạnh cho bạn:`,
       combos: [
         { code: 'D01', matchPercent: 96, matchLabel: 'Khớp', reason: 'Tổ hợp linh hoạt số 1 cho Truyền thông, Marketing, Luật và Ngôn ngữ.' },
-        { code: 'C00', matchPercent: 92, matchLabel: 'Khớp', reason: 'Ưu thế số 1 vào Sư phạm (Miễn HP), Báo chí và Luật.' },
+        { code: 'C00', matchPercent: 92, matchLabel: 'Khớp', reason: 'Ưu thế số 1 vào Sư phạm (Miễn học phí), Báo chí và Luật.' },
         { code: 'A01', matchPercent: 84, matchLabel: 'Khớp', reason: 'Mở rộng vào Phân tích dữ liệu truyền thông và Quản trị thông tin.' }
       ]
     };
@@ -963,11 +933,7 @@ Dưới đây là 3 tổ hợp môn xét tuyển tối ưu nhất cho bạn:`,
 
   // General fallback
   return {
-    text: `🧭 PHÂN TÍCH ĐỊNH HƯỚNG NĂNG LỰC TOÀN DIỆN:
-• Tóm lược nhu cầu: Hệ thống ghi nhận bạn đang tìm kiếm lộ trình linh hoạt mở rộng cơ hội cho tương lai.
-• Lời khuyên chiến lược 2026: Ưu tiên các tổ hợp môn có tính liên ngành và độ phủ lớn (xét tuyển hơn 1.200 ngành) để giữ quyền chủ động tối đa cho tương lai.
-
-Dưới đây là 3 tổ hợp môn linh hoạt và toàn diện nhất đề xuất cho bạn:`,
+    text: `Chào bạn! Mình đã ghi nhận chia sẻ của bạn. Để giúp bạn có cái nhìn rõ ràng và thực tế hơn, mình gợi ý 3 tổ hợp môn có độ phủ tuyển sinh rộng và linh hoạt nhất hiện nay để bạn tham khảo trước. Bạn cứ thoải mái chia sẻ thêm bất kỳ suy nghĩ hay băn khoăn nào của mình nhé:`,
     combos: [
       { code: 'D01', matchPercent: 95, matchLabel: 'Độ phủ', reason: 'Độ phủ rộng nhất toàn quốc, tuyển sinh hơn 1.200 ngành học đa lĩnh vực.' },
       { code: 'A01', matchPercent: 90, matchLabel: 'Linh hoạt', reason: 'Cân bằng hoàn hảo giữa tư duy logic kỹ thuật và hội nhập quốc tế.' },
@@ -1681,22 +1647,9 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     setActivePromptQuery(text);
     sfx.playUiClick();
 
-    const isUndecided = 
-      /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì|không biết giỏi gì|chưa biết học gì|không biết học gì|chưa có định hướng|bối rối|không có sở thích|mù tịt|học đều|học lực đều|chưa đủ để đánh giá|chưa đủ đánh giá|sao lại cho d01|sao lại cho khối/i.test(text);
-
-    if (isUndecided) {
-      // Direct into progressive intermediate discovery to gather all needed factors!
-      setDetectedDomainType('UNDECIDED');
-      setSelectedSubjectOption('');
-      setSelectedEvenStyleOption('');
-      setSelectedWorkEnvOption('');
-      setSelectedTargetTierOption('');
-      setSelectedIkigaiOption('');
-      setIsGeneratingAnalysis(false);
-      setWorkflowStep('INTERMEDIATE_DISCOVERY');
-      sfx.playActionSuccess();
-      return;
-    }
+    // Detect domain type for contextual reference, but DO NOT interrupt the conversational chat flow
+    const domain = detectDomain(text);
+    setDetectedDomainType(domain);
 
     setIsGeneratingAnalysis(true);
 
@@ -1705,28 +1658,22 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     if (currentKey) {
       // Call REAL AI via API Key!
       try {
-        const systemPrompt = `Bạn là NEXORA SUPREME AI — Chuyên Gia Trưởng Ban Cố Vấn Tuyển Sinh & Hướng Nghiệp Đại Học 2026 tại Việt Nam.
-Nhiệm vụ của bạn:
-1. TRẢ LỜI ĐỒNG CẢM, CHUYÊN NGHIỆP, THỰC CHỨNG & ĐÚNG TRỌNG TÂM:
-   - TUYỆT ĐỐI KHÔNG lặp lại máy móc câu của người dùng dạng: '• Phân tích mong muốn: "..."'. Hãy đi thẳng vào phân tích tâm lý, số liệu hoặc giải pháp gỡ rối.
-   - TRƯỜNG HỢP NGƯỜI DÙNG "CHƯA BIẾT LÀM GÌ", "MẤT ĐỊNH HƯỚNG", "HOANG MANG":
-     + Trấn an bằng số liệu thực chứng (VD: Theo khảo sát KHKT trên 9.200 sinh viên tại 10 trường ĐH, 41% từng trải qua hoang mang hoặc muốn đổi ngành vì quyết định theo cảm tính. Đây là trạng thái bình thường).
-     + Đưa ra 3 nguyên tắc gỡ rối: Giữ cánh cửa mở rộng nhất (chọn tổ hợp có độ phủ cao nhất toàn quốc >1.000 ngành như D01, A01 để linh hoạt thích ứng), định vị 2 bán cầu năng lực (Tự nhiên vs Xã hội, ghét/ngại môn nào nhất), và phương pháp loại trừ dần.
-     + Ở khối JSON, dùng "matchLabel": "Độ phủ" hoặc "Độ an toàn" thay vì "Khớp" (vì người dùng chưa có mục tiêu ngành hẹp).
-   - TRƯỜNG HỢP CÓ SỞ THÍCH HOẶC ĐỊNH HƯỚNG CỤ THỂ (VD: "thích đá bóng", "yêu thích AI", "muốn kinh doanh"):
-     + Phân tích sâu các hướng đi thực tế, triển vọng và kỹ năng.
-2. ĐỊNH VỊ NĂNG LỰC & MÃ HOLLAND RIASEC phù hợp.
-3. ĐỀ XUẤT TOP 3 TỔ HỢP MÔN THI THPT 2026 TỐI ƯU KÈM LÝ DO THỰC CHIẾN:
-   - TUYỆT ĐỐI KHÔNG lặp lại tên các môn ở đầu lý do (ví dụ: KHÔNG viết "Toán - Ngữ văn - Tiếng Anh: ..."), vì giao diện đã hiển thị sẵn danh sách môn thi.
-4. ĐẶT 1-2 CÂU HỎI GỢI MỞ HỮU ÍCH ĐỂ TIẾP TỤC HƯỚNG DẪN HỌC SINH LỰA CHỌN CỤ THỂ.
+        const systemPrompt = `Bạn là Nexora — Chuyên viên Cố vấn Hướng nghiệp và Tuyển sinh Đại học tận tâm, giàu kinh nghiệm tại Việt Nam (xưng hô "mình" và gọi học sinh là "bạn" hoặc "em").
+Phong cách giao tiếp:
+1. NÓI CHUYỆN TỰ NHIÊN, ĐỜI THƯỜNG NHƯ MỘT CHATBOT CON NGƯỜI:
+   - Ấm áp, đồng cảm, lắng nghe và thấu hiểu tâm lý học sinh như một người thầy, người anh/chị đi trước.
+   - TUYỆT ĐỐI KHÔNG dùng các từ ngữ máy móc, robot như: "NEXORA SUPREME AI", "Hệ thống ghi nhận", "Báo cáo chẩn đoán", "MODE SUPREME", "Bán cầu não", "Ma trận đối soát", và không dùng các đường kẻ gạch '━━━━'.
+   - Trả lời trực tiếp vào câu hỏi hoặc thắc mắc của bạn học sinh.
+   - Nếu bạn ấy bối rối, chưa biết mình giỏi gì, hoặc thắc mắc vì sao học đều lại bị gán D01: Hãy giải thích nhẹ nhàng, thực tế, chỉ ra mặt trái của việc chọn vội D01 (loãng ngành, mất động lực, dễ làm trái ngành), và gợi ý cách tự khám phá bản thân qua sở thích thực tế, môn học ít ngại nhất.
+   - Cuối câu trả lời, hãy đặt 1 câu hỏi gợi mở thân thiện để bạn ấy thoải mái tâm sự tiếp.
 
-BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
+2. BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ THỐNG HIỂN THỊ 3 THẺ TỔ HỢP GỢI Ý THAM KHẢO:
 \`\`\`json
 {
   "combos": [
-    { "code": "MÃ_TỔ_HỢP_1", "matchPercent": 98, "matchLabel": "Độ phủ", "reason": "Lý do súc tích không lặp tên môn..." },
-    { "code": "MÃ_TỔ_HỢP_2", "matchPercent": 94, "matchLabel": "Độ phủ", "reason": "Lý do súc tích không lặp tên môn..." },
-    { "code": "MÃ_TỔ_HỢP_3", "matchPercent": 88, "matchLabel": "Độ an toàn", "reason": "Lý do súc tích không lặp tên môn..." }
+    { "code": "MÃ_TỔ_HỢP_1", "matchPercent": 95, "matchLabel": "Phù hợp", "reason": "Lý do súc tích đời thường..." },
+    { "code": "MÃ_TỔ_HỢP_2", "matchPercent": 90, "matchLabel": "Lựa chọn 2", "reason": "Lý do súc tích đời thường..." },
+    { "code": "MÃ_TỔ_HỢP_3", "matchPercent": 85, "matchLabel": "Dự phòng", "reason": "Lý do súc tích đời thường..." }
   ]
 }
 \`\`\``;
@@ -1928,88 +1875,72 @@ BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU:
         inferredRiasec = chosenEnv.id.includes('tech') ? 'IRC' : (chosenEnv.id.includes('creative') ? 'AES' : 'ESA');
       }
 
-      // Formulate 4-Dimension Mode Supreme Dossier
+      // Formulate Dossier
       const fullAnalysis = detectedDomainType === 'UNDECIDED'
-        ? `🧭 [BÁO CÁO CHẨN ĐOÁN CHUYÊN SÂU "MODE SUPREME" 4 CHIỀU · ĐỘ TIN CẬY: ${effectiveConfidence}%]
-Hồ sơ đối soát thực chứng từ CSDL Tuyển sinh & Phân tích 1.500 CV lao động tại Việt Nam
+        ? `🧭 **Bản Đồ Định Hướng Năng Lực & Tổ Hợp Xét Tuyển Đại Học (Độ tin cậy: ${effectiveConfidence}%)**
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND: ${inferredRiasec})
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### 1. Phân Tích Thiên Hướng & Nhận Thức
 • Xuất phát điểm: "${text}"
-• Bán cầu môn học: ${chosenSub.label}
-${chosenEvenStyle ? `• Phản xạ nhận thức cốt lõi: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}]\n  ↳ Cơ chế: ${chosenEvenStyle.desc}` : '• Phản xạ nhận thức: Nhận diện bán cầu năng lực an toàn qua phương pháp loại trừ.'}
-• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}]
-• Phân tầng trường & tài chính: ${chosenTier.label} [${chosenTier.tag}]
-${chosenIkigai ? `• Động lực Ikigai cốt lõi: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
+• Nhóm môn thế mạnh: ${chosenSub.label}
+${chosenEvenStyle ? `• Phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}]\n  ↳ ${chosenEvenStyle.desc}` : '• Phản xạ nhận thức: Nhận diện năng lực an toàn qua phương pháp loại trừ.'}
+• Môi trường mong muốn: ${chosenEnv.label} [${chosenEnv.tag}]
+• Phân khúc trường mục tiêu: ${chosenTier.label} [${chosenTier.tag}]
+${chosenIkigai ? `• Động lực nghề nghiệp cốt lõi: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
 ${detectedLocation ? `• Khu vực địa lý ưu tiên: ${detectedLocation}` : ''}
 
-💡 ĐÁNH GIÁ CHUYÊN SÂU TỪ CỐ VẤN:
-Bạn thuộc nhóm học sinh có "Trí Thông Minh Đa Diện" (Multi-potentialite). Lối mòn tư duy thông thường hay vội vàng gán tổ hợp D01 vì D01 có độ phủ rộng. Tuy nhiên, nếu thiếu đi kỹ năng chuyên sâu đâm xuyên, sinh viên tốt nghiệp D01 có tỷ lệ làm trái ngành lên tới 34-38%. Bằng việc giải mã phản xạ não bộ và động lực Ikigai, hệ thống đã xác định tổ hợp [${primaryComboCode}] mới thực sự là đòn bẩy mũi nhọn tối ưu nhất cho bạn.
+💡 **Lời khuyên từ Cố vấn**:
+Học sinh học đều các môn rất dễ rơi vào bẫy chọn vội tổ hợp D01 vì thấy "nhiều ngành". Tuy nhiên, nếu thiếu đi một kỹ năng mũi nhọn chuyên sâu, sinh viên tốt nghiệp D01 có tỷ lệ làm trái ngành khá cao (34% - 38%). Qua việc lắng nghe phản xạ học tập và động lực của bạn, tổ hợp [${primaryComboCode}] là đòn bẩy tự nhiên vừa vặn nhất để bạn phát huy tối đa thế mạnh của mình.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP (HEAD-TO-HEAD MATRIX)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Tiêu Chí Đánh Giá | [${primaryComboCode}] - Tổ Hợp Mũi Nhọn | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Dự Phòng Mở Rộng |
+### 2. So Sánh Đối Chiếu Các Tổ Hợp Tiềm Năng
+| Tiêu chí | [${primaryComboCode}] - Mũi Nhọn | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Mở Rộng Thêm |
 | :--- | :--- | :--- | :--- |
-| **Môn thi & Áp lực** | Điểm số mũi nhọn theo phản xạ tự nhiên | Tương hỗ tốt, dễ chuyển đổi | Đa năng, giảm áp lực trượt |
-| **Độ phủ ngành** | Chuyên sâu vào nhóm ngành khát nhân lực | Độ phủ rộng trên 700 ngành | Độ phủ cao nhất toàn quốc |
-| **Tỷ lệ làm trái ngành** | **18% – 22%** (Rất thấp, chuyên môn sâu) | **24% – 30%** (Trung bình khá) | **32% – 38%** (Cần bổ sung chứng chỉ nghề) |
+| **Môn thi & Áp lực** | Điểm số mũi nhọn theo thế mạnh | Tương hỗ tốt, dễ chuyển đổi | Đa năng, giảm áp lực trượt |
+| **Độ phủ ngành** | Bám sát ngành khát nhân lực | Phủ rộng trên 700 ngành | Độ phủ cao nhất toàn quốc |
+| **Tỷ lệ làm trái ngành** | **18% – 22%** (Rất thấp, chuyên sâu) | **24% – 30%** (Trung bình khá) | **32% – 38%** (Cần chứng chỉ kỹ năng) |
 | **Dải lương 3-5 năm** | **20 – 50+ triệu/tháng** | **16 – 38 triệu/tháng** | **14 – 32 triệu/tháng** |
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG & BẢO HIỂM HỌC PHÍ 2026
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• TẦNG 1 (Mơ ước / Top 1 · Điểm chuẩn > 26.5 điểm): Thử sức 1-2 nguyện vọng tại các trường trọng điểm quốc gia (ĐH Bách Khoa, ĐHQG, ĐH Ngoại Thương, Kinh Tế Quốc Dân).
-• TẦNG 2 (Vừa sức / High Match · Điểm chuẩn 22.5 – 25.5 điểm): Đặt 2-3 nguyện vọng tại các trường công lập uy tín thế mạnh ngành (ĐH Sư Phạm Kỹ Thuật, Học Viện Tài Chính, ĐH Thương Mại, ĐH Luật).
-• TẦNG 3 (An toàn 100% · Điểm chuẩn 19.0 – 22.0 điểm): Chốt 1-2 nguyện vọng an toàn tuyệt đối không bao giờ trượt.
-🛡️ CHÍNH SÁCH TỐI ƯU HỌC PHÍ 2026:
-  - Khối Sư phạm: Miễn 100% học phí + trợ cấp sinh hoạt 3,63 triệu/tháng theo Nghị định 116/2020/NĐ-CP.
-  - Khối Công nghệ: Hưởng Học bổng Nhà nước & doanh nghiệp tài trợ cho 111 ngành STEM theo Quyết định 1826/QĐ-BGDĐT.
+### 3. Chiến Lược 3 Tầng Nguyện Vọng & Học Phí 2026
+• **Tầng 1 (Mơ ước / Top 1 > 26.5 điểm)**: Thử sức 1-2 nguyện vọng tại các trường trọng điểm quốc gia (ĐH Bách Khoa, ĐHQG, ĐH Ngoại Thương, Kinh Tế Quốc Dân).
+• **Tầng 2 (Vừa sức 22.5 – 25.5 điểm)**: Đặt 2-3 nguyện vọng tại các trường công lập uy tín thế mạnh ngành (ĐH Sư Phạm Kỹ Thuật, Học Viện Tài Chính, ĐH Thương Mại, ĐH Luật).
+• **Tầng 3 (An toàn 100% 19.0 – 22.0 điểm)**: Chốt 1-2 nguyện vọng an toàn tuyệt đối không bao giờ trượt.
+🛡️ **Chính sách học phí**:
+  - Khối Sư phạm: Miễn 100% học phí + trợ cấp 3,63 triệu/tháng theo Nghị định 116/2020/NĐ-CP.
+  - Khối Công nghệ: Học bổng ngân sách cho 111 ngành STEM theo Quyết định 1826/QĐ-BGDĐT.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC & KỸ NĂNG PHÒNG NGỪA RỦI RO TRÁI NGÀNH
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• NĂM 1: Quét sạch điểm GPA môn đại cương (> 3.5/4.0); rèn luyện Tiếng Anh đạt chuẩn quốc tế (IELTS >= 6.5 hoặc TOEIC >= 750).
-• NĂM 2: Xây dựng "Mũi nhọn đâm xuyên" — chọn sâu 1 chuyên ngành hẹp, tích lũy công cụ kỹ thuật số và tham gia lab/câu lạc bộ học thuật.
-• NĂM 3: Thực tập thực chiến tại doanh nghiệp (OJT); xây dựng portfolio dự án thực tế; thi chứng chỉ nghề quốc tế uy tín.
-• NĂM 4: Khóa luận tốt nghiệp xuất sắc; ứng tuyển chương trình Quản trị viên Tập sự (Management Trainee) hoặc Kỹ sư nòng cốt.`
-        : `🎯 [BÁO CÁO TỔNG HỢP TIẾN TRÌNH ĐỊNH HƯỚNG TỔ HỢP "MODE SUPREME" · ĐỘ TIN CẬY: ${effectiveConfidence}%]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 1: GIẢI MÃ TÂM LÝ & NĂNG LỰC HỌC THUẬT (MÃ HOLLAND: ${inferredRiasec})
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### 4. Lộ Trình 4 Năm Đại Học Thực Tế
+• **Năm 1**: Tập trung điểm GPA môn đại cương (> 3.5/4.0); nâng chuẩn Tiếng Anh (IELTS >= 6.5).
+• **Năm 2**: Chọn 1 kỹ năng mũi nhọn (công cụ kỹ thuật, phân tích dữ liệu, ngoại ngữ chuyên ngành), tham gia CLB chuyên môn.
+• **Năm 3**: Đi thực tập tại doanh nghiệp (OJT); xây dựng portfolio dự án thực chiến.
+• **Năm 4**: Hoàn thành đồ án tốt nghiệp và gia nhập thị trường việc làm.`
+        : `🎯 **Bản Đồ Định Hướng Năng Lực & Tổ Hợp Xét Tuyển (Độ tin cậy: ${effectiveConfidence}%)**
+
+### 1. Phân Tích Định Hướng Năng Lực
 • Nguyện vọng khởi điểm: "${text}"
-• Môn thế mạnh đã xác nhận: ${chosenSub.label} (${chosenSub.desc})
-• Môi trường khao khát: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}
-• Phân tầng trường & mục tiêu điểm: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}
-${chosenIkigai ? `• Động lực Ikigai: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
-${detectedLocation ? `• Khu vực ưu tiên: Tập trung mạng lưới đào tạo tại ${detectedLocation}.` : ''}
+• Môn thế mạnh: ${chosenSub.label} (${chosenSub.desc})
+• Môi trường mong muốn: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}
+• Phân khúc trường mục tiêu: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}
+${chosenIkigai ? `• Động lực nghề nghiệp: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
+${detectedLocation ? `• Khu vực ưu tiên: Mạng lưới đào tạo tại ${detectedLocation}.` : ''}
 
-💡 ĐÁNH GIÁ CHIẾN LƯỢC TUYỂN SINH 2026 TỪ NEXORA:
-Dựa trên đối soát 4 chiều dữ liệu giữa nguyện vọng ban đầu, năng lực môn thi thực tế, môi trường làm việc kỳ vọng và phân khúc trường đại học, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu đem lại xác suất trúng tuyển cao nhất và mở ra cơ hội nghề nghiệp tương thích bền vững.
+💡 **Đánh giá từ Cố vấn**:
+Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn thi thực tế và môi trường làm việc kỳ vọng, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu giúp bạn tối đa hóa điểm xét tuyển và mở ra cơ hội nghề nghiệp tương thích bền vững.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 2: MA TRẬN ĐỐI SOÁT & SO SÁNH ĐỐI ĐẦU GIỮA CÁC TỔ HỢP (HEAD-TO-HEAD MATRIX)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| Tiêu Chí Đánh Giá | [${primaryComboCode}] - Mũi Nhọn Trọng Điểm | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Dự Phòng Mở Rộng |
+### 2. So Sánh Các Tổ Hợp Xét Tuyển
+| Tiêu chí | [${primaryComboCode}] - Mũi Nhọn | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Dự Phòng Mở Rộng |
 | :--- | :--- | :--- | :--- |
 | **Môn thi** | Đúng tổ hợp tự tin nhất | Môn thi tương đương dễ hoán đổi | Môn thi đa năng độ phủ cao |
 | **Tỷ lệ trúng tuyển** | Tối ưu hóa điểm chuẩn theo thế mạnh | Tỷ lệ trúng tuyển đạt > 88% | Dự phòng an toàn tuyệt đối |
 | **Dải lương 3-5 năm** | **22 – 55 triệu/tháng** | **18 – 40 triệu/tháng** | **15 – 35 triệu/tháng** |
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 3: MA TRẬN 3 TẦNG NGUYỆN VỌNG CHỌN TRƯỜNG & BẢO HIỂM HỌC PHÍ
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• TẦNG 1 (Mơ ước): Các trường Top đầu phân khúc ${chosenTier.tag}.
-• TẦNG 2 (Vừa sức): Đặt 3-4 nguyện vọng sát mức điểm dự kiến.
-• TẦNG 3 (An toàn): Chốt hạ bằng các chương trình công lập có chính sách học bổng hoặc học phí tiết kiệm.
+### 3. Chiến Lược 3 Tầng Nguyện Vọng
+• **Tầng 1 (Mơ ước)**: Các trường Top đầu phân khúc ${chosenTier.tag}.
+• **Tầng 2 (Vừa sức)**: Đặt 3-4 nguyện vọng sát mức điểm dự kiến.
+• **Tầng 3 (An toàn)**: Chốt hạ bằng các chương trình công lập có chính sách học bổng hoặc học phí tiết kiệm.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC THỰC CHIẾN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Năm 1–2: Làm chủ kiến thức nền tảng và ngoại ngữ chuyên ngành.
-• Năm 3: Thực tập doanh nghiệp và làm đồ án thực chiến.
-• Năm 4: Tốt nghiệp và đón đầu làn sóng tuyển dụng chất lượng cao.`;
+### 4. Lộ Trình 4 Năm Đại Học
+• **Năm 1–2**: Làm chủ kiến thức nền tảng và ngoại ngữ chuyên ngành.
+• **Năm 3**: Thực tập doanh nghiệp và làm đồ án thực chiến.
+• **Năm 4**: Tốt nghiệp và đón đầu làn sóng tuyển dụng chất lượng cao.`;
 
       const combos: SuggestedComboItem[] = detectedDomainType === 'UNDECIDED'
         ? [
@@ -2106,16 +2037,16 @@ PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC THỰC CHIẾN
       const careers = activeCombo.careers.filter(c => careerIds.has(c.id));
 
       fullDossier = 
-        `🏛️ HỒ SƠ TRUY HỒI ĐA CHIỀU TỪ ĐẠI HỌC: [${school.code}] ${school.name.toUpperCase()}\n\n` +
-        `1. ĐỊNH VỊ TRƯỜNG & CHỈ SỐ TUYỂN SINH 2026:\n` +
+        `🏛️ THÔNG TIN CHI TIẾT VỀ TRƯỜNG: [${school.code}] ${school.name.toUpperCase()}\n\n` +
+        `1. THÔNG TIN CHUNG & TUYỂN SINH 2026:\n` +
         `• Phân loại: ${school.badge} (${school.city}, Miền ${school.region}).\n` +
         `• Học phí chuẩn dự kiến: ${school.tuitionYearEst}.\n` +
-        `• Phương thức tuyển sinh trọng tâm: ${school.admissionMethods}.\n\n` +
-        `2. CÁC NGÀNH ĐÀO TẠO MŨI NHỌN XÉT TUYỂN TỔ HỢP ${activeCombo.code}:\n` +
+        `• Phương thức tuyển sinh chính: ${school.admissionMethods}.\n\n` +
+        `2. CÁC NGÀNH NỔI BẬT XÉT TUYỂN TỔ HỢP ${activeCombo.code}:\n` +
         majors.map(m => `• [${m.code}] ${m.name} (Điểm chuẩn dự kiến: ${m.benchmark2026Est})`).join('\n') + '\n\n' +
-        `3. VỊ TRÍ NGHỀ NGHIỆP THỰC TẾ & MỨC THU NHẬP ĐẦU RA:\n` +
+        `3. VỊ TRÍ VIỆC LÀM & MỨC LƯƠNG SAU TỐT NGHIỆP:\n` +
         careers.map(c => `• ${c.title} (${c.sector}) — Dải lương thị trường: ${c.salaryP50} (Rủi ro AI: ${c.automationRisk})`).join('\n') + '\n\n' +
-        `4. CHIẾN LƯỢC HÀNH ĐỘNG CHO SĨ TỬ 2026:\n` +
+        `4. LỜI KHUYÊN DÀNH CHO BẠN:\n` +
         `• Tập trung tối đa cho kỳ thi ĐGNL / ĐGTD đợt 1 để giữ suất xét tuyển sớm.\n` +
         `• Điểm môn Toán trong tổ hợp ${activeCombo.code} nên đạt từ 8.5+ để cạnh tranh các ngành hot của trường.\n` +
         `• Chuẩn bị chứng chỉ ngoại ngữ (IELTS từ 6.5+) để được quy đổi điểm 10 hoặc cộng điểm thưởng.`;
@@ -2126,18 +2057,18 @@ PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC THỰC CHIẾN
       const careers = activeCombo.careers.filter(c => major.relatedCareers.includes(c.id));
 
       fullDossier = 
-        `🎓 HỒ SƠ TRUY HỒI ĐA CHIỀU TỪ CHUYÊN NGÀNH: [${major.code}] ${major.name.toUpperCase()}\n\n` +
+        `🎓 THÔNG TIN CHI TIẾT VỀ NGÀNH: [${major.code}] ${major.name.toUpperCase()}\n\n` +
         `1. TỔNG QUAN CHUYÊN NGÀNH & ĐIỂM CHUẨN 2026:\n` +
         `• Mô tả đào tạo: ${major.desc}\n` +
-        `• Điểm chuẩn 2026 dự kiến (Tổ hợp ${activeCombo.code}): ${major.benchmark2026Est}\n` +
+        `• Điểm chuẩn dự kiến (Tổ hợp ${activeCombo.code}): ${major.benchmark2026Est}\n` +
         `• Dải thu nhập sau tốt nghiệp: ${major.salaryRange}\n\n` +
-        `2. CÁC TRƯỜNG ĐẠI HỌC ĐÀO TẠO HÀNG ĐẦU XÉT TUYỂN:\n` +
+        `2. CÁC TRƯỜNG ĐÀO TẠO UY TÍN XÉT TUYỂN:\n` +
         schools.map(s => `• [${s.code}] ${s.name} (${s.city}) — Học phí: ${s.tuitionYearEst}`).join('\n') + '\n\n' +
-        `3. CƠ HỘI NGHỀ NGHIỆP TRỌNG ĐIỂM:\n` +
+        `3. CƠ HỘI NGHỀ NGHIỆP SAU RA TRƯỜNG:\n` +
         careers.map(c => `• ${c.title} — ${c.desc} (Mức lương P50: ${c.salaryP50})`).join('\n') + '\n\n' +
-        `4. CHIẾN LƯỢC XÉT TUYỂN 2026 ĐƯỢC ĐỀ XUẤT:\n` +
-        `• Ngành này có mức độ cạnh tranh cao, hãy đặt nguyện vọng 1 vào trường top đầu bạn mong muốn nhất.\n` +
-        `• Đặt nguyện vọng 2 vào các trường trọng điểm vùng có cùng mã ngành để đảm bảo an toàn đỗ đại học.`;
+        `4. CHIẾN LƯỢC ĐẶT NGUYỆN VỌNG AN TOÀN:\n` +
+        `• Ngành này có mức độ cạnh tranh cao, hãy đặt nguyện vọng 1 vào trường bạn mong muốn nhất.\n` +
+        `• Đặt nguyện vọng 2 vào các trường trọng điểm vùng có cùng mã ngành để đảm bảo cơ hội trúng tuyển.`;
     } else if (type === 'career') {
       setSelectedCareerId(id);
       const career = activeCombo.careers.find(c => c.id === id) || activeCombo.careers[0];
@@ -2147,19 +2078,19 @@ PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC THỰC CHIẾN
       const schools = activeCombo.schools.filter(s => schoolCodes.has(s.code));
 
       fullDossier = 
-        `💼 HỒ SƠ TRUY HỒI ĐA CHIỀU TỪ NGHỀ NGHIỆP: ${career.title.toUpperCase()}\n\n` +
-        `1. THỊ TRƯỜNG LAO ĐỘNG & THANG ĐO THU NHẬP:\n` +
-        `• Lĩnh vực hoạt động: ${career.sector}\n` +
+        `💼 THÔNG TIN CHI TIẾT VỀ NGHỀ NGHIỆP: ${career.title.toUpperCase()}\n\n` +
+        `1. THỊ TRƯỜNG VIỆC LÀM & THU NHẬP THỰC TẾ:\n` +
+        `• Lĩnh vực: ${career.sector}\n` +
         `• Mô tả công việc: ${career.desc}\n` +
-        `• Thang lương chi tiết: ${career.salaryRange}\n` +
-        `• Mức độ đe dọa bởi AI/Tự động hóa: ${career.automationRisk}\n\n` +
-        `2. CHUYÊN NGÀNH ĐÀO TẠO CHUẨN ĐỂ LÀM NGHỀ NÀY:\n` +
+        `• Mức thu nhập tham khảo: ${career.salaryRange}\n` +
+        `• Mức độ tác động của AI/Tự động hóa: ${career.automationRisk}\n\n` +
+        `2. CHUYÊN NGÀNH ĐÀO TẠO PHÙ HỢP:\n` +
         majors.map(m => `• [${m.code}] ${m.name} (Tổ hợp ${activeCombo.code}) — Khung điểm chuẩn: ${m.benchmark2026Est}`).join('\n') + '\n\n' +
-        `3. CÁC TRƯỜNG ĐẠI HỌC CÓ TỶ LỆ VIỆC LÀM CAO NHẤT:\n` +
+        `3. CÁC TRƯỜNG ĐẠI HỌC CÓ TỶ LỆ VIỆC LÀM CAO:\n` +
         schools.map(s => `• [${s.code}] ${s.name} (${s.city}) — ${s.badge}`).join('\n') + '\n\n' +
-        `4. LỜI KHUYÊN PHÁT TRIỂN NĂNG LỰC:\n` +
+        `4. LỜI KHUYÊN PHÁT TRIỂN KỸ NĂNG:\n` +
         `• Nắm vững kiến thức nền tảng trong tổ hợp ${activeCombo.code}.\n` +
-        `• Rèn luyện kỹ năng thực chiến, tham gia dự án thực tế ngay từ năm 2 đại học để gia nhập thị trường với mức lương khởi điểm cao.`;
+        `• Tích cực tham gia dự án thực tế, thực tập từ sớm để tích lũy kinh nghiệm làm việc ngay khi còn học đại học.`;
     }
 
     setDossierFullText(fullDossier);
@@ -2751,7 +2682,7 @@ PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC THỰC CHIẾN
                   className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-lg shadow-blue-500/25 transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Zap className="w-4 h-4 text-amber-300" />
-                  <span>Hoàn Tất Chẩn Đoán Chuyên Sâu &amp; Xuất Báo Cáo "MODE SUPREME" 4 Chiều ({confidenceScore}% Tin Cậy)</span>
+                  <span>Xem Báo Cáo Định Hướng Chi Tiết ({confidenceScore}% Tin Cậy)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -2778,7 +2709,7 @@ PHẦN 4: LỘ TRÌNH 4 NĂM ĐẠI HỌC THỰC CHIẾN
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
                   <span className="text-xs font-mono font-bold text-[#60A5FA] uppercase tracking-wider">
-                    Nexora AI: Phân Tích Thiên Hướng &amp; Đề Xuất Tổ Hợp
+                    Cố Vấn Hướng Nghiệp Nexora: Lời Khuyên &amp; Gợi Ý Tổ Hợp
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
