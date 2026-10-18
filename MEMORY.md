@@ -140,16 +140,20 @@ Last Updated: 2026-10-18T17:42:00+07:00
 
 ## 3. Current Status & Git Branch
 - **Branch**: `main` (Dev server active on `http://localhost:8443` via `dev_server.mjs`).
-- **Modified/New Files**:
+- **Commit**: `c6b221c` (`feat(engine): refactor decision engine with clause-aware NLP and evidence readiness (P1 & P2)`).
+- **Remote**: Successfully pushed to `origin main` (`https://github.com/khang224466/NX.git`). Vercel build automatically triggered.
+- **Modified & Staged Files**:
   * `src/engine/careerDecisionEngine.ts` (clause-aware parser + 3-pillar readiness + medical + contradiction detector)
-  * `src/components/CareerPathwayNavigator.tsx` (integration + safe boundaries)
-  * `scripts/test_p1_p2_decision_engine.mjs` (new - 18 assertions for P1 & P2)
+  * `src/components/CareerPathwayNavigator.tsx` (integration + safe error boundaries)
+  * `scripts/test_p1_p2_decision_engine.mjs` (18 assertions for P1 & P2)
   * `scripts/test_decision_engine_behavior.mjs` (24 assertions)
   * `scripts/test_career_decision_quality_12scenarios.mjs` (12 scenarios quality benchmark)
   * `scripts/verify_audit_points.mjs` (7 audit points)
-- **Status**: P1 & P2 core decision engine flaws completely solved and mathematically verified across 61 total automated assertions. Zero commit, push, or deployment performed.
+  * `MEMORY.md` (persistent project memory)
+- **Status**: Production push complete. 61/61 assertions passing across 4 test suites.
 
 ## 4. Operational Directives
 - Always consult `MEMORY.md` upon session start or reset.
 - Update `MEMORY.md` after major milestones, file changes, or architecture decisions.
 - Maintain concise conversation turns to conserve context window.
+
