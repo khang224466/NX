@@ -637,14 +637,12 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     return selectedComboCode ? getOrSynthesizeComboData(selectedComboCode) : null;
   }, [selectedComboCode]);
 
-  // Quick Prompt Chips
+  // Quick Prompt Chips (Exact 4 clean chips matching reference image)
   const promptChips = [
     { label: '💡 Thích công nghệ, lập trình & AI', query: 'Em thích công nghệ, máy tính và tư duy logic, muốn học AI và phần mềm' },
-    { label: '🇷🇺 Đam mê tiếng Nga, đối ngoại & EAEU', query: 'Em muốn học tiếng Nga, kinh tế đối ngoại, thương mại Á - Âu tổ hợp D02' },
     { label: '🩺 Đam mê Y Dược & Sinh học', query: 'Em muốn làm bác sĩ chữa bệnh, học giỏi môn Sinh và Hóa, đam mê ngành y' },
     { label: '📈 Giỏi Toán Anh, thích kinh doanh', query: 'Em học khá Toán và Tiếng Anh, thích kinh doanh, tài chính, đàm phán quốc tế' },
     { label: '✍️ Yêu thích viết lách & truyền thông', query: 'Em thích viết lách, sáng tạo nội dung, truyền thông, báo chí và luật học' },
-    { label: '🎨 Đam mê vẽ kiến trúc & mỹ thuật', query: 'Em thích vẽ tranh, sáng tạo không gian, muốn theo ngành kiến trúc và thiết kế' },
   ];
 
   // =========================================================================
@@ -1083,65 +1081,6 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
                 {chip.label}
               </button>
             ))}
-          </div>
-
-          {/* Môn thế mạnh */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#1F242C]">
-            <span className="text-[11px] text-[#94A3B8] font-medium flex items-center gap-1 font-mono">
-              <BookOpen className="w-3 h-3 text-[#3B82F6]" />
-              Môn thế mạnh:
-            </span>
-            {['Toán', 'Vật lí', 'Hóa học', 'Sinh học', 'Ngữ văn', 'Lịch sử', 'Địa lí', 'Tiếng Anh', 'Tin học', 'Tiếng Nga', 'Tiếng Pháp', 'Tiếng Trung', 'Vẽ'].map((sub) => (
-              <button
-                key={sub}
-                type="button"
-                onClick={() => {
-                  const current = chatInput.trim();
-                  const updated = current ? `${current}, môn ${sub}` : `Em có thế mạnh môn ${sub}`;
-                  setChatInput(updated);
-                  handleAnalyzeInput(updated);
-                }}
-                className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-md bg-[#161B22] text-[#94A3B8] hover:text-white hover:bg-[#1D4ED8] hover:border-[#3B82F6] transition-colors cursor-pointer border border-[#262B34]"
-              >
-                +{sub}
-              </button>
-            ))}
-          </div>
-
-          {/* Khu vực & Tra cứu trực tiếp */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-[#94A3B8] font-medium flex items-center gap-1 font-mono">
-                <MapPin className="w-3 h-3 text-emerald-400" />
-                Khu vực:
-              </span>
-              {['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Cần Thơ'].map((loc) => (
-                <button
-                  key={loc}
-                  type="button"
-                  onClick={() => {
-                    const current = chatInput.trim();
-                    const updated = current ? `${current} tại ${loc}` : `Em muốn tìm trường tại ${loc}`;
-                    setChatInput(updated);
-                    handleAnalyzeInput(updated);
-                  }}
-                  className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-md bg-[#161B22] text-[#94A3B8] hover:text-emerald-300 hover:bg-emerald-950/40 hover:border-emerald-600/50 transition-colors cursor-pointer border border-[#262B34]"
-                >
-                  📍 {loc}
-                </button>
-              ))}
-            </div>
-
-            {onNavigateToCombos && (
-              <button
-                type="button"
-                onClick={onNavigateToCombos}
-                className="text-[11px] font-mono text-[#60A5FA] hover:text-white flex items-center gap-1 hover:underline transition-colors cursor-pointer ml-auto"
-              >
-                <Search className="w-3 h-3" />
-                <span>Tra cứu đa tiêu chí (219 tổ hợp, 300 trường) →</span>
-              </button>
-            )}
           </div>
         </div>
       </section>
