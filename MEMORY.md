@@ -77,10 +77,21 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Refactored Hero Section: Headline `Hi, I'm Nexora`, Pill Badge `HỆ THỐNG ĐỊNH HƯỚNG NGHỀ NGHIỆP & TUYỂN SINH 2026`, subtitle `Khám phá bản thân từ con số 0, kết nối chuẩn xác Bản Thân — Việc Làm — Ngành Học — Tuyển Sinh`, card title `Cố Vấn Định Hướng Nghề Nghiệp Từ Con Số 0`, placeholder inviting authentic băn khoăn from scratch, 5 career-first chips, and button `Bắt đầu định hướng ->`.
   - Replaced immediate combo cards with **Top 3 Target Career Role Cards (Gate 2)** featuring Job Title, RIASEC code badge, Sector, Salary range, AI automation risk, Why fit explanation, Recommended majors, and action button `Khám phá nghề này: Cần học ngành gì? ➔` leading into Gate 3, 4, and Stage 5.
   - Upgraded AI system prompt in `handleAnalyzeInput` to enforce human empathy, eliminate robot jargon, and generate structured `{ careers: [...] }` JSON.
+- **Reality-Check Inquiry & 8-Point Audit Hardening (Completed 2026-10-18)**:
+  - Fixed UI layout: Removed overlapping absolute button from `<textarea>` input card in Hero section, creating a dedicated action bar container with helper text and button.
+  - Implemented mandatory Creator Reality-Check Stage (`workflowStep === 'REALITY_CHECK'`): Intercepts user after submitting any initial thought to pose the creator's verbatim reality check question and note before any career claims are made.
+  - Eradicated fake data leaks: Completely eliminated blind defaulting to `options[0]` that previously hallucinated biomedical reflexes and arbitrary 98% confidence. Confidence scores now dynamically scale based on verified diagnostic depth.
+  - Partitioned analysis output into 3 strict evidence tiers:
+    * `[Dữ Liệu Người Học Cung Cấp / Tự Khai]`: User answers and raw claims.
+    * `[Giả Thuyết Định Hướng Của Cố Vấn (AI Suy Luận)]`: Tentative hypotheses and explorations.
+    * `[BẰNG CHỨNG THỰC CHỨNG 2026]`: Empirically verified labor market statistics and admission policies.
+  - Added `whyNotOthers` to `SuggestedCareerItem` and UI cards to explain why certain prominent careers were de-prioritized or ruled out.
+  - Integrated full learner profile history into follow-up chat turns to guarantee conversation continuity.
+  - Verified across all 8 audit criteria via `scripts/verify_audit_points.mjs`, `tsc --noEmit` (0 errors), and `vite build`.
 
 ## 3. Current Status & Git Branch
 - **Branch**: `main` (Dev server running on `http://localhost:8443` via `dev_server.mjs`).
-- **Build Status**: Verified with `tsc --noEmit` (clean 0 errors) and `vite build` (clean production build).
+- **Build Status**: Verified with `tsc --noEmit` (clean 0 errors), `vite build` (5.14s), and `verify_audit_points.mjs` (all 7 suites PASSED).
 - **Hybrid DB State**: Initialized in `data/career_guidance.duckdb` (8+ tables & views) and `data/chroma_db` (797 vectors indexed).
 
 ## 4. Operational Directives

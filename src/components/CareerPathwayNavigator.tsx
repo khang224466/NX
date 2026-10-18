@@ -664,6 +664,7 @@ export interface SuggestedCareerItem {
   salaryRange: string;
   automationRisk: string;
   whyFit: string;
+  whyNotOthers?: string;
   linkedComboCode: string;
   recommendedMajors: string[];
 }
@@ -696,6 +697,7 @@ export function parseCareersFromAIResponse(text: string): SuggestedCareerItem[] 
           salaryRange: String(c.salaryRange || '18 – 42 triệu/tháng'),
           automationRisk: String(c.automationRisk || 'Thấp (12%)'),
           whyFit: String(c.whyFit || 'Vị trí này được AI phân tích tối ưu với thiên hướng phát triển từ con số 0 của bạn.'),
+          whyNotOthers: c.whyNotOthers ? String(c.whyNotOthers) : undefined,
           linkedComboCode: String(c.linkedComboCode || (idx === 0 ? 'A01' : (idx === 1 ? 'D01' : 'A00'))).toUpperCase(),
           recommendedMajors: Array.isArray(c.recommendedMajors) ? c.recommendedMajors.map(String) : ['Khoa học Máy tính', 'Kinh tế Số']
         }));
@@ -861,6 +863,7 @@ Dưới đây là 3 VỊ TRÍ VIỆC LÀM MỤC TIÊU (Gate 2) được thiết 
           salaryRange: '18 – 42 triệu/tháng',
           automationRisk: 'Thấp (12%)',
           whyFit: 'Điểm giao thoa lý tưởng cho người học đều: vừa dùng tư duy phân tích logic, vừa ứng dụng giải quyết bài toán thị trường thực tế.',
+          whyNotOthers: 'Chưa ưu tiên các ngành y tế hoặc nghiên cứu cơ bản vì đòi hỏi học chế dài và áp lực chuyên biệt cao.',
           linkedComboCode: 'A01',
           recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
         },
@@ -873,6 +876,7 @@ Dưới đây là 3 VỊ TRÍ VIỆC LÀM MỤC TIÊU (Gate 2) được thiết 
           salaryRange: '15 – 38 triệu/tháng',
           automationRisk: 'Thấp (15%)',
           whyFit: 'Phát huy khả năng giao tiếp, nắm bắt xu hướng thị trường và tâm lý khách hàng đa kênh.',
+          whyNotOthers: 'Chưa ưu tiên các ngành kỹ thuật phần cứng và máy móc nặng do cần năng khiếu cơ khí.',
           linkedComboCode: 'D01',
           recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
         },
@@ -885,6 +889,7 @@ Dưới đây là 3 VỊ TRÍ VIỆC LÀM MỤC TIÊU (Gate 2) được thiết 
           salaryRange: '18 – 45 triệu/tháng',
           automationRisk: 'Trung bình thấp (18%)',
           whyFit: 'Môi trường làm việc chuẩn mực, rõ ràng, tập trung xây dựng sản phẩm công nghệ thực tiễn.',
+          whyNotOthers: 'Chưa ưu tiên nhóm hành chính công hay sư phạm do người học hướng tới tự do chuyên môn.',
           linkedComboCode: 'A01',
           recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
         }
@@ -950,6 +955,7 @@ Dưới đây là 3 vị trí việc làm an toàn, đa năng và bền vững n
           salaryRange: '18 – 42 triệu/tháng',
           automationRisk: 'Thấp (12%)',
           whyFit: 'Lựa chọn an toàn cho người chưa rõ sở thích: kết hợp tư duy số liệu và giải quyết bài toán kinh doanh.',
+          whyNotOthers: 'Chưa ưu tiên khối nghệ thuật hay y sinh thực nghiệm do cần năng khiếu hoặc cam kết học chế 6 năm.',
           linkedComboCode: 'A01',
           recommendedMajors: ['Phân tích Dữ liệu Kinh doanh', 'Hệ thống Thông tin Quản lý']
         },
@@ -962,6 +968,7 @@ Dưới đây là 3 vị trí việc làm an toàn, đa năng và bền vững n
           salaryRange: '15 – 38 triệu/tháng',
           automationRisk: 'Thấp (15%)',
           whyFit: 'Môi trường làm việc năng động, linh hoạt, mở rộng mạng lưới quan hệ và hiểu biết thị trường.',
+          whyNotOthers: 'Chưa ưu tiên khối kỹ thuật xưởng nặng do yêu cầu máy móc cơ điện tử.',
           linkedComboCode: 'D01',
           recommendedMajors: ['Marketing & Truyền thông Kỹ thuật số', 'Kinh doanh Quốc tế']
         },
@@ -974,6 +981,7 @@ Dưới đây là 3 vị trí việc làm an toàn, đa năng và bền vững n
           salaryRange: '18 – 45 triệu/tháng',
           automationRisk: 'Trung bình thấp (18%)',
           whyFit: 'Kỹ năng chuyên môn cụ thể, nhu cầu tuyển dụng toàn cầu cao và không phụ thuộc vào độ khéo ăn nói.',
+          whyNotOthers: 'Chưa ưu tiên khối bán hàng đối ngoại áp lực KPI doanh số cao.',
           linkedComboCode: 'A01',
           recommendedMajors: ['Khoa học Máy tính', 'Kỹ thuật Phần mềm']
         }
@@ -1940,11 +1948,23 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   // Step 3: 'SELECT_ITEM' -> Curated items in selected pathway shown for choice
   // Step 4: 'REVERSE_DOSSIER' -> Progressive typewriter generation of the multidimensional reverse dossier
   const [workflowStep, setWorkflowStep] = useState<
-    'INITIAL' | 'INTERMEDIATE_DISCOVERY' | 'ANALYZED_COMBOS' | 'CHOOSE_DIRECTION' | 'SELECT_ITEM' | 'REVERSE_DOSSIER'
+    'INITIAL' | 'REALITY_CHECK' | 'INTERMEDIATE_DISCOVERY' | 'ANALYZED_COMBOS' | 'CHOOSE_DIRECTION' | 'SELECT_ITEM' | 'REVERSE_DOSSIER'
   >('INITIAL');
 
   const [chatInput, setChatInput] = useState('');
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
+
+  // Reality-Check inquiry state (Step 0)
+  const [realityCheckChoice, setRealityCheckChoice] = useState<string>('');
+  const [customRealityAnswer, setCustomRealityAnswer] = useState<string>('');
+  const [learnerProfile, setLearnerProfile] = useState<{
+    realityCheckAnswer?: string;
+    selectedSubject?: string;
+    selectedEvenStyle?: string;
+    selectedWorkEnv?: string;
+    selectedTier?: string;
+    selectedIkigai?: string;
+  }>({});
 
   // Intermediate progressive discovery state
   const [activePromptQuery, setActivePromptQuery] = useState('');
@@ -1982,19 +2002,22 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
   const confidenceScore = useMemo(() => {
     let score = 25; // Khởi điểm khi chưa có yếu tố xác thực
+    if (learnerProfile.realityCheckAnswer) {
+      score += 15; // Đã qua bước tự vấn chuẩn bị tâm thế
+    }
     if (selectedSubjectOption) {
-      score += 20;
+      score += 15;
       if (selectedSubjectOption === 'sub_neutral_balanced') {
-        if (selectedEvenStyleOption) score += 20; // Đã giải mã phản xạ học đều
+        if (selectedEvenStyleOption) score += 15; // Đã giải mã phản xạ học đều
       } else {
-        score += 15;
+        score += 10;
       }
     }
     if (selectedWorkEnvOption) score += 15;
-    if (selectedTargetTierOption) score += 15;
+    if (selectedTargetTierOption) score += 10;
     if (selectedIkigaiOption) score += 8;
     return Math.min(score, 98);
-  }, [selectedSubjectOption, selectedEvenStyleOption, selectedWorkEnvOption, selectedTargetTierOption, selectedIkigaiOption]);
+  }, [learnerProfile.realityCheckAnswer, selectedSubjectOption, selectedEvenStyleOption, selectedWorkEnvOption, selectedTargetTierOption, selectedIkigaiOption]);
 
   // Analysis result for Step 1
   const [analysisText, setAnalysisText] = useState('');
@@ -2077,12 +2100,53 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   };
 
   // =========================================================================
+  // STEP 0: HERO SUBMISSION -> REALITY-CHECK INQUIRY CHECKPOINT
+  // =========================================================================
+  const handleInitialStart = (textToStart?: string) => {
+    const text = (textToStart || chatInput).trim();
+    if (!text) return;
+
+    setActivePromptQuery(text);
+    sfx.playUiClick();
+
+    // Check if domain is undecided
+    const domain = detectDomain(text);
+    setDetectedDomainType(domain);
+
+    // Prompt user with the creator's solemn reality check question
+    setWorkflowStep('REALITY_CHECK');
+  };
+
+  const handleConfirmRealityCheck = (overrideChoice?: string) => {
+    const answer = (overrideChoice || realityCheckChoice || customRealityAnswer).trim();
+    if (!answer) return;
+    sfx.playActionSuccess();
+
+    setLearnerProfile(prev => ({
+      ...prev,
+      realityCheckAnswer: answer
+    }));
+
+    const text = activePromptQuery || chatInput;
+    const isUndecided = detectDomain(text) === 'UNDECIDED';
+
+    if (isUndecided) {
+      // Direct undecided learners to multi-factor discovery (Gate 0 & 1)
+      setWorkflowStep('INTERMEDIATE_DISCOVERY');
+    } else {
+      // Proceed to analyze with full context including reality check
+      handleAnalyzeInput(text, answer);
+    }
+  };
+
+  // =========================================================================
   // STEP 1: REAL AI ANALYZER (API KEY DRIVEN + QUESTION ANSWERING)
   // =========================================================================
-  const handleAnalyzeInput = async (textToAnalyze?: string) => {
+  const handleAnalyzeInput = async (textToAnalyze?: string, realityAnswer?: string) => {
     const text = (textToAnalyze || chatInput).trim();
     if (!text) return;
 
+    const rAnswer = realityAnswer || learnerProfile.realityCheckAnswer || '';
     setActivePromptQuery(text);
     sfx.playUiClick();
 
@@ -2106,12 +2170,17 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
    - Trả lời tự nhiên, ấm áp, đồng cảm như một người thầy, người anh/chị đi trước (xưng hô "mình" và gọi học sinh là "bạn" hoặc "em").
    - NÓI CHUYỆN TỰ NHIÊN NHƯ CON NGƯỜI, TUYỆT ĐỐI KHÔNG DÙNG TỪ NGỮ ROBOT MÁY MÓC:
      + Không xưng là "AI", không nói "Hệ thống ghi nhận", "Báo cáo chẩn đoán", "MODE SUPREME", "Ma trận đối soát", không dùng các đường kẻ gạch '━━━━'.
+   - Phân biệt rõ trong nội dung:
+     + [Thông tin bạn chia sẻ]: Ghi nhận chính xác băn khoăn và câu trả lời tự vấn thực tế của người học.
+     + [Giả thuyết định hướng]: Đưa ra nhận định gợi mở thăm dò.
+     + [Bằng chứng thực chứng 2026]: Dải thu nhập GSO, rủi ro tự động hóa và thị trường.
    - Nếu học sinh chia sẻ chưa biết giỏi gì, học đều, hoặc hoang mang:
      + Trấn an học sinh: đó là tâm lý rất bình thường của học sinh THPT.
      + Chỉ ra rõ sai lầm nếu vội vã chọn khối D01 (chọn vì đông người học, dẫn đến loãng ngành, thiếu động lực và nguy cơ làm trái ngành lên tới 38%).
      + Phân tích gợi mở dựa trên Cây Nghề Nghiệp: Gốc rễ là bản thân (sở thích, tính cách, phản xạ học tập ít tốn năng lượng não bộ nhất) ➔ Thân cành là năng lực ➔ Tán lá hoa quả là Nghề nghiệp & Thu nhập.
-     + Đưa ra 3 VỊ TRÍ NGHỀ NGHIỆP CỤ THỂ TRONG XÃ HỘI (Gate 2) phù hợp để học sinh hình dung rõ công việc hàng ngày, dải thu nhập và mức độ ảnh hưởng của AI.
-     + Cuối câu trả lời, hãy đặt 1 câu hỏi gợi mở thân thiện để bạn ấy thoải mái tâm sự tiếp.
+   - Đưa ra 3 VỊ TRÍ NGHỀ NGHIỆP CỤ THỂ TRONG XÃ HỘI (Gate 2) phù hợp để học sinh hình dung rõ công việc hàng ngày, dải thu nhập và mức độ ảnh hưởng của AI.
+   - Với mỗi nghề, giải thích súc tích: vì sao đề xuất (whyFit) và lưu ý/tại sao chưa ưu tiên hướng khác (whyNotOthers).
+   - Cuối câu trả lời, hãy đặt 1 câu hỏi gợi mở thân thiện để bạn ấy thoải mái tâm sự tiếp.
 
 2. BẮT BUỘC Ở CUỐI CÂU TRẢ LỜI, ĐÍNH KÈM KHỐI JSON SAU ĐỂ HỆ THỐNG HIỂN THỊ 3 VỊ TRÍ NGHỀ NGHIỆP MỤC TIÊU (GATE 2):
 \`\`\`json
@@ -2126,6 +2195,7 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
       "salaryRange": "Dải lương P25 - P50 - P90 (VD: 18 – 45 triệu/tháng)",
       "automationRisk": "Mức độ ảnh hưởng AI (VD: Rất thấp (8%))",
       "whyFit": "Lý do súc tích vì sao nghề này vừa vặn với bản thân từ con số 0...",
+      "whyNotOthers": "Lý do súc tích vì sao chưa ưu tiên nhóm ngành khác...",
       "linkedComboCode": "A01",
       "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
     },
@@ -2138,6 +2208,7 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
       "salaryRange": "Dải lương (VD: 16 – 40 triệu/tháng)",
       "automationRisk": "Mức độ ảnh hưởng AI (VD: Thấp (12%))",
       "whyFit": "Lý do súc tích...",
+      "whyNotOthers": "Lý do súc tích...",
       "linkedComboCode": "D01",
       "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
     },
@@ -2150,6 +2221,7 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
       "salaryRange": "Dải lương (VD: 15 – 38 triệu/tháng)",
       "automationRisk": "Mức độ ảnh hưởng AI (VD: Trung bình (18%))",
       "whyFit": "Lý do súc tích...",
+      "whyNotOthers": "Lý do súc tích...",
       "linkedComboCode": "A00",
       "recommendedMajors": ["Tên Ngành 1", "Tên Ngành 2"]
     }
@@ -2157,11 +2229,15 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
 }
 \`\`\``;
 
+        const userPromptContent = rAnswer 
+          ? `Băn khoăn ban đầu: "${text}"\nCâu trả lời tự vấn thực tế: "${rAnswer}"`
+          : text;
+
         let rawResponse = '';
         if (currentKey.startsWith('gsk_')) {
           const res = await callDirectGroqAPI(
             currentKey,
-            [{ role: 'user', content: text }],
+            [{ role: 'user', content: userPromptContent }],
             systemPrompt,
             'llama-3.3-70b-versatile'
           );
@@ -2169,7 +2245,7 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
         } else {
           const res = await callDirectGeminiAPI(
             currentKey,
-            [{ role: 'user', content: text }],
+            [{ role: 'user', content: userPromptContent }],
             systemPrompt,
             'gemini-2.0-flash'
           );
@@ -2187,7 +2263,7 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
         setSuggestedCareers(careers);
         setSuggestedCombos(combos);
         setChatMessages([
-          { role: 'user', content: text },
+          { role: 'user', content: userPromptContent },
           { role: 'model', content: cleanDisplayText }
         ]);
         setIsGeneratingAnalysis(false);
@@ -2230,12 +2306,27 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
     const currentKey = apiKey || getStoredApiKey() || getStoredGroqKey();
 
     try {
-      const history = newMessages.map(m => ({
-        role: m.role,
-        content: m.content
-      }));
+      const historyWithContext = [
+        {
+          role: 'user' as const,
+          content: `[HỒ SƠ ĐÃ THU THẬP TỪ NGƯỜI HỌC]:
+• Băn khoăn ban đầu: "${activePromptQuery || chatInput}"
+${learnerProfile.realityCheckAnswer ? `• Tâm thế đối diện thực tế: "${learnerProfile.realityCheckAnswer}"` : ''}
+${selectedSubjectOption ? `• Môn thế mạnh/loại trừ: ${selectedSubjectOption}` : ''}
+${selectedWorkEnvOption ? `• Phong cách môi trường RIASEC: ${selectedWorkEnvOption}` : ''}
+${selectedTargetTierOption ? `• Phân khúc trường/Tài chính: ${selectedTargetTierOption}` : ''}
+${selectedIkigaiOption ? `• Động lực Ikigai: ${selectedIkigaiOption}` : ''}
 
-      const res = await sendAIChatMessage(history, undefined, {
+[YÊU CẦU ĐỐI THOẠI]:
+Hãy trả lời câu hỏi tiếp theo của học sinh một cách chân thành, tự nhiên, phân tích sâu sắc từ con số 0, phân biệt rõ dữ liệu tự khai và bằng chứng thị trường, không dùng từ ngữ robot máy móc.`
+        },
+        ...newMessages.map(m => ({
+          role: m.role,
+          content: m.content
+        }))
+      ];
+
+      const res = await sendAIChatMessage(historyWithContext, undefined, {
         isSupremeMode: true,
         selectedModel: 'gemini-2.0-flash',
         provider: currentKey?.startsWith('gsk_') ? 'groq' : 'gemini'
@@ -2266,12 +2357,22 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
       const text = activePromptQuery || chatInput;
       const lower = text.toLowerCase();
 
-      // Find chosen options
-      const chosenSub = config.subjectQuestion.options.find(o => o.id === selectedSubjectOption) || config.subjectQuestion.options[0];
-      const chosenEnv = config.workEnvQuestion.options.find(o => o.id === selectedWorkEnvOption) || config.workEnvQuestion.options[0];
-      const chosenTier = config.targetTierQuestion.options.find(o => o.id === selectedTargetTierOption) || config.targetTierQuestion.options[0];
-      const chosenEvenStyle = EVEN_COGNITIVE_QUESTION.options.find(o => o.id === selectedEvenStyleOption);
-      const chosenIkigai = IKIGAI_CORE_QUESTION.options.find(o => o.id === selectedIkigaiOption);
+      // Find chosen options SAFELY WITHOUT BLIND FALLBACK TO options[0]!
+      const chosenSub = selectedSubjectOption 
+        ? (config.subjectQuestion.options.find(o => o.id === selectedSubjectOption) || null)
+        : null;
+      const chosenEnv = selectedWorkEnvOption 
+        ? (config.workEnvQuestion.options.find(o => o.id === selectedWorkEnvOption) || null)
+        : null;
+      const chosenTier = selectedTargetTierOption 
+        ? (config.targetTierQuestion.options.find(o => o.id === selectedTargetTierOption) || null)
+        : null;
+      const chosenEvenStyle = selectedEvenStyleOption 
+        ? (EVEN_COGNITIVE_QUESTION.options.find(o => o.id === selectedEvenStyleOption) || null)
+        : null;
+      const chosenIkigai = selectedIkigaiOption 
+        ? (IKIGAI_CORE_QUESTION.options.find(o => o.id === selectedIkigaiOption) || null)
+        : null;
 
       // Location detection
       let detectedLocation = '';
@@ -2285,10 +2386,9 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
         detectedLocation = 'Cần Thơ & ĐBSCL';
       }
 
-      // Check if primary combo code is specified in the chosen subject option
+      // Check primary combo code safely
       let primaryComboCode = chosenSub?.comboCode || '';
 
-      // If user selected "học đều các môn", calculate strictly from cognitive reflex! NEVER blind D01!
       if (chosenSub?.id === 'sub_neutral_balanced') {
         if (chosenEvenStyle?.comboCode) {
           primaryComboCode = chosenEvenStyle.comboCode;
@@ -2299,7 +2399,7 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
         } else if (chosenEnv?.tag?.includes('Xã hội') || chosenEnv?.tag?.includes('Quản lý')) {
           primaryComboCode = 'D01';
         } else {
-          primaryComboCode = 'A01'; // Default to STEM Logic instead of blind D01
+          primaryComboCode = 'A01';
         }
       }
 
@@ -2307,7 +2407,6 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
         primaryComboCode = 'A01';
       }
 
-      // Construct secondary and tertiary combinations that make logical sense
       let secondaryComboCode = 'D01';
       let tertiaryComboCode = 'A00';
 
@@ -2335,148 +2434,40 @@ NGUYÊN TẮC HƯỚNG NGHIỆP CỐT LÕI:
       } else if (primaryComboCode === 'V00') {
         secondaryComboCode = 'H00';
         tertiaryComboCode = 'V01';
-      } else if (primaryComboCode === 'X06') {
-        secondaryComboCode = 'A01';
-        tertiaryComboCode = 'D01';
-      } else if (primaryComboCode === 'D02') {
-        secondaryComboCode = 'D01';
-        tertiaryComboCode = 'A01';
       }
 
-      const effectiveConfidence = skipIntermediate ? 45 : confidenceScore;
+      // Truthful confidence computation
+      let effectiveConfidence = 25;
+      if (learnerProfile.realityCheckAnswer) effectiveConfidence += 15;
+      if (chosenSub) effectiveConfidence += 15;
+      if (chosenEvenStyle) effectiveConfidence += 15;
+      if (chosenEnv) effectiveConfidence += 15;
+      if (chosenTier) effectiveConfidence += 10;
+      if (chosenIkigai) effectiveConfidence += 8;
+      effectiveConfidence = Math.min(effectiveConfidence, 98);
+      if (skipIntermediate) effectiveConfidence = Math.min(effectiveConfidence, 45);
 
-      // Deduce Holland RIASEC 3-letter code
+      // Inferred RIASEC
       let inferredRiasec = 'RIC';
       if (primaryComboCode === 'A01' || primaryComboCode === 'A00' || primaryComboCode === 'X06') {
-        inferredRiasec = chosenEnv.id.includes('social') ? 'RIS' : 'RIC';
+        inferredRiasec = chosenEnv?.id?.includes('social') ? 'RIS' : 'RIC';
       } else if (primaryComboCode === 'C00' || primaryComboCode === 'D14') {
         inferredRiasec = 'SAE';
       } else if (primaryComboCode === 'B00' || primaryComboCode === 'D07') {
         inferredRiasec = 'IRS';
       } else if (primaryComboCode === 'D01') {
-        inferredRiasec = chosenEnv.id.includes('tech') ? 'IRC' : (chosenEnv.id.includes('creative') ? 'AES' : 'ESA');
+        inferredRiasec = chosenEnv?.id?.includes('tech') ? 'IRC' : (chosenEnv?.id?.includes('creative') ? 'AES' : 'ESA');
       }
-
-      // Formulate Dossier
-      const fullAnalysis = detectedDomainType === 'UNDECIDED'
-        ? `🧭 **Bản Đồ Định Hướng Năng Lực & Tổ Hợp Xét Tuyển Đại Học (Độ tin cậy: ${effectiveConfidence}%)**
-
-### 1. Phân Tích Thiên Hướng & Nhận Thức
-• Xuất phát điểm: "${text}"
-• Nhóm môn thế mạnh: ${chosenSub.label}
-${chosenEvenStyle ? `• Phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}]\n  ↳ ${chosenEvenStyle.desc}` : '• Phản xạ nhận thức: Nhận diện năng lực an toàn qua phương pháp loại trừ.'}
-• Môi trường mong muốn: ${chosenEnv.label} [${chosenEnv.tag}]
-• Phân khúc trường mục tiêu: ${chosenTier.label} [${chosenTier.tag}]
-${chosenIkigai ? `• Động lực nghề nghiệp cốt lõi: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
-${detectedLocation ? `• Khu vực địa lý ưu tiên: ${detectedLocation}` : ''}
-
-💡 **Lời khuyên từ Cố vấn**:
-Học sinh học đều các môn rất dễ rơi vào bẫy chọn vội tổ hợp D01 vì thấy "nhiều ngành". Tuy nhiên, nếu thiếu đi một kỹ năng mũi nhọn chuyên sâu, sinh viên tốt nghiệp D01 có tỷ lệ làm trái ngành khá cao (34% - 38%). Qua việc lắng nghe phản xạ học tập và động lực của bạn, tổ hợp [${primaryComboCode}] là đòn bẩy tự nhiên vừa vặn nhất để bạn phát huy tối đa thế mạnh của mình.
-
-### 2. So Sánh Đối Chiếu Các Tổ Hợp Tiềm Năng
-| Tiêu chí | [${primaryComboCode}] - Mũi Nhọn | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Mở Rộng Thêm |
-| :--- | :--- | :--- | :--- |
-| **Môn thi & Áp lực** | Điểm số mũi nhọn theo thế mạnh | Tương hỗ tốt, dễ chuyển đổi | Đa năng, giảm áp lực trượt |
-| **Độ phủ ngành** | Bám sát ngành khát nhân lực | Phủ rộng trên 700 ngành | Độ phủ cao nhất toàn quốc |
-| **Tỷ lệ làm trái ngành** | **18% – 22%** (Rất thấp, chuyên sâu) | **24% – 30%** (Trung bình khá) | **32% – 38%** (Cần chứng chỉ kỹ năng) |
-| **Dải lương 3-5 năm** | **20 – 50+ triệu/tháng** | **16 – 38 triệu/tháng** | **14 – 32 triệu/tháng** |
-
-### 3. Chiến Lược 3 Tầng Nguyện Vọng & Học Phí 2026
-• **Tầng 1 (Mơ ước / Top 1 > 26.5 điểm)**: Thử sức 1-2 nguyện vọng tại các trường trọng điểm quốc gia (ĐH Bách Khoa, ĐHQG, ĐH Ngoại Thương, Kinh Tế Quốc Dân).
-• **Tầng 2 (Vừa sức 22.5 – 25.5 điểm)**: Đặt 2-3 nguyện vọng tại các trường công lập uy tín thế mạnh ngành (ĐH Sư Phạm Kỹ Thuật, Học Viện Tài Chính, ĐH Thương Mại, ĐH Luật).
-• **Tầng 3 (An toàn 100% 19.0 – 22.0 điểm)**: Chốt 1-2 nguyện vọng an toàn tuyệt đối không bao giờ trượt.
-🛡️ **Chính sách học phí**:
-  - Khối Sư phạm: Miễn 100% học phí + trợ cấp 3,63 triệu/tháng theo Nghị định 116/2020/NĐ-CP.
-  - Khối Công nghệ: Học bổng ngân sách cho 111 ngành STEM theo Quyết định 1826/QĐ-BGDĐT.
-
-### 4. Lộ Trình 4 Năm Đại Học Thực Tế
-• **Năm 1**: Tập trung điểm GPA môn đại cương (> 3.5/4.0); nâng chuẩn Tiếng Anh (IELTS >= 6.5).
-• **Năm 2**: Chọn 1 kỹ năng mũi nhọn (công cụ kỹ thuật, phân tích dữ liệu, ngoại ngữ chuyên ngành), tham gia CLB chuyên môn.
-• **Năm 3**: Đi thực tập tại doanh nghiệp (OJT); xây dựng portfolio dự án thực chiến.
-• **Năm 4**: Hoàn thành đồ án tốt nghiệp và gia nhập thị trường việc làm.`
-        : `🎯 **Bản Đồ Định Hướng Năng Lực & Tổ Hợp Xét Tuyển (Độ tin cậy: ${effectiveConfidence}%)**
-
-### 1. Phân Tích Định Hướng Năng Lực
-• Nguyện vọng khởi điểm: "${text}"
-• Môn thế mạnh: ${chosenSub.label} (${chosenSub.desc})
-• Môi trường mong muốn: ${chosenEnv.label} [${chosenEnv.tag}] — ${chosenEnv.desc}
-• Phân khúc trường mục tiêu: ${chosenTier.label} [${chosenTier.tag}] — ${chosenTier.desc}
-${chosenIkigai ? `• Động lực nghề nghiệp: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
-${detectedLocation ? `• Khu vực ưu tiên: Mạng lưới đào tạo tại ${detectedLocation}.` : ''}
-
-💡 **Đánh giá từ Cố vấn**:
-Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn thi thực tế và môi trường làm việc kỳ vọng, tổ hợp [${primaryComboCode}] là sự lựa chọn tối ưu giúp bạn tối đa hóa điểm xét tuyển và mở ra cơ hội nghề nghiệp tương thích bền vững.
-
-### 2. So Sánh Các Tổ Hợp Xét Tuyển
-| Tiêu chí | [${primaryComboCode}] - Mũi Nhọn | [${secondaryComboCode}] - Dự Phòng Cân Bằng | [${tertiaryComboCode}] - Dự Phòng Mở Rộng |
-| :--- | :--- | :--- | :--- |
-| **Môn thi** | Đúng tổ hợp tự tin nhất | Môn thi tương đương dễ hoán đổi | Môn thi đa năng độ phủ cao |
-| **Tỷ lệ trúng tuyển** | Tối ưu hóa điểm chuẩn theo thế mạnh | Tỷ lệ trúng tuyển đạt > 88% | Dự phòng an toàn tuyệt đối |
-| **Dải lương 3-5 năm** | **22 – 55 triệu/tháng** | **18 – 40 triệu/tháng** | **15 – 35 triệu/tháng** |
-
-### 3. Chiến Lược 3 Tầng Nguyện Vọng
-• **Tầng 1 (Mơ ước)**: Các trường Top đầu phân khúc ${chosenTier.tag}.
-• **Tầng 2 (Vừa sức)**: Đặt 3-4 nguyện vọng sát mức điểm dự kiến.
-• **Tầng 3 (An toàn)**: Chốt hạ bằng các chương trình công lập có chính sách học bổng hoặc học phí tiết kiệm.
-
-### 4. Lộ Trình 4 Năm Đại Học
-• **Năm 1–2**: Làm chủ kiến thức nền tảng và ngoại ngữ chuyên ngành.
-• **Năm 3**: Thực tập doanh nghiệp và làm đồ án thực chiến.
-• **Năm 4**: Tốt nghiệp và đón đầu làn sóng tuyển dụng chất lượng cao.`;
-
-      const combos: SuggestedComboItem[] = detectedDomainType === 'UNDECIDED'
-        ? [
-            {
-              code: primaryComboCode,
-              matchPercent: effectiveConfidence >= 90 ? 98 : 92,
-              matchLabel: 'Mũi nhọn',
-              reason: chosenSub.id === 'sub_neutral_balanced' && chosenEvenStyle
-                ? `Tổ hợp mũi nhọn được giải mã từ phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}].`
-                : `Giải pháp mũi nhọn tối ưu sau khi loại trừ môn bạn ngại (${chosenSub.label}) và hướng tới ${chosenEnv.tag}.`
-            },
-            {
-              code: secondaryComboCode,
-              matchPercent: 88,
-              matchLabel: 'Dự phòng',
-              reason: `Phương án thay thế cân bằng cho định hướng ${chosenTier.label}.`
-            },
-            {
-              code: tertiaryComboCode,
-              matchPercent: 82,
-              matchLabel: 'Độ phủ',
-              reason: `Phương án mở rộng thêm cơ hội tuyển sinh toàn quốc an toàn 100%.`
-            }
-          ]
-        : [
-            {
-              code: primaryComboCode,
-              matchPercent: effectiveConfidence >= 90 ? 98 : 94,
-              matchLabel: 'Khớp',
-              reason: `Khớp chuẩn xác với môn bạn tự tin (${chosenSub.label}) và định hướng ${chosenEnv.label}.`
-            },
-            {
-              code: secondaryComboCode,
-              matchPercent: 89,
-              matchLabel: 'Khớp',
-              reason: `Phương án thay thế cân bằng giữa các môn thi cho nhóm trường ${chosenTier.label}.`
-            },
-            {
-              code: tertiaryComboCode,
-              matchPercent: 82,
-              matchLabel: 'Dự phòng',
-              reason: `Phương án dự phòng an toàn mở rộng cơ hội trúng tuyển và giảm áp lực điểm chuẩn.`
-            }
-          ];
 
       const p1 = getOrSynthesizeComboData(primaryComboCode);
       const p2 = getOrSynthesizeComboData(secondaryComboCode);
       const c1 = p1.careers[0] || {
         id: `c_${primaryComboCode.toLowerCase()}_1`,
-        title: `Chuyên Viên Phân Tích & Phát Triển [Tổ Hợp ${primaryComboCode}]`,
+        title: `Chuyên Viên Phân Tích Dữ Liệu & Vận Hành [${primaryComboCode}]`,
         sector: 'Chuyên Môn & Quản Trị',
         desc: 'Hoạch định chiến lược và thực thi nghiệp vụ chuyên môn.',
         salaryP50: '18 – 42 triệu',
-        salaryRange: 'Khởi điểm: 14M · P75: 38M · Chuyên gia: 60M+',
+        salaryRange: '18 – 45 triệu/tháng',
         automationRisk: 'Thấp (12%)'
       };
       const c2 = p1.careers[1] || p2.careers[0] || {
@@ -2485,16 +2476,16 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
         sector: 'Kinh Tế Số & Ứng Dụng',
         desc: 'Điều phối vận hành và tối ưu hóa hiệu quả công việc.',
         salaryP50: '16 – 38 triệu',
-        salaryRange: 'Khởi điểm: 12M · P75: 35M · Trưởng phòng: 50M+',
+        salaryRange: '16 – 40 triệu/tháng',
         automationRisk: 'Thấp (15%)'
       };
       const c3 = p2.careers[0] || {
         id: `c_${secondaryComboCode.toLowerCase()}_1`,
-        title: `Chuyên Viên Đối Ngoại & Thị Trường [Tổ Hợp ${secondaryComboCode}]`,
+        title: `Chuyên Viên Phát Triển Thị Trường [${secondaryComboCode}]`,
         sector: 'Hội Nhập & Phát Triển',
         desc: 'Mở rộng đối tác và phát triển năng lực hội nhập.',
         salaryP50: '15 – 35 triệu',
-        salaryRange: 'Khởi điểm: 12M · P75: 32M · Lead: 45M+',
+        salaryRange: '15 – 35 triệu/tháng',
         automationRisk: 'Trung bình thấp (18%)'
       };
 
@@ -2504,12 +2495,15 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
           title: c1.title,
           sector: c1.sector,
           riasecCode: inferredRiasec,
-          matchPercent: effectiveConfidence >= 90 ? 98 : 94,
+          matchPercent: effectiveConfidence >= 90 ? 98 : (effectiveConfidence >= 75 ? 92 : 86),
           salaryRange: c1.salaryRange || '18 – 45 triệu/tháng',
           automationRisk: c1.automationRisk || 'Thấp (12%)',
-          whyFit: chosenSub.id === 'sub_neutral_balanced' && chosenEvenStyle
-            ? `Giải mã từ phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}].`
-            : `Khớp với định hướng môi trường ${chosenEnv.label} và động lực của bạn.`,
+          whyFit: chosenSub
+            ? (chosenSub.id === 'sub_neutral_balanced' && chosenEvenStyle
+                ? `Giải mã từ phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}].`
+                : `Khớp với định hướng môn ${chosenSub.label} và môi trường ${chosenEnv ? chosenEnv.label : 'thực tế'}.`)
+            : `Định hướng sơ bộ theo mong muốn ban đầu: "${text}".`,
+          whyNotOthers: 'Chưa ưu tiên các ngành y tế hoặc năng khiếu đặc thù do đòi hỏi cam kết thực hành hoặc học chế 6 năm.',
           linkedComboCode: primaryComboCode,
           recommendedMajors: p1.majors.slice(0, 2).map(m => m.name)
         },
@@ -2518,10 +2512,13 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
           title: c2.title,
           sector: c2.sector,
           riasecCode: inferredRiasec.includes('R') ? 'RIC' : 'ESA',
-          matchPercent: 90,
+          matchPercent: effectiveConfidence >= 90 ? 90 : 84,
           salaryRange: c2.salaryRange || '16 – 40 triệu/tháng',
           automationRisk: c2.automationRisk || 'Thấp (15%)',
-          whyFit: `Vị trí bổ trợ tương thích cao với nguyện vọng phân khúc trường ${chosenTier.label}.`,
+          whyFit: chosenTier
+            ? `Vị trí bổ trợ tương thích cao với nguyện vọng phân khúc trường ${chosenTier.label}.`
+            : `Phương án cân bằng giữa cơ hội việc làm và khả năng phát triển kỹ năng mềm.`,
+          whyNotOthers: 'Chưa ưu tiên khối kỹ thuật nặng do yêu cầu thực hành xưởng và máy móc chuyên sâu.',
           linkedComboCode: primaryComboCode,
           recommendedMajors: p1.majors.slice(1, 3).map(m => m.name)
         },
@@ -2530,14 +2527,62 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
           title: c3.title,
           sector: c3.sector,
           riasecCode: 'ICE',
-          matchPercent: 84,
+          matchPercent: effectiveConfidence >= 90 ? 84 : 78,
           salaryRange: c3.salaryRange || '15 – 35 triệu/tháng',
           automationRisk: c3.automationRisk || 'Trung bình thấp (18%)',
           whyFit: `Phương án mở rộng an toàn giúp đa dạng hóa lựa chọn nghề nghiệp tương lai.`,
+          whyNotOthers: 'Chưa ưu tiên khối nghiên cứu hàn lâm do người học hướng tới môi trường ứng dụng thực tế.',
           linkedComboCode: secondaryComboCode,
           recommendedMajors: p2.majors.slice(0, 2).map(m => m.name)
         }
       ];
+
+      const combos: SuggestedComboItem[] = [
+        {
+          code: primaryComboCode,
+          matchPercent: effectiveConfidence >= 90 ? 96 : 90,
+          matchLabel: 'Mũi nhọn',
+          reason: chosenSub ? `Phù hợp với môn thế mạnh (${chosenSub.label}) của bạn.` : `Tổ hợp đòn bẩy cho nghề ${c1.title}.`
+        },
+        {
+          code: secondaryComboCode,
+          matchPercent: 88,
+          matchLabel: 'Dự phòng',
+          reason: chosenTier ? `Phương án thay thế cân bằng cho nhóm trường ${chosenTier.label}.` : `Phương án thay thế an toàn.`
+        },
+        {
+          code: tertiaryComboCode,
+          matchPercent: 82,
+          matchLabel: 'Độ phủ',
+          reason: `Phương án mở rộng thêm cơ hội tuyển sinh toàn quốc an toàn.`
+        }
+      ];
+
+      // Formulate Dossier with CLEAR DISTINCTIONS matching EXORA Protocol
+      const fullAnalysis = `🧭 **Bản Đồ Định Hướng Năng Lực & Vị Trí Nghề Nghiệp (Độ tin cậy: ${effectiveConfidence}% — ${effectiveConfidence >= 85 ? 'Mức độ xác minh cao' : 'Mức độ sơ bộ'})**
+
+### 1. Phân Tách Dữ Liệu & Thiên Hướng Cá Nhân
+📋 **[Dữ Liệu Người Học Cung Cấp / Tự Khai]**:
+• Xuất phát điểm: "${text}"
+${learnerProfile.realityCheckAnswer ? `• Tâm thế đối diện thực tế: "${learnerProfile.realityCheckAnswer}"` : ''}
+• Môn học tự tin / Loại trừ: ${chosenSub ? `${chosenSub.label} (${chosenSub.desc})` : '[Chưa xác định - Người học bỏ qua bước chọn môn]'}
+${chosenEvenStyle ? `• Phản xạ nhận thức: ${chosenEvenStyle.label} [${chosenEvenStyle.tag}]\n  ↳ ${chosenEvenStyle.desc}` : ''}
+• Phong cách môi trường mong muốn: ${chosenEnv ? `${chosenEnv.label} [${chosenEnv.tag}]` : '[Chưa xác định - Người học muốn đối thoại gợi mở]'}
+• Phân khúc trường & Tài chính: ${chosenTier ? `${chosenTier.label} [${chosenTier.tag}]` : '[Chưa xác định ngân sách]'}
+${chosenIkigai ? `• Động lực Ikigai: ${chosenIkigai.label} [${chosenIkigai.tag}]` : ''}
+${detectedLocation ? `• Khu vực địa lý ưu tiên: ${detectedLocation}` : ''}
+
+🔍 **[Giả Thuyết Định Hướng Của Cố Vấn (AI Suy Luận)]**:
+${chosenSub?.id === 'sub_neutral_balanced'
+  ? `Người học có trí thông minh đa diện ("học đều") tuyệt đối không nên chọn vội D01 chỉ vì đông người học. Tỷ lệ làm trái ngành của D01 lên tới 34% - 38% nếu thiếu kỹ năng mũi nhọn. Chúng tôi đề xuất tập trung vào vị trí công việc có tư duy phân tích dữ liệu & số liệu làm nền tảng.`
+  : `Dựa trên thông tin đã chia sẻ, bạn có thiên hướng phù hợp với môi trường ứng dụng và làm việc có quy trình rõ ràng. Việc tiếp cận từ vị trí công việc cụ thể (Gate 2) sẽ giúp bạn nhìn thấy rõ con đường trước khi chốt ngành hay khối thi.`}
+
+📊 **[BẰNG CHỨNG THỰC CHỨNG 2026 (THỐNG KÊ TUYỂN DỤNG & TUYỂN SINH)]**:
+• Mức độ rủi ro tự động hóa AI của các nghề đề xuất dao động từ 12% đến 18% (mức an toàn cao).
+• Dải thu nhập P50 sau 3-5 năm đạt từ 18 – 45 triệu/tháng tại các doanh nghiệp và tập đoàn lớn.
+• Chính sách hỗ trợ: Khối Sư phạm miễn 100% học phí theo NĐ 116/2020/NĐ-CP; Khối Công nghệ hỗ trợ học bổng 111 ngành STEM theo QĐ 1826/QĐ-BGDĐT.
+
+💡 **3 Vị trí việc làm mục tiêu (Gate 2)** đã được cập nhật phía dưới để bạn khám phá lộ trình chi tiết.`;
 
       setAnalysisText(fullAnalysis);
       setSuggestedCareers(finalCareers);
@@ -2692,6 +2737,9 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
     setWorkflowStep('INITIAL');
     setChatInput('');
     setActivePromptQuery('');
+    setRealityCheckChoice('');
+    setCustomRealityAnswer('');
+    setLearnerProfile({});
     setAnalysisText('');
     setSuggestedCareers([]);
     setSuggestedCombos([]);
@@ -2784,34 +2832,46 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
           <form 
             onSubmit={(e) => {
               e.preventDefault();
-              handleAnalyzeInput();
+              handleInitialStart();
             }}
-            className="relative"
+            className="bg-[#07080B] dark:bg-[#07080B] rounded-2xl border border-[#262630] dark:border-[#262630] focus-within:border-[#3B82F6] transition-colors p-3.5 shadow-xl"
           >
             <textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleInitialStart();
+                }
+              }}
               placeholder='Bạn đang băn khoăn điều gì về bản thân, sở thích hay tương lai? Hãy chia sẻ tự nhiên (Ví dụ: "Em chưa biết mình thích gì, học lực bình thường", hoặc "Em thích công nghệ nhưng ngại giao tiếp...")...'
-              rows={2}
-              className="w-full bg-[#07080B] dark:bg-[#07080B] text-white dark:text-white p-3.5 pr-28 rounded-xl border border-[#262630] dark:border-[#262630] focus:border-[#3B82F6] text-xs sm:text-sm placeholder-[#64748B] focus:outline-none transition-colors resize-none font-sans"
+              rows={3}
+              className="w-full bg-transparent text-white dark:text-white text-xs sm:text-sm placeholder-[#64748B] focus:outline-none transition-colors resize-none font-sans min-h-[75px]"
             />
-            <button
-              type="submit"
-              disabled={isGeneratingAnalysis || !chatInput.trim()}
-              className="absolute right-2 bottom-3 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white font-medium text-xs rounded-lg transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-md"
-            >
-              {isGeneratingAnalysis ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Đang định hướng...</span>
-                </>
-              ) : (
-                <>
-                  <span>Bắt đầu định hướng</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#1C1E26] mt-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-[#64748B] font-mono">
+                <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                <span>Nhấn Enter để gửi · Định hướng từ con số 0</span>
+              </div>
+              <button
+                type="submit"
+                disabled={isGeneratingAnalysis || !chatInput.trim()}
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white font-medium text-xs rounded-lg transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-md ml-auto"
+              >
+                {isGeneratingAnalysis ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang xử lý...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Bắt đầu định hướng</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
           {/* Quick Prompt Chips */}
@@ -2826,7 +2886,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
                 type="button"
                 onClick={() => {
                   setChatInput(chip.query);
-                  handleAnalyzeInput(chip.query);
+                  handleInitialStart(chip.query);
                 }}
                 className="text-[11px] px-2.5 py-1 rounded-full bg-[#1F242C] dark:bg-[#1F242C] text-[#CBD5E1] dark:text-[#CBD5E1] hover:text-white hover:bg-[#2563EB] dark:hover:bg-[#2563EB] transition-colors cursor-pointer border border-[#2E3540] dark:border-[#2E3540]"
               >
@@ -2836,6 +2896,153 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
           </div>
         </div>
       </section>
+
+      {/* =========================================================================
+          REALITY-CHECK STEP: CÂU HỎI TỰ VẤN TÂM LÝ TỪ NGƯỜI SÁNG LẬP NỀN TẢNG
+          (Shown when workflowStep === 'REALITY_CHECK')
+          ========================================================================= */}
+      <AnimatePresence>
+        {workflowStep === 'REALITY_CHECK' && (
+          <motion.section
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="max-w-3xl mx-auto px-4 space-y-5"
+          >
+            <div className="p-5 sm:p-6 rounded-2xl bg-[#0B0F19] border border-amber-500/40 shadow-2xl space-y-5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Card Header Badge */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+                    <ShieldAlert className="w-4 h-4" />
+                  </span>
+                  <span className="text-xs font-mono font-bold text-amber-300 uppercase tracking-wider">
+                    CÂU HỎI TỰ VẤN TÂM LÝ TỪ NGƯỜI SÁNG LẬP NỀN TẢNG
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-[#94A3B8] bg-[#1E293B] px-2.5 py-0.5 rounded border border-[#334155]">
+                  Bước 0: Chuẩn bị tâm thế
+                </span>
+              </div>
+
+              {/* User Initial Query Display */}
+              <div className="bg-[#10141D] p-3 rounded-xl border border-[#1E293B] flex items-center gap-2 text-xs text-[#94A3B8]">
+                <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
+                <span>
+                  Băn khoăn của bạn: <strong className="text-white italic">"{activePromptQuery || chatInput}"</strong>
+                </span>
+              </div>
+
+              {/* The Creator's Reality Question */}
+              <div className="bg-[#121622] p-4 sm:p-5 rounded-xl border border-amber-500/30 space-y-3">
+                <p className="text-sm sm:text-base text-[#F1F5F9] font-medium leading-relaxed italic border-l-4 border-amber-400 pl-3.5">
+                  &ldquo;Hãy tự hỏi rằng, mình có thực sự sẵn sàng để đối mặt với thực tế chưa. Bắt đầu biết rằng mình sắp phải đi làm, không còn có ai đốc thúc đi học. Bạn có dám đồng ý với tôi rằng bạn sẽ sẵn sàng để gánh trách nhiệm đó sau khi đã kéo dài khoảng thời gian được phép ngây thơ thêm chút nữa ?&rdquo;
+                </p>
+                <div className="text-xs text-amber-400/90 font-mono bg-amber-950/40 border border-amber-800/40 p-2.5 rounded-lg">
+                  📌 <strong>note:</strong> đây là câu hỏi từ chính người làm web, không phải do AI sinh ra. Hãy trả lời thực lòng mình.
+                </div>
+              </div>
+
+              {/* User Selection Options */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-mono text-[#94A3B8] block">
+                  Chọn câu trả lời gần với suy nghĩ của bạn nhất:
+                </label>
+                <div className="grid grid-cols-1 gap-2.5">
+                  {[
+                    {
+                      id: 'ready',
+                      text: 'Em đồng ý. Em đã sẵn sàng đối mặt với thực tế và muốn cùng tìm hướng đi nghiêm túc, tự chịu trách nhiệm cho tương lai.',
+                      tag: 'Sẵn sàng đối diện'
+                    },
+                    {
+                      id: 'nervous',
+                      text: 'Em vẫn còn rất hoang mang và lo sợ thực tế đi làm, nhưng em hiểu mình không thể trốn tránh mãi được nữa.',
+                      tag: 'Thành thật & Lo lắng'
+                    },
+                    {
+                      id: 'exploratory',
+                      text: 'Em cần một người lắng nghe và phân tích từng bước từ con số 0, chưa vội chốt ngành để em thấu hiểu bản thân trước.',
+                      tag: 'Đi từng bước'
+                    }
+                  ].map((opt) => (
+                    <div
+                      key={opt.id}
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setRealityCheckChoice(opt.text);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                        realityCheckChoice === opt.text
+                          ? 'bg-[#182338] border-amber-400/80 shadow-[0_0_15px_rgba(245,158,11,0.2)] text-white'
+                          : 'bg-[#10141D] border-[#222838] hover:border-amber-400/40 text-[#CBD5E1]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          realityCheckChoice === opt.text ? 'border-amber-400 bg-amber-500 text-black' : 'border-[#475569]'
+                        }`}>
+                          {realityCheckChoice === opt.text && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                        </div>
+                        <span className="text-xs sm:text-sm">{opt.text}</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1E293B] text-[#94A3B8] shrink-0 hidden sm:inline-block">
+                        {opt.tag}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Custom write-in */}
+                <div className="pt-2">
+                  <label className="text-xs font-mono text-[#64748B] block mb-1">
+                    Hoặc tự viết câu trả lời chân thật nhất của bạn:
+                  </label>
+                  <input
+                    type="text"
+                    value={customRealityAnswer}
+                    onChange={(e) => {
+                      setCustomRealityAnswer(e.target.value);
+                      if (e.target.value.trim()) {
+                        setRealityCheckChoice(e.target.value);
+                      }
+                    }}
+                    placeholder="Viết suy nghĩ thực lòng của bạn..."
+                    className="w-full bg-[#0E121C] text-white p-2.5 rounded-xl border border-[#262D3D] focus:border-amber-400 text-xs sm:text-sm placeholder-[#64748B] focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Action */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#1E293B]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.playUiClick();
+                    setWorkflowStep('INITIAL');
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 text-xs font-mono text-[#8E929F] hover:text-white rounded-xl border border-[#262D3D] hover:bg-[#1F242C] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Quay lại câu hỏi</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!realityCheckChoice.trim()}
+                  onClick={() => handleConfirmRealityCheck()}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-40 text-black font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Xác nhận &amp; Tiến vào Định hướng</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* =========================================================================
           INTERMEDIATE STEP: DYNAMIC PROGRESSIVE DISCOVERY
@@ -3286,7 +3493,7 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
           (Only shown when workflowStep !== 'INITIAL' and !== 'INTERMEDIATE_DISCOVERY')
           ========================================================================= */}
       <AnimatePresence>
-        {workflowStep !== 'INITIAL' && workflowStep !== 'INTERMEDIATE_DISCOVERY' && analysisText && (
+        {workflowStep !== 'INITIAL' && workflowStep !== 'REALITY_CHECK' && workflowStep !== 'INTERMEDIATE_DISCOVERY' && analysisText && (
           <motion.section 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -3439,6 +3646,13 @@ Dựa trên đối chiếu giữa nguyện vọng ban đầu, năng lực môn t
                             <p className="text-[11px] text-[#CBD5E1] leading-relaxed pt-1 line-clamp-3">
                               {career.whyFit}
                             </p>
+
+                            {career.whyNotOthers && (
+                              <div className="text-[10px] text-amber-300/90 bg-amber-950/30 border border-amber-900/40 p-2 rounded-lg leading-relaxed">
+                                <span className="font-semibold text-amber-400 font-mono">Loại trừ / Lưu ý: </span>
+                                {career.whyNotOthers}
+                              </div>
+                            )}
 
                             {career.recommendedMajors && career.recommendedMajors.length > 0 && (
                               <div className="text-[10px] font-mono text-[#94A3B8] pt-1 border-t border-[#1E293B]">
