@@ -37,27 +37,29 @@ async function start() {
     server: { 
       middlewareMode: true,
       watch: {
-        ignored: [
-          '**/vite.config.*',
-          '**/.env*',
-          '**/.figma/**',
-          '**/node_modules/**',
-          '**/data/**',
-          '**/.pnpm-store/**',
-          '**/SteamLibrary/**',
-          '**/Riot Games/**',
-          '**/VMware*/**',
-          '**/dist/**',
-          '**/.git/**',
-          '**/nx-nexora*/**',
-          '**/*Culture Trends*/**',
-          '**/*SiriusXM*/**',
-          '**/AI/**',
-          '**/$RECYCLE.BIN/**',
-          '**/System Volume Information/**',
-          '**/*.log',
-          '**/*.tmp'
-        ]
+        ignored: (rawPath) => {
+          if (!rawPath) return false;
+          const p = String(rawPath).replace(/\\/g, '/');
+          return (
+            p.includes('/node_modules/') ||
+            p.includes('/.git/') ||
+            p.includes('/dist/') ||
+            p.includes('/data/') ||
+            p.includes('/.pnpm-store/') ||
+            p.includes('/SteamLibrary/') ||
+            p.includes('/Riot Games/') ||
+            p.includes('/VMware') ||
+            p.includes('Culture Trends') ||
+            p.includes('SiriusXM') ||
+            p.includes('nx-nexora') ||
+            p.includes('/AI/') ||
+            p.includes('$RECYCLE.BIN') ||
+            p.includes('System Volume Information') ||
+            p.endsWith('vite.config.ts') ||
+            p.endsWith('vite.config.js') ||
+            p.includes('.env')
+          );
+        }
       }
     },
     appType: 'spa'
