@@ -10,7 +10,30 @@ Last Updated: 2026-10-19T14:38:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
-- **Strict Dependency Chain & Empty Initial State Refactor (2026-10-19)**:
+- **AI Semantic Diagnosis Decoupling & Strict Major Linking Engine (2026-10-19)**:
+  - Addressed user directives: *"nhận input r phân tích là rất okela nhưng bạn phân tích rất ngu, để con gemini phân tích r bạn lọc lại kết quả, nhận kết quả từ gemini r link với kho dữ liệu xem nghành nào ngon nhất. r mới hiện kết quả lên. Cuối cùng là giao diện, giao diện nhìn AI quá"*:
+    * **Root Cause Fix for Inaccurate Subject Analysis**:
+      - Previously, unset subjects in the candidate's scores defaulted to 8.0 (`scores.math || 8.0`), deceiving the model and algorithms into recommending STEM majors (`Kỹ thuật vi mạch bán dẫn`, `Khoa học máy tính`, `Sư phạm Toán`) to Humanities candidates (e.g. Văn=10, Sử=10, Địa=10, Anh=10 without any Math/Phys/Chem).
+      - Fixed to treat unset scores strictly as `Chưa thi / chưa có điểm` (never fabricating grades).
+    * **Decoupled Architecture (`linkAndRankMajorsWithDossier`)**:
+      - **Gemini Role**: Performs qualitative semantic diagnostic analysis (`recommendedSectors`, `avoidSectors`, `recommendedKeywords`, `directAnswer`, academic strengths & bottlenecks).
+      - **Algorithmic Engine Role**: Cross-references with the official accredited Level IV database (`majorCatalogLevelIV`):
+        1. **Hard Prerequisite Subject Filter**: Disqualifies any major whose admission combinations require subjects the candidate has no valid score for (`eligibleCombos.length === 0`).
+        2. **Composite Ranking Formula**:
+           $$\text{Fit} = 0.40 \times \text{Best Valid Combo Score} + 0.35 \times \text{RIASEC Congruence} + 0.25 \times \text{Gemini Direction Alignment}$$
+        3. Formulates transparent, evidence-based `fitReason` grounded in candidate's actual grades and combinations (e.g. "Tổ hợp C00 đạt điểm tuyệt đối 30.0/30...").
+    * **Database Expansion**:
+      - Expanded Level IV catalog in `seed_data.json` and `src/data/seed_data.json` to 24 accredited majors across Humanities, Arts, Tech, Business, Medicine, Law, Pedagogy, and 7 anchor institutions (`QHX`, `SPH`, `MTH`, `BKA`, `NTH`, `KHA`, `TCT`).
+    * **De-AI-ification of Portal UI (`Scientific4TabPortal.tsx`)**:
+      - Excised cybernetic tropes: removed neon pulsing glows, spinning stars, "F1" racing jargon, and robotic banners.
+      - Upgraded to prestigious academic design: "Cổng Tham Vấn Hướng Nghiệp & Chiến Lược Tuyển Sinh Đại Học 2026" with 4 clear procedural steps (01. Hồ sơ năng lực ➔ 02. Gợi ý ngành ➔ 03. Phân tầng trường ➔ 04. Tối ưu tổ hợp).
+      - Clean slate & neutral card styling, professional typography, transparent mathematical calculation cues.
+    * **Full Verification**:
+      - `scripts/test_major_linking_engine.mjs` (100% PASS for Humanities & STEM profiles).
+      - `scripts/test_live_analysis_endpoint.mjs` (100% PASS with live Gemini API).
+      - Vite production build completes cleanly in 2.61s with 0 errors.
+
+
   - Addressed user task: *"REFACTOR MAJOR & UNIVERSITY ANALYSIS — USE EXISTING DATA"*:
     * **Strict Dependency Chain Enforcement**:
       `Hồ sơ & Năng lực (Tab 1)` ➔ `Phân tích & gợi ý ngành (Tab 2)` ➔ `Người dùng chọn ngành (selectedMajorCode)` ➔ `Phân tích & gợi ý trường theo hồ sơ + ngành đã chọn (Tab 4)` ➔ `Người dùng chọn trường (selectedSchoolCode)` ➔ `Tối ưu tổ hợp môn (Tab 3)`.

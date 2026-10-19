@@ -31,7 +31,7 @@ import {
   calculateEffectivePriority,
   calculateBasePriority30
 } from '../services/admissionsCalculationEngine';
-import { getTuitionContext } from '../services/counselorBackend';
+import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/counselorBackend';
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
@@ -390,46 +390,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const rankedMajors = useMemo(() => {
     if (!isProfileValidated) return [];
 
-    const catalog = seedData.majorCatalogLevelIV || [];
-    return catalog.map(m => {
-      const sectorKey = m.sector || 'CNTT_BAN_DAN_AI';
-      const targetVector = SECTOR_RIASEC_VECTORS[sectorKey] || [30, 30, 30, 30, 30, 30];
-      const fitRatio = calculateCosineFit(userRiasecVector, targetVector);
-      let fitPercent = Math.round(fitRatio * 100);
-      const meta = SECTOR_META[sectorKey] || SECTOR_META.CNTT_BAN_DAN_AI;
+    if (aiAnalysisData && Array.isArray(aiAnalysisData.recommendedMajors) && aiAnalysisData.recommendedMajors.length > 0) {
+      return aiAnalysisData.recommendedMajors;
+    }
 
-      let isAiRecommended = false;
-      let fitReason = `Phù hợp với nhóm sở thích ${meta.name} (độ tương đồng hồ sơ: ${fitPercent}%).`;
-
-      if (aiAnalysisData && Array.isArray(aiAnalysisData.recommendedMajors)) {
-        const aiMatch = aiAnalysisData.recommendedMajors.find(
-          (rm: any) => rm.codeTT09 === m.codeTT09 || rm.codeTT74 === m.codeTT74 || (rm.name && m.name && rm.name.toLowerCase().includes(m.name.toLowerCase().slice(0, 6)))
-        );
-        if (aiMatch) {
-          isAiRecommended = true;
-          fitPercent = Math.max(fitPercent, aiMatch.fitPercent || 92);
-          if (aiMatch.fitReason) fitReason = aiMatch.fitReason;
-        }
-      }
-
-      return {
-        ...m,
-        sectorName: meta.name,
-        fitPercent,
-        isAiRecommended,
-        fitReason,
-        salaryRange: meta.salaryRange,
-        salaryMedian: meta.salaryMedian,
-        aiRisk: meta.aiRisk,
-        aiRiskPercent: meta.aiRiskPercent,
-        popularCombos: meta.popularCombos
-      };
-    }).sort((a, b) => {
-      if (a.isAiRecommended && !b.isAiRecommended) return -1;
-      if (!a.isAiRecommended && b.isAiRecommended) return 1;
-      return b.fitPercent - a.fitPercent;
-    });
-  }, [isProfileValidated, userRiasecVector, aiAnalysisData]);
+    return linkAndRankMajorsWithDossier(scores, riasec, {}, seedData.majorCatalogLevelIV);
+  }, [isProfileValidated, scores, riasec, aiAnalysisData]);
 
   // Current Selected Major Object - strictly dependent on selectedMajorCode
   const currentMajor = useMemo(() => {
@@ -541,23 +507,37 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         if (satScore) exams.push(`SAT: ${satScore}/1600`);
         const examSummary = exams.length > 0 ? exams.join(', ') : 'Chưa thi chứng chỉ/ĐGNL';
 
-        const mathVal = typeof scores.math === 'number' ? scores.math : 'chưa nhập';
-        const litVal = typeof scores.literature === 'number' ? scores.literature : 'chưa nhập';
-        const engVal = typeof scores.english === 'number' ? scores.english : 'chưa nhập';
-        const phyVal = typeof scores.physics === 'number' ? scores.physics : 'chưa nhập';
-        const chemVal = typeof scores.chemistry === 'number' ? scores.chemistry : 'chưa nhập';
-        const bioVal = typeof scores.biology === 'number' ? scores.biology : 'chưa nhập';
-        const hisVal = typeof scores.history === 'number' ? scores.history : 'chưa nhập';
-        const geoVal = typeof scores.geography === 'number' ? scores.geography : 'chưa nhập';
-        const infVal = typeof scores.informatics === 'number' ? scores.informatics : 'chưa nhập';
-        const gdktVal = typeof scores.economicLegal === 'number' ? scores.economicLegal : 'chưa nhập';
+        const subjectLabels: Record<string, string> = {
+          math: 'Toán học',
+          literature: 'Ngữ văn',
+          english: 'Tiếng Anh',
+          physics: 'Vật lý',
+          chemistry: 'Hóa học',
+          biology: 'Sinh học',
+          history: 'Lịch sử',
+          geography: 'Địa lý',
+          informatics: 'Tin học',
+          economicLegal: 'GDKT&PL'
+        };
+        const enteredList: string[] = [];
+        const missingList: string[] = [];
+        for (const [k, lbl] of Object.entries(subjectLabels)) {
+          const val = scores[k];
+          if (typeof val === 'number' && !isNaN(val) && val >= 0 && val <= 10) {
+            enteredList.push(`${lbl}: ${val.toFixed(1)}`);
+          } else {
+            missingList.push(lbl);
+          }
+        }
 
         const promptText = `Bạn là Hệ thống Trí Tuệ Nhân Tạo Hướng Nghiệp NEXORA. Phân tích hồ sơ học sinh THPT:
-- Điểm 10 môn: Toán=${mathVal}, Văn=${litVal}, Anh=${engVal}, Lý=${phyVal}, Hóa=${chemVal}, Sinh=${bioVal}, Sử=${hisVal}, Địa=${geoVal}, Tin=${infVal}, GDKT&PL=${gdktVal}.
+- Các môn THPT ĐÃ CÓ ĐIỂM THI: ${enteredList.length > 0 ? enteredList.join(', ') : 'Chưa có môn nào'}.
+- Các môn THPT CHƯA CÓ ĐIỂM / KHÔNG THI: ${missingList.join(', ')}.
+(QUY TẮC: Học sinh CHỈ có thể xét tuyển bằng các môn ĐÃ CÓ ĐIỂM. Nếu không thi Toán/Lý/Hóa thì KHÔNG ĐƯỢC đề xuất tổ hợp A00, A01, B00 và phải đưa CNTT/Bán dẫn/Kỹ thuật/Y khoa vào avoidSectors!).
 - Bài thi năng lực / Chứng chỉ: ${examSummary}.
-- RIASEC: R=${riasec.R}, I=${riasec.I}, A=${riasec.A}, S=${riasec.S}, E=${riasec.E}, C=${riasec.C} (Mã đỉnh: ${dominantRiasec || 'Chưa xác định'}).
+- RIASEC: R=${riasec.R || 0}, I=${riasec.I || 0}, A=${riasec.A || 0}, S=${riasec.S || 0}, E=${riasec.E || 0}, C=${riasec.C || 0} (Mã đỉnh: ${dominantRiasec || 'Chưa xác định'}).
 - Ngân sách học phí: ${maxTuition} triệu VNĐ/năm (Nghị định 238/2025/NĐ-CP).
-- Câu hỏi băn khoăn của chính học sinh: "${personalQuestion || 'Em muốn AI phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
+- Câu hỏi băn khoăn của chính học sinh: "${personalQuestion || 'Em muốn chuyên gia phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
 
 YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
 {
@@ -566,22 +546,9 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
   "strengthsEvaluation": "Đánh giá thế mạnh học thuật nổi trội",
   "risksAndBottlenecks": "Cảnh báo thách thức thực tế và môn học nghẽn",
   "tuitionFeasibility": "Nhận định học phí theo NĐ 238/2025",
-  "recommendedMajors": [
-    {
-      "codeTT09": "7480201",
-      "codeTT74": "748020",
-      "name": "Công nghệ thông tin",
-      "sector": "CNTT_BAN_DAN_AI",
-      "sectorName": "Máy tính, CNTT, Bán dẫn & AI",
-      "fitPercent": 95,
-      "fitReason": "Lý do vì sao phù hợp cụ thể với học sinh này",
-      "targetJobs": ["Kỹ sư phần mềm", "Kỹ sư AI/ML"],
-      "salaryMedian": "28 triệu/tháng",
-      "aiRisk": "Thấp",
-      "aiRiskPercent": 28,
-      "popularCombos": ["A00", "A01"]
-    }
-  ],
+  "recommendedSectors": ["Tên_sector_1", "Tên_sector_2"],
+  "avoidSectors": ["Tên_sector_tránh_1"],
+  "recommendedKeywords": ["từ khóa 1", "từ khóa 2", "từ khóa 3"],
   "optimalComboAdvice": "Khuyên dùng tổ hợp nào tối ưu nhất",
   "universityAdvice": "Chiến lược phân tầng 3 cấp nguyện vọng"
 }`;
@@ -601,6 +568,8 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
           const parsed = JSON.parse(cleaned);
           if (parsed && parsed.headline) {
+            const linkedMajors = linkAndRankMajorsWithDossier(scores, riasec, parsed, seedData.majorCatalogLevelIV);
+            parsed.recommendedMajors = linkedMajors;
             setAiAnalysisData(parsed);
             setAiModelUsed('Gemini 3.1 Flash-Lite');
             setIsAnalyzingWithAI(false);
@@ -614,41 +583,63 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
       }
 
       // Grounded deterministic fallback based on actual grades and question
-      const numMath = typeof scores.math === 'number' ? scores.math : 8.0;
-      const numPhy = typeof scores.physics === 'number' ? scores.physics : 7.5;
-      const numEng = typeof scores.english === 'number' ? scores.english : 8.0;
-      const isHighStem = numMath >= 8.0 && numPhy >= 7.5;
-      const isHighLang = numEng >= 8.0;
+      const mathVal = typeof scores.math === 'number' ? scores.math : 0;
+      const phyVal = typeof scores.physics === 'number' ? scores.physics : 0;
+      const chemVal = typeof scores.chemistry === 'number' ? scores.chemistry : 0;
+      const litVal = typeof scores.literature === 'number' ? scores.literature : 0;
+      const engVal = typeof scores.english === 'number' ? scores.english : 0;
+      const hisVal = typeof scores.history === 'number' ? scores.history : 0;
+      const geoVal = typeof scores.geography === 'number' ? scores.geography : 0;
+
+      const isStemOriented = mathVal >= 7.5 && (phyVal >= 7.0 || chemVal >= 7.0);
+      const isHumanitiesOriented = litVal >= 7.5 || hisVal >= 7.5 || geoVal >= 7.5;
+      const isArtisticOriented = Number(riasec.A || 0) >= 35;
       const dominantStr = dominantRiasec || 'Đa diện';
 
-      const fallbackAnalysis = {
-        headline: isHighStem
+      const fallbackDiagnosis = {
+        headline: isStemOriented
           ? `Chiến lược Định hướng: Tối ưu Tư duy STEM & Năng lực Phân tích ${dominantStr}`
-          : `Chiến lược Định hướng: Khai phóng Đa Trí Tuệ & Thế mạnh Ngôn ngữ ${dominantStr}`,
+          : isArtisticOriented
+          ? `Chiến lược Định hướng: Khai phóng Sáng tạo Nghệ thuật & Truyền thông Đa phương tiện ${dominantStr}`
+          : isHumanitiesOriented
+          ? `Chiến lược Định hướng: Phát huy Thế mạnh Khoa học Xã hội, Ngôn ngữ & Sư phạm ${dominantStr}`
+          : `Chiến lược Định hướng: Tối ưu Lộ trình Học thuật & Năng lực Thích ứng ${dominantStr}`,
         directAnswer: personalQuestion
           ? `Đối với băn khoăn của bạn ("${personalQuestion}"): Phân tích dữ liệu học tập cho thấy bạn hoàn toàn có cơ sở để chủ động định hình lộ trình. Đừng quá lo lắng về áp lực xã hội hay những nhận định phiến diện. Sự kết hợp giữa năng lực thực tế và định hướng rõ ràng sẽ giúp bạn vượt trội trong môi trường học thuật 2026.`
           : `Hồ sơ của bạn sở hữu nền tảng học tập với năng lực xác thực. Mã đỉnh ${dominantStr} cho thấy tiềm năng thích ứng linh hoạt trong môi trường đại học hiện đại.`,
-        strengthsEvaluation: `Điểm GPA bình quân (${averageGpa ? averageGpa + 'đ' : 'đã kiểm toán'}) phản ánh nền tảng học tập tốt. Thế mạnh môn ${isHighStem ? 'Toán - Tin logic' : 'Văn - Ngoại ngữ'} kết hợp với miền sở thích ${dominantStr} là đòn bẩy lớn trong các phương thức xét tuyển kết hợp.`,
+        strengthsEvaluation: `Điểm số phản ánh thái độ học tập nghiêm túc. Thế mạnh môn ${
+          isStemOriented ? 'Toán - KHTN' : isHumanitiesOriented ? 'Văn - Sử - Địa' : 'Ngoại ngữ'
+        } kết hợp với miền sở thích ${dominantStr} là đòn bẩy lớn trong các phương thức xét tuyển kết hợp.`,
         risksAndBottlenecks: `Cần lưu ý kiểm soát các môn điều kiện trong tổ hợp chính và theo dõi sát sao điểm chuẩn 3 năm gần nhất để tránh tình trạng dồn toàn bộ nguyện vọng vào nhóm ngành có tỷ lệ chọi quá cao.`,
         tuitionFeasibility: `Ngân sách ${maxTuition} triệu VNĐ/năm hoàn toàn nằm trong khung trần Nghị định 238/2025/NĐ-CP đối với các trường đại học công lập và chương trình chuẩn chất lượng cao.`,
-        recommendedMajors: [
-          {
-            codeTT09: isHighStem ? '7480201' : '7340101',
-            codeTT74: isHighStem ? '748020' : '734010',
-            name: isHighStem ? 'Công nghệ thông tin' : 'Quản trị kinh doanh & Kinh tế số',
-            sector: isHighStem ? 'CNTT_BAN_DAN_AI' : 'KINH_TE_QUAN_TRI',
-            sectorName: isHighStem ? 'Máy tính, CNTT, Bán dẫn & AI' : 'Kinh doanh, Quản lý & Tài chính',
-            fitPercent: 94,
-            fitReason: `Phù hợp với hồ sơ có nền tảng điểm Toán ${scores.math || 8.0} và mã đỉnh ${dominantStr}.`,
-            targetJobs: isHighStem ? ['Kỹ sư phần mềm', 'Chuyên viên dữ liệu', 'Kỹ sư AI'] : ['Chuyên viên phân tích kinh doanh', 'Quản trị dự án số'],
-            salaryMedian: isHighStem ? '28 triệu/tháng' : '22 triệu/tháng',
-            aiRisk: isHighStem ? 'Thấp' : 'Trung bình',
-            aiRiskPercent: isHighStem ? 28 : 42,
-            popularCombos: isHighStem ? ['A00', 'A01', 'D01'] : ['A01', 'D01', 'A00']
-          }
-        ],
-        optimalComboAdvice: isHighLang ? 'Khuyên dùng tổ hợp có môn Tiếng Anh (A01, D01) để tận dụng tối đa năng lực ngôn ngữ.' : 'Khuyên dùng tổ hợp A00 hoặc D01 theo thế mạnh cốt lõi.',
+        recommendedSectors: isStemOriented
+          ? ['CNTT_BAN_DAN_AI', 'KY_THUAT_CONG_NGHE']
+          : isArtisticOriented
+          ? ['KIEN_TRUC_NGHE_THUAT_TDTT', 'XA_HOI_NHAN_VAN']
+          : isHumanitiesOriented
+          ? ['XA_HOI_NHAN_VAN', 'SU_PHAM_GIAO_DUC', 'LUAT_HANH_CHINH']
+          : ['KINH_TE_QUAN_TRI', 'XA_HOI_NHAN_VAN'],
+        avoidSectors: isStemOriented
+          ? ['XA_HOI_NHAN_VAN', 'SU_PHAM_GIAO_DUC']
+          : ['CNTT_BAN_DAN_AI', 'KY_THUAT_CONG_NGHE', 'Y_DUOC_SUC_KHOE'],
+        recommendedKeywords: isStemOriented
+          ? ['máy tính', 'công nghệ thông tin', 'bán dẫn', 'tự động hóa']
+          : isArtisticOriented
+          ? ['thiết kế đồ họa', 'truyền thông', 'báo chí', 'quan hệ công chúng']
+          : ['truyền thông', 'báo chí', 'sư phạm ngữ văn', 'ngôn ngữ anh', 'luật'],
+        optimalComboAdvice: engVal >= 8.0
+          ? 'Khuyên dùng tổ hợp có môn Tiếng Anh (D01, D14, A01) để tận dụng tối đa năng lực ngôn ngữ.'
+          : isHumanitiesOriented
+          ? 'Khuyên dùng tổ hợp C00 (Văn, Sử, Địa) hoặc D14 theo thế mạnh cốt lõi.'
+          : 'Khuyên dùng tổ hợp A00 hoặc D01 theo thế mạnh cốt lõi.',
         universityAdvice: `Phân bổ nguyện vọng theo chiến lược 3 tầng: 1-2 nguyện vọng Mơ ước (điểm chuẩn cao hơn 0.5-1.0đ), 2-3 nguyện vọng Vừa sức (biên độ an toàn), và ít nhất 1 nguyện vọng An toàn tuyệt đối.`
+      };
+
+      const fallbackMajors = linkAndRankMajorsWithDossier(scores, riasec, fallbackDiagnosis, seedData.majorCatalogLevelIV);
+
+      const fallbackAnalysis = {
+        ...fallbackDiagnosis,
+        recommendedMajors: fallbackMajors
       };
 
       setAiAnalysisData(fallbackAnalysis);
@@ -964,18 +955,17 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           HERO TITLE & 4-TAB SCIENTIFIC WORKSPACE HEADER
           ========================================================================= */}
       <section className="text-center pt-6 sm:pt-10 px-4 space-y-4 max-w-5xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1D4ED8]/15 border border-[#2563EB]/40 text-xs text-[#60A5FA] font-mono shadow-sm">
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="font-semibold tracking-wide">NEXORA 2.0 · BỘ MÁY ĐỊNH HƯỚNG KHOA HỌC &amp; XÉT TUYỂN 4 TẦNG (F1 PIPELINE)</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-xs text-slate-200 font-sans shadow-sm">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <span className="font-medium tracking-wide">Cổng Tham Vấn Hướng Nghiệp &amp; Chiến Lược Tuyển Sinh Đại Học 2026</span>
         </div>
 
         <h1 className="text-3xl sm:text-5xl md:text-6xl font-black font-sans tracking-tight text-white leading-tight">
-          Cố Vấn Hướng Nghiệp <span className="text-[#3B82F6]">1:1 Chuẩn Khoa Học</span>
+          Cố Vấn Hướng Nghiệp &amp; <span className="text-[#3B82F6]">Chiến Lược Tuyển Sinh 2026</span>
         </h1>
 
-        <p className="text-xs sm:text-sm md:text-base text-slate-200 font-normal max-w-3xl mx-auto leading-relaxed">
-          Tuân thủ nghiêm ngặt chuỗi quyết định <span className="text-amber-300 font-bold">F1: Chọn Ngành ➔ Chọn Trường ➔ Chọn Tổ Hợp</span>.
-          Không dùng câu trả lời có sẵn hay ép buộc chọn nghề. Hoàn toàn cá nhân hóa theo hồ sơ và câu hỏi từ chính bạn.
+        <p className="text-xs sm:text-sm md:text-base text-slate-300 font-normal max-w-3xl mx-auto leading-relaxed">
+          Quy trình đánh giá 4 bước theo Thông tư 06/2026/TT-BGDĐT, danh mục ngành cấp IV và khung học phí Nghị định 238/2025/NĐ-CP. Dữ liệu chuẩn xác, phân tích khách quan và hoàn toàn cá nhân hóa theo hồ sơ thực tế của học sinh.
         </p>
 
         {/* 4 EXPLICIT TABS NAVBAR */}
@@ -984,34 +974,34 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
             {
               id: 'tab-profile' as ScientificTabKey,
               num: '01',
-              title: 'HỒ SƠ & NĂNG LỰC',
-              desc: 'Nhập thông tin có cấu trúc',
+              title: 'HỒ SƠ NĂNG LỰC',
+              desc: 'Điểm học tập & RIASEC',
               icon: FileText,
-              badge: 'Bắt đầu'
+              badge: 'Bước 1'
             },
             {
               id: 'tab-major' as ScientificTabKey,
               num: '02',
-              title: 'HỖ TRỢ CHỌN NGÀNH',
-              desc: 'Vector Fit & Rủi ro AI',
+              title: 'GỢI Ý NGÀNH HỌC',
+              desc: 'Độ tương thích & Căn cứ',
               icon: Briefcase,
-              badge: 'F1 Bước 1'
+              badge: 'Bước 2'
             },
             {
               id: 'tab-university' as ScientificTabKey,
               num: '04',
-              title: 'HỖ TRỢ CHỌN TRƯỜNG',
-              desc: '3 Tầng Điểm Chuẩn & NĐ 238',
+              title: 'PHÂN TẦNG TRƯỜNG',
+              desc: '3 tầng NV & Học phí 2026',
               icon: GraduationCap,
-              badge: 'F1 Bước 2'
+              badge: 'Bước 3'
             },
             {
               id: 'tab-combo' as ScientificTabKey,
               num: '03',
-              title: 'HỖ TRỢ CHỌN TỔ HỢP',
-              desc: 'Tối ưu TT 06/2026',
+              title: 'TỐI ƯU TỔ HỢP',
+              desc: 'Quy đổi điểm TT 06/2026',
               icon: Layers,
-              badge: 'F1 Bước 3'
+              badge: 'Bước 4'
             }
           ].map(tab => {
             const isActive = activeTab === tab.id;
@@ -1526,14 +1516,14 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
             </div>
           )}
 
-          {/* Main Action Trigger F1 */}
+          {/* Main Action Trigger */}
           <div className="pt-2 flex justify-center">
             <button
               type="button"
               onClick={handleLaunchF1Pipeline}
-              className="px-8 py-3.5 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-sans font-bold text-sm tracking-wide shadow-[0_0_25px_rgba(37,99,235,0.4)] transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+              className="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-sm tracking-wide shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 cursor-pointer"
             >
-              <span>KHỞI ĐỘNG CHUỖI QUYẾT ĐỊNH KHOA HỌC (F1) ➔ BƯỚC 1: CHỌN NGÀNH</span>
+              <span>Phân Tích Hồ Sơ &amp; Đề Xuất Ngành Phù Hợp</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -1589,18 +1579,18 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
             <>
               {/* AI DOSSIER INTELLIGENCE REPORT */}
               {aiAnalysisData && (
-            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#0B0F19] via-[#111827] to-[#0A0D14] border border-blue-500/40 shadow-[0_0_35px_rgba(59,130,246,0.25)] space-y-5">
+            <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-lg space-y-5">
               {/* Header bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/80 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-400/50 flex items-center justify-center text-blue-300 shrink-0">
-                    <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+                    <BookOpen className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-[11px] font-mono text-blue-300 font-bold tracking-wider uppercase flex items-center gap-2">
-                      <span>BÁO CÁO PHÂN TÍCH CHUYÊN SÂU TỪ AI · {aiModelUsed}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-400/60 text-emerald-300 text-[10px] font-black">
-                        LIVE AI READY
+                    <div className="text-[11px] font-sans text-slate-400 font-semibold tracking-wider uppercase flex items-center gap-2">
+                      <span>BẢN ĐÁNH GIÁ CHIẾN LƯỢC HỒ SƠ HỌC VIÊN</span>
+                      <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-medium">
+                        {aiModelUsed} · Chuẩn Bộ GD&amp;ĐT
                       </span>
                     </div>
                     <h2 className="text-lg sm:text-xl font-bold font-sans text-white tracking-tight mt-0.5">
@@ -1615,23 +1605,23 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                     sfx.playUiClick();
                     setActiveTab('tab-profile');
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-950/60 hover:bg-blue-900/80 border border-blue-500/40 text-blue-200 text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600/80 text-slate-200 text-xs font-sans font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 text-blue-300" />
-                  <span>Chỉnh sửa hồ sơ / Đặt câu hỏi khác</span>
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-300" />
+                  <span>Điều chỉnh hồ sơ / Đặt câu hỏi khác</span>
                 </button>
               </div>
 
               {/* Direct Answer Box to User's authentic question */}
-              <div className="p-4 rounded-xl bg-black/60 border border-purple-500/30 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-mono text-purple-300 font-bold">
-                  <HelpCircle className="w-4 h-4 text-purple-400" />
-                  <span>GIẢI ĐÁP TRỰC TIẾP BĂN KHOĂN CỦA BẠN:</span>
+              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-700/60 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-sans text-blue-400 font-semibold">
+                  <HelpCircle className="w-4 h-4 text-blue-400" />
+                  <span>Ý KIẾN THAM VẤN CHO BĂN KHOĂN CỦA HỌC SINH:</span>
                 </div>
-                <div className="text-xs sm:text-sm text-slate-300 italic pl-6 border-l-2 border-purple-500/60">
-                  "{personalQuestion || 'Em muốn AI phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
+                <div className="text-xs sm:text-sm text-slate-300 italic pl-6 border-l-2 border-blue-500/50">
+                  "{personalQuestion || 'Em muốn chuyên gia phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
                 </div>
-                <div className="pt-2 text-xs sm:text-sm text-white font-normal leading-relaxed whitespace-pre-line pl-6">
+                <div className="pt-2 text-xs sm:text-sm text-slate-100 font-normal leading-relaxed whitespace-pre-line pl-6">
                   {aiAnalysisData.directAnswer}
                 </div>
               </div>
@@ -1639,34 +1629,34 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
               {/* 3 Core Analytical Pillars */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-xs">
                 {/* Pillar 1: Strengths */}
-                <div className="p-3.5 rounded-xl bg-black/40 border border-emerald-500/30 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-emerald-300 font-bold font-mono">
+                <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold font-sans">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Thế Mạnh Học Thuật</span>
+                    <span>Năng Lực &amp; Thế Mạnh Học Thuật</span>
                   </div>
-                  <p className="text-slate-200 leading-relaxed font-normal">
+                  <p className="text-slate-300 leading-relaxed font-normal">
                     {aiAnalysisData.strengthsEvaluation}
                   </p>
                 </div>
 
                 {/* Pillar 2: Risks & Bottlenecks */}
-                <div className="p-3.5 rounded-xl bg-black/40 border border-amber-500/30 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-amber-300 font-bold font-mono">
+                <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-bold font-sans">
                     <AlertTriangle className="w-4 h-4 text-amber-400" />
-                    <span>Rủi Ro &amp; Thách Thức</span>
+                    <span>Lưu Ý Rủi Ro &amp; Môn Học Nghẽn</span>
                   </div>
-                  <p className="text-slate-200 leading-relaxed font-normal">
+                  <p className="text-slate-300 leading-relaxed font-normal">
                     {aiAnalysisData.risksAndBottlenecks}
                   </p>
                 </div>
 
                 {/* Pillar 3: Tuition Feasibility */}
-                <div className="p-3.5 rounded-xl bg-black/40 border border-sky-500/30 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-sky-300 font-bold font-mono">
+                <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-sky-400 font-bold font-sans">
                     <DollarSign className="w-4 h-4 text-sky-400" />
-                    <span>Học Phí NĐ 238/2025</span>
+                    <span>Khả Thi Tài Chính &amp; Học Phí</span>
                   </div>
-                  <p className="text-slate-200 leading-relaxed font-normal">
+                  <p className="text-slate-300 leading-relaxed font-normal">
                     {aiAnalysisData.tuitionFeasibility}
                   </p>
                 </div>
@@ -1678,15 +1668,15 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-blue-900/60 border border-blue-500/40 text-blue-300 font-mono text-[10px] font-bold">
-                  F1 BƯỚC 1
+                <span className="px-2 py-0.5 rounded bg-blue-900/60 border border-blue-500/40 text-blue-300 font-sans text-[10px] font-bold">
+                  BƯỚC 2: GỢI Ý NGÀNH HỌC
                 </span>
                 <h2 className="font-sans font-bold text-lg text-white">
-                  Bảng Xếp Hạng Ngành Đào Tạo Phù Hợp Nhất Với Bạn
+                  Danh Mục Ngành Đào Tạo Phù Hợp Nhất Với Bạn
                 </h2>
               </div>
-              <p className="text-xs text-slate-200 mt-1 font-normal">
-                Thuật toán Cosine Vector Matching so khớp hồ sơ RIASEC <span className="text-[#38BDF8] font-bold">({dominantRiasec})</span> và năng lực 10 môn của bạn với chuẩn danh mục cấp IV (TT 09/2022 &amp; TT 74/2026).
+              <p className="text-xs text-slate-300 mt-1 font-normal">
+                Đối soát giữa năng lực học tập, tổ hợp xét tuyển hợp lệ và miền sở thích RIASEC <span className="text-[#38BDF8] font-bold">({dominantRiasec || 'Hồ sơ'})</span> với danh mục ngành cấp IV (TT 09/2022 &amp; TT 74/2026).
               </p>
             </div>
 
@@ -1739,13 +1729,13 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                           {major.sectorName}
                         </span>
                         {major.isAiRecommended ? (
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-900/90 border border-blue-400 text-blue-200 font-mono text-xs font-black shadow-[0_0_12px_rgba(59,130,246,0.5)]">
-                            <Sparkles className="w-3 h-3 text-amber-300" />
-                            <span>AI Đề Xuất · {major.fitPercent}%</span>
+                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-900/80 border border-blue-400/60 text-blue-200 font-sans text-xs font-bold">
+                            <ShieldCheck className="w-3.5 h-3.5 text-blue-300" />
+                            <span>Độ tương thích: {major.fitPercent}%</span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-400/50 text-emerald-300 font-mono text-xs font-black">
-                            <TrendingUp className="w-3 h-3" />
+                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-600 text-slate-300 font-sans text-xs font-medium">
+                            <TrendingUp className="w-3 h-3 text-slate-400" />
                             <span>Khớp {major.fitPercent}%</span>
                           </div>
                         )}
@@ -1763,14 +1753,14 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                         </div>
                       </div>
 
-                      {/* AI Custom Fit Reason */}
+                      {/* Custom Fit Reason */}
                       {major.fitReason && (
-                        <div className="p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/30 text-xs text-blue-200 space-y-1">
-                          <div className="font-mono text-[10px] text-blue-300 font-bold uppercase tracking-wider flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-amber-300" />
-                            <span>Lý do AI đề xuất cho bạn:</span>
+                        <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60 text-xs text-slate-200 space-y-1">
+                          <div className="font-sans text-[11px] text-blue-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+                            <Info className="w-3 h-3 text-blue-400" />
+                            <span>Căn cứ lựa chọn &amp; Lợi thế hồ sơ:</span>
                           </div>
-                          <p className="text-slate-100 font-normal leading-relaxed">{major.fitReason}</p>
+                          <p className="text-slate-200 font-normal leading-relaxed">{major.fitReason}</p>
                         </div>
                       )}
 
@@ -1796,7 +1786,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                           <span className="text-emerald-300 font-black text-sm">{major.salaryMedian}</span>
                         </div>
                         <div className="p-2.5 rounded-lg bg-black/40 border border-slate-700/80">
-                          <span className="text-slate-200 text-xs font-medium block">Rủi ro AI thay thế:</span>
+                          <span className="text-slate-200 text-xs font-medium block">Mức độ tự động hóa:</span>
                           <span className={major.aiRisk === 'Cực thấp' || major.aiRisk === 'Thấp' ? 'text-emerald-300 font-bold text-sm' : 'text-amber-300 font-bold text-sm'}>
                             {major.aiRisk} ({major.aiRiskPercent}%)
                           </span>
@@ -1804,7 +1794,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                       </div>
                     </div>
 
-                    {/* Action Buttons: F1 Step 2 */}
+                    {/* Action Buttons: Advance to Step 3 / Combos */}
                     <div className="pt-4 border-t border-slate-800 mt-4 flex items-center justify-between gap-2">
                       <button
                         type="button"
@@ -1826,7 +1816,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                             : 'bg-white/10 hover:bg-[#3B82F6] text-white'
                         }`}
                       >
-                        <span>Khớp TRƯỜNG đào tạo (Tab 4)</span>
+                        <span>Khớp trường đào tạo mục tiêu (Bước 3)</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1923,8 +1913,8 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-amber-900/60 border border-amber-500/40 text-amber-300 font-mono text-[10px] font-bold">
-                        F1 BƯỚC 2
+                      <span className="px-2 py-0.5 rounded bg-amber-900/60 border border-amber-500/40 text-amber-300 font-sans text-[10px] font-bold">
+                        BƯỚC 3: PHÂN TẦNG TRƯỜNG ĐẠI HỌC
                       </span>
                       <h2 className="font-sans font-bold text-lg text-white">
                         Chiến Lược Chọn Trường 3 Tầng Cho Ngành: <span className="text-[#38BDF8]">{currentMajor?.name}</span>
@@ -2135,8 +2125,8 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 font-mono text-[10px] font-bold">
-                        F1 BƯỚC 3 (TỐI ƯU HÓA)
+                      <span className="px-2 py-0.5 rounded bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 font-sans text-[10px] font-bold">
+                        BƯỚC 4: TỐI ƯU HÓA TỔ HỢP (TT 06/2026)
                       </span>
                       <h2 className="font-sans font-bold text-lg text-white">
                         Tối Ưu Hóa Tổ Hợp Môn Cho Trường: <span className="text-[#38BDF8]">{currentUniversity?.official_name || selectedSchoolCode} ({selectedSchoolCode})</span>
