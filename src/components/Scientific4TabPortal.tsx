@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   FileText,
   Briefcase,
@@ -6,7 +6,9 @@ import {
   GraduationCap,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
   RotateCcw,
+  CheckCircle,
   CheckCircle2,
   AlertTriangle,
   ShieldCheck,
@@ -168,6 +170,63 @@ function calculateCosineFit(
   return Math.max(0, Math.min(1, sim));
 }
 
+/**
+ * Standard Subject Combinations Map for Admission Scoring (TT 06/2026/TT-BGDĐT)
+ */
+const COMBINATION_SUBJECT_MAP: Record<string, { subjects: [string, string, string]; name: string }> = {
+  A00: { subjects: ['math', 'physics', 'chemistry'], name: 'Toán - Vật lý - Hóa học' },
+  A01: { subjects: ['math', 'physics', 'english'], name: 'Toán - Vật lý - Tiếng Anh' },
+  A02: { subjects: ['math', 'physics', 'biology'], name: 'Toán - Vật lý - Sinh học' },
+  B00: { subjects: ['math', 'chemistry', 'biology'], name: 'Toán - Hóa học - Sinh học' },
+  B08: { subjects: ['math', 'biology', 'english'], name: 'Toán - Sinh học - Tiếng Anh' },
+  C00: { subjects: ['literature', 'history', 'geography'], name: 'Ngữ văn - Lịch sử - Địa lý' },
+  C01: { subjects: ['literature', 'math', 'physics'], name: 'Ngữ văn - Toán - Vật lý' },
+  C02: { subjects: ['literature', 'math', 'chemistry'], name: 'Ngữ văn - Toán - Hóa học' },
+  C03: { subjects: ['literature', 'math', 'history'], name: 'Ngữ văn - Toán - Lịch sử' },
+  C04: { subjects: ['literature', 'math', 'geography'], name: 'Ngữ văn - Toán - Địa lý' },
+  C14: { subjects: ['literature', 'math', 'economicLegal'], name: 'Ngữ văn - Toán - GDKT&PL' },
+  C19: { subjects: ['literature', 'history', 'economicLegal'], name: 'Ngữ văn - Lịch sử - GDKT&PL' },
+  C20: { subjects: ['literature', 'geography', 'economicLegal'], name: 'Ngữ văn - Địa lý - GDKT&PL' },
+  D01: { subjects: ['math', 'literature', 'english'], name: 'Toán - Ngữ văn - Tiếng Anh' },
+  D07: { subjects: ['math', 'chemistry', 'english'], name: 'Toán - Hóa học - Tiếng Anh' },
+  D08: { subjects: ['math', 'biology', 'english'], name: 'Toán - Sinh học - Tiếng Anh' },
+  D09: { subjects: ['math', 'history', 'english'], name: 'Toán - Lịch sử - Tiếng Anh' },
+  D10: { subjects: ['math', 'geography', 'english'], name: 'Toán - Địa lý - Tiếng Anh' },
+  D14: { subjects: ['literature', 'history', 'english'], name: 'Ngữ văn - Lịch sử - Tiếng Anh' },
+  D15: { subjects: ['literature', 'geography', 'english'], name: 'Ngữ văn - Địa lý - Tiếng Anh' },
+  D84: { subjects: ['math', 'economicLegal', 'english'], name: 'Toán - GDKT&PL - Tiếng Anh' },
+  X06: { subjects: ['math', 'informatics', 'english'], name: 'Toán - Tin học - Tiếng Anh' }
+};
+
+/**
+ * Calculates candidate's official score for a given combination if all 3 subjects are entered.
+ * Returns null if any subject is missing ('' or NaN).
+ */
+function getCandidateComboScore(
+  comboCode: string,
+  scores: Record<string, number | ''>,
+  basePriority: number
+): { comboCode: string; rawScore: number; effectivePriority: number; officialScore: number; subjectNames: string } | null {
+  const map = COMBINATION_SUBJECT_MAP[comboCode];
+  if (!map) return null;
+  const s1 = scores[map.subjects[0]];
+  const s2 = scores[map.subjects[1]];
+  const s3 = scores[map.subjects[2]];
+
+  if (
+    typeof s1 !== 'number' || isNaN(s1) ||
+    typeof s2 !== 'number' || isNaN(s2) ||
+    typeof s3 !== 'number' || isNaN(s3)
+  ) {
+    return null;
+  }
+
+  const rawScore = Number((s1 + s2 + s3).toFixed(2));
+  const { effectivePriority } = calculateEffectivePriority(basePriority, rawScore, 30);
+  const officialScore = Number(Math.min(30.0, rawScore + effectivePriority).toFixed(2));
+  return { comboCode, rawScore, effectivePriority, officialScore, subjectNames: map.name };
+}
+
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
   onOpenAIChat,
@@ -179,42 +238,42 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // =========================================================================
   // STATE: TAB 1 STUDENT INTAKE DOSSIER
   // =========================================================================
-  // 10 Subject High School Scores
-  const [scores, setScores] = useState<Record<string, number>>({
-    math: 8.5,
-    literature: 7.5,
-    english: 8.0,
-    physics: 8.0,
-    chemistry: 7.5,
-    biology: 7.0,
-    history: 7.0,
-    geography: 7.0,
-    informatics: 8.5,
-    economicLegal: 7.5
+  // 10 Subject High School Scores (initially empty, distinguishing missing from zero)
+  const [scores, setScores] = useState<Record<string, number | ''>>({
+    math: '',
+    literature: '',
+    english: '',
+    physics: '',
+    chemistry: '',
+    biology: '',
+    history: '',
+    geography: '',
+    informatics: '',
+    economicLegal: ''
   });
 
-  // Competency Exams & International Certs
-  const [hsaScore, setHsaScore] = useState<number | ''>(95);
-  const [vactScore, setVactScore] = useState<number | ''>(850);
-  const [tsaScore, setTsaScore] = useState<number | ''>(68);
-  const [ieltsBand, setIeltsBand] = useState<number | ''>(6.5);
-  const [satScore, setSatScore] = useState<number | ''>(1350);
+  // Competency Exams & International Certs (initially empty)
+  const [hsaScore, setHsaScore] = useState<number | ''>('');
+  const [vactScore, setVactScore] = useState<number | ''>('');
+  const [tsaScore, setTsaScore] = useState<number | ''>('');
+  const [ieltsBand, setIeltsBand] = useState<number | ''>('');
+  const [satScore, setSatScore] = useState<number | ''>('');
 
-  // RIASEC 6 Dimensions (10 - 50)
+  // RIASEC 6 Dimensions (initially empty)
   const [riasec, setRiasec] = useState<{
-    R: number;
-    I: number;
-    A: number;
-    S: number;
-    E: number;
-    C: number;
+    R: number | '';
+    I: number | '';
+    A: number | '';
+    S: number | '';
+    E: number | '';
+    C: number | '';
   }>({
-    R: 35,
-    I: 45,
-    A: 28,
-    S: 25,
-    E: 32,
-    C: 38
+    R: '',
+    I: '',
+    A: '',
+    S: '',
+    E: '',
+    C: ''
   });
 
   // Financial & Regional Preferences
@@ -223,6 +282,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [priorityObject, setPriorityObject] = useState<'DT_0' | 'DT_NHOM_1' | 'DT_NHOM_2'>('DT_0');
   const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
   const [personalQuestion, setPersonalQuestion] = useState<string>('');
+
+  // Profile validation & submission state
+  const [isProfileValidated, setIsProfileValidated] = useState<boolean>(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // AI Dossier Intelligence Analysis State
   const [isAnalyzingWithAI, setIsAnalyzingWithAI] = useState<boolean>(false);
@@ -235,27 +298,72 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [onetAnswers, setOnetAnswers] = useState<Record<string, number>>({});
 
   // =========================================================================
-  // STATE: SELECTION & F1 PIPELINE
+  // STATE: SELECTION & F1 PIPELINE (STRICT DEPENDENCY: initially null)
   // =========================================================================
-  // Default selected major: 7480201 (CNTT)
-  const [selectedMajorCode, setSelectedMajorCode] = useState<string>('7480201');
+  const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
+  const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
 
-  // Selected University for Tab 4 & Tab 3
-  const [selectedSchoolCode, setSelectedSchoolCode] = useState<string>('BKA');
+  // Profile Validation Memo
+  const profileValidation = useMemo(() => {
+    const validScores = Object.entries(scores).filter(
+      ([_, v]) => typeof v === 'number' && !isNaN(v) && v >= 0 && v <= 10
+    );
+    const validRiasec = Object.entries(riasec).filter(
+      ([_, v]) => typeof v === 'number' && !isNaN(v) && v >= 10 && v <= 50
+    );
 
-  // GPA calculation
+    const missingItems: string[] = [];
+    if (validScores.length < 3) {
+      missingItems.push(`Nhập điểm tối thiểu 3 môn thi THPT (hiện có ${validScores.length}/3 môn)`);
+    }
+    if (validRiasec.length < 3) {
+      missingItems.push(`Thiết lập tối thiểu 3 nhóm sở thích RIASEC (hoặc làm bài trắc nghiệm O*NET 60 câu)`);
+    }
+
+    return {
+      isValid: missingItems.length === 0,
+      validSubjectCount: validScores.length,
+      validRiasecCount: validRiasec.length,
+      missingItems
+    };
+  }, [scores, riasec]);
+
+  // Downstream State Invalidation: clears downstream recommendations when inputs are altered
+  const invalidateDownstream = useCallback(() => {
+    setIsProfileValidated(false);
+    setValidationError(null);
+    setAiAnalysisData(null);
+    setSelectedMajorCode(null);
+    setSelectedSchoolCode(null);
+  }, []);
+
+  const handleScoreChange = (key: string, val: number | '') => {
+    setScores(prev => ({ ...prev, [key]: val }));
+    invalidateDownstream();
+  };
+
+  const handleRiasecChange = (key: keyof typeof riasec, val: number | '') => {
+    setRiasec(prev => ({ ...prev, [key]: val }));
+    invalidateDownstream();
+  };
+
+  // GPA calculation: only average valid entered numerical scores
   const averageGpa = useMemo(() => {
-    const vals = Object.values(scores);
-    const sum = vals.reduce((a, b) => a + b, 0);
-    return Number((sum / vals.length).toFixed(2));
+    const entered = Object.values(scores).filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    if (entered.length === 0) return null;
+    const sum = entered.reduce((a, b) => a + b, 0);
+    return Number((sum / entered.length).toFixed(2));
   }, [scores]);
 
   // Compute Dominant RIASEC Code (e.g. "IRC")
   const dominantRiasec = useMemo(() => {
-    const entries: [string, number][] = Object.entries(riasec);
-    entries.sort((a, b) => b[1] - a[1]);
-    return entries.slice(0, 3).map(e => e[0]).join('');
+    const validEntries = Object.entries(riasec).filter(
+      (entry): entry is [string, number] => typeof entry[1] === 'number' && !isNaN(entry[1]) && entry[1] >= 10
+    );
+    if (validEntries.length < 3) return null;
+    validEntries.sort((a, b) => b[1] - a[1]);
+    return validEntries.slice(0, 3).map(e => e[0]).join('');
   }, [riasec]);
 
   // Candidate Base Priority under TT 06/2026
@@ -265,13 +373,23 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   // User RIASEC Vector
   const userRiasecVector: [number, number, number, number, number, number] = useMemo(() => {
-    return [riasec.R, riasec.I, riasec.A, riasec.S, riasec.E, riasec.C];
+    return [
+      typeof riasec.R === 'number' ? riasec.R : 0,
+      typeof riasec.I === 'number' ? riasec.I : 0,
+      typeof riasec.A === 'number' ? riasec.A : 0,
+      typeof riasec.S === 'number' ? riasec.S : 0,
+      typeof riasec.E === 'number' ? riasec.E : 0,
+      typeof riasec.C === 'number' ? riasec.C : 0
+    ];
   }, [riasec]);
 
   // =========================================================================
   // RANKED MAJORS LIST (TAB 2)
+  // STRICT DEPENDENCY: Returns [] if profile is NOT validated!
   // =========================================================================
   const rankedMajors = useMemo(() => {
+    if (!isProfileValidated) return [];
+
     const catalog = seedData.majorCatalogLevelIV || [];
     return catalog.map(m => {
       const sectorKey = m.sector || 'CNTT_BAN_DAN_AI';
@@ -281,7 +399,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       const meta = SECTOR_META[sectorKey] || SECTOR_META.CNTT_BAN_DAN_AI;
 
       let isAiRecommended = false;
-      let fitReason = `Phù hợp với nhóm sở thích ${meta.name}.`;
+      let fitReason = `Phù hợp với nhóm sở thích ${meta.name} (độ tương đồng hồ sơ: ${fitPercent}%).`;
 
       if (aiAnalysisData && Array.isArray(aiAnalysisData.recommendedMajors)) {
         const aiMatch = aiAnalysisData.recommendedMajors.find(
@@ -311,16 +429,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       if (!a.isAiRecommended && b.isAiRecommended) return 1;
       return b.fitPercent - a.fitPercent;
     });
-  }, [userRiasecVector, aiAnalysisData]);
+  }, [isProfileValidated, userRiasecVector, aiAnalysisData]);
 
-  // Current Selected Major Object
+  // Current Selected Major Object - strictly dependent on selectedMajorCode
   const currentMajor = useMemo(() => {
-    return rankedMajors.find(m => m.codeTT09 === selectedMajorCode) || rankedMajors[0];
+    if (!selectedMajorCode) return null;
+    return rankedMajors.find(m => m.codeTT09 === selectedMajorCode) || null;
   }, [rankedMajors, selectedMajorCode]);
 
   // Preset Handlers for Subject Scores
   const handleApplyPreset = (preset: 'KHTN' | 'KHXH' | 'EVEN' | 'RESET') => {
     sfx.playUiClick();
+    invalidateDownstream();
     if (preset === 'KHTN') {
       setScores({
         math: 9.0, literature: 7.0, english: 8.5, physics: 8.8, chemistry: 8.2, biology: 7.0,
@@ -341,15 +461,32 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       setRiasec({ R: 35, I: 38, A: 35, S: 36, E: 36, C: 35 });
     } else {
       setScores({
-        math: 8.0, literature: 8.0, english: 8.0, physics: 8.0, chemistry: 8.0, biology: 8.0,
-        history: 8.0, geography: 8.0, informatics: 8.0, economicLegal: 8.0
+        math: '', literature: '', english: '', physics: '', chemistry: '', biology: '',
+        history: '', geography: '', informatics: '', economicLegal: ''
       });
-      setRiasec({ R: 30, I: 30, A: 30, S: 30, E: 30, C: 30 });
+      setRiasec({ R: '', I: '', A: '', S: '', E: '', C: '' });
+      setHsaScore('');
+      setVactScore('');
+      setTsaScore('');
+      setIeltsBand('');
+      setSatScore('');
+      setPersonalQuestion('');
     }
   };
 
   // Submit Tab 1 -> Launch F1 Sequence -> Real AI Analysis -> Switch to Tab 2
   const handleLaunchF1Pipeline = async () => {
+    if (!profileValidation.isValid) {
+      sfx.playUiClick();
+      setValidationError(profileValidation.missingItems.join('. '));
+      return;
+    }
+
+    setValidationError(null);
+    setIsProfileValidated(true);
+    setSelectedMajorCode(null);
+    setSelectedSchoolCode(null);
+
     sfx.playActionSuccess();
     setIsAnalyzingWithAI(true);
     setAiAnalysisStep('Đang kết nối NEXORA AI Engine...');
@@ -382,9 +519,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         if (json.success && json.analysis) {
           setAiAnalysisData(json.analysis);
           if (json.modelUsed) setAiModelUsed(json.modelUsed);
-          if (json.analysis.recommendedMajors?.[0]?.codeTT09) {
-            setSelectedMajorCode(json.analysis.recommendedMajors[0].codeTT09);
-          }
           setIsAnalyzingWithAI(false);
           setActiveTab('tab-major');
           window.scrollTo({ top: 380, behavior: 'smooth' });
@@ -407,10 +541,21 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         if (satScore) exams.push(`SAT: ${satScore}/1600`);
         const examSummary = exams.length > 0 ? exams.join(', ') : 'Chưa thi chứng chỉ/ĐGNL';
 
+        const mathVal = typeof scores.math === 'number' ? scores.math : 'chưa nhập';
+        const litVal = typeof scores.literature === 'number' ? scores.literature : 'chưa nhập';
+        const engVal = typeof scores.english === 'number' ? scores.english : 'chưa nhập';
+        const phyVal = typeof scores.physics === 'number' ? scores.physics : 'chưa nhập';
+        const chemVal = typeof scores.chemistry === 'number' ? scores.chemistry : 'chưa nhập';
+        const bioVal = typeof scores.biology === 'number' ? scores.biology : 'chưa nhập';
+        const hisVal = typeof scores.history === 'number' ? scores.history : 'chưa nhập';
+        const geoVal = typeof scores.geography === 'number' ? scores.geography : 'chưa nhập';
+        const infVal = typeof scores.informatics === 'number' ? scores.informatics : 'chưa nhập';
+        const gdktVal = typeof scores.economicLegal === 'number' ? scores.economicLegal : 'chưa nhập';
+
         const promptText = `Bạn là Hệ thống Trí Tuệ Nhân Tạo Hướng Nghiệp NEXORA. Phân tích hồ sơ học sinh THPT:
-- Điểm 10 môn: Toán=${scores.math}, Văn=${scores.literature}, Anh=${scores.english}, Lý=${scores.physics}, Hóa=${scores.chemistry}, Sinh=${scores.biology}, Sử=${scores.history}, Địa=${scores.geography}, Tin=${scores.informatics}, GDKT&PL=${scores.economicLegal}.
+- Điểm 10 môn: Toán=${mathVal}, Văn=${litVal}, Anh=${engVal}, Lý=${phyVal}, Hóa=${chemVal}, Sinh=${bioVal}, Sử=${hisVal}, Địa=${geoVal}, Tin=${infVal}, GDKT&PL=${gdktVal}.
 - Bài thi năng lực / Chứng chỉ: ${examSummary}.
-- RIASEC: R=${riasec.R}, I=${riasec.I}, A=${riasec.A}, S=${riasec.S}, E=${riasec.E}, C=${riasec.C} (Mã đỉnh: ${dominantRiasec}).
+- RIASEC: R=${riasec.R}, I=${riasec.I}, A=${riasec.A}, S=${riasec.S}, E=${riasec.E}, C=${riasec.C} (Mã đỉnh: ${dominantRiasec || 'Chưa xác định'}).
 - Ngân sách học phí: ${maxTuition} triệu VNĐ/năm (Nghị định 238/2025/NĐ-CP).
 - Câu hỏi băn khoăn của chính học sinh: "${personalQuestion || 'Em muốn AI phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
 
@@ -458,9 +603,6 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           if (parsed && parsed.headline) {
             setAiAnalysisData(parsed);
             setAiModelUsed('Gemini 3.1 Flash-Lite');
-            if (parsed.recommendedMajors?.[0]?.codeTT09) {
-              setSelectedMajorCode(parsed.recommendedMajors[0].codeTT09);
-            }
             setIsAnalyzingWithAI(false);
             setActiveTab('tab-major');
             window.scrollTo({ top: 380, behavior: 'smooth' });
@@ -472,16 +614,21 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
       }
 
       // Grounded deterministic fallback based on actual grades and question
-      const isHighStem = (scores.math || 8) >= 8.0 && (scores.physics || 8) >= 7.5;
-      const isHighLang = (scores.english || 8) >= 8.0;
+      const numMath = typeof scores.math === 'number' ? scores.math : 8.0;
+      const numPhy = typeof scores.physics === 'number' ? scores.physics : 7.5;
+      const numEng = typeof scores.english === 'number' ? scores.english : 8.0;
+      const isHighStem = numMath >= 8.0 && numPhy >= 7.5;
+      const isHighLang = numEng >= 8.0;
+      const dominantStr = dominantRiasec || 'Đa diện';
+
       const fallbackAnalysis = {
         headline: isHighStem
-          ? `Chiến lược Định hướng: Tối ưu Tư duy STEM & Năng lực Phân tích ${dominantRiasec}`
-          : `Chiến lược Định hướng: Khai phóng Đa Trí Tuệ & Thế mạnh Ngôn ngữ ${dominantRiasec}`,
+          ? `Chiến lược Định hướng: Tối ưu Tư duy STEM & Năng lực Phân tích ${dominantStr}`
+          : `Chiến lược Định hướng: Khai phóng Đa Trí Tuệ & Thế mạnh Ngôn ngữ ${dominantStr}`,
         directAnswer: personalQuestion
           ? `Đối với băn khoăn của bạn ("${personalQuestion}"): Phân tích dữ liệu học tập cho thấy bạn hoàn toàn có cơ sở để chủ động định hình lộ trình. Đừng quá lo lắng về áp lực xã hội hay những nhận định phiến diện. Sự kết hợp giữa năng lực thực tế và định hướng rõ ràng sẽ giúp bạn vượt trội trong môi trường học thuật 2026.`
-          : `Hồ sơ của bạn sở hữu nền tảng học tập đồng đều và vững vàng. Mã đỉnh ${dominantRiasec} cho thấy tiềm năng thích ứng linh hoạt trong môi trường đại học hiện đại.`,
-        strengthsEvaluation: `Điểm GPA bình quân (${averageGpa}đ) phản ánh thái độ học tập nghiêm túc. Thế mạnh môn ${isHighStem ? 'Toán - Tin logic' : 'Văn - Ngoại ngữ'} kết hợp với miền sở thích ${dominantRiasec} là đòn bẩy lớn trong các phương thức xét tuyển kết hợp.`,
+          : `Hồ sơ của bạn sở hữu nền tảng học tập với năng lực xác thực. Mã đỉnh ${dominantStr} cho thấy tiềm năng thích ứng linh hoạt trong môi trường đại học hiện đại.`,
+        strengthsEvaluation: `Điểm GPA bình quân (${averageGpa ? averageGpa + 'đ' : 'đã kiểm toán'}) phản ánh nền tảng học tập tốt. Thế mạnh môn ${isHighStem ? 'Toán - Tin logic' : 'Văn - Ngoại ngữ'} kết hợp với miền sở thích ${dominantStr} là đòn bẩy lớn trong các phương thức xét tuyển kết hợp.`,
         risksAndBottlenecks: `Cần lưu ý kiểm soát các môn điều kiện trong tổ hợp chính và theo dõi sát sao điểm chuẩn 3 năm gần nhất để tránh tình trạng dồn toàn bộ nguyện vọng vào nhóm ngành có tỷ lệ chọi quá cao.`,
         tuitionFeasibility: `Ngân sách ${maxTuition} triệu VNĐ/năm hoàn toàn nằm trong khung trần Nghị định 238/2025/NĐ-CP đối với các trường đại học công lập và chương trình chuẩn chất lượng cao.`,
         recommendedMajors: [
@@ -492,7 +639,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
             sector: isHighStem ? 'CNTT_BAN_DAN_AI' : 'KINH_TE_QUAN_TRI',
             sectorName: isHighStem ? 'Máy tính, CNTT, Bán dẫn & AI' : 'Kinh doanh, Quản lý & Tài chính',
             fitPercent: 94,
-            fitReason: `Phù hợp với hồ sơ có nền tảng điểm Toán ${scores.math} và mã đỉnh ${dominantRiasec}.`,
+            fitReason: `Phù hợp với hồ sơ có nền tảng điểm Toán ${scores.math || 8.0} và mã đỉnh ${dominantStr}.`,
             targetJobs: isHighStem ? ['Kỹ sư phần mềm', 'Chuyên viên dữ liệu', 'Kỹ sư AI'] : ['Chuyên viên phân tích kinh doanh', 'Quản trị dự án số'],
             salaryMedian: isHighStem ? '28 triệu/tháng' : '22 triệu/tháng',
             aiRisk: isHighStem ? 'Thấp' : 'Trung bình',
@@ -530,9 +677,19 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
 
   // =========================================================================
   // TAB 4: UNIVERSITIES OFFERING SELECTED MAJOR STRATIFIED INTO 3 TIERS
+  // STRICT DEPENDENCY: Requires BOTH validated profile AND explicitly selected major!
   // =========================================================================
   const stratifiedUniversities = useMemo(() => {
-    if (!currentMajor) return { dream: [], target: [], safe: [] };
+    if (!isProfileValidated || !selectedMajorCode || !currentMajor) {
+      return {
+        dream: [] as Array<any>,
+        target: [] as Array<any>,
+        safe: [] as Array<any>,
+        candidateScore: null as number | null,
+        bestComboCode: null as string | null,
+        hasInstitutions: false
+      };
+    }
 
     // Search in anchor institutions & audited scoring database
     const matchingInstitutions: Array<{
@@ -547,6 +704,8 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
       combinations: string[];
       isFreeTuition: boolean;
       tuitionPolicyNote?: string;
+      candidateScore: number | null;
+      bestComboCode: string | null;
     }> = [];
 
     // 1. Look in anchor institutions from seed_data.json
@@ -564,7 +723,9 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           tuitionMlnYear: estTuition,
           tuitionDisplay: matchSample.tuitionYear,
           combinations: matchSample.combinations || ['A00', 'A01'],
-          isFreeTuition: false
+          isFreeTuition: false,
+          candidateScore: null,
+          bestComboCode: null
         });
       }
     });
@@ -601,134 +762,181 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
             isFreeTuition: isPedagogy || isMilitary,
             tuitionPolicyNote: isPedagogy
               ? 'Miễn 100% học phí + trợ cấp 3.63 tr/tháng theo NĐ 116 & NĐ 238. Ràng buộc bồi hoàn NĐ 60/2025 nếu không phục vụ ngành.'
-              : undefined
+              : undefined,
+            candidateScore: null,
+            bestComboCode: null
           });
         }
       }
     });
 
-    // Fallback if empty: inject anchor representative schools
+    // NO FAKE FALLBACKS! If matchingInstitutions.length === 0, keep it empty!
     if (matchingInstitutions.length === 0) {
-      matchingInstitutions.push(
-        {
-          schoolCode: 'BKA',
-          schoolName: 'Đại Học Bách Khoa Hà Nội',
-          city: 'Hà Nội',
-          benchmark2024: 28.25,
-          benchmark2025: 28.50,
-          benchmark2026: 28.75,
-          tuitionMlnYear: 29.5,
-          tuitionDisplay: '29.5 triệu/năm',
-          combinations: ['A00', 'A01'],
-          isFreeTuition: false
-        },
-        {
-          schoolCode: 'QSB',
-          schoolName: 'Đại học Bách Khoa - ĐHQG TP.HCM',
-          city: 'TP.HCM',
-          benchmark2024: 27.50,
-          benchmark2025: 27.80,
-          benchmark2026: 28.00,
-          tuitionMlnYear: 31.5,
-          tuitionDisplay: '31.5 triệu/năm',
-          combinations: ['A00', 'A01'],
-          isFreeTuition: false
-        },
-        {
-          schoolCode: 'TCT',
-          schoolName: 'Trường Đại học Cần Thơ',
-          city: 'Cần Thơ',
-          benchmark2024: 24.50,
-          benchmark2025: 24.80,
-          benchmark2026: 25.10,
-          tuitionMlnYear: 21.0,
-          tuitionDisplay: '21.0 triệu/năm',
-          combinations: ['A00', 'A01', 'D01'],
-          isFreeTuition: false
-        }
-      );
+      return {
+        dream: [],
+        target: [],
+        safe: [],
+        candidateScore: null,
+        bestComboCode: null,
+        hasInstitutions: false
+      };
     }
 
-    // Estimate candidate's score for primary combination (e.g. A00 / A01)
-    const rawScoreA00 = scores.math + scores.physics + scores.chemistry;
-    const { effectivePriority } = calculateEffectivePriority(basePriority, rawScoreA00, 30);
-    const candidateScore = Math.min(30.0, rawScoreA00 + effectivePriority);
+    // Evaluate candidate's real score on each school's accepted combinations
+    let highestOverallScore: number | null = null;
+    let highestOverallCombo: string | null = null;
 
     const dream: typeof matchingInstitutions = [];
     const target: typeof matchingInstitutions = [];
     const safe: typeof matchingInstitutions = [];
 
     matchingInstitutions.forEach(inst => {
-      const refScore = inst.benchmark2025 || inst.benchmark2024;
-      const diff = candidateScore - refScore;
+      let bestScoreForSchool: number | null = null;
+      let bestComboForSchool: string | null = null;
 
-      if (diff < -0.5) {
-        // Benchmark is higher than candidate by > 0.5 points
-        dream.push(inst);
-      } else if (diff >= -0.5 && diff <= 1.0) {
-        // Within +/- 0.5 to 1.0 points
-        target.push(inst);
+      inst.combinations.forEach(comboCode => {
+        const scoreObj = getCandidateComboScore(comboCode, scores, basePriority);
+        if (scoreObj) {
+          if (bestScoreForSchool === null || scoreObj.officialScore > bestScoreForSchool) {
+            bestScoreForSchool = scoreObj.officialScore;
+            bestComboForSchool = scoreObj.comboCode;
+          }
+        }
+      });
+
+      inst.candidateScore = bestScoreForSchool;
+      inst.bestComboCode = bestComboForSchool;
+
+      if (bestScoreForSchool !== null) {
+        if (highestOverallScore === null || bestScoreForSchool > highestOverallScore) {
+          highestOverallScore = bestScoreForSchool;
+          highestOverallCombo = bestComboForSchool;
+        }
+
+        const refScore = inst.benchmark2025 || inst.benchmark2024;
+        const diff = bestScoreForSchool - refScore;
+
+        if (diff < -0.5) {
+          dream.push(inst);
+        } else if (diff >= -0.5 && diff <= 1.0) {
+          target.push(inst);
+        } else {
+          safe.push(inst);
+        }
       } else {
-        // Candidate exceeds benchmark by > 1.0 point
-        safe.push(inst);
+        // Candidate lacks subjects for school's combinations
+        dream.push(inst);
       }
     });
 
-    return { dream, target, safe, candidateScore };
-  }, [currentMajor, scores, basePriority]);
+    return {
+      dream,
+      target,
+      safe,
+      candidateScore: highestOverallScore,
+      bestComboCode: highestOverallCombo,
+      hasInstitutions: true
+    };
+  }, [isProfileValidated, selectedMajorCode, currentMajor, scores, basePriority]);
 
-  // Current Selected University Details
+  // Current Selected University Details - strictly dependent on selectedSchoolCode
   const currentUniversity = useMemo(() => {
+    if (!selectedSchoolCode) return null;
     return (
-      AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
-      AUDITED_INSTITUTIONS_300[0]
+      AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) || null
     );
   }, [selectedSchoolCode]);
 
+  // Available schools for the selected major across all tiers
+  const availableSchoolsForSelectedMajor = useMemo(() => {
+    const list = [...stratifiedUniversities.dream, ...stratifiedUniversities.target, ...stratifiedUniversities.safe];
+    if (selectedSchoolCode && !list.some(s => s.schoolCode === selectedSchoolCode)) {
+      const inst = AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode);
+      if (inst) {
+        list.push({
+          schoolCode: inst.institution_code,
+          schoolName: inst.official_name,
+          city: inst.verified_province_city,
+          benchmark2024: 26.0,
+          benchmark2025: 26.5,
+          benchmark2026: 26.8,
+          tuitionMlnYear: 28.5,
+          tuitionDisplay: '28.5 tr/năm',
+          combinations: ['A00', 'A01', 'D01'],
+          isFreeTuition: false,
+          candidateScore: null,
+          bestComboCode: null
+        });
+      }
+    }
+    return list;
+  }, [stratifiedUniversities, selectedSchoolCode]);
+
   // =========================================================================
   // TAB 3: COMBINATIONS EVALUATION FOR SELECTED MAJOR & UNIVERSITY
+  // STRICT DEPENDENCY: Requires validated profile, selected major, and selected university!
   // =========================================================================
   const evaluatedCombos = useMemo(() => {
-    // Collect candidate combinations
+    if (!isProfileValidated || !selectedMajorCode || !selectedSchoolCode) {
+      return [];
+    }
+
     const candidateComboCodes = ['A00', 'A01', 'D01', 'D07', 'B00', 'C00', 'X06'];
 
     return candidateComboCodes.map(code => {
-      let m1 = scores.math;
-      let m2 = scores.physics;
-      let m3 = scores.chemistry;
-      let subNames = 'Toán - Vật lý - Hóa học';
+      const map = COMBINATION_SUBJECT_MAP[code];
+      const s1 = scores[map.subjects[0]];
+      const s2 = scores[map.subjects[1]];
+      const s3 = scores[map.subjects[2]];
 
-      if (code === 'A01') {
-        m1 = scores.math; m2 = scores.physics; m3 = scores.english;
-        subNames = 'Toán - Vật lý - Tiếng Anh';
-      } else if (code === 'D01') {
-        m1 = scores.math; m2 = scores.literature; m3 = scores.english;
-        subNames = 'Toán - Ngữ văn - Tiếng Anh';
-      } else if (code === 'D07') {
-        m1 = scores.math; m2 = scores.chemistry; m3 = scores.english;
-        subNames = 'Toán - Hóa học - Tiếng Anh';
-      } else if (code === 'B00') {
-        m1 = scores.math; m2 = scores.chemistry; m3 = scores.biology;
-        subNames = 'Toán - Hóa học - Sinh học';
-      } else if (code === 'C00') {
-        m1 = scores.literature; m2 = scores.history; m3 = scores.geography;
-        subNames = 'Ngữ văn - Lịch sử - Địa lý';
-      } else if (code === 'X06') {
-        m1 = scores.math; m2 = scores.informatics; m3 = scores.english;
-        subNames = 'Toán - Tin học - Tiếng Anh';
+      const hasAllSubjects = (
+        typeof s1 === 'number' && !isNaN(s1) &&
+        typeof s2 === 'number' && !isNaN(s2) &&
+        typeof s3 === 'number' && !isNaN(s3)
+      );
+
+      if (!hasAllSubjects) {
+        const subLabels: Record<string, string> = {
+          math: 'Toán', literature: 'Văn', english: 'Anh', physics: 'Lý',
+          chemistry: 'Hóa', biology: 'Sinh', history: 'Sử', geography: 'Địa',
+          informatics: 'Tin', economicLegal: 'GDKT&PL'
+        };
+        const missingNames = map.subjects
+          .filter(subj => scores[subj] === '' || typeof scores[subj] !== 'number' || isNaN(scores[subj] as number))
+          .map(subj => subLabels[subj] || subj);
+
+        return {
+          code,
+          subNames: map.name,
+          hasAllSubjects: false,
+          missingReason: `Thiếu điểm môn: ${missingNames.join(', ')}`,
+          m1: typeof s1 === 'number' ? s1 : '--',
+          m2: typeof s2 === 'number' ? s2 : '--',
+          m3: typeof s3 === 'number' ? s3 : '--',
+          rawScore: null as number | null,
+          basePriority,
+          effectivePriority: null as number | null,
+          isReduced: false,
+          officialScore: null as number | null,
+          refCutoff: 27.50,
+          margin: null as number | null
+        };
       }
 
+      const m1 = s1 as number;
+      const m2 = s2 as number;
+      const m3 = s3 as number;
       const rawScore = Number((m1 + m2 + m3).toFixed(2));
       const { effectivePriority, isReduced } = calculateEffectivePriority(basePriority, rawScore, 30);
       const officialScore = Number((Math.min(30.0, rawScore + effectivePriority)).toFixed(2));
-
-      // Benchmark reference
-      const refCutoff = 27.50; // Reference baseline
+      const refCutoff = 27.50;
       const margin = Number((officialScore - refCutoff).toFixed(2));
 
       return {
         code,
-        subNames,
+        subNames: map.name,
+        hasAllSubjects: true,
+        missingReason: null as string | null,
         m1,
         m2,
         m3,
@@ -740,8 +948,15 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
         refCutoff,
         margin
       };
-    }).sort((a, b) => b.officialScore - a.officialScore);
-  }, [scores, basePriority]);
+    }).sort((a, b) => {
+      if (a.hasAllSubjects && !b.hasAllSubjects) return -1;
+      if (!a.hasAllSubjects && b.hasAllSubjects) return 1;
+      if (a.officialScore !== null && b.officialScore !== null) {
+        return b.officialScore - a.officialScore;
+      }
+      return 0;
+    });
+  }, [isProfileValidated, selectedMajorCode, selectedSchoolCode, scores, basePriority]);
 
   return (
     <div className="space-y-8 pb-16">
@@ -862,7 +1077,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   </h3>
                 </div>
                 <p className="text-xs text-slate-200 mt-0.5">
-                  Nhập điểm tổng kết hoặc điểm thi thử THPT (thang 10, bước nhảy 0.1). GPA hiện tại: <span className="text-[#38BDF8] font-black font-mono">{averageGpa}/10</span>
+                  Nhập điểm tổng kết hoặc điểm thi thử THPT (thang 10, bước nhảy 0.1). GPA hiện tại: <span className="text-[#38BDF8] font-black font-mono">{averageGpa !== null ? `${averageGpa}/10` : '--/10'}</span>
                 </p>
               </div>
 
@@ -920,22 +1135,36 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                       <span>{sub.icon}</span>
                       <span>{sub.label}</span>
                     </span>
-                    <span className="font-mono text-xs text-[#38BDF8] font-black bg-blue-950/80 px-2 py-0.5 rounded border border-blue-500/40">{scores[sub.key] || 0}</span>
+                    <span className="font-mono text-xs text-[#38BDF8] font-black bg-blue-950/80 px-2 py-0.5 rounded border border-blue-500/40">
+                      {scores[sub.key] !== '' ? scores[sub.key] : '--'}
+                    </span>
                   </div>
                   <input
                     type="range"
-                    min="1.0"
+                    min="0.0"
                     max="10.0"
                     step="0.1"
-                    value={scores[sub.key] || 8.0}
+                    value={scores[sub.key] !== '' ? scores[sub.key] : 0}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value);
-                      setScores(prev => ({ ...prev, [sub.key]: val }));
+                      handleScoreChange(sub.key, val);
                     }}
-                    className="w-full accent-[#3B82F6] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                    className={`w-full accent-[#3B82F6] cursor-pointer h-1.5 rounded-lg ${
+                      scores[sub.key] === '' ? 'bg-slate-700/60 opacity-60' : 'bg-slate-800'
+                    }`}
                   />
-                  <div className="flex justify-between text-[10px] font-mono text-slate-300 font-semibold mt-1">
-                    <span>1.0</span>
+                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-300 font-semibold mt-1">
+                    <span>0.0</span>
+                    {scores[sub.key] !== '' && (
+                      <button
+                        type="button"
+                        onClick={() => handleScoreChange(sub.key, '')}
+                        className="text-red-400 hover:text-red-300 text-[10px] cursor-pointer"
+                        title="Xóa điểm môn này"
+                      >
+                        ✕ Xóa
+                      </button>
+                    )}
                     <span>10.0</span>
                   </div>
                 </div>
@@ -965,7 +1194,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   min="0"
                   max="150"
                   value={hsaScore}
-                  onChange={(e) => setHsaScore(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    invalidateDownstream();
+                    setHsaScore(e.target.value === '' ? '' : Number(e.target.value));
+                  }}
                   placeholder="Ví dụ: 95"
                   className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
@@ -978,7 +1210,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   min="0"
                   max="1200"
                   value={vactScore}
-                  onChange={(e) => setVactScore(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    invalidateDownstream();
+                    setVactScore(e.target.value === '' ? '' : Number(e.target.value));
+                  }}
                   placeholder="Ví dụ: 850"
                   className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
@@ -991,7 +1226,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   min="0"
                   max="100"
                   value={tsaScore}
-                  onChange={(e) => setTsaScore(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    invalidateDownstream();
+                    setTsaScore(e.target.value === '' ? '' : Number(e.target.value));
+                  }}
                   placeholder="Ví dụ: 68"
                   className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
@@ -1005,7 +1243,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   max="9.0"
                   step="0.5"
                   value={ieltsBand}
-                  onChange={(e) => setIeltsBand(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    invalidateDownstream();
+                    setIeltsBand(e.target.value === '' ? '' : Number(e.target.value));
+                  }}
                   placeholder="Ví dụ: 6.5"
                   className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
@@ -1019,7 +1260,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   max="1600"
                   step="10"
                   value={satScore}
-                  onChange={(e) => setSatScore(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    invalidateDownstream();
+                    setSatScore(e.target.value === '' ? '' : Number(e.target.value));
+                  }}
                   placeholder="Ví dụ: 1350"
                   className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
@@ -1038,7 +1282,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   </h3>
                 </div>
                 <p className="text-xs text-slate-200 mt-0.5 font-normal">
-                  Điều chỉnh 6 thang đo từ 10 đến 50 điểm. Mã đỉnh sở thích của bạn: <span className="text-emerald-300 font-black font-mono text-sm px-2.5 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-400/50">{dominantRiasec}</span>
+                  Điều chỉnh 6 thang đo từ 10 đến 50 điểm. Mã đỉnh sở thích của bạn: <span className="text-emerald-300 font-black font-mono text-sm px-2.5 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-400/50">{dominantRiasec || 'Chưa thiết lập'}</span>
                 </p>
               </div>
 
@@ -1068,7 +1312,9 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                 <div key={dim.key} className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className={`font-bold ${dim.color}`}>{dim.name}</span>
-                    <span className="font-mono text-[#38BDF8] font-black text-sm bg-blue-950/70 border border-blue-500/40 px-2 py-0.5 rounded">{riasec[dim.key]}đ</span>
+                    <span className="font-mono text-[#38BDF8] font-black text-sm bg-blue-950/70 border border-blue-500/40 px-2 py-0.5 rounded">
+                      {riasec[dim.key] !== '' ? `${riasec[dim.key]}đ` : '--'}
+                    </span>
                   </div>
                   <p className="text-xs text-slate-200 leading-tight font-normal">{dim.desc}</p>
                   <input
@@ -1076,15 +1322,27 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                     min="10"
                     max="50"
                     step="1"
-                    value={riasec[dim.key]}
+                    value={riasec[dim.key] !== '' ? riasec[dim.key] : 10}
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
-                      setRiasec(prev => ({ ...prev, [dim.key]: val }));
+                      handleRiasecChange(dim.key, val);
                     }}
-                    className="w-full accent-[#10B981] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                    className={`w-full accent-[#10B981] cursor-pointer h-1.5 rounded-lg ${
+                      riasec[dim.key] === '' ? 'bg-slate-700/60 opacity-60' : 'bg-slate-800'
+                    }`}
                   />
-                  <div className="flex justify-between text-[10px] font-mono text-slate-300 font-semibold">
+                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-300 font-semibold">
                     <span>10đ (Thấp)</span>
+                    {riasec[dim.key] !== '' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRiasecChange(dim.key, '')}
+                        className="text-red-400 hover:text-red-300 text-[10px] cursor-pointer"
+                        title="Xóa điểm miền này"
+                      >
+                        ✕ Xóa
+                      </button>
+                    )}
                     <span>50đ (Rất cao)</span>
                   </div>
                 </div>
@@ -1119,7 +1377,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   max="100"
                   step="5"
                   value={maxTuition}
-                  onChange={(e) => setMaxTuition(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    invalidateDownstream();
+                    setMaxTuition(parseInt(e.target.value));
+                  }}
                   className="w-full accent-[#10B981] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
                 />
                 <div className="grid grid-cols-3 gap-2 text-xs font-mono text-slate-200 text-center pt-1">
@@ -1158,7 +1419,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   <label className="text-xs font-mono text-slate-200 font-semibold block">Khu vực ưu tiên:</label>
                   <select
                     value={priorityRegion}
-                    onChange={(e) => setPriorityRegion(e.target.value as any)}
+                    onChange={(e) => {
+                      invalidateDownstream();
+                      setPriorityRegion(e.target.value as any);
+                    }}
                     className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-medium focus:outline-none focus:border-[#3B82F6]"
                   >
                     <option value="KV1">KV1: +0.75 điểm (Vùng khó khăn)</option>
@@ -1172,7 +1436,10 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   <label className="text-xs font-mono text-slate-200 font-semibold block">Đối tượng chính sách:</label>
                   <select
                     value={priorityObject}
-                    onChange={(e) => setPriorityObject(e.target.value as any)}
+                    onChange={(e) => {
+                      invalidateDownstream();
+                      setPriorityObject(e.target.value as any);
+                    }}
                     className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-medium focus:outline-none focus:border-[#3B82F6]"
                   >
                     <option value="DT_0">Không ưu tiên (0.0đ)</option>
@@ -1194,7 +1461,9 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                       <button
                         key={r.id}
                         type="button"
-                        onClick={() => setTargetRegionFilter(r.id as any)}
+                        onClick={() => {
+                          setTargetRegionFilter(r.id as any);
+                        }}
                         className={`py-1 rounded-lg border text-center transition-colors cursor-pointer ${
                           targetRegionFilter === r.id
                             ? 'bg-[#3B82F6] border-[#3B82F6] text-white font-bold'
@@ -1220,12 +1489,42 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
             </div>
             <textarea
               value={personalQuestion}
-              onChange={(e) => setPersonalQuestion(e.target.value)}
+              onChange={(e) => {
+                if (isProfileValidated) invalidateDownstream();
+                setPersonalQuestion(e.target.value);
+              }}
               placeholder='Nhập câu hỏi hoặc băn khoăn chân thực nhất của bạn (Ví dụ: "Em sợ học CNTT sau này khó cạnh tranh với AI", hoặc "Gia đình muốn em thi Ngoại thương nhưng em thích vẽ đồ họa...")...'
               rows={2}
               className="w-full bg-[#0A0B0E] border border-slate-600 focus:border-[#3B82F6] rounded-xl p-3 text-xs sm:text-sm text-white placeholder-slate-400 font-medium focus:outline-none transition-colors resize-none"
             />
           </div>
+
+          {/* Validation Status & Alert Banner */}
+          {validationError && (
+            <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 flex items-center gap-2.5 text-xs text-red-200">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+              <span className="font-medium">{validationError}</span>
+            </div>
+          )}
+          {!profileValidation.isValid && !validationError && (
+            <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold text-amber-300">Yêu cầu dữ liệu tối thiểu trước khi phân tích:</span>
+                <div className="font-mono space-y-0.5">
+                  {profileValidation.missingItems.map((item, i) => (
+                    <div key={i}>• {item}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {profileValidation.isValid && !isProfileValidated && (
+            <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center gap-2 text-xs text-blue-200">
+              <CheckCircle className="w-4 h-4 text-blue-400 shrink-0" />
+              <span>Hồ sơ đã hợp lệ ({profileValidation.validSubjectCount}/10 môn, {profileValidation.validRiasecCount}/6 miền RIASEC). Bấm nút dưới đây để kích hoạt chuỗi phân tích.</span>
+            </div>
+          )}
 
           {/* Main Action Trigger F1 */}
           <div className="pt-2 flex justify-center">
@@ -1246,8 +1545,50 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           ========================================================================= */}
       {activeTab === 'tab-major' && (
         <section className="max-w-5xl mx-auto px-4 space-y-6">
-          {/* AI DOSSIER INTELLIGENCE REPORT */}
-          {aiAnalysisData && (
+          {!isProfileValidated || rankedMajors.length === 0 ? (
+            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-amber-500/30 text-center space-y-5 shadow-2xl">
+              <div className="w-16 h-16 rounded-2xl bg-amber-950/60 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.25)]">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <div className="space-y-2 max-w-lg mx-auto">
+                <h3 className="font-sans font-black text-xl text-white">
+                  Chưa Có Dữ Liệu Hồ Sơ Để Gợi Ý Ngành
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+                  NEXORA tuân thủ chuỗi phân tích khoa học: <strong>Hồ sơ năng lực ➔ Phân tích ngành ➔ Chọn ngành ➔ Phân tích trường</strong>. Hệ thống không tạo sẵn gợi ý mặc định khi chưa có dữ liệu thật từ bạn.
+                </p>
+              </div>
+
+              {profileValidation.missingItems.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/20 max-w-md mx-auto text-left text-xs text-amber-200 space-y-1 font-mono">
+                  <span className="font-bold block text-amber-300 uppercase tracking-wider text-[11px]">Thông tin còn thiếu:</span>
+                  {profileValidation.missingItems.map((item, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span>•</span>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.playUiSelect();
+                    setActiveTab('tab-profile');
+                  }}
+                  className="px-6 py-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs tracking-wide shadow-lg inline-flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Đến Tab 1: Nhập Hồ Sơ &amp; Năng Lực</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* AI DOSSIER INTELLIGENCE REPORT */}
+              {aiAnalysisData && (
             <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#0B0F19] via-[#111827] to-[#0A0D14] border border-blue-500/40 shadow-[0_0_35px_rgba(59,130,246,0.25)] space-y-5">
               {/* Header bar */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/80 pb-4">
@@ -1492,7 +1833,9 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                   </div>
                 );
               })}
-          </div>
+            </div>
+          </>
+        )}
         </section>
       )}
 
@@ -1501,131 +1844,209 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           ========================================================================= */}
       {activeTab === 'tab-university' && (
         <section className="max-w-5xl mx-auto px-4 space-y-6">
-          {/* Header Info Banner */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-amber-900/60 border border-amber-500/40 text-amber-300 font-mono text-[10px] font-bold">
-                    F1 BƯỚC 2
-                  </span>
-                  <h2 className="font-sans font-bold text-lg text-white">
-                    Chiến Lược Chọn Trường 3 Tầng Cho Ngành: <span className="text-[#38BDF8]">{currentMajor?.name}</span>
-                  </h2>
-                </div>
-                <p className="text-xs text-slate-200 mt-1 font-normal">
-                  Điểm xét tuyển dự kiến của bạn: <span className="text-[#38BDF8] font-black font-mono">{stratifiedUniversities.candidateScore} điểm</span>. Ngân sách học phí: <span className="text-emerald-300 font-black font-mono">{maxTuition} tr/năm</span>.
+          {!isProfileValidated ? (
+            /* Empty State 1: Profile Not Validated */
+            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto text-2xl font-bold">
+                ⚠️
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-sans font-bold text-lg text-white">Chưa Có Dữ Liệu Hồ Sơ Học Tập &amp; Tâm Trắc</h3>
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                  Hệ thống tuân thủ chuỗi phân tích phụ thuộc nghiêm ngặt: <strong className="text-white">Hồ sơ ➔ Phân tích ngành ➔ Chọn ngành ➔ Phân tầng trường</strong>. Vui lòng hoàn thành ít nhất 3 môn thi THPT và 3 miền RIASEC ở Tab 1 rồi bấm nút Khởi động chuỗi quyết định.
                 </p>
               </div>
-
-              {/* Change Major selector */}
-              <select
-                value={selectedMajorCode}
-                onChange={(e) => setSelectedMajorCode(e.target.value)}
-                className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiSelect();
+                  setActiveTab('tab-profile');
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
               >
-                {rankedMajors.map(m => (
-                  <option key={m.codeTT09} value={m.codeTT09}>
-                    {m.name} ({m.fitPercent}% fit)
-                  </option>
-                ))}
-              </select>
+                <span>Quay lại Tab 1: Nhập hồ sơ</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
-          </div>
-
-          {/* AI University Stratification Advice */}
-          {aiAnalysisData?.universityAdvice && (
-            <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-500/40 flex items-start gap-3 text-xs">
-              <Sparkles className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-mono text-blue-300 font-bold uppercase tracking-wider block">
-                  CHIẾN LƯỢC PHÂN TẦNG NGUYỆN VỌNG TỪ AI NEXORA:
-                </span>
-                <p className="text-white leading-relaxed font-normal">
-                  {aiAnalysisData.universityAdvice}
+          ) : !selectedMajorCode || !currentMajor ? (
+            /* Empty State 2: Major Not Selected */
+            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto text-2xl font-bold">
+                🎯
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-sans font-bold text-lg text-white">Chưa Chọn Ngành Đào Tạo Cụ Thể</h3>
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                  Điểm chuẩn tuyển sinh và đề án phụ thuộc theo từng ngành cụ thể. Vui lòng vào <strong className="text-white">Tab 2 (Chọn Ngành)</strong> và bấm chọn một ngành bạn quan tâm để hệ thống đối soát dữ liệu điểm chuẩn 300 trường và phân tầng 3 cấp nguyện vọng.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiSelect();
+                  setActiveTab('tab-major');
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <span>Đi tới Tab 2: Chọn ngành đào tạo</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
+          ) : !stratifiedUniversities.hasInstitutions ? (
+            /* Empty State 3: No institutions found for this major */
+            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-800 text-slate-300 flex items-center justify-center mx-auto text-2xl font-bold">
+                ℹ️
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-sans font-bold text-lg text-white">Chưa Tìm Thấy Đề Án Tuyển Sinh Đã Kiểm Toán</h3>
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                  Hiện chưa tìm thấy đề án tuyển sinh hoặc điểm chuẩn đã kiểm toán cho ngành <strong className="text-[#38BDF8]">{currentMajor?.name}</strong> trong cơ sở dữ liệu đối soát. Vui lòng chọn một ngành khác ở Tab 2.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiSelect();
+                  setActiveTab('tab-major');
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <span>Quay lại Tab 2: Chọn ngành khác</span>
+              </button>
+            </div>
+          ) : (
+            /* Regular Populated Tab 4 View */
+            <>
+              {/* Header Info Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-amber-900/60 border border-amber-500/40 text-amber-300 font-mono text-[10px] font-bold">
+                        F1 BƯỚC 2
+                      </span>
+                      <h2 className="font-sans font-bold text-lg text-white">
+                        Chiến Lược Chọn Trường 3 Tầng Cho Ngành: <span className="text-[#38BDF8]">{currentMajor?.name}</span>
+                      </h2>
+                    </div>
+                    <p className="text-xs text-slate-200 mt-1 font-normal">
+                      Điểm xét tuyển cao nhất theo tổ hợp của bạn: <span className="text-[#38BDF8] font-black font-mono">
+                        {stratifiedUniversities.candidateScore !== null ? `${stratifiedUniversities.candidateScore} điểm (${stratifiedUniversities.bestComboCode})` : 'Chưa đủ điểm các môn trong tổ hợp'}
+                      </span>. Ngân sách học phí: <span className="text-emerald-300 font-black font-mono">{maxTuition} tr/năm</span>.
+                    </p>
+                  </div>
+
+                  {/* Change Major selector */}
+                  <select
+                    value={selectedMajorCode || ''}
+                    onChange={(e) => setSelectedMajorCode(e.target.value)}
+                    className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
+                  >
+                    {rankedMajors.map(m => (
+                      <option key={m.codeTT09} value={m.codeTT09}>
+                        {m.name} ({m.fitPercent}% fit)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* AI University Stratification Advice */}
+              {aiAnalysisData?.universityAdvice && (
+                <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-500/40 flex items-start gap-3 text-xs">
+                  <Sparkles className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-mono text-blue-300 font-bold uppercase tracking-wider block">
+                      CHIẾN LƯỢC PHÂN TẦNG NGUYỆN VỌNG TỪ AI NEXORA:
+                    </span>
+                    <p className="text-white leading-relaxed font-normal">
+                      {aiAnalysisData.universityAdvice}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 3 TIERS CONTAINERS */}
+              {/* TIER 1: DREAM TIER */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-black uppercase tracking-wider px-1">
+                  <span>🌟 TẦNG 1: NGUYỆN VỌNG MƠ ƯỚC (DREAM TIER - ĐIỂM CHUẨN CAO HƠN BẠN 0.5 ĐẾN 1.5Đ)</span>
+                </div>
+                {stratifiedUniversities.dream.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
+                    Không có trường nào trong tầng mơ ước (Điểm của bạn đã ở mức rất cao, đủ an toàn cho nhóm trường dẫn đầu).
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {stratifiedUniversities.dream.map(inst => (
+                      <UniversityTierCard
+                        key={inst.schoolCode}
+                        inst={inst}
+                        candidateScore={inst.candidateScore}
+                        maxTuition={maxTuition}
+                        isSelected={selectedSchoolCode === inst.schoolCode}
+                        tierType="DREAM"
+                        onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* TIER 2: TARGET TIER */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2 text-[#38BDF8] font-mono text-xs font-black uppercase tracking-wider px-1">
+                  <span>🎯 TẦNG 2: NGUYỆN VỌNG VỪA SỨC (TARGET TIER - BIÊN ĐỘ ±0.5Đ, XÁC SUẤT ĐỖ 70 - 85%)</span>
+                </div>
+                {stratifiedUniversities.target.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
+                    Hiện chưa có trường trong dải vừa sức chính xác. Bạn có thể xem các trường ở tầng an toàn bên dưới.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {stratifiedUniversities.target.map(inst => (
+                      <UniversityTierCard
+                        key={inst.schoolCode}
+                        inst={inst}
+                        candidateScore={inst.candidateScore}
+                        maxTuition={maxTuition}
+                        isSelected={selectedSchoolCode === inst.schoolCode}
+                        tierType="TARGET"
+                        onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* TIER 3: SAFE TIER */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2 text-emerald-300 font-mono text-xs font-black uppercase tracking-wider px-1">
+                  <span>🛡️ TẦNG 3: NGUYỆN VỌNG AN TOÀN (SAFE TIER - ĐIỂM CHUẨN THẤP HƠN BẠN ≥ 1.5Đ, XÁC SUẤT ĐỖ ≥ 95%)</span>
+                </div>
+                {stratifiedUniversities.safe.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
+                    Bạn chưa có trường an toàn nào cho ngành này. Hãy cân nhắc thêm các phân hiệu hoặc trường vùng.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {stratifiedUniversities.safe.map(inst => (
+                      <UniversityTierCard
+                        key={inst.schoolCode}
+                        inst={inst}
+                        candidateScore={inst.candidateScore}
+                        maxTuition={maxTuition}
+                        isSelected={selectedSchoolCode === inst.schoolCode}
+                        tierType="SAFE"
+                        onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
-
-          {/* 3 TIERS CONTAINERS */}
-          {/* TIER 1: DREAM TIER */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-black uppercase tracking-wider px-1">
-              <span>🌟 TẦNG 1: NGUYỆN VỌNG MƠ ƯỚC (DREAM TIER - ĐIỂM CHUẨN CAO HƠN BẠN 0.5 ĐẾN 1.5Đ)</span>
-            </div>
-            {stratifiedUniversities.dream.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
-                Không có trường nào trong tầng mơ ước (Điểm của bạn đã ở mức rất cao, đủ an toàn cho nhóm trường dẫn đầu).
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {stratifiedUniversities.dream.map(inst => (
-                  <UniversityTierCard
-                    key={inst.schoolCode}
-                    inst={inst}
-                    candidateScore={stratifiedUniversities.candidateScore ?? 25.0}
-                    maxTuition={maxTuition}
-                    isSelected={selectedSchoolCode === inst.schoolCode}
-                    tierType="DREAM"
-                    onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* TIER 2: TARGET TIER */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center gap-2 text-[#38BDF8] font-mono text-xs font-black uppercase tracking-wider px-1">
-              <span>🎯 TẦNG 2: NGUYỆN VỌNG VỪA SỨC (TARGET TIER - BIÊN ĐỘ ±0.5Đ, XÁC SUẤT ĐỖ 70 - 85%)</span>
-            </div>
-            {stratifiedUniversities.target.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
-                Hiện chưa có trường trong dải vừa sức chính xác. Bạn có thể xem các trường ở tầng an toàn bên dưới.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {stratifiedUniversities.target.map(inst => (
-                  <UniversityTierCard
-                    key={inst.schoolCode}
-                    inst={inst}
-                    candidateScore={stratifiedUniversities.candidateScore ?? 25.0}
-                    maxTuition={maxTuition}
-                    isSelected={selectedSchoolCode === inst.schoolCode}
-                    tierType="TARGET"
-                    onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* TIER 3: SAFE TIER */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center gap-2 text-emerald-300 font-mono text-xs font-black uppercase tracking-wider px-1">
-              <span>🛡️ TẦNG 3: NGUYỆN VỌNG AN TOÀN (SAFE TIER - ĐIỂM CHUẨN THẤP HƠN BẠN ≥ 1.5Đ, XÁC SUẤT ĐỖ ≥ 95%)</span>
-            </div>
-            {stratifiedUniversities.safe.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
-                Bạn chưa có trường an toàn nào cho ngành này. Hãy cân nhắc thêm các phân hiệu hoặc trường vùng.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {stratifiedUniversities.safe.map(inst => (
-                  <UniversityTierCard
-                    key={inst.schoolCode}
-                    inst={inst}
-                    candidateScore={stratifiedUniversities.candidateScore ?? 25.0}
-                    maxTuition={maxTuition}
-                    isSelected={selectedSchoolCode === inst.schoolCode}
-                    tierType="SAFE"
-                    onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
         </section>
       )}
 
@@ -1634,129 +2055,223 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
           ========================================================================= */}
       {activeTab === 'tab-combo' && (
         <section className="max-w-5xl mx-auto px-4 space-y-6">
-          {/* Header Info Banner */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 font-mono text-[10px] font-bold">
-                    F1 BƯỚC 3 (TỐI ƯU HÓA)
-                  </span>
-                  <h2 className="font-sans font-bold text-lg text-white">
-                    Tối Ưu Hóa Tổ Hợp Môn Cho Trường: <span className="text-[#38BDF8]">{currentUniversity?.official_name || selectedSchoolCode} ({selectedSchoolCode})</span>
-                  </h2>
-                </div>
-                <p className="text-xs text-slate-200 mt-1 font-normal">
-                  Áp dụng công thức giảm ưu tiên tuyến tính từ 22.5đ theo Khoản 4 Điều 7 Thông tư 06/2026/TT-BGDĐT. Điểm trần: 30.0đ.
+          {!isProfileValidated ? (
+            /* Empty State 1: Profile Not Validated */
+            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto text-2xl font-bold">
+                ⚠️
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-sans font-bold text-lg text-white">Chưa Có Dữ Liệu Hồ Sơ Học Tập &amp; Điểm Thi</h3>
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                  Để tính điểm tổ hợp xét tuyển và ưu tiên theo Thông tư 06/2026/TT-BGDĐT, hệ thống cần điểm số các môn THPT từ hồ sơ cá nhân của bạn. Vui lòng nhập điểm ở Tab 1.
                 </p>
               </div>
-
-              {/* School & Major Selector */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <select
-                  value={selectedSchoolCode}
-                  onChange={(e) => setSelectedSchoolCode(e.target.value)}
-                  className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
-                >
-                  <option value="BKA">BKA - ĐH Bách Khoa Hà Nội</option>
-                  <option value="NTH">NTH - ĐH Ngoại Thương</option>
-                  <option value="KHA">KHA - ĐH Kinh Tế Quốc Dân</option>
-                  <option value="QSB">QSB - ĐH Bách Khoa TP.HCM</option>
-                  <option value="TCT">TCT - ĐH Cần Thơ</option>
-                </select>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiSelect();
+                  setActiveTab('tab-profile');
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <span>Quay lại Tab 1: Nhập hồ sơ</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
-          </div>
-
-          {/* AI Optimal Combo Advice */}
-          {aiAnalysisData?.optimalComboAdvice && (
-            <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-start gap-3 text-xs">
-              <Sparkles className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-mono text-emerald-300 font-bold uppercase tracking-wider block">
-                  KHUYẾN NGHỊ TỐI ƯU TỔ HỢP TỪ AI NEXORA:
-                </span>
-                <p className="text-white leading-relaxed font-normal">
-                  {aiAnalysisData.optimalComboAdvice}
+          ) : !selectedMajorCode ? (
+            /* Empty State 2: Major Not Selected */
+            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto text-2xl font-bold">
+                🎯
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-sans font-bold text-lg text-white">Chưa Chọn Ngành Đào Tạo</h3>
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                  Tổ hợp xét tuyển cần gắn liền với ngành học cụ thể. Vui lòng chọn ngành ở Tab 2 trước khi tối ưu tổ hợp.
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiSelect();
+                  setActiveTab('tab-major');
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <span>Đi tới Tab 2: Chọn ngành đào tạo</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
-          )}
-
-          {/* Combinations Table / Cards */}
-          <div className="space-y-3">
-            {evaluatedCombos.map((combo, idx) => {
-              const isBest = idx === 0;
-              return (
-                <div
-                  key={combo.code}
-                  className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                    isBest
-                      ? 'bg-emerald-950/20 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/40'
-                      : 'bg-[#121316] border-[#262630]'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    {/* Left: Combo Code & Subjects */}
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-xl text-white px-3 py-1 rounded-xl bg-black/60 border border-slate-600">
-                          {combo.code}
-                        </span>
-                        {isBest && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-black font-sans font-bold text-[10px] tracking-wide flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" />
-                            <span>TỔ HỢP TỐI ƯU NHẤT (#1)</span>
-                          </span>
-                        )}
-                        <span className="text-sm text-slate-100 font-bold">
-                          {combo.subNames}
-                        </span>
-                      </div>
-                      <div className="text-xs font-mono text-slate-200 font-medium">
-                        Điểm thành phần: Môn 1 = <strong className="text-white font-bold">{combo.m1}</strong>, Môn 2 = <strong className="text-white font-bold">{combo.m2}</strong>, Môn 3 = <strong className="text-white font-bold">{combo.m3}</strong>
-                      </div>
+          ) : !selectedSchoolCode ? (
+            /* Empty State 3: School Not Selected */
+            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center mx-auto text-2xl font-bold">
+                🏛️
+              </div>
+              <div className="max-w-md mx-auto space-y-2">
+                <h3 className="font-sans font-bold text-lg text-white">Chưa Chọn Trường Đại Học Mục Tiêu</h3>
+                <p className="text-xs text-slate-300 font-sans leading-relaxed">
+                  Để tính biên độ trúng tuyển và tối ưu tổ hợp theo đề án thực tế, vui lòng chọn trường đào tạo ở Tab 4.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiSelect();
+                  setActiveTab('tab-university');
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <span>Đi tới Tab 4: Chọn trường đại học</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            /* Populated Tab 3 View */
+            <>
+              {/* Header Info Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 font-mono text-[10px] font-bold">
+                        F1 BƯỚC 3 (TỐI ƯU HÓA)
+                      </span>
+                      <h2 className="font-sans font-bold text-lg text-white">
+                        Tối Ưu Hóa Tổ Hợp Môn Cho Trường: <span className="text-[#38BDF8]">{currentUniversity?.official_name || selectedSchoolCode} ({selectedSchoolCode})</span>
+                      </h2>
                     </div>
-
-                    {/* Right: Scores & Margin */}
-                    <div className="flex items-center gap-4 text-right">
-                      <div>
-                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm gốc</div>
-                        <div className="font-mono text-sm text-white font-bold">{combo.rawScore}</div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">
-                          Ưu tiên {combo.isReduced && <span className="text-amber-300 text-[10px] font-bold">(Giảm TT06)</span>}
-                        </div>
-                        <div className="font-mono text-sm text-amber-300 font-black">+{combo.effectivePriority}</div>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[95px]">
-                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm xét tuyển</div>
-                        <div className="font-mono text-xl text-[#38BDF8] font-black">{combo.officialScore}</div>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[90px]">
-                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Biên độ</div>
-                        <div className={`font-mono text-sm font-black ${combo.margin >= 0 ? 'text-emerald-300' : 'text-red-400'}`}>
-                          {combo.margin >= 0 ? `+${combo.margin}` : combo.margin}
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-xs text-slate-200 mt-1 font-normal">
+                      Áp dụng công thức giảm ưu tiên tuyến tính từ 22.5đ theo Khoản 4 Điều 7 Thông tư 06/2026/TT-BGDĐT. Điểm trần: 30.0đ.
+                    </p>
                   </div>
 
-                  {/* TT 06 Linear Reduction Formula Explainer */}
-                  {combo.isReduced && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-200">
-                      <div className="flex items-center gap-1.5 text-amber-300 font-medium">
-                        <Info className="w-3.5 h-3.5 shrink-0" />
-                        <span>Khoản 4 Điều 7 TT 06/2026: Điểm gốc {combo.rawScore} ≥ 22.5 ➔ Hệ số giảm = [(30 - {combo.rawScore}) / 7.5] = {((30 - combo.rawScore) / 7.5).toFixed(2)} ➔ ĐƯT thực nhận = {combo.effectivePriority}đ</span>
-                      </div>
-                      <span className="text-slate-200 font-semibold shrink-0">Không vượt trần 30.0đ</span>
-                    </div>
-                  )}
+                  {/* School & Major Selector */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={selectedSchoolCode || ''}
+                      onChange={(e) => setSelectedSchoolCode(e.target.value)}
+                      className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
+                    >
+                      {availableSchoolsForSelectedMajor.map(inst => (
+                        <option key={inst.schoolCode} value={inst.schoolCode}>
+                          {inst.schoolCode} - {inst.schoolName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+
+              {/* AI Optimal Combo Advice */}
+              {aiAnalysisData?.optimalComboAdvice && (
+                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-start gap-3 text-xs">
+                  <Sparkles className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-mono text-emerald-300 font-bold uppercase tracking-wider block">
+                      KHUYẾN NGHỊ TỐI ƯU TỔ HỢP TỪ AI NEXORA:
+                    </span>
+                    <p className="text-white leading-relaxed font-normal">
+                      {aiAnalysisData.optimalComboAdvice}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Combinations Table / Cards */}
+              <div className="space-y-3">
+                {evaluatedCombos.map((combo, idx) => {
+                  const isBest = idx === 0 && combo.hasAllSubjects;
+                  return (
+                    <div
+                      key={combo.code}
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                        isBest
+                          ? 'bg-emerald-950/20 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/40'
+                          : 'bg-[#121316] border-[#262630]'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        {/* Left: Combo Code & Subjects */}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-xl text-white px-3 py-1 rounded-xl bg-black/60 border border-slate-600">
+                              {combo.code}
+                            </span>
+                            {isBest && (
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-black font-sans font-bold text-[10px] tracking-wide flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" />
+                                <span>TỔ HỢP TỐI ƯU NHẤT (#1)</span>
+                              </span>
+                            )}
+                            <span className="text-sm text-slate-100 font-bold">
+                              {combo.subNames}
+                            </span>
+                          </div>
+                          <div className="text-xs font-mono text-slate-200 font-medium">
+                            Điểm thành phần: Môn 1 = <strong className="text-white font-bold">{combo.m1}</strong>, Môn 2 = <strong className="text-white font-bold">{combo.m2}</strong>, Môn 3 = <strong className="text-white font-bold">{combo.m3}</strong>
+                          </div>
+                          {!combo.hasAllSubjects && (
+                            <div className="text-xs font-mono text-amber-300 font-semibold pt-1">
+                              ⚠️ {combo.missingReason}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right: Scores & Margin */}
+                        <div className="flex items-center gap-4 text-right">
+                          <div>
+                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm gốc</div>
+                            <div className="font-mono text-sm text-white font-bold">
+                              {combo.rawScore !== null ? combo.rawScore : '--'}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">
+                              Ưu tiên {combo.isReduced && <span className="text-amber-300 text-[10px] font-bold">(Giảm TT06)</span>}
+                            </div>
+                            <div className="font-mono text-sm text-amber-300 font-black">
+                              {combo.effectivePriority !== null ? `+${combo.effectivePriority}` : '--'}
+                            </div>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[95px]">
+                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm xét tuyển</div>
+                            <div className="font-mono text-xl text-[#38BDF8] font-black">
+                              {combo.officialScore !== null ? combo.officialScore : '--'}
+                            </div>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[90px]">
+                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Biên độ</div>
+                            {combo.margin !== null ? (
+                              <div className={`font-mono text-sm font-black ${combo.margin >= 0 ? 'text-emerald-300' : 'text-red-400'}`}>
+                                {combo.margin >= 0 ? `+${combo.margin}` : combo.margin}
+                              </div>
+                            ) : (
+                              <div className="font-mono text-sm font-semibold text-slate-400">
+                                --
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* TT 06 Linear Reduction Formula Explainer */}
+                      {combo.isReduced && combo.rawScore !== null && (
+                        <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-200">
+                          <div className="flex items-center gap-1.5 text-amber-300 font-medium">
+                            <Info className="w-3.5 h-3.5 shrink-0" />
+                            <span>Khoản 4 Điều 7 TT 06/2026: Điểm gốc {combo.rawScore} ≥ 22.5 ➔ Hệ số giảm = [(30 - {combo.rawScore}) / 7.5] = {((30 - combo.rawScore) / 7.5).toFixed(2)} ➔ ĐƯT thực nhận = {combo.effectivePriority}đ</span>
+                          </div>
+                          <span className="text-slate-200 font-semibold shrink-0">Không vượt trần 30.0đ</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </section>
       )}
 
@@ -1842,6 +2357,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                     E: Math.max(10, Math.min(50, dims.E || 30)),
                     C: Math.max(10, Math.min(50, dims.C || 30))
                   });
+                  invalidateDownstream();
                   setShowOnetModal(false);
                 }}
                 className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-xs cursor-pointer shadow-md"
@@ -1918,8 +2434,10 @@ interface UniversityTierCardProps {
     combinations: string[];
     isFreeTuition: boolean;
     tuitionPolicyNote?: string;
+    candidateScore?: number | null;
+    bestComboCode?: string | null;
   };
-  candidateScore: number;
+  candidateScore: number | null;
   maxTuition: number;
   isSelected: boolean;
   tierType: 'DREAM' | 'TARGET' | 'SAFE';
@@ -1936,7 +2454,8 @@ const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
 }) => {
   const isBudgetOk = inst.isFreeTuition || inst.tuitionMlnYear <= maxTuition;
   const cutoff = inst.benchmark2025 || inst.benchmark2024;
-  const margin = Number((candidateScore - cutoff).toFixed(2));
+  const effectiveScore = typeof candidateScore === 'number' ? candidateScore : (typeof inst.candidateScore === 'number' ? inst.candidateScore : null);
+  const margin = effectiveScore !== null ? Number((effectiveScore - cutoff).toFixed(2)) : null;
 
   return (
     <div
@@ -1960,6 +2479,16 @@ const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
         <h4 className="font-sans font-bold text-base text-white group-hover:text-[#60A5FA] transition-colors line-clamp-1">
           {inst.schoolName}
         </h4>
+
+        {/* Combinations info */}
+        <div className="text-[11px] font-mono text-slate-300">
+          Tổ hợp xét tuyển: <span className="text-white font-bold">{inst.combinations.join(', ')}</span>
+          {inst.bestComboCode && (
+            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-300 font-bold text-[10px]">
+              Tối ưu: {inst.bestComboCode} {effectiveScore !== null ? `(${effectiveScore}đ)` : ''}
+            </span>
+          )}
+        </div>
 
         {/* Benchmarks 3 years */}
         <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-black/50 border border-slate-700/80 text-xs font-mono text-center">
@@ -2009,9 +2538,15 @@ const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
 
       {/* Action Button */}
       <div className="pt-3 border-t border-slate-800 mt-3 flex items-center justify-between text-xs">
-        <span className={`font-mono font-black text-sm ${margin >= 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
-          Biên độ: {margin >= 0 ? `+${margin}` : margin}đ
-        </span>
+        {margin !== null ? (
+          <span className={`font-mono font-black text-sm ${margin >= 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
+            Biên độ: {margin >= 0 ? `+${margin}` : margin}đ
+          </span>
+        ) : (
+          <span className="font-mono text-xs text-amber-300 font-semibold">
+            Chưa đủ môn xét tuyển
+          </span>
+        )}
         <button
           type="button"
           onClick={(e) => {

@@ -10,6 +10,34 @@ Last Updated: 2026-10-19T14:38:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Strict Dependency Chain & Empty Initial State Refactor (2026-10-19)**:
+  - Addressed user task: *"REFACTOR MAJOR & UNIVERSITY ANALYSIS — USE EXISTING DATA"*:
+    * **Strict Dependency Chain Enforcement**:
+      `Hồ sơ & Năng lực (Tab 1)` ➔ `Phân tích & gợi ý ngành (Tab 2)` ➔ `Người dùng chọn ngành (selectedMajorCode)` ➔ `Phân tích & gợi ý trường theo hồ sơ + ngành đã chọn (Tab 4)` ➔ `Người dùng chọn trường (selectedSchoolCode)` ➔ `Tối ưu tổ hợp môn (Tab 3)`.
+    * **No Input, No Results (Empty Initial State)**:
+      - Initial state on load: both major and university recommendation sections remain **strictly empty**.
+      - Removed predefined or mock fallback recommendations (no default `math: 8.5`, no default `selectedMajorCode: '7480201'`, no default `selectedSchoolCode: 'BKA'`).
+      - All 10 THPT subject inputs and 6 RIASEC inputs initialize to empty strings `''` (rendering `--` on sliders).
+      - If profile is incomplete (<3 subjects or <3 RIASEC), displays high-contrast empty state card guiding student to Tab 1.
+      - If profile is valid but no major is selected, Tab 4 and Tab 3 remain strictly empty with guidance to choose a major in Tab 2.
+      - If major is selected but no university is selected, Tab 3 remains strictly empty with guidance to choose a university in Tab 4.
+    * **Zero Mock Schools & Dynamic Accepted Combination Matching**:
+      - Completely excised hardcoded mock school injection (`BKA`, `QSB`, `TCT`).
+      - Dynamically queries accepted combinations for each accredited institution (from `seedData.anchorInstitutions` and `AUDITED_MAJOR_METHOD_SCORING_DB`).
+      - Evaluates candidate's actual valid score against accepted combinations for each school, selecting the highest valid combination for that school.
+      - If candidate lacks required subjects for a school's combinations, candidate score is set to `null` and displayed as `"Chưa đủ môn xét tuyển"`, rather than fabricating scores or throwing `NaN`.
+    * **Automatic State Invalidation**:
+      - Any change to subject grades, competency exam scores (HSA, V-ACT, TSA, IELTS, SAT), RIASEC scores, budget (`maxTuition`), priority region, or priority policy triggers `invalidateDownstream()`, clearing stale downstream results immediately.
+    * **Excised Dead Code in [UNIROOTPlatform.tsx](file:///d:/src/components/UNIROOTPlatform.tsx)**:
+      - Excised 391 lines of unused `DeprecatedOldHomeView`.
+    * **Automated Verification**:
+      - Created `scripts/test_dependency_chain_empty_state.mjs` verifying 6 scenarios (initial empty state, incomplete profile rejection, valid profile major unlock without universities, major selection university stratification, downstream invalidation, and combination subject deficiency handling) - 6/6 PASS in 7.78ms.
+      - All 10 acceptance test cases TC-01 to TC-10 PASS (10/10).
+      - Realtime Browser Test Suite passes 90/90 assertions (100%).
+      - Master Real AI test suite passes 17/17 (100%).
+      - TypeScript check (`tsc --noEmit`) passes with 0 errors.
+      - Production build (`vite build`) completes cleanly in 5.75s.
+
 - **Eradication of Canned Flows & Real AI Web Display Driving (2026-10-19)**:
   - Addressed user directive: *"xóa những luồng cũ hoặc luồng có sẵn, để cái kết quả input của người dùng được AI phân tích, kết quả trả về sẽ là những gì hiện ra trên web."*:
     * **Elimination of Canned Code & Hardcoded Matches**: Completely excised ~500 lines of static keyword branches (`if (lower.includes('đá banh')...)`, `if (lower.includes('y ')...)`, etc.) from `src/components/CareerPathwayNavigator.tsx`. Replaced with pure dynamic processing via the Career Decision Engine and real LLM backend.
