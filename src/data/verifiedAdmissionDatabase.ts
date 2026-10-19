@@ -1486,7 +1486,7 @@ export const VERIFIED_UNIVERSITIES: VerifiedUniversity[] = [
         tier: 'Nhóm 1' as const,
         tuitionStandardMlnYear: tuition,
         tuitionHighQualityMlnYear: tuition > 0 ? tuition * 1.8 : 0,
-        tuitionDescription: isPedagogy ? 'Miễn 100% học phí + trợ cấp 3.63 triệu/tháng theo Nghị định 116/2020/NĐ-CP.' : isMilitary ? 'Nhà nước đài thọ 100% kinh phí đào tạo, ăn ở và sinh hoạt.' : `${tuition} – ${Math.round(tuition * 1.5)} triệu/năm theo khung học phí trường công lập tự chủ (Nghị định 81/2021/NĐ-CP).`,
+        tuitionDescription: isPedagogy ? 'Miễn 100% học phí + trợ cấp 3.63 triệu/tháng theo Nghị định 116/2020/NĐ-CP & NĐ 238/2025/NĐ-CP.' : isMilitary ? 'Nhà nước đài thọ 100% kinh phí đào tạo, ăn ở và sinh hoạt.' : `${tuition} – ${Math.round(tuition * 1.5)} triệu/năm theo khung học phí trường công lập tự chủ (Nghị định 238/2025/NĐ-CP).`,
         scholarshipPolicies: 'Học bổng khuyến khích học tập theo quy định của Bộ GD&ĐT (tối thiểu 8% nguồn thu học phí) và các gói tài trợ từ doanh nghiệp đối tác.',
         primaryScale: 'Thang 30' as const,
         officialAdmissionDoc: {

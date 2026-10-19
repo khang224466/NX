@@ -143,7 +143,30 @@ export function validateAndNormalizeCounselorResponse(rawText) {
   };
 }
 
-export function buildCounselorSystemPrompt(profileOrOpts, maybeRealityAnswer) {
+export function getTuitionContext(msg) {
+  if (!msg || typeof msg !== 'string') return '';
+  if (!/(học phí|tiền học|chi phí|tài chính|nghị định 116|miễn học phí|bao nhiêu tiền|học bổng|ngân sách|đắt không|rẻ không)/i.test(msg)) {
+    return '';
+  }
+  if (/(sư phạm|giáo viên|dạy học)/i.test(msg)) {
+    return 'Dữ liệu học phí: Sư phạm miễn 100% học phí + trợ cấp 3.63 tr/tháng (NĐ 116/2020 & NĐ 238/2025). Ngoài SP thu 17.5-21 tr/năm.';
+  }
+  if (/(quân đội|công an|an ninh|cảnh sát|sĩ quan)/i.test(msg)) {
+    return 'Dữ liệu học phí: Khối Quân đội & Công an bao cấp 100% học phí, ăn ở và sinh hoạt phí.';
+  }
+  if (/(ngành y|y khoa|y dược|y tế|bác sĩ|răng hàm mặt|dược)/i.test(msg)) {
+    return 'Dữ liệu học phí: Y Dược công lập tự chủ 35-90 tr/năm (Y Hà Nội 24.5-62.2 tr, Y Dược TPHCM 35-90 tr); Quân Y miễn 100%; Tư thục 45-140 tr/năm.';
+  }
+  if (/(bách khoa|công nghệ|cntt|it|khoa học máy tính)/i.test(msg)) {
+    return 'Dữ liệu học phí: Bách Khoa HN 29.5-42 tr/năm; ĐH Công nghệ ĐHQGHN 40 tr/năm; PTIT 38.5 tr/năm; Bách Khoa HCM 31.5 tr/năm; FPT 62 tr/năm.';
+  }
+  if (/(kinh tế|ngoại thương|neu|ftu|tài chính|ueh|hvtc)/i.test(msg)) {
+    return 'Dữ liệu học phí: Kinh tế Quốc dân 23.5-52 tr/năm; Ngoại thương 30-85 tr/năm; Học viện Tài chính 28-52.5 tr/năm; UEH 43.5-72 tr/năm.';
+  }
+  return 'Dữ liệu học phí (NĐ 238/2025/NĐ-CP): Bình quân ĐH 33.7 tr/năm. Công lập 18-35 tr; Tự chủ/Y Dược 35-70 tr; Quốc tế 200-350 tr. Miễn 100%: Sư phạm (NĐ 116 + 3.63 tr/th) & Quân đội, Công an.';
+}
+
+export function buildCounselorSystemPrompt(profileOrOpts, maybeRealityAnswer, tuitionContext) {
   const profile = (profileOrOpts && typeof profileOrOpts === 'object' && ('statedInterests' in profileOrOpts || 'interests' in profileOrOpts))
     ? profileOrOpts
     : (profileOrOpts?.profile || {});
@@ -171,7 +194,7 @@ export function buildCounselorSystemPrompt(profileOrOpts, maybeRealityAnswer) {
   const isReady = hasInterests && hasCapabilities && hasEnv && !contradictions.length && turns >= 2;
 
   return `Bạn là Cố Vấn Hướng Nghiệp Nexora. Bạn trò chuyện 1:1 chân thành, ấm áp, thấu cảm với học sinh Việt Nam.
-Hồ sơ: Lượt ${turns} | Sở thích: ${stated} | Thế mạnh: ${strengths} | Môi trường: ${workEnv} | Muốn tránh: ${rejected}${realityAnswer ? ` | Tâm thế tự vấn ban đầu: "${realityAnswer}"` : ''}
+Hồ sơ: Lượt ${turns} | Sở thích: ${stated} | Thế mạnh: ${strengths} | Môi trường: ${workEnv} | Muốn tránh: ${rejected}${realityAnswer ? ` | Tâm thế tự vấn ban đầu: "${realityAnswer}"` : ''}${tuitionContext ? ` | ${tuitionContext}` : ''}
 
 Quy tắc:
 1. Phản hồi súc tích, tự nhiên (1-2 đoạn ngắn), tuyệt đối không dùng văn mẫu hay sáo rỗng.
@@ -244,7 +267,8 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
     };
   }
 
-  const systemInstruction = buildCounselorSystemPrompt({ profile, realityAnswer });
+  const tuitionContext = getTuitionContext(cleanMessage);
+  const systemInstruction = buildCounselorSystemPrompt({ profile, realityAnswer }, undefined, tuitionContext);
 
   // 1. If Gemini Key is present, call Google Gemini with resilient model fallback
   if (geminiKey) {

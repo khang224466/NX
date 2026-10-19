@@ -1,5 +1,5 @@
 # Project Memory & Persistent State
-Last Updated: 2026-10-18T17:42:00+07:00
+Last Updated: 2026-10-19T14:26:00+07:00
 
 ## 1. Project Overview & Context
 - **Name**: UNIROOT Platform / Career Guidance Platform (Website Hướng Nghiệp)
@@ -10,6 +10,12 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Minimal Token Tuition Ingestion (NĐ 238/2025/NĐ-CP & NĐ 116/2020) - 2026-10-19**:
+  - Removed 531-line static database file (`auditedTuitionDatabase.ts`) per user request to maintain codebase cleanliness and eliminate hardcoded bloat.
+  - Implemented ultra-compact micro-helper `getTuitionContext()` directly in `src/services/counselorBackend.ts` and `scripts/counselor_backend.mjs` (~20 lines of code).
+  - Enforced zero prompt token waste: Queries without tuition/financial intent consume **0 extra prompt tokens**.
+  - Dynamic micro-injection: When users ask about tuition/scholarships/costs, injects an official concise snippet (20-35 tokens) covering Decree 238/2025 benchmarks (national avg 33.7M/yr, public 18-35M, autonomous/medical 35-70M, international 200-350M), Sư phạm free tuition under NĐ 116 + 3.63M/mo stipend, and military/police 100% full subsidy.
+  - Updated `verifiedAdmissionDatabase.ts` tuition description reference to Decree 238/2025/NĐ-CP.
 - **Typography Standards (Commit `cb45c20`)**:
   - Headings (`font-heading`): **Roboto Condensed** (weights 700 - 800)
   - Body/Content (`font-sans`): **Roboto** (weights 400 - 500)
