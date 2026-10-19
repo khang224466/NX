@@ -1,135 +1,256 @@
 /**
- * NEXORA AI CAREER COUNSELOR BACKEND HANDLER
- * Handles conversational counselor requests using server-side GEMINI_API_KEY or GROQ_API_KEY.
- * Provides resilient timeout handling, rate limiting, and structured JSON parsing.
+ * NEXORA AI CAREER COUNSELOR BACKEND HANDLER (ES MODULE)
+ * Decoupled multi-provider adapter supporting Google Gemini & Groq.
+ * Validates EXORA response contract, schema normalization, rate limiting, and timeout safety.
  */
 
-export function buildCounselorSystemPrompt(profileOrOpts, maybeRealityAnswer) {
-  const profile = (profileOrOpts && typeof profileOrOpts === 'object' && 'statedInterests' in profileOrOpts)
-    ? profileOrOpts
-    : (profileOrOpts?.profile || {});
-  const realityAnswer = profileOrOpts?.realityAnswer || maybeRealityAnswer || '';
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 25;
 
-  const stated = (profile?.statedInterests || []).join(', ') || 'Chưa rõ';
-  const untested = (profile?.untestedInterests || []).join(', ') || 'Không có';
-  const rejected = (profile?.rejectedActivities || []).join(', ') || 'Không có';
-  const strengths = (profile?.academicStrengths || []).join(', ') || 'Chưa rõ';
-  const weaknesses = (profile?.academicWeaknesses || []).join(', ') || 'Chưa rõ';
-  const workEnv = (profile?.workEnvironmentPrefs || []).join(', ') || 'Chưa rõ';
-  const constraints = (profile?.realConstraints || []).join(', ') || 'Không có';
-  const contradictions = (profile?.unresolvedContradictions || []).join(', ') || 'Không có';
-  const turns = profile?.turnsCount || 1;
+export function checkRateLimit(identifier = 'global') {
+  const now = Date.now();
+  const timestamps = rateLimitMap.get(identifier) || [];
+  const validTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
 
-  // Evaluate readiness from profile data
-  const hasInterests = (profile?.statedInterests || []).length > 0;
-  const hasCapabilities = (profile?.academicStrengths || []).length > 0 || (profile?.academicWeaknesses || []).length > 0;
-  const hasEnv = (profile?.workEnvironmentPrefs || []).length > 0 || (profile?.personalValues || []).length > 0;
-  const isReady = hasInterests && hasCapabilities && !contradictions.length && turns >= 2;
-
-  return `Bạn là Cố Vấn Hướng Nghiệp & Tuyển Sinh AI cấp cao của NEXORA (AI Career Counselor), được đào tạo theo chuẩn tâm lý giáo dục và dữ liệu tuyển sinh Việt Nam 2026.
-Nhiệm vụ của bạn: Đồng hành, lắng nghe học sinh THPT và phụ huynh Việt Nam từ con số 0, thấu hiểu ngữ cảnh và tự sinh câu hỏi/phản hồi linh hoạt theo tình huống để giúp học sinh đưa ra quyết định có căn cứ.
-
-=== HỒ SƠ BẰNG CHỨNG HIỆN TẠI (EVIDENCE PROFILE) ===
-- Lượt hội thoại hiện tại: Lượt ${turns}
-- Sở thích tích cực đã xác nhận: ${stated}
-- Sở thích chưa thử nghiệm: ${untested}
-- Hoạt động / Môi trường học sinh từ chối / e ngại: ${rejected}
-- Môn học thế mạnh / Năng lực nhận thức: ${strengths}
-- Điểm yếu môn học / Phạm vi e ngại: ${weaknesses}
-- Môi trường làm việc mong muốn: ${workEnv}
-- Rào cản thực tế (tài chính, địa lý, gia đình): ${constraints}
-- Mâu thuẫn chưa giải quyết: ${contradictions}
-${realityAnswer ? `- Tâm thế đối diện thực tế ban đầu: "${realityAnswer}"` : ''}
-- Trạng thái sẵn sàng kết luận nghề: ${isReady ? 'ĐÃ ĐỦ BẰNG CHỨNG' : 'CHƯA ĐỦ BẰNG CHỨNG (Tuyệt đối KHÔNG chốt danh sách nghề cuối cùng)'}
-
-=== NGUYÊN TẮC HỘI THOẠI CỐT LÕI (BẮT BUỘC TUÂN THỦ) ===
-1. TỰ SINH CÂU HỎI THEO TÌNH HUỐNG: Tuyệt đối không dùng kịch bản câu hỏi rập khuôn. Dựa vào câu nói mới nhất của học sinh để phản hồi tự nhiên, gần gũi như một người thầy cố vấn thấu cảm.
-2. HIỂU NGÔN NGỮ TỰ NHIÊN: Học sinh có thể viết ngắn gọn ("em ko bit", "...", "toán 6.5"), viết tắt, sai chính tả, hoặc bộc lộ tâm lý hoang mang. Hãy kiên nhẫn và giải tỏa tâm lý trước khi đi sâu vào nghiệp vụ.
-3. PHÂN BIỆT RÕ RÀNG:
-   - "Chưa thử" khác với "Không thích/Từ chối".
-   - "Thích lĩnh vực công nghệ" nhưng "Không muốn lập trình/code" là 2 vế độc lập.
-   - "Không phải ghét Toán, chỉ sợ Toán nâng cao" nghĩa là không ghét Toán căn bản, chỉ e ngại giải tích chuyên sâu.
-4. XỬ LÝ ĐỔI Ý & MÂU THUẪN:
-   - Nếu học sinh thay đổi ý kiến (ví dụ: trước thích máy tính nhưng nay đổi sang động vật): Lập tức ghi nhận và chuyển hướng theo sở thích mới, không níu giữ ý cũ.
-   - Nếu có mâu thuẫn (ví dụ: ghét văn phòng nhưng lại muốn công việc bàn giấy ổn định 8 tiếng): Đặt 1 câu hỏi trọng tâm giúp học sinh tự soi chiếu sự đánh đổi.
-5. TRẢ LỜI CÂU HỎI TRỰC TIẾP: Nếu học sinh hỏi cụ thể về một ngành, trường, điểm chuẩn hay học phí, hãy trả lời thẳng thắn và chính xác, sau đó mới hỏi tiếp.
-6. TÍNH TRUNG THỰC DỮ LIỆU: Chỉ nêu điểm chuẩn, mã ngành, học phí khi có căn cứ chuẩn xác theo quy chế Bộ GD&ĐT Việt Nam 2026. Nếu chưa xác minh được, phải nói rõ "Chưa xác minh được trong hệ thống".
-7. ĐIỀU KIỆN ĐỀ XUẤT NGHỀ:
-   - Nếu hồ sơ còn mơ hồ, thiếu bằng chứng năng lực hoặc môi trường: TIẾP TỤC ĐẶT CÂU HỎI KHÁM PHÁ hoặc đưa ra tình huống thực tế. Tuyệt đối KHÔNG ép đưa ra danh sách 3 nghề chốt hạ.
-   - Chỉ khi nào học sinh đã bộc lộ rõ cả Sở thích, Năng lực và Môi trường làm việc: Mới đúc kết và mở ra các hướng nghề nghiệp phù hợp.
-
-=== YÊU CẦU ĐẦU RA (OUTPUT FORMAT) ===
-Hãy trả về DUY NHẤT một chuỗi JSON hợp lệ theo cấu trúc sau (không kèm văn bản thừa ngoài JSON):
-{
-  "replyText": "Nội dung phản hồi của bạn dành cho học sinh (ấm áp, tự nhiên, phân tích sâu sắc, nếu hỏi thì đặt duy nhất 1 câu hỏi trọng tâm rõ ràng)",
-  "quickReplies": ["Gợi ý phản hồi nhanh 1 (ngắn gọn, phù hợp ngữ cảnh vừa nói)", "Gợi ý phản hồi nhanh 2", "Gợi ý phản hồi nhanh 3"],
-  "detectedUpdates": {
-    "statedInterests": ["Các sở thích tích cực mới được xác nhận trong câu này (nếu có)"],
-    "retractedInterests": ["Các sở thích học sinh đã từ bỏ / đổi ý trong câu này (nếu có)"],
-    "untestedInterests": ["Các sở thích học sinh muốn thử hoặc chưa từng làm"],
-    "rejectedActivities": ["Các hoạt động / công việc học sinh nói rõ không thích / từ chối"],
-    "academicStrengths": ["Môn học hoặc năng lực học sinh nói mình học tốt / có thế mạnh"],
-    "academicWeaknesses": ["Môn học điểm thấp hoặc e ngại"],
-    "workEnvironmentPrefs": ["Môi trường làm việc mong muốn"],
-    "realConstraints": ["Rào cản tài chính, gia đình, vị trí địa lý"]
+  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    const oldest = validTimestamps[0];
+    const retryAfter = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - oldest)) / 1000);
+    return { allowed: false, remaining: 0, retryAfterSeconds: Math.max(1, retryAfter) };
   }
-}
-`;
+
+  validTimestamps.push(now);
+  rateLimitMap.set(identifier, validTimestamps);
+  return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - validTimestamps.length };
 }
 
-/**
- * Clean and parse JSON from model output
- */
-export function parseAIModelOutput(rawText) {
+export function validateAndNormalizeCounselorResponse(rawText) {
   if (!rawText || typeof rawText !== 'string') {
     return {
-      replyText: 'Xin lỗi bạn, phản hồi từ máy chủ AI không có nội dung. Bạn vui lòng thử lại nhé.',
-      quickReplies: ['Chia sẻ thêm về bản thân', 'Tìm hiểu ngành nghề phù hợp'],
-      detectedUpdates: {}
+      reply: 'Xin lỗi bạn, phản hồi từ máy chủ AI không có nội dung. Bạn vui lòng thử lại nhé.',
+      profileUpdates: {},
+      decision: {
+        stage: 'DISCOVERY',
+        action: 'ASK_CLARIFYING_QUESTION',
+        question: null,
+        reason: 'Tiếp tục tìm hiểu thông tin định hướng',
+        evidenceSufficiency: 'LOW'
+      },
+      quickReplies: ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh']
     };
   }
 
-  const cleaned = rawText
+  let cleaned = rawText
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim();
 
+  let parsed = null;
   try {
-    const parsed = JSON.parse(cleaned);
-    if (parsed.replyText && typeof parsed.replyText === 'string') {
-      return {
-        replyText: parsed.replyText.trim(),
-        quickReplies: Array.isArray(parsed.quickReplies) ? parsed.quickReplies.filter(Boolean) : [],
-        detectedUpdates: parsed.detectedUpdates && typeof parsed.detectedUpdates === 'object' ? parsed.detectedUpdates : {}
-      };
-    }
+    parsed = JSON.parse(cleaned);
   } catch {
-    // If JSON parsing fails, regex extract fields or use the cleaned text as reply
-    const replyMatch = cleaned.match(/"replyText"\s*:\s*"((?:\\.|[^"\\])*)"/);
-    if (replyMatch) {
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
       try {
-        const extractedReply = JSON.parse(`"${replyMatch[1]}"`);
-        return {
-          replyText: extractedReply,
-          quickReplies: ['Chia sẻ thêm về bản thân', 'Khám phá các hướng đi'],
-          detectedUpdates: {}
-        };
+        parsed = JSON.parse(jsonMatch[0]);
       } catch {}
     }
   }
 
-  // Fallback: return raw text cleaned
+  if (!parsed || typeof parsed !== 'object') {
+    return {
+      reply: cleaned.slice(0, 1500),
+      profileUpdates: {},
+      decision: {
+        stage: 'DISCOVERY',
+        action: 'ASK_CLARIFYING_QUESTION',
+        question: null,
+        reason: 'Tiếp tục tìm hiểu thông tin định hướng',
+        evidenceSufficiency: 'LOW'
+      },
+      quickReplies: ['Chia sẻ thêm về môn học thế mạnh', 'Khám phá sở thích hoạt động hằng ngày']
+    };
+  }
+
+  const reply = typeof parsed.reply === 'string' && parsed.reply.trim()
+    ? parsed.reply.trim()
+    : (typeof parsed.replyText === 'string' && parsed.replyText.trim()
+        ? parsed.replyText.trim()
+        : 'Mình đã lắng nghe chia sẻ của bạn. Hãy cùng đào sâu thêm một khía cạnh nhé.');
+
+  const rawUpdates = parsed.profileUpdates || parsed.detectedUpdates || {};
+  const sanitize = arr => Array.isArray(arr) ? arr.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim()) : [];
+
+  const profileUpdates = {
+    interests: sanitize(rawUpdates.interests || rawUpdates.statedInterests),
+    retractedInterests: sanitize(rawUpdates.retractedInterests),
+    demonstratedStrengths: sanitize(rawUpdates.demonstratedStrengths || rawUpdates.academicStrengths),
+    learningEvidence: sanitize(rawUpdates.learningEvidence || rawUpdates.academicWeaknesses),
+    workPreferences: sanitize(rawUpdates.workPreferences || rawUpdates.workEnvironmentPrefs),
+    constraints: sanitize(rawUpdates.constraints || rawUpdates.realConstraints),
+    values: sanitize(rawUpdates.values || rawUpdates.personalValues),
+    dislikes: sanitize(rawUpdates.dislikes || rawUpdates.rejectedActivities),
+    uncertainties: sanitize(rawUpdates.uncertainties || rawUpdates.missingEvidence)
+  };
+
+  const rawDecision = parsed.decision || {};
+  const stage = rawDecision.stage || 'DISCOVERY';
+  const action = rawDecision.action || 'ASK_CLARIFYING_QUESTION';
+  const question = typeof rawDecision.question === 'string' && rawDecision.question.trim() ? rawDecision.question.trim() : null;
+  const reason = typeof rawDecision.reason === 'string' && rawDecision.reason.trim() ? rawDecision.reason.trim() : 'Thu thập thêm bằng chứng định hướng';
+  const evidenceSufficiency = ['LOW', 'MEDIUM', 'HIGH'].includes(rawDecision.evidenceSufficiency) ? rawDecision.evidenceSufficiency : 'LOW';
+
+  let quickReplies = sanitize(parsed.quickReplies);
+  if (quickReplies.length === 0) {
+    quickReplies = ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+  }
+
+  let careers = undefined;
+  if (Array.isArray(parsed.careers) && parsed.careers.length > 0) {
+    careers = parsed.careers
+      .filter(c => c && typeof c.title === 'string' && c.title.trim())
+      .slice(0, 3)
+      .map((c, idx) => ({
+        id: String(c.id || `c_ai_${idx + 1}`),
+        title: String(c.title).trim(),
+        sector: String(c.sector || 'Chuyên môn đa ngành').trim(),
+        riasecCode: String(c.riasecCode || 'RIC').trim(),
+        matchPercent: typeof c.matchPercent === 'number' ? Math.min(100, Math.max(50, c.matchPercent)) : 80,
+        whyFit: String(c.whyFit || 'Phù hợp với đặc điểm hứng thú và năng lực bạn vừa chia sẻ.').trim(),
+        whyNotOthers: c.whyNotOthers ? String(c.whyNotOthers).trim() : undefined,
+        uncertaintiesAndRisks: c.uncertaintiesAndRisks ? String(c.uncertaintiesAndRisks).trim() : undefined,
+        selfVerificationTask: String(c.selfVerificationTask || 'Thử làm 1 dự án nhỏ hoặc trao đổi với người trong nghề 30 phút.').trim(),
+        recommendedMajors: sanitize(c.recommendedMajors)
+      }));
+  }
+
   return {
-    replyText: cleaned,
-    quickReplies: ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'],
-    detectedUpdates: {}
+    reply,
+    profileUpdates,
+    decision: { stage, action, question, reason, evidenceSufficiency },
+    quickReplies: quickReplies.slice(0, 4),
+    careers
   };
 }
 
-/**
- * Handle POST /api/ai/counselor/chat
- */
+export function buildCounselorSystemPrompt(profileOrOpts, maybeRealityAnswer) {
+  const profile = (profileOrOpts && typeof profileOrOpts === 'object' && ('statedInterests' in profileOrOpts || 'interests' in profileOrOpts))
+    ? profileOrOpts
+    : (profileOrOpts?.profile || {});
+  const realityAnswer = profileOrOpts?.realityAnswer || maybeRealityAnswer || '';
+
+  const stated = (profile?.interests || profile?.statedInterests || []).join(', ') || 'Chưa rõ';
+  const retracted = (profile?.retractedInterests || []).join(', ') || 'Không có';
+  const untested = (profile?.untestedInterests || []).join(', ') || 'Không có';
+  const rejected = (profile?.dislikes || profile?.rejectedActivities || []).join(', ') || 'Không có';
+  const strengths = (profile?.demonstratedStrengths || profile?.academicStrengths || []).join(', ') || 'Chưa rõ';
+  const weaknesses = (profile?.learningEvidence || profile?.academicWeaknesses || []).join(', ') || 'Chưa rõ';
+  const workEnv = (profile?.workPreferences || profile?.workEnvironmentPrefs || []).join(', ') || 'Chưa rõ';
+  const constraints = (profile?.constraints || profile?.realConstraints || []).join(', ') || 'Không có';
+  const values = (profile?.values || profile?.personalValues || []).join(', ') || 'Chưa rõ';
+  const contradictions = (profile?.unresolvedContradictions || []).join(', ') || 'Không có';
+  const turns = profile?.turnsCount || 1;
+
+  const hasInterests = (profile?.interests || profile?.statedInterests || []).length > 0;
+  const hasCapabilities =
+    (profile?.demonstratedStrengths || profile?.academicStrengths || []).length > 0 ||
+    (profile?.learningEvidence || profile?.academicWeaknesses || []).length > 0;
+  const hasEnv =
+    (profile?.workPreferences || profile?.workEnvironmentPrefs || []).length > 0 ||
+    (profile?.values || profile?.personalValues || []).length > 0;
+  const isReady = hasInterests && hasCapabilities && hasEnv && !contradictions.length && turns >= 2;
+
+  return `Bạn là Cố Vấn Hướng Nghiệp & Tuyển Sinh AI cấp cao của NEXORA (AI Career Counselor), được đào tạo theo chuẩn tâm lý giáo dục và dữ liệu tuyển sinh Việt Nam 2026.
+Nhiệm vụ của bạn: Đồng hành, lắng nghe học sinh THPT và phụ huynh Việt Nam từ con số 0, thấu hiểu ngữ cảnh và tự sinh câu hỏi/phản hồi linh hoạt theo tình huống để giúp học sinh đưa ra quyết định có căn cứ.
+
+=== KHUNG SUY LUẬN EXORA (7 GIAI ĐOẠN) ===
+- Giai đoạn A (DISCOVERY): Khám phá bản thân (trải nghiệm hằng ngày, sự tò mò, sở thích tự nhiên, việc muốn tránh).
+- Giai đoạn B (CAPABILITIES): Làm rõ năng lực (môn học thế mạnh, cách giải quyết vấn đề, khả năng tự học, điểm yếu).
+- Giai đoạn C (WORK_ENVIRONMENT): Làm rõ môi trường & giá trị (mức độ giao tiếp, không gian làm việc, tính ổn định, tự do sáng tạo).
+- Giai đoạn D (CAREERS): Đề xuất tối đa 3 hướng nghề nghiệp (CHỈ KHI ĐỦ BẰNG CHỨNG 3 TRỤ CỘT trên).
+- Giai đoạn E (MAJORS): Kết nối vị trí nghề sang các chuyên ngành đào tạo đại học/cao đẳng phù hợp.
+- Giai đoạn F (ADMISSIONS): Thông tin trường, tổ hợp môn xét tuyển thực tế, học phí và điểm chuẩn có kiểm chứng.
+- Giai đoạn G (ROADMAP): Lộ trình phát triển năng lực 4 năm đại học và kỹ năng thực tế.
+
+=== HỒ SƠ BẰNG CHỨNG HIỆN TẠI (EVIDENCE PROFILE) ===
+- Lượt hội thoại hiện tại: Lượt ${turns}
+- Sở thích tích cực đã ghi nhận: ${stated}
+- Sở thích học sinh đã đổi ý / từ bỏ: ${retracted}
+- Sở thích chưa từng thử nghiệm: ${untested}
+- Hoạt động / Môn học học sinh từ chối / không thích: ${rejected}
+- Năng lực / Môn học thế mạnh đã có minh chứng: ${strengths}
+- Khó khăn học tập / Phạm vi môn học e ngại: ${weaknesses}
+- Môi trường làm việc mong muốn & phong cách giao tiếp: ${workEnv}
+- Giá trị ưu tiên (ổn định, thu nhập, sáng tạo...): ${values}
+- Rào cản thực tế (tài chính, địa lý, gia đình): ${constraints}
+- Mâu thuẫn chưa giải quyết: ${contradictions}
+${realityAnswer ? `- Tâm thế đối diện thực tế ban đầu: "${realityAnswer}"` : ''}
+- Trạng thái sẵn sàng kết luận nghề: ${isReady ? 'ĐÃ ĐỦ BẰNG CHỨNG (Có thể mở rộng danh sách nghề tiềm năng)' : 'CHƯA ĐỦ BẰNG CHỨNG (Tuyệt đối KHÔNG chốt danh sách nghề cuối cùng vội vã)'}
+
+=== NGUYÊN TẮC HỘI THOẠI BẮT BUỘC TUÂN THỦ ===
+1. KHÔNG LẶP CÂU HỎI: Tuyệt đối không hỏi lại những điều học sinh đã trả lời trong hồ sơ.
+2. MỖI LƯỢT CHỈ 1 CÂU HỎI TRỌNG TÂM: Tập trung vào khoảng trống thông tin lớn nhất còn thiếu để phân biệt các hướng nghề.
+3. PHÂN TÍCH ĐA TÍN HIỆU NGÔN NGỮ TỰ NHIÊN:
+   - Học sinh có thể viết câu phức tạp chứa nhiều vế trái ngược: "Em thích sáng tạo ý tưởng mới, không thích lặp lại, nhưng em cũng muốn công việc ổn định."
+   - Bóc tách đầy đủ: ghi nhận cả sáng tạo, không thích lặp lại, muốn ổn định, và đặt câu hỏi gợi mở về năng lực thực tế hoặc mức độ chấp nhận đánh đổi.
+   - "Chưa thử" khác với "Từ chối / Không thích".
+   - "Thích công nghệ nhưng không muốn code" là 2 tín hiệu độc lập.
+   - "Không phải ghét Toán, chỉ sợ Toán nâng cao" là e ngại giải tích chuyên sâu, không ghét Toán căn bản.
+4. XỬ LÝ ĐỔI Ý & MÂU THUẪN:
+   - Nếu học sinh đổi ý (trước thích máy tính nay thích động vật): Chuyển hẳn sang sở thích mới, đưa sở thích cũ vào retractedInterests.
+   - Nếu có mâu thuẫn (ghét văn phòng nhưng muốn bàn giấy 8 tiếng ổn định): Đặt câu hỏi giúp học sinh tự soi chiếu sự đánh đổi.
+5. GIỌNG ĐIỆU CỐ VẤN: Ấm áp, gần gũi, tôn trọng người học, không phán xét, không dạy đời. Tuyệt đối không dùng câu từ máy móc như "Hệ thống ghi nhận", "Dữ liệu đã được lưu".
+6. TÍNH CHÂN THỰC DỮ LIỆU: Tuyệt đối không bịa đặt điểm chuẩn, học phí, mã ngành hoặc mức lương.
+
+=== YÊU CẦU ĐẦU RA (OUTPUT FORMAT) ===
+Hãy trả về DUY NHẤT một chuỗi JSON hợp lệ theo cấu trúc sau (không kèm văn bản thừa ngoài JSON):
+{
+  "reply": "Nội dung phản hồi của bạn dành cho học sinh (ấm áp, tự nhiên, phân tích sâu sắc, nếu hỏi thì đặt duy nhất 1 câu hỏi trọng tâm rõ ràng)",
+  "profileUpdates": {
+    "interests": ["Các sở thích tích cực mới được xác nhận trong câu này (nếu có)"],
+    "retractedInterests": ["Các sở thích học sinh đã từ bỏ / đổi ý trong câu này (nếu có)"],
+    "demonstratedStrengths": ["Môn học hoặc năng lực học sinh nói mình học tốt / có thế mạnh"],
+    "learningEvidence": ["Môn học điểm thấp hoặc e ngại"],
+    "workPreferences": ["Môi trường làm việc mong muốn"],
+    "constraints": ["Rào cản tài chính, gia đình, vị trí địa lý"],
+    "values": ["Giá trị công việc ưu tiên"],
+    "dislikes": ["Các hoạt động / công việc học sinh nói rõ không thích / từ chối"],
+    "uncertainties": ["Giả thuyết cần làm rõ thêm"]
+  },
+  "decision": {
+    "stage": "DISCOVERY",
+    "action": "ASK_CLARIFYING_QUESTION",
+    "question": "Câu hỏi tiếp theo (nếu có, tối đa 1 câu trọng tâm)",
+    "reason": "Lý do vì sao câu hỏi này giúp lấp đầy khoảng trống thông tin",
+    "evidenceSufficiency": "LOW"
+  },
+  "quickReplies": ["Gợi ý phản hồi nhanh 1", "Gợi ý 2", "Gợi ý 3"],
+  "careers": []
+}
+`;
+}
+
+export function parseAIModelOutput(rawText) {
+  const contract = validateAndNormalizeCounselorResponse(rawText);
+  return {
+    replyText: contract.reply,
+    quickReplies: contract.quickReplies,
+    contract,
+    detectedUpdates: {
+      statedInterests: contract.profileUpdates.interests,
+      retractedInterests: contract.profileUpdates.retractedInterests,
+      academicStrengths: contract.profileUpdates.demonstratedStrengths,
+      academicWeaknesses: contract.profileUpdates.learningEvidence,
+      workEnvironmentPrefs: contract.profileUpdates.workPreferences,
+      realConstraints: contract.profileUpdates.constraints,
+      personalValues: contract.profileUpdates.values,
+      rejectedActivities: contract.profileUpdates.dislikes,
+      missingEvidence: contract.profileUpdates.uncertainties
+    }
+  };
+}
+
 export async function handleCounselorChatRequest({ body, headers = {}, env = process.env }) {
   const { sessionId, message, history = [], profile = {}, realityAnswer = '' } = body || {};
 
@@ -140,20 +261,30 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
     };
   }
 
-  // Priority 1: User-supplied header key or body key (BYOK from secure client modal)
-  // Priority 2: Server environment variable
-  const clientKey = headers['x-gemini-key'] || headers['x-groq-key'] || body?.clientApiKey || '';
-  const isClientGroq = clientKey.startsWith('gsk_');
-  const geminiKey = (!isClientGroq && clientKey) ? clientKey : (headers['x-gemini-key'] || env.GEMINI_API_KEY || '');
-  const groqKey = (isClientGroq ? clientKey : '') || headers['x-groq-key'] || env.GROQ_API_KEY || '';
+  const cleanMessage = message.trim().slice(0, 2000);
+  const clientIdentifier = (sessionId || headers['x-forwarded-for'] || 'global_client').toString();
+  const rateLimit = checkRateLimit(clientIdentifier);
+  if (!rateLimit.allowed) {
+    return {
+      status: 429,
+      data: {
+        success: false,
+        code: 'RATE_LIMIT_EXCEEDED',
+        error: `Bạn đang gửi yêu cầu quá nhanh. Vui lòng đợi ${rateLimit.retryAfterSeconds || 5} giây rồi thử lại nhé.`
+      }
+    };
+  }
+
+  const geminiKey = env.GEMINI_API_KEY?.trim() || '';
+  const groqKey = env.GROQ_API_KEY?.trim() || '';
 
   if (!geminiKey && !groqKey) {
     return {
       status: 503,
       data: {
         success: false,
-        code: 'MISSING_API_KEY',
-        error: 'Hệ thống AI chưa được cấu hình API Key trên máy chủ (biến GEMINI_API_KEY trong file .env). Vui lòng cấu hình API Key trên server để kích hoạt AI Career Counselor thời gian thực.'
+        code: 'ADMIN_KEY_REQUIRED',
+        error: 'Hệ thống AI chưa được cấu hình API Key trên máy chủ (biến GEMINI_API_KEY trong file .env hoặc trên Vercel). Quản trị viên vui lòng cấu hình để kích hoạt AI Career Counselor thời gian thực.'
       }
     };
   }
@@ -162,32 +293,30 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
 
   // 1. If Gemini Key is present, call Google Gemini 2.0 Flash
   if (geminiKey) {
-    const model = 'gemini-2.0-flash';
+    const model = 'gemini-3.5-flash-lite';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
 
-    // Format chat history for Gemini API
     const contents = [];
-    const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
+    const recentHistory = Array.isArray(history) ? history.slice(-10) : [];
 
     for (const item of recentHistory) {
       if (item && item.content && typeof item.content === 'string') {
         const role = item.role === 'model' || item.role === 'assistant' ? 'model' : 'user';
         contents.push({
           role,
-          parts: [{ text: item.content }]
+          parts: [{ text: item.content.slice(0, 2000) }]
         });
       }
     }
 
-    // Add current user prompt
     contents.push({
       role: 'user',
-      parts: [{ text: message.trim() }]
+      parts: [{ text: cleanMessage }]
     });
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -199,7 +328,8 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
           },
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1000
+            maxOutputTokens: 1200,
+            responseMimeType: 'application/json'
           }
         }),
         signal: controller.signal
@@ -215,7 +345,7 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
         if (status === 429) {
           userMsg = 'Hệ thống AI đang nhận được nhiều yêu cầu cùng lúc (vượt hạn mức tốc độ). Bạn vui lòng chờ một lát rồi nhấn Thử lại nhé.';
         } else if (status === 401 || status === 403) {
-          userMsg = 'Khóa API Gemini trên máy chủ không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại cấu hình GEMINI_API_KEY.';
+          userMsg = 'Khóa API Gemini trên máy chủ không hợp lệ hoặc đã hết hạn. Quản trị viên vui lòng kiểm tra lại cấu hình GEMINI_API_KEY.';
         } else if (errJson?.error?.message) {
           userMsg = `Lỗi dịch vụ AI: ${errJson.error.message}`;
         }
@@ -236,13 +366,14 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
           success: true,
           sessionId: sessionId || `sess_${Date.now()}`,
           modelUsed: model,
+          provider: 'gemini',
           ...parsed
         }
       };
     } catch (err) {
       const isTimeout = err.name === 'AbortError';
       const userMsg = isTimeout
-        ? 'Yêu cầu kết nối AI bị quá thời gian chờ (timeout sau 15 giây). Bạn vui lòng thử lại nhé.'
+        ? 'Yêu cầu kết nối AI bị quá thời gian chờ (timeout sau 25 giây). Bạn vui lòng thử lại nhé.'
         : `Lỗi kết nối mạng: ${err.message || 'Không thể liên lạc với máy chủ AI'}.`;
 
       return {
@@ -256,41 +387,38 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
     }
   }
 
-  // 2. Fallback to Groq if only GROQ_API_KEY is configured
+  // 2. Groq Fallback
   if (groqKey) {
     const model = 'llama-3.3-70b-versatile';
     const endpoint = 'https://api.groq.com/openai/v1/chat/completions';
 
-    const messages = [
-      { role: 'system', content: systemInstruction }
-    ];
-
-    const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
+    const messages = [{ role: 'system', content: systemInstruction }];
+    const recentHistory = Array.isArray(history) ? history.slice(-10) : [];
     for (const item of recentHistory) {
       if (item && item.content) {
         messages.push({
-          role: item.role === 'model' ? 'assistant' : 'user',
-          content: item.content
+          role: item.role === 'model' || item.role === 'assistant' ? 'assistant' : 'user',
+          content: item.content.slice(0, 2000)
         });
       }
     }
-    messages.push({ role: 'user', content: message.trim() });
+    messages.push({ role: 'user', content: cleanMessage });
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${groqKey}`
+          Authorization: `Bearer ${groqKey}`
         },
         body: JSON.stringify({
           model,
           messages,
           temperature: 0.7,
-          max_tokens: 1000,
+          max_tokens: 1200,
           response_format: { type: 'json_object' }
         }),
         signal: controller.signal
@@ -322,6 +450,7 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
           success: true,
           sessionId: sessionId || `sess_${Date.now()}`,
           modelUsed: model,
+          provider: 'groq',
           ...parsed
         }
       };
@@ -332,7 +461,7 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
         data: {
           success: false,
           code: isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR',
-          error: isTimeout ? 'Kết nối Groq bị quá thời gian chờ (15s).' : `Lỗi mạng: ${err.message}`
+          error: isTimeout ? 'Kết nối Groq bị quá thời gian chờ (25s).' : `Lỗi mạng: ${err.message}`
         }
       };
     }
@@ -341,5 +470,22 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
   return {
     status: 500,
     data: { success: false, code: 'UNEXPECTED_STATE', error: 'Trạng thái xử lý không xác định.' }
+  };
+}
+
+export function handleCounselorStatusRequest(env = process.env) {
+  const hasGemini = Boolean(env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim());
+  const hasGroq = Boolean(env.GROQ_API_KEY && env.GROQ_API_KEY.trim());
+  const hasServerKey = hasGemini || hasGroq;
+
+  return {
+    status: 200,
+    data: {
+      success: true,
+      hasServerKey,
+      provider: hasGemini ? 'gemini' : (hasGroq ? 'groq' : 'none'),
+      model: hasGemini ? 'gemini-3.5-flash-lite' : (hasGroq ? 'llama-3.3-70b-versatile' : 'none'),
+      requiresAdminSetup: !hasServerKey
+    }
   };
 }

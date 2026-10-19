@@ -2167,6 +2167,35 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   const [followUpInput, setFollowUpInput] = useState('');
   const [isAskingFollowUp, setIsAskingFollowUp] = useState(false);
 
+  // Server-Side Real AI Status
+  const [serverAiConfig, setServerAiConfig] = useState<{
+    hasServerKey: boolean;
+    provider: string;
+    model: string;
+    requiresAdminSetup: boolean;
+  }>({
+    hasServerKey: false,
+    provider: 'none',
+    model: 'none',
+    requiresAdminSetup: false
+  });
+
+  useEffect(() => {
+    fetch('/api/ai/counselor/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success) {
+          setServerAiConfig({
+            hasServerKey: Boolean(data.hasServerKey),
+            provider: data.provider || 'none',
+            model: data.model || 'none',
+            requiresAdminSetup: Boolean(data.requiresAdminSetup)
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Session Management State (P0 Requirement)
   const [sessions, setSessions] = useState<CounselorSession[]>(() => getStoredSessions());
   const [activeSessionId, setActiveSessionId] = useState<string>(() => {
@@ -2516,16 +2545,20 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
     try {
       // P0: Gửi yêu cầu tới backend AI Career Counselor
+      const formattedHistory = chatMessages.slice(-10).map(m => ({
+        role: m.role === 'model' ? 'assistant' : 'user',
+        content: m.content
+      }));
+
       const response = await fetch('/api/ai/counselor/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey ? { 'x-gemini-key': apiKey } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           sessionId: activeSessionId,
           message: text,
-          history: [],
+          history: formattedHistory,
           profile: updatedProfile,
           realityAnswer: rAnswer
         })
@@ -2533,8 +2566,8 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
       const data = await response.json().catch(() => ({}));
 
-      let aiReply = data?.replyText;
-      let aiQuickReplies = data?.quickReplies || [];
+      let aiReply = data?.replyText || data?.contract?.reply;
+      let aiQuickReplies = data?.quickReplies || data?.contract?.quickReplies || [];
 
       if (!response.ok || !data.success) {
         // Graceful non-blocking fallback: do not trap student on reality check
@@ -2546,8 +2579,50 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
         setAnalysisError(null);
       }
 
-      // Đồng bộ các bằng chứng mới phát hiện nếu có
-      if (data?.detectedUpdates?.statedInterests) {
+      // Đồng bộ các bằng chứng mới phát hiện từ phản hồi AI
+      if (data?.contract?.profileUpdates) {
+        const pu = data.contract.profileUpdates;
+        if (Array.isArray(pu.interests)) {
+          for (const item of pu.interests) {
+            if (!updatedProfile.statedInterests.includes(item)) updatedProfile.statedInterests.push(item);
+          }
+        }
+        if (Array.isArray(pu.retractedInterests)) {
+          for (const item of pu.retractedInterests) {
+            updatedProfile.statedInterests = updatedProfile.statedInterests.filter(i => !i.toLowerCase().includes(item.toLowerCase()));
+          }
+        }
+        if (Array.isArray(pu.demonstratedStrengths)) {
+          for (const item of pu.demonstratedStrengths) {
+            if (!updatedProfile.academicStrengths.includes(item)) updatedProfile.academicStrengths.push(item);
+          }
+        }
+        if (Array.isArray(pu.learningEvidence)) {
+          for (const item of pu.learningEvidence) {
+            if (!updatedProfile.academicWeaknesses.includes(item)) updatedProfile.academicWeaknesses.push(item);
+          }
+        }
+        if (Array.isArray(pu.workPreferences)) {
+          for (const item of pu.workPreferences) {
+            if (!updatedProfile.workEnvironmentPrefs.includes(item)) updatedProfile.workEnvironmentPrefs.push(item);
+          }
+        }
+        if (Array.isArray(pu.constraints)) {
+          for (const item of pu.constraints) {
+            if (!updatedProfile.realConstraints.includes(item)) updatedProfile.realConstraints.push(item);
+          }
+        }
+        if (Array.isArray(pu.values)) {
+          for (const item of pu.values) {
+            if (!updatedProfile.personalValues.includes(item)) updatedProfile.personalValues.push(item);
+          }
+        }
+        if (Array.isArray(pu.dislikes)) {
+          for (const item of pu.dislikes) {
+            if (!updatedProfile.rejectedActivities.includes(item)) updatedProfile.rejectedActivities.push(item);
+          }
+        }
+      } else if (data?.detectedUpdates?.statedInterests) {
         for (const item of data.detectedUpdates.statedInterests) {
           if (!updatedProfile.statedInterests.includes(item)) {
             updatedProfile.statedInterests.push(item);
@@ -2663,16 +2738,20 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
     try {
       // P0: Gửi yêu cầu tới backend AI Career Counselor
+      const formattedHistory = newMessages.slice(-10).map(m => ({
+        role: m.role === 'model' ? 'assistant' : 'user',
+        content: m.content
+      }));
+
       const response = await fetch('/api/ai/counselor/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey ? { 'x-gemini-key': apiKey } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           sessionId: activeSessionId,
           message: q,
-          history: newMessages,
+          history: formattedHistory,
           profile: updatedProfile,
           realityAnswer: learnerProfile.realityCheckAnswer
         })
@@ -2680,8 +2759,8 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
       const data = await response.json().catch(() => ({}));
 
-      let aiReply = data?.replyText;
-      let aiQuickReplies = data?.quickReplies || [];
+      let aiReply = data?.replyText || data?.contract?.reply;
+      let aiQuickReplies = data?.quickReplies || data?.contract?.quickReplies || [];
 
       if (!response.ok || !data.success) {
         console.warn('[Nexora Follow-Up Fallback]:', data?.error || 'AI backend unavailable, using Decision Engine.');
@@ -2692,8 +2771,50 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
         setAnalysisError(null);
       }
 
-      // Đồng bộ bằng chứng mới phát hiện
-      if (data?.detectedUpdates?.statedInterests) {
+      // Đồng bộ bằng chứng mới phát hiện từ phản hồi AI
+      if (data?.contract?.profileUpdates) {
+        const pu = data.contract.profileUpdates;
+        if (Array.isArray(pu.interests)) {
+          for (const item of pu.interests) {
+            if (!updatedProfile.statedInterests.includes(item)) updatedProfile.statedInterests.push(item);
+          }
+        }
+        if (Array.isArray(pu.retractedInterests)) {
+          for (const item of pu.retractedInterests) {
+            updatedProfile.statedInterests = updatedProfile.statedInterests.filter(i => !i.toLowerCase().includes(item.toLowerCase()));
+          }
+        }
+        if (Array.isArray(pu.demonstratedStrengths)) {
+          for (const item of pu.demonstratedStrengths) {
+            if (!updatedProfile.academicStrengths.includes(item)) updatedProfile.academicStrengths.push(item);
+          }
+        }
+        if (Array.isArray(pu.learningEvidence)) {
+          for (const item of pu.learningEvidence) {
+            if (!updatedProfile.academicWeaknesses.includes(item)) updatedProfile.academicWeaknesses.push(item);
+          }
+        }
+        if (Array.isArray(pu.workPreferences)) {
+          for (const item of pu.workPreferences) {
+            if (!updatedProfile.workEnvironmentPrefs.includes(item)) updatedProfile.workEnvironmentPrefs.push(item);
+          }
+        }
+        if (Array.isArray(pu.constraints)) {
+          for (const item of pu.constraints) {
+            if (!updatedProfile.realConstraints.includes(item)) updatedProfile.realConstraints.push(item);
+          }
+        }
+        if (Array.isArray(pu.values)) {
+          for (const item of pu.values) {
+            if (!updatedProfile.personalValues.includes(item)) updatedProfile.personalValues.push(item);
+          }
+        }
+        if (Array.isArray(pu.dislikes)) {
+          for (const item of pu.dislikes) {
+            if (!updatedProfile.rejectedActivities.includes(item)) updatedProfile.rejectedActivities.push(item);
+          }
+        }
+      } else if (data?.detectedUpdates?.statedInterests) {
         for (const item of data.detectedUpdates.statedInterests) {
           if (!updatedProfile.statedInterests.includes(item)) {
             updatedProfile.statedInterests.push(item);
@@ -3342,29 +3463,6 @@ ${chosenSub?.id === 'sub_neutral_balanced'
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Phiên mới</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setApiKeyInput(apiKey);
-                  setTestStatus(null);
-                  setShowApiKeyModal(true);
-                }}
-                className={`text-[11px] font-mono px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
-                  apiKey
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
-                }`}
-                title="Cấu hình Google Gemini hoặc Groq API Key"
-              >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>
-                  {apiKey 
-                    ? (apiKey.startsWith('gsk_') ? 'Groq: Đã kết nối' : 'Gemini: Đã kết nối') 
-                    : 'Cấu hình API Key'}
-                </span>
-                <span className={`w-1.5 h-1.5 rounded-full ${apiKey ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
               </button>
 
               {workflowStep !== 'INITIAL' && (
@@ -4097,9 +4195,6 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                       </h3>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
                         AI 1-on-1
-                      </span>
-                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 hidden md:inline">
-                        {apiKey ? (apiKey.startsWith('gsk_') ? '⚡ Groq Llama-3.3' : '⚡ Gemini 2.0') : '⚡ Hybrid Engine (Không cần Key)'}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-400 font-sans">

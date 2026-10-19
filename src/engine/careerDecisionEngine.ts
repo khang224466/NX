@@ -503,7 +503,7 @@ export function updateProfileWithInput(profile: LearnerEvidenceProfile, text: st
       }
     }
 
-    if (/(giỏi địa|thích địa|địa lý tốt|học tốt.*địa|học sinh giỏi địa|thế mạnh.*địa)/i.test(l)) {
+    if (/(giỏi địa|địa lý tốt|học tốt.*địa|học sinh giỏi địa|thế mạnh.*địa|điểm địa cao)/i.test(l)) {
       if (!updated.academicStrengths.includes('Thế mạnh môn Địa lý & Tư duy phân tích không gian')) {
         updated.academicStrengths.push('Thế mạnh môn Địa lý & Tư duy phân tích không gian');
       }
@@ -1155,26 +1155,37 @@ Thay vì đưa ra những danh xưng chung chung, dưới đây là **danh sách
   // =========================================================================
   profile.currentStage = 'STATE_B_EXPLORING';
 
-  let nextQuestion = "Để hiểu rõ hơn về năng lực và mong muốn của bạn: Trong các môn học hiện tại, có môn nào bạn cảm thấy việc tiếp thu kiến thức diễn ra tự nhiên, ít bị mệt mỏi nhất không?";
-  if (profile.statedInterests.length > 0 && profile.academicStrengths.length === 0) {
-    nextQuestion = `Bạn đã chia sẻ là có hứng thú với nhóm "${profile.statedInterests[0]}". Vậy khi thực hiện các bài tập hoặc nhiệm vụ liên quan đến lĩnh vực này, bạn cảm thấy điểm mạnh nổi bật nhất của mình là gì (tính cẩn thận chi tiết, khả năng lên ý tưởng mới, hay khả năng giải quyết sự cố)?`;
+  // Xác định khoảng trống thông tin quan trọng nhất còn thiếu
+  let nextQuestion = '';
+  let questionContext = '';
+
+  if (profile.statedInterests.length === 0) {
+    nextQuestion = 'Khi không phải chịu áp lực bài tập trên lớp, hoạt động hay lĩnh vực nào khiến bạn cảm thấy hào hứng hoặc tự nhiên muốn tìm tòi nhất?';
+    questionContext = 'Làm rõ sở thích hoạt động tự nhiên.';
+  } else if (profile.academicStrengths.length === 0 && profile.academicWeaknesses.length === 0) {
+    nextQuestion = `Bạn đã có hứng thú với hướng "${profile.statedInterests[0]}". Vậy trong học tập thực tế, bạn thấy thế mạnh tự nhiên nhất của mình nằm ở đâu (tư duy logic tính toán, khả năng ngôn ngữ viết lách, hay óc thẩm mỹ và quan sát chi tiết)?`;
+    questionContext = 'Làm rõ môn học thế mạnh hoặc năng lực nhận thức.';
   } else if (profile.workEnvironmentPrefs.length === 0) {
-    nextQuestion = "Về môi trường làm việc trong tương lai, bạn hình dung mình sẽ thoải mái nhất ở đâu: (1) Văn phòng hiện đại làm việc độc lập chuyên môn, (2) Phòng nghiên cứu/kỹ thuật công nghệ, hay (3) Môi trường tiếp xúc khách hàng, năng động và di chuyển nhiều?";
+    nextQuestion = 'Về không gian và nhịp độ làm việc sau này, bạn hình dung mình sẽ phát huy tốt nhất trong môi trường nào: (1) Làm việc độc lập chuyên môn, ít phải ngoại giao; (2) Môi trường năng động, thường xuyên tiếp xúc con người; hay (3) Môi trường nghiên cứu/thực địa linh hoạt?';
+    questionContext = 'Làm rõ môi trường làm việc mong muốn và phong cách tương tác.';
+  } else if (profile.realConstraints.length === 0 && profile.personalValues.length === 0) {
+    nextQuestion = 'Trong định hướng dài hạn, bạn ưu tiên điều gì nhất: một công việc có lộ trình thăng tiến ổn định rõ ràng, mức thu nhập đột phá, hay sự tự do sáng tạo không bị gò bó?';
+    questionContext = 'Làm rõ giá trị cốt lõi và rào cản thực tế.';
+  } else {
+    nextQuestion = 'Bạn có thể chia sẻ thêm một trải nghiệm thực tế hoặc dự án nhỏ nào bạn từng làm mà cảm thấy tự hào hoặc học được nhiều nhất không?';
+    questionContext = 'Thu thập minh chứng nhiệm vụ cụ thể để kiểm định độ sẵn sàng.';
   }
 
-  const defaultReply = 
-`Cảm ơn bạn đã chia sẻ thêm thông tin. Mình đang ghi nhận từng dữ liệu để hoàn thiện bức tranh định hướng của bạn:
-- **Thông tin bạn đã chia sẻ**: ${profile.statedInterests.concat(profile.academicStrengths).concat(profile.academicWeaknesses).join(', ') || 'Đang lắng nghe chia sẻ của bạn'}
-- **Bằng chứng cần làm rõ tiếp theo**: ${profile.missingEvidence[0] || 'Môi trường làm việc và giá trị mong muốn'}`;
+  const defaultReply = `Mình đã nắm được những mong muốn và đặc điểm bạn vừa chia sẻ. Để bức tranh nghề nghiệp được chính xác và sát thực tế nhất, chúng mình cùng làm rõ thêm một yếu tố quan trọng:`;
 
   saveLearnerProfile(profile);
 
   return {
     action: 'ASK_QUESTION',
     stage: 'STATE_B_EXPLORING',
-    replyText: `${defaultReply}\n\n👉 **Câu hỏi tiếp theo dành cho bạn:**\n${nextQuestion}`,
+    replyText: `${defaultReply}\n\n👉 **${nextQuestion}**`,
     primaryQuestion: nextQuestion,
-    questionContext: 'Thu thập mẩu bằng chứng còn thiếu để kiểm định mức độ tương thích nghề nghiệp.',
+    questionContext,
     quickReplies: [
       "Em làm việc cẩn thận, thích đào sâu chi tiết và quy trình",
       "Em thích sáng tạo ý tưởng mới và không thích lặp lại",
@@ -1528,8 +1539,10 @@ export function generateGroundedCareerProposals(profile: LearnerEvidenceProfile)
 // 5. TRẠNG THÁI D: TỪ NGHỀ SANG NGÀNH ĐÀO TẠO (MAJOR MAPPING)
 // ============================================================================
 
-export function mapCareerToMajors(careerTitleOrId: string): MajorMappingPathway {
-  const cLower = (careerTitleOrId || '').toLowerCase();
+export function mapCareerToMajors(careerTitleOrId: string | AdaptiveCareerProposal | any): MajorMappingPathway {
+  const cLower = typeof careerTitleOrId === 'string'
+    ? (careerTitleOrId || '').toLowerCase()
+    : ((careerTitleOrId?.id || '') + ' ' + (careerTitleOrId?.title || '')).toLowerCase();
 
   // 0. Phân nhánh Y Tế & Chăm sóc sức khỏe (ngoại trừ Thú y)
   if (!cLower.includes('thú y') && !cLower.includes('động vật') && !cLower.includes('veterinar') && (cLower.includes('bác sĩ') || cLower.includes('y khoa') || cLower.includes('y tế') || cLower.includes('dược'))) {

@@ -2,6 +2,7 @@ export function buildCounselorSystemPrompt(profileOrOpts: any, maybeRealityAnswe
 export function parseAIModelOutput(rawText: string): {
   replyText: string;
   quickReplies: string[];
+  contract?: any;
   detectedUpdates: Record<string, any>;
 };
 export function handleCounselorChatRequest(options: {
@@ -12,3 +13,13 @@ export function handleCounselorChatRequest(options: {
   status: number;
   data: any;
 }>;
+export function handleCounselorStatusRequest(env?: any): {
+  status: number;
+  data: {
+    success: boolean;
+    hasServerKey: boolean;
+    provider: string;
+    model: string;
+    requiresAdminSetup: boolean;
+  };
+};

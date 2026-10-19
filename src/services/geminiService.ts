@@ -24,10 +24,6 @@ export const getStoredApiKey = (): string => {
     if (saved && saved.trim().length >= 20) {
       return saved.trim();
     }
-    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    if (envKey && typeof envKey === 'string' && envKey.trim().length >= 20) {
-      return envKey.trim();
-    }
   } catch {}
   return '';
 };
@@ -48,10 +44,6 @@ export const getStoredGroqKey = (): string => {
     const saved = localStorage.getItem(LOCAL_GROQ_KEY_STORAGE);
     if (saved && saved.trim().length >= 20) {
       return saved.trim();
-    }
-    const envKey = (import.meta as any).env?.VITE_GROQ_API_KEY;
-    if (envKey && typeof envKey === 'string' && envKey.trim().length >= 20) {
-      return envKey.trim();
     }
   } catch {}
   return '';
@@ -176,18 +168,32 @@ export async function testGroqApiKey(apiKey: string): Promise<{ success: boolean
   }
 }
 
-export const checkServerAIStatus = async (): Promise<{ hasServerKey: boolean; hasGroqKey?: boolean; recommendedModel: string }> => {
+export const checkServerAIStatus = async (): Promise<{
+  hasServerKey: boolean;
+  hasGroqKey?: boolean;
+  recommendedModel: string;
+  provider?: string;
+  requiresAdminSetup?: boolean;
+}> => {
   try {
-    const res = await fetch('/api/ai/status');
+    const res = await fetch('/api/ai/counselor/status');
     if (res.ok) {
       const data = await res.json();
-      return data;
+      return {
+        hasServerKey: Boolean(data.hasServerKey),
+        hasGroqKey: data.provider === 'groq',
+        recommendedModel: data.model || 'none',
+        provider: data.provider || 'none',
+        requiresAdminSetup: Boolean(data.requiresAdminSetup)
+      };
     }
   } catch {}
   return {
-    hasServerKey: true,
+    hasServerKey: false,
     hasGroqKey: false,
-    recommendedModel: RECOMMENDED_MODEL,
+    recommendedModel: 'none',
+    provider: 'none',
+    requiresAdminSetup: true
   };
 };
 

@@ -1,16 +1,12 @@
 // @ts-nocheck
-import { handleCounselorChatRequest } from '../../src/services/counselorBackend';
+import { handleCounselorChatRequest, handleCounselorStatusRequest } from '../../src/services/counselorBackend';
 
 export const maxDuration = 60;
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {
-    return res.status(200).json({
-      success: true,
-      hasServerKey: Boolean(process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY),
-      provider: process.env.GEMINI_API_KEY ? 'gemini' : (process.env.GROQ_API_KEY ? 'groq' : 'none'),
-      model: process.env.GEMINI_API_KEY ? 'gemini-2.0-flash' : (process.env.GROQ_API_KEY ? 'llama-3.3-70b-versatile' : 'none')
-    });
+    const statusResult = handleCounselorStatusRequest(process.env);
+    return res.status(statusResult.status).json(statusResult.data);
   }
 
   if (req.method !== 'POST') {

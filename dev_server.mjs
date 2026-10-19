@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleCounselorChatRequest } from './scripts/counselor_backend.mjs';
+import { handleCounselorChatRequest, handleCounselorStatusRequest } from './scripts/counselor_backend.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,13 +86,9 @@ async function start() {
 
     // AI Career Counselor Status Endpoint
     if (url === '/api/ai/counselor/status' && req.method === 'GET') {
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        success: true,
-        hasServerKey: Boolean(process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY),
-        provider: process.env.GEMINI_API_KEY ? 'gemini' : (process.env.GROQ_API_KEY ? 'groq' : 'none'),
-        model: process.env.GEMINI_API_KEY ? 'gemini-2.0-flash' : (process.env.GROQ_API_KEY ? 'llama-3.3-70b-versatile' : 'none')
-      }));
+      const statusRes = handleCounselorStatusRequest(process.env);
+      res.writeHead(statusRes.status, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(statusRes.data));
       return;
     }
 

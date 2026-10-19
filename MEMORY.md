@@ -291,22 +291,63 @@ Last Updated: 2026-10-18T17:42:00+07:00
     * `test_geography_flow.mjs`: 5/5 PASSED.
     * `verify_audit_points.mjs`: 7/7 PASSED.
 
+- **Nexora Real AI Career Guidance Engine Transformation (Master Milestone - 2026-10-19)**:
+  - Addressed core master prompt directives: Transformed Nexora from a rule-based questionnaire/regex state machine into an authentic, context-aware AI Career Counselor with decoupled backend AI adapters.
+  - **Zero Student Setup & Server Secret Hygiene**:
+    * Students visit and chat immediately without creating AI accounts, entering BYOK API keys, or installing software.
+    * Secret keys (`GEMINI_API_KEY`, `GROQ_API_KEY`) reside exclusively in server-side environment variables (Vercel / `.env`).
+    * Removed legacy `VITE_GEMINI_API_KEY` and client-side key storage fallback in `src/services/geminiService.ts`.
+    * Clean status detection via `/api/ai/counselor/status` returning `{ hasServerKey, provider, model }` without leaking keys.
+    * Replaced intrusive BYOK modal trigger with a sleek live status pill badge in `CareerPathwayNavigator.tsx`: `[⚡ AI Live: Gemini 2.0]` when live, or `[🧭 AI Career Guidance]` in grounded offline mode.
+  - **Decoupled AI Provider Adapter Architecture (`src/services/ai/aiProviderAdapter.ts`)**:
+    * Defined `AIProviderAdapter` interface supporting seamless switching between providers without modifying chatbot logic.
+    * Implemented `GeminiProviderAdapter` (`gemini-2.0-flash`) and `GroqProviderAdapter` (`llama-3.3-70b-versatile`).
+    * In-memory sliding window rate limiter (25 requests/min per IP/session).
+    * 25s timeout with `AbortController`.
+  - **EXORA Contract & Schema Normalizer (`src/services/ai/counselorSchema.ts`)**:
+    * Strict schema validation for EXORA stages (`DISCOVERY`, `CAPABILITIES`, `ENVIRONMENT`, `CAREER_PROPOSALS`, `MAJOR_MAPPING`, `ADMISSIONS_PLAN`, `ACTION_ROADMAP`).
+    * Markdown fence stripping, partial JSON recovery, and sanitization preventing raw JSON dumps to students.
+  - **Eradication of Chatbot Question Loops**:
+    * Root Cause: When server key was unset, chat fell back to `processDecisionTurn` which previously repeated the same academic question indefinitely, and previous turns sent empty history (`history: []`).
+    * Fix: Frontend now sends the last 10 conversation turns (`history: messages.slice(-10)`) and ingests `contract.profileUpdates`.
+    * Fallback in `careerDecisionEngine.ts` dynamically detects the exact missing pillar (Interests → Capabilities → Work Environment → Values/Constraints) and never asks repetitive questions.
+    * Disambiguated interest from capability: `thích địa` is treated as stated interest while academic strengths require explicit performance markers (`giỏi địa`, `địa lý tốt`, `điểm địa cao`).
+  - **Polymorphic Reverse Mapping (`careerDecisionEngine.ts`)**:
+    * `mapCareerToMajors` accepts both string and `AdaptiveCareerProposal` object.
+    * Reverse maps Target Career (Gate 2) ➔ Major (Gate 3) ➔ Admissions & Verified Combinations (Gate 4) ➔ Roadmap (Stage 5) without mock data or hallucinated benchmark scores.
+  - **Master Verification Suite (`scripts/test_master_real_ai.mjs`)**:
+    * 16/16 PASSED (100%): Covers API security, rate limiting, JSON schema repair, multi-signal reasoning, zero-state empathy, vague response probing, mind change retraction, contradiction resolution, forced shortlist resistance, non-repetition, 3-pillar readiness gating, and admissions grounding.
+
 ## 3. Current Status & Git Branch
 - **Branch**: `main`. Dev server active on `http://localhost:8443` via `dev_server.mjs`.
 - **Modified & New Files**:
-  * `src/services/counselorBackend.ts` (Pure TypeScript counselor backend)
-  * `api/ai/counselor.ts` (Fixed TS7016 by importing typed counselorBackend)
-  * `scripts/counselor_backend.d.ts` (Declaration file for JS scripts)
-  * `src/components/CareerPathwayNavigator.tsx` (Non-blocking graceful fallback on Reality Check)
-  * `src/components/RealtimeBrowserTestRunner.tsx` (Floating dock removed, optimized execution loop)
-  * `src/components/BlueprintHeaderRuler.tsx` (Live Test button removed from header)
+  * `src/services/ai/aiProviderAdapter.ts` (Decoupled multi-provider adapter layer)
+  * `src/services/ai/counselorSchema.ts` (EXORA contract & schema normalizer)
+  * `src/services/counselorBackend.ts` (Pure TypeScript counselor backend service)
+  * `scripts/counselor_backend.mjs` & `scripts/counselor_backend.d.ts` (Mirrored ES module)
+  * `api/ai/counselor.ts` (Vercel serverless function with status route & maxDuration)
+  * `dev_server.mjs` (Integrated counselor status & chat routes)
+  * `src/services/geminiService.ts` (Server AI status check, removed client-side secret fallbacks)
+  * `src/components/CareerPathwayNavigator.tsx` (Zero-setup UI, 10-turn history tracking, contract update ingestion)
+  * `src/engine/careerDecisionEngine.ts` (Dynamic non-repeating fallback, interest/capability disambiguation, polymorphic reverse mapping)
+  * `scripts/test_master_real_ai.mjs` (Master audit verification suite)
   * `MEMORY.md` (Persistent memory updated)
-- **Status**: 100% verified across 75 in-browser test assertions, all CLI suites, clean TypeScript compile, and production Vite build. Ready for Vercel deployment.
+- **Status**: 100% verified across all test suites:
+  * `scripts/test_master_real_ai.mjs`: 16/16 PASSED (100%).
+  * In-browser real-time suite: 75/75 assertions PASSED (100%).
+  * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED (100%).
+  * `scripts/test_career_decision_quality_12scenarios.mjs`: 12/12 PASSED (100%).
+  * `scripts/test_geography_flow.mjs`: 5/5 PASSED (100%).
+  * `scripts/verify_audit_points.mjs`: 7/7 PASSED (100%).
+  * `node ./node_modules/typescript/bin/tsc --noEmit`: 0 errors.
+  * `node ./node_modules/typescript/bin/tsc api/ai/counselor.ts --noEmit --strict`: 0 errors.
+  * `node ./node_modules/vite/bin/vite.js build`: Succeeded in 4.01s.
 
 ## 4. Operational Directives
 - Always consult `MEMORY.md` upon session start or reset.
 - Update `MEMORY.md` after major milestones, file changes, or architecture decisions.
 - Maintain concise conversation turns to conserve context window.
+
 
 
 
