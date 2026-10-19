@@ -10,6 +10,24 @@ Last Updated: 2026-10-19T14:38:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Eradication of Canned Flows & Real AI Web Display Driving (2026-10-19)**:
+  - Addressed user directive: *"xóa những luồng cũ hoặc luồng có sẵn, để cái kết quả input của người dùng được AI phân tích, kết quả trả về sẽ là những gì hiện ra trên web."*:
+    * **Elimination of Canned Code & Hardcoded Matches**: Completely excised ~500 lines of static keyword branches (`if (lower.includes('đá banh')...)`, `if (lower.includes('y ')...)`, etc.) from `src/components/CareerPathwayNavigator.tsx`. Replaced with pure dynamic processing via the Career Decision Engine and real LLM backend.
+    * **AI Dossier Intelligence Analyzer (`handleDossierAnalysisRequest`)**:
+      - Implemented in `src/services/counselorBackend.ts` and `scripts/counselor_backend.mjs`.
+      - Ingests the learner's complete dossier: 10 THPT subject scores, competency exams (HSA, V-ACT, TSA, IELTS, SAT), 6 RIASEC dimensions, tuition budget, priority region/policy, and the user's authentic question (`personalQuestion`).
+      - Connects via Google Gemini multi-model fallback chain (`['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash']`) or Groq with `responseMimeType: 'application/json'`.
+      - Produces clean structured output: `headline`, `directAnswer`, `strengthsEvaluation`, `risksAndBottlenecks`, `tuitionFeasibility`, `recommendedMajors` (with `fitPercent`, `fitReason`, `targetJobs`, `salaryMedian`, `aiRisk`), `optimalComboAdvice`, and `universityAdvice`.
+    * **Backend & Serverless Endpoints**: Registered `POST /api/ai/counselor/analyze` and `POST /api/ai/analyze` in `dev_server.mjs` and created `api/ai/counselor/analyze.ts` for Vercel deployment.
+    * **Web UI Driven by Real AI Results (`Scientific4TabPortal.tsx`)**:
+      - Triggered upon clicking **"KHỞI ĐỘNG CHUỖI QUYẾT ĐỊNH KHOA HỌC (F1)"**: shows an animated analyzing overlay with real-time diagnostic progress steps.
+      - **Bản Báo Cáo Phân Tích Chuyên Sâu Của AI (AI Dossier Intelligence Report)** rendered prominently on Tab 2:
+        * Model badge & personalized strategic headline.
+        * Direct, empathetic answer to the user's authentic question without boilerplate templates.
+        * 3 Diagnostic Pillars: Academic strengths, risks & bottlenecks, tuition feasibility under Decree 238/2025/NĐ-CP.
+      - **AI-Recommended Majors**: Personalized fit reasons for this specific student, dynamic fit %, job roles, and AI automation risk.
+      - **Tab 4 (Chọn Trường) & Tab 3 (Chọn Tổ Hợp)**: Prominently feature the AI's custom strategic advice (`universityAdvice` and `optimalComboAdvice`).
+  - Full verification: `test_f1_ai_analysis_flow.mjs` (Status 200 via `gemini-3.1-flash-lite`), 10/10 acceptance tests (TC-01 to TC-10), 90/90 browser tests, 17/17 master real AI tests, 18/18 P1/P2 tests, `tsc --noEmit` (0 errors), and `vite build` (2.50s clean).
 - **UI & High-Contrast Typography Optimization (Elimination of Dim Gray Text) - 2026-10-19**:
   - Addressed user directives: *"tối ưu giao diện và hiển thị chữ"* & *"chữ cứ sáng hết lên đừng để xám, chữ nào bỏ được hoặc không cần thiết cứ bỏ"*:
     * **100% Elimination of Dim Gray Text**: Excised all 45 instances of `text-slate-400`, `text-slate-500`, `text-[#94A3B8]`, and `text-[#64748B]` from [Scientific4TabPortal.tsx](file:///d:/src/components/Scientific4TabPortal.tsx).

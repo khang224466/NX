@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleCounselorChatRequest, handleCounselorStatusRequest } from './scripts/counselor_backend.mjs';
+import { handleCounselorChatRequest, handleCounselorStatusRequest, handleDossierAnalysisRequest } from './scripts/counselor_backend.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -112,6 +112,32 @@ async function start() {
             success: false,
             code: 'SERVER_ERROR',
             error: err.message || 'Lỗi xử lý yêu cầu hội thoại AI'
+          }));
+        }
+      });
+      return;
+    }
+
+    // AI Dossier Intelligence Analysis Endpoint (F1 Pipeline)
+    if ((url === '/api/ai/counselor/analyze' || url === '/api/ai/analyze') && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const parsed = JSON.parse(body || '{}');
+          const result = await handleDossierAnalysisRequest({
+            body: parsed,
+            headers: req.headers,
+            env: process.env
+          });
+          res.writeHead(result.status, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result.data));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: false,
+            code: 'SERVER_ERROR',
+            error: err.message || 'Lỗi xử lý phân tích hồ sơ AI'
           }));
         }
       });
