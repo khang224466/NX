@@ -1,5 +1,5 @@
 # Project Memory & Persistent State
-Last Updated: 2026-10-19T14:26:00+07:00
+Last Updated: 2026-10-19T14:38:00+07:00
 
 ## 1. Project Overview & Context
 - **Name**: UNIROOT Platform / Career Guidance Platform (Website Hướng Nghiệp)
@@ -10,6 +10,14 @@ Last Updated: 2026-10-19T14:26:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Technical Specification & Seed Data Protocol (SPEC.md & seed_data.json) - 2026-10-19**:
+  - Created [SPEC.md](file:///d:/SPEC.md) cleanly encapsulating Deliverables 2, 3, 4, 5, 8 and Acceptance Test Cases TC-01 to TC-10, removing academic theory bloat to prevent LLM context distraction.
+  - Locked Tech Stack & Storage Architecture: React 19 + TypeScript strict mode + Tailwind CSS v4, Node.js ESM serverless endpoints (`/api/ai/counselor/chat`), Google GenAI SDK with multi-model fallback chain, and local analytical engine.
+  - Generated [seed_data.json](file:///d:/seed_data.json) (and synced to `src/data/seed_data.json`) containing:
+    * 60 standardized RIASEC questions ([O*NET IPSF 60 câu](https://www.onetcenter.org/dl_files/IPSF_Psychometric.pdf)) in Vietnamese.
+    * Major Catalog Level IV mapping (TT 09/2022/TT-BGDĐT 7 chữ số & TT 74/2026/TT-BGDĐT 6 chữ số).
+    * Sector tuition benchmarks under [Nghị định 238/2025/NĐ-CP](https://luatvietnam.vn/linh-vuc-khac/nghi-dinh-238-2025-nd-cp-chinh-sach-hoc-phi-mien-giam-hoc-phi-moi-nhat-883-103886-article.html).
+    * 4 Anchor University Admission Schemas: ĐHBK Hà Nội (BKA), ĐH Ngoại thương (NTH), ĐH Kinh tế Quốc dân (KHA), ĐH Cần Thơ (TCT) under [Thông tư 06/2026/TT-BGDĐT](https://xaydungchinhsach.chinhphu.vn/toan-van-thong-tu-06-2026-tt-bgddt-quy-che-tuyen-sinh-dao-tao-dai-hoc-cao-dang-giao-duc-mam-non-119260226145829864.htm) linear priority reduction rules.
 - **Minimal Token Tuition Ingestion (NĐ 238/2025/NĐ-CP & NĐ 116/2020) - 2026-10-19**:
   - Removed 531-line static database file (`auditedTuitionDatabase.ts`) per user request to maintain codebase cleanliness and eliminate hardcoded bloat.
   - Implemented ultra-compact micro-helper `getTuitionContext()` directly in `src/services/counselorBackend.ts` and `scripts/counselor_backend.mjs` (~20 lines of code).

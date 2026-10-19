@@ -1,0 +1,477 @@
+{
+  "version": "2.0.0",
+  "name": "NEXORA_ACADEMIC_SEED_DATA_2026",
+  "legalFrameworks": {
+    "regulations": "Thông tư 06/2026/TT-BGDĐT",
+    "majorClassification": "Thông tư 09/2022/TT-BGDĐT & Thông tư 74/2026/TT-BGDĐT",
+    "tuitionDecree": "Nghị định 238/2025/NĐ-CP",
+    "pedagogySupport": "Nghị định 116/2020/NĐ-CP & Nghị định 60/2025/NĐ-CP"
+  },
+  "riasecQuestionnaire": {
+    "instrument": "O*NET Interest Profiler Short Form (IPSF - 60 Questions)",
+    "scale": "Likert 5 Levels (1: Rất không thích, 2: Không thích, 3: Phân vân, 4: Thích, 5: Rất thích)",
+    "questions": [
+      { "id": "R01", "dimension": "R", "text": "Thử nghiệm lắp ráp hoặc sửa chữa các thiết bị điện tử gia dụng" },
+      { "id": "R02", "dimension": "R", "text": "Vận hành máy móc cơ khí chính xác hoặc máy cắt CNC" },
+      { "id": "R03", "dimension": "R", "text": "Sửa chữa ô tô, xe máy hoặc các hệ thống truyền động động cơ" },
+      { "id": "R04", "dimension": "R", "text": "Thi công lắp đặt đường ống kỹ thuật hoặc mạng lưới điện sinh hoạt" },
+      { "id": "R05", "dimension": "R", "text": "Trồng trọt và chăm sóc cây giống trong nhà kính công nghệ cao" },
+      { "id": "R06", "dimension": "R", "text": "Đo đạc địa hình và khảo sát công trình xây dựng ngoài trời" },
+      { "id": "R07", "dimension": "R", "text": "Chế tạo đồ gỗ thủ công hoặc các mô hình kết cấu vật liệu" },
+      { "id": "R08", "dimension": "R", "text": "Bảo dưỡng phần cứng máy tính và hệ thống thiết bị mạng viễn thông" },
+      { "id": "R09", "dimension": "R", "text": "Điều khiển thiết bị bay không người lái (drone) phục vụ giám sát nông - lâm nghiệp" },
+      { "id": "R10", "dimension": "R", "text": "Chăm sóc và điều trị các vấn đề sức khỏe của vật nuôi, thú cưng" },
+
+      { "id": "I01", "dimension": "I", "text": "Phân tích số liệu và giải các bài toán tối ưu hóa logic phức tạp" },
+      { "id": "I02", "dimension": "I", "text": "Lập trình và nghiên cứu các mô hình học máy, trí tuệ nhân tạo (AI)" },
+      { "id": "I03", "dimension": "I", "text": "Tiến hành thí nghiệm hóa học để tìm ra hợp chất hoặc vật liệu mới" },
+      { "id": "I04", "dimension": "I", "text": "Nghiên cứu cấu trúc gen và phản ứng sinh học của tế bào dưới kính hiển vi" },
+      { "id": "I05", "dimension": "I", "text": "Đọc và phản biện các bài báo khoa học quốc tế chuyên sâu" },
+      { "id": "I06", "dimension": "I", "text": "Phân tích nguyên nhân gốc rễ của sự cố hệ thống công nghệ thông tin" },
+      { "id": "I07", "dimension": "I", "text": "Nghiên cứu các lý thuyết kinh tế học vĩ mô và xu hướng dịch chuyển thị trường" },
+      { "id": "I08", "dimension": "I", "text": "Khảo sát và phân tích hành vi tâm lý của người tiêu dùng" },
+      { "id": "I09", "dimension": "I", "text": "Mô phỏng động lực học chất lưu hoặc các hiện tượng thiên văn vũ trụ" },
+      { "id": "I10", "dimension": "I", "text": "Nghiên cứu phương pháp dịch tễ học và phòng ngừa dịch bệnh lây nhiễm" },
+
+      { "id": "A01", "dimension": "A", "text": "Sáng tác giai điệu âm nhạc, hòa âm phối khí hoặc chơi nhạc cụ" },
+      { "id": "A02", "dimension": "A", "text": "Thiết kế giao diện người dùng (UI/UX) cho ứng dụng di động" },
+      { "id": "A03", "dimension": "A", "text": "Viết kịch bản phim, truyện ngắn hoặc bài phê bình nghệ thuật" },
+      { "id": "A04", "dimension": "A", "text": "Vẽ tranh, thiết kế đồ họa 3D hoặc sáng tác truyện tranh" },
+      { "id": "A05", "dimension": "A", "text": "Thiết kế không gian nội thất, bài trí ánh sáng và cảnh quan sống" },
+      { "id": "A06", "dimension": "A", "text": "Nhiếp ảnh nghệ thuật và biên dựng video sáng tạo nội dung số" },
+      { "id": "A07", "dimension": "A", "text": "Sáng tạo ý tưởng quảng cáo độc đáo và thông điệp nhận diện thương hiệu" },
+      { "id": "A08", "dimension": "A", "text": "Thiết kế bộ sưu tập trang phục thời trang hoặc phụ kiện tạo xu hướng" },
+      { "id": "A09", "dimension": "A", "text": "Tham gia diễn xuất kịch nghệ, điện ảnh hoặc hoạt động sân khấu" },
+      { "id": "A10", "dimension": "A", "text": "Biên đạo các tiết mục múa hoặc sáng tạo các tác phẩm điêu khắc" },
+
+      { "id": "S01", "dimension": "S", "text": "Giảng dạy, truyền đạt kiến thức và hướng dẫn học sinh giải quyết vấn đề" },
+      { "id": "S02", "dimension": "S", "text": "Lắng nghe, thấu cảm và tư vấn tâm lý cho người gặp khó khăn tinh thần" },
+      { "id": "S03", "dimension": "S", "text": "Chăm sóc y tế, an ủi và hỗ trợ bệnh nhân trong quá trình phục hồi" },
+      { "id": "S04", "dimension": "S", "text": "Điều phối và tham gia các hoạt động công tác xã hội, thiện nguyện vì cộng đồng" },
+      { "id": "S05", "dimension": "S", "text": "Hướng dẫn và can thiệp giáo dục hòa nhập cho trẻ em có hoàn cảnh đặc biệt" },
+      { "id": "S06", "dimension": "S", "text": "Đào tạo kỹ năng mềm và phát triển năng lực cá nhân cho giới trẻ" },
+      { "id": "S07", "dimension": "S", "text": "Hòa giải xung đột và xây dựng sự đồng thuận trong một tập thể" },
+      { "id": "S08", "dimension": "S", "text": "Cung cấp thông tin trợ giúp pháp lý hoặc an sinh xã hội cho người dân" },
+      { "id": "S09", "dimension": "S", "text": "Tổ chức các sự kiện văn hóa cộng đồng gắn kết mọi người" },
+      { "id": "S10", "dimension": "S", "text": "Đồng hành và chăm sóc người cao tuổi, người khuyết tật trong đời sống hàng ngày" },
+
+      { "id": "E01", "dimension": "E", "text": "Thuyết phục đối tác và khách hàng tin tưởng vào giải pháp của mình" },
+      { "id": "E02", "dimension": "E", "text": "Đàm phán các điều khoản thương mại và ký kết hợp đồng kinh tế" },
+      { "id": "E03", "dimension": "E", "text": "Lãnh đạo và truyền cảm hứng làm việc cho một đội ngũ dự án" },
+      { "id": "E04", "dimension": "E", "text": "Lập kế hoạch khởi nghiệp kinh doanh và tìm kiếm nguồn vốn đầu tư" },
+      { "id": "E05", "dimension": "E", "text": "Thiết kế chiến lược tiếp thị đa kênh để chiếm lĩnh thị phần" },
+      { "id": "E06", "dimension": "E", "text": "Thuyết trình dự án và bảo vệ quan điểm trước hội đồng đầu tư" },
+      { "id": "E07", "dimension": "E", "text": "Theo dõi các chỉ số tài chính, tối ưu hóa lợi nhuận kinh doanh" },
+      { "id": "E08", "dimension": "E", "text": "Chịu trách nhiệm ra quyết định chiến lược trong điều kiện cạnh tranh gay gắt" },
+      { "id": "E09", "dimension": "E", "text": "Tuyển dụng nhân sự tài năng và bố trí vị trí phù hợp với thế mạnh" },
+      { "id": "E10", "dimension": "E", "text": "Mở rộng mạng lưới quan hệ kinh doanh quốc tế và tìm kiếm cơ hội thị trường" },
+
+      { "id": "C01", "dimension": "C", "text": "Lập bảng cân đối kế toán và kiểm tra tính hợp lệ của báo cáo tài chính" },
+      { "id": "C02", "dimension": "C", "text": "Kiểm toán, rà soát chứng từ chi tiêu để ngăn ngừa gian lận sai sót" },
+      { "id": "C03", "dimension": "C", "text": "Thiết lập quy trình quản lý hồ sơ tài liệu lưu trữ khoa học, chuẩn mực" },
+      { "id": "C04", "dimension": "C", "text": "Thực hiện tính toán lương, phụ cấp và các khoản trích theo lương chính xác" },
+      { "id": "C05", "dimension": "C", "text": "Rà soát tính chuẩn xác của các điều khoản văn bản theo quy định pháp luật" },
+      { "id": "C06", "dimension": "C", "text": "Kiểm kê định kỳ tài sản, hàng hóa trong kho theo hệ thống mã vạch" },
+      { "id": "C07", "dimension": "C", "text": "Thực hiện đối soát số dư tài khoản ngân hàng và sao kê tự động" },
+      { "id": "C08", "dimension": "C", "text": "Theo dõi và giám sát tiến độ công việc theo bảng kế hoạch chi tiết (Gantt chart)" },
+      { "id": "C09", "dimension": "C", "text": "Vận hành hệ thống cơ sở dữ liệu có cấu trúc và sao lưu bảo mật thông tin" },
+      { "id": "C10", "dimension": "C", "text": "Tuân thủ nghiêm ngặt các quy chuẩn an toàn lao động và quy chế nội bộ" }
+    ]
+  },
+  "sectorTuitionBenchmarks": {
+    "decree": "Nghị định 238/2025/NĐ-CP (Áp dụng năm học 2026-2027)",
+    "nationalAverageMlnYear": 33.68,
+    "sectors": [
+      {
+        "id": "KINH_TE_QUAN_TRI",
+        "name": "Kinh doanh, Quản lý & Tài chính",
+        "avg2025_2026": 28.82,
+        "avg2026_2027": 32.38,
+        "freeTuitionCount": 1,
+        "note": "Công lập chưa tự chủ 19-21 tr/năm; tự chủ 28-52 tr/năm."
+      },
+      {
+        "id": "CNTT_BAN_DAN_AI",
+        "name": "Máy tính, CNTT, Bán dẫn & AI",
+        "avg2025_2026": 31.37,
+        "avg2026_2027": 34.93,
+        "freeTuitionCount": 2,
+        "note": "Các ngành bán dẫn, vi mạch bình quân 32.20 tr/năm."
+      },
+      {
+        "id": "KY_THUAT_CONG_NGHE",
+        "name": "Kỹ thuật - Công nghệ & Xây dựng",
+        "avg2025_2026": 25.57,
+        "avg2026_2027": 28.67,
+        "freeTuitionCount": 7,
+        "note": "Khối kỹ thuật công nghiệp trọng điểm."
+      },
+      {
+        "id": "Y_DUOC_SUC_KHOE",
+        "name": "Sức khỏe & Y Dược",
+        "avg2025_2026": 49.89,
+        "avg2026_2027": 56.29,
+        "freeTuitionCount": 4,
+        "note": "Trường tự chủ 52-90 tr/năm; Quân Y miễn 100%; tư thục 45-140 tr/năm."
+      },
+      {
+        "id": "SU_PHAM_GIAO_DUC",
+        "name": "Khoa học Giáo dục & Đào tạo Giáo viên",
+        "avg2025_2026": 16.78,
+        "avg2026_2027": 19.36,
+        "freeTuitionCount": 211,
+        "note": "Miễn 100% học phí + hỗ trợ 3.63 triệu/tháng theo Nghị định 116/2020/NĐ-CP & NĐ 238/2025/NĐ-CP. Ràng buộc bồi hoàn nếu không phục vụ ngành giáo dục theo NĐ 60/2025."
+      },
+      {
+        "id": "XA_HOI_NHAN_VAN",
+        "name": "Khoa học Xã hội, Báo chí & Du lịch",
+        "avg2025_2026": 26.05,
+        "avg2026_2027": 29.19,
+        "freeTuitionCount": 7,
+        "note": "Ngành Xây dựng Đảng & Triết học Mác-Lênin tại HBT miễn 100%."
+      },
+      {
+        "id": "NGON_NGU_QUOC_TE",
+        "name": "Ngoại ngữ & Quan hệ quốc tế",
+        "avg2025_2026": 23.79,
+        "avg2026_2027": 27.14,
+        "freeTuitionCount": 5,
+        "note": "Khối Sư phạm ngoại ngữ miễn 100% học phí."
+      },
+      {
+        "id": "KIEN_TRUC_NGHE_THUAT_TDTT",
+        "name": "Nghệ thuật, Mỹ thuật, Kiến trúc & TDTT",
+        "avg2025_2026": 29.52,
+        "avg2026_2027": 33.33,
+        "freeTuitionCount": 0,
+        "note": "Sư phạm Âm nhạc/Mỹ thuật miễn 100% học phí."
+      },
+      {
+        "id": "NONG_LAM_NGU_SINH_HOC",
+        "name": "Nông Lâm Ngư - Sinh học & Thực phẩm",
+        "avg2025_2026": 17.49,
+        "avg2026_2027": 20.00,
+        "freeTuitionCount": 0,
+        "note": "Mức trần nhà nước hỗ trợ cao."
+      },
+      {
+        "id": "LUAT_HANH_CHINH",
+        "name": "Pháp luật & Quản lý Nhà nước",
+        "avg2025_2026": 25.77,
+        "avg2026_2027": 29.17,
+        "freeTuitionCount": 1,
+        "note": "ĐH Luật Hà Nội / TPHCM 30.5 tr/năm; ĐH Kiểm sát 19 tr/năm."
+      },
+      {
+        "id": "CONG_AN_QUAN_DOI",
+        "name": "An ninh - Quốc phòng",
+        "avg2025_2026": 0.0,
+        "avg2026_2027": 0.0,
+        "freeTuitionCount": 38,
+        "note": "Nhà nước bao cấp 100% học phí, chỗ ở, quân trang và sinh hoạt phí."
+      }
+    ]
+  },
+  "majorCatalogLevelIV": [
+    {
+      "codeTT09": "7480101",
+      "codeTT74": "748010",
+      "name": "Khoa học máy tính",
+      "sector": "CNTT_BAN_DAN_AI",
+      "targetJobs": ["Kỹ sư Trí tuệ nhân tạo", "Kỹ sư Dữ liệu", "Kiến trúc sư giải pháp phần mềm"]
+    },
+    {
+      "codeTT09": "7480201",
+      "codeTT74": "748020",
+      "name": "Công nghệ thông tin",
+      "sector": "CNTT_BAN_DAN_AI",
+      "targetJobs": ["Kỹ sư Phát triển Phần mềm", "Chuyên viên Quản trị Mạng", "Kỹ sư DevOps / Cloud"]
+    },
+    {
+      "codeTT09": "7520208",
+      "codeTT74": "752024",
+      "name": "Kỹ thuật vi mạch bán dẫn",
+      "sector": "CNTT_BAN_DAN_AI",
+      "targetJobs": ["Kỹ sư Thiết kế Vi mạch", "Kỹ sư Kiểm thử Vi mạch", "Kỹ sư Đóng gói Bán dẫn"]
+    },
+    {
+      "codeTT09": "7520216",
+      "codeTT74": "752021",
+      "name": "Kỹ thuật điều khiển và tự động hóa",
+      "sector": "KY_THUAT_CONG_NGHE",
+      "targetJobs": ["Kỹ sư Tự động hóa", "Kỹ sư Robot & IoT", "Kỹ sư Lập trình PLC"]
+    },
+    {
+      "codeTT09": "7720101",
+      "codeTT74": "772010",
+      "name": "Y khoa",
+      "sector": "Y_DUOC_SUC_KHOE",
+      "targetJobs": ["Bác sĩ Đa khoa", "Bác sĩ Nội trú", "Bác sĩ Chuyên khoa"]
+    },
+    {
+      "codeTT09": "7720201",
+      "codeTT74": "772020",
+      "name": "Dược học",
+      "sector": "Y_DUOC_SUC_KHOE",
+      "targetJobs": ["Dược sĩ Lâm sàng", "Chuyên viên Nghiên cứu Dược phẩm", "Dược sĩ Quản lý Chất lượng"]
+    },
+    {
+      "codeTT09": "7720501",
+      "codeTT74": "772050",
+      "name": "Răng - Hàm - Mặt",
+      "sector": "Y_DUOC_SUC_KHOE",
+      "targetJobs": ["Bác sĩ Răng Hàm Mặt", "Bác sĩ Chỉnh nha", "Bác sĩ Phẫu thuật Hàm mặt"]
+    },
+    {
+      "codeTT09": "7340120",
+      "codeTT74": "734012",
+      "name": "Kinh doanh quốc tế",
+      "sector": "KINH_TE_QUAN_TRI",
+      "targetJobs": ["Chuyên viên Thương mại Quốc tế", "Giám đốc Phát triển Thị trường Toàn cầu", "Chuyên viên Xuất nhập khẩu"]
+    },
+    {
+      "codeTT09": "7340302",
+      "codeTT74": "734032",
+      "name": "Kiểm toán",
+      "sector": "KINH_TE_QUAN_TRI",
+      "targetJobs": ["Kiểm toán viên Độc lập", "Kiểm toán viên Nội bộ", "Chuyên viên Tư vấn Thuế"]
+    },
+    {
+      "codeTT09": "7510605",
+      "codeTT74": "751065",
+      "name": "Logistics và Quản lý chuỗi cung ứng",
+      "sector": "KINH_TE_QUAN_TRI",
+      "targetJobs": ["Chuyên viên Chuỗi Cung Ứng", "Điều phối viên Vận tải Quốc tế", "Quản lý Kho bãi Thông minh"]
+    },
+    {
+      "codeTT09": "7140209",
+      "codeTT74": "714020",
+      "name": "Sư phạm Toán học",
+      "sector": "SU_PHAM_GIAO_DUC",
+      "targetJobs": ["Giáo viên Toán THPT", "Giảng viên Toán học", "Chuyên viên Nghiên cứu Giáo dục"]
+    },
+    {
+      "codeTT09": "7140217",
+      "codeTT74": "714021",
+      "name": "Sư phạm Ngữ văn",
+      "sector": "SU_PHAM_GIAO_DUC",
+      "targetJobs": ["Giáo viên Ngữ văn THPT", "Biên tập viên Giáo dục", "Chuyên viên Truyền thông Giáo dục"]
+    },
+    {
+      "codeTT09": "7140231",
+      "codeTT74": "714023",
+      "name": "Sư phạm Tiếng Anh",
+      "sector": "SU_PHAM_GIAO_DUC",
+      "targetJobs": ["Giáo viên Tiếng Anh Trường Quốc Tế / Chuyên", "Chuyên gia Khảo thí Ngôn ngữ", "Giảng viên Ngôn ngữ học Ứng dụng"]
+    },
+    {
+      "codeTT09": "7380101",
+      "codeTT74": "738010",
+      "name": "Luật",
+      "sector": "LUAT_HANH_CHINH",
+      "targetJobs": ["Luật sư Tranh tụng", "Pháp chế Doanh nghiệp", "Thư ký Tòa án / Công chứng viên"]
+    }
+  ],
+  "anchorInstitutions": [
+    {
+      "code": "BKA",
+      "officialName": "Đại Học Bách Khoa Hà Nội",
+      "city": "Hà Nội",
+      "tuitionRange2026": "29.5 – 42.0 triệu/năm",
+      "officialWebsite": "https://ctt.hust.edu.vn/",
+      "admissionFormulas": ["FML_01", "FML_02", "FML_03", "FML_12", "FML_13"],
+      "benchmarkSample": [
+        {
+          "majorName": "Khoa học Máy tính (IT1)",
+          "majorCodeTT09": "7480101",
+          "combinations": ["A00", "A01"],
+          "scale": 30,
+          "benchmark2024": 28.53,
+          "benchmark2025": 29.19,
+          "benchmark2026": 29.27,
+          "tuitionYear": "29.5 tr/năm"
+        },
+        {
+          "majorName": "Khoa học Dữ liệu và AI (IT-E10)",
+          "majorCodeTT09": "7480107",
+          "combinations": ["A00", "A01", "K01"],
+          "scale": 30,
+          "benchmark2024": 28.22,
+          "benchmark2025": 29.39,
+          "benchmark2026": 29.54,
+          "tuitionYear": "42.0 tr/năm (Chương trình tiên tiến)"
+        },
+        {
+          "majorName": "Kỹ thuật Điều khiển & Tự động hóa",
+          "majorCodeTT09": "7520216",
+          "combinations": ["A00", "A01"],
+          "scale": 30,
+          "benchmark2024": 28.37,
+          "benchmark2025": 28.48,
+          "benchmark2026": 28.98,
+          "tuitionYear": "29.5 tr/năm"
+        },
+        {
+          "majorName": "Kỹ thuật Vi điện tử và Công nghệ nano",
+          "majorCodeTT09": "7520402",
+          "combinations": ["A00", "A01", "D07"],
+          "scale": 30,
+          "benchmark2024": 27.75,
+          "benchmark2025": 28.25,
+          "benchmark2026": 28.64,
+          "tuitionYear": "29.5 tr/năm"
+        }
+      ]
+    },
+    {
+      "code": "NTH",
+      "officialName": "Trường Đại học Ngoại thương",
+      "city": "Hà Nội & TP.HCM",
+      "tuitionRange2026": "30.0 – 85.0 triệu/năm",
+      "officialWebsite": "https://qldt.ftu.edu.vn/",
+      "admissionFormulas": ["FML_01", "FML_04", "FML_05"],
+      "benchmarkSample": [
+        {
+          "majorName": "Kinh tế quốc tế",
+          "majorCodeTT09": "7310106",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 28.10,
+          "benchmark2025": 28.00,
+          "benchmark2026": 28.10,
+          "tuitionYear": "30.0 tr/năm (Chương trình chuẩn)"
+        },
+        {
+          "majorName": "Kinh doanh quốc tế",
+          "majorCodeTT09": "7340120",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 28.10,
+          "benchmark2025": 28.00,
+          "benchmark2026": 28.10,
+          "tuitionYear": "30.0 tr/năm (Chuẩn); 85.0 tr/năm (Tiên tiến)"
+        },
+        {
+          "majorName": "Logistics và Quản lý chuỗi cung ứng",
+          "majorCodeTT09": "7510605",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 28.20,
+          "benchmark2025": 28.00,
+          "benchmark2026": 28.10,
+          "tuitionYear": "52.0 tr/năm (Chất lượng cao)"
+        },
+        {
+          "majorName": "Ngôn ngữ Trung Quốc (Tiếng Trung thương mại)",
+          "majorCodeTT09": "7220204",
+          "combinations": ["D01", "D04"],
+          "scale": 40,
+          "benchmark2024": 35.80,
+          "benchmark2025": 35.85,
+          "benchmark2026": 36.00,
+          "tuitionYear": "30.0 tr/năm"
+        }
+      ]
+    },
+    {
+      "code": "KHA",
+      "officialName": "Đại Học Kinh Tế Quốc Dân",
+      "city": "Hà Nội",
+      "tuitionRange2026": "23.5 – 52.0 triệu/năm",
+      "officialWebsite": "https://neu.edu.vn/",
+      "admissionFormulas": ["FML_01", "FML_10", "FML_11"],
+      "benchmarkSample": [
+        {
+          "majorName": "Kiểm toán",
+          "majorCodeTT09": "7340302",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 27.78,
+          "benchmark2025": 28.38,
+          "benchmark2026": 28.84,
+          "tuitionYear": "23.5 tr/năm (Chuẩn); 52.0 tr/năm (Tích hợp ICAEW CFAB)"
+        },
+        {
+          "majorName": "Thương mại điện tử",
+          "majorCodeTT09": "7340122",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 28.02,
+          "benchmark2025": 28.83,
+          "benchmark2026": 28.62,
+          "tuitionYear": "23.5 tr/năm"
+        },
+        {
+          "majorName": "Logistics và Quản lý chuỗi cung ứng",
+          "majorCodeTT09": "7510605",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 28.18,
+          "benchmark2025": 28.61,
+          "benchmark2026": 28.53,
+          "tuitionYear": "23.5 tr/năm"
+        },
+        {
+          "majorName": "Công nghệ tài chính (Fintech)",
+          "majorCodeTT09": "7340205",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 27.15,
+          "benchmark2025": 27.38,
+          "benchmark2026": 27.52,
+          "tuitionYear": "25.0 tr/năm"
+        }
+      ]
+    },
+    {
+      "code": "TCT",
+      "officialName": "Đại Học Cần Thơ",
+      "city": "Cần Thơ",
+      "tuitionRange2026": "0.0 – 32.5 triệu/năm",
+      "officialWebsite": "https://www.ctu.edu.vn/",
+      "admissionFormulas": ["FML_01"],
+      "benchmarkSample": [
+        {
+          "majorName": "Sư phạm Lịch sử",
+          "majorCodeTT09": "7140218",
+          "combinations": ["C00", "D01", "D14"],
+          "scale": 30,
+          "benchmark2024": 27.53,
+          "benchmark2025": 27.88,
+          "benchmark2026": 28.10,
+          "tuitionYear": "0.0 tr/năm (Miễn 100% học phí + trợ cấp 3.63M/th theo NĐ 116)"
+        },
+        {
+          "majorName": "Sư phạm Toán học",
+          "majorCodeTT09": "7140209",
+          "combinations": ["A00", "A01"],
+          "scale": 30,
+          "benchmark2024": 27.03,
+          "benchmark2025": 27.33,
+          "benchmark2026": 27.50,
+          "tuitionYear": "0.0 tr/năm (Miễn 100% học phí + trợ cấp 3.63M/th theo NĐ 116)"
+        },
+        {
+          "majorName": "Công nghệ thông tin",
+          "majorCodeTT09": "7480201",
+          "combinations": ["A00", "A01", "D01", "D07"],
+          "scale": 30,
+          "benchmark2024": 24.45,
+          "benchmark2025": 24.82,
+          "benchmark2026": 25.10,
+          "tuitionYear": "32.5 tr/năm"
+        },
+        {
+          "majorName": "Công nghệ kỹ thuật ô tô",
+          "majorCodeTT09": "7520130",
+          "combinations": ["A00", "A01", "C01"],
+          "scale": 30,
+          "benchmark2024": 23.47,
+          "benchmark2025": 23.37,
+          "benchmark2026": 23.50,
+          "tuitionYear": "32.5 tr/năm"
+        }
+      ]
+    }
+  ]
+}
