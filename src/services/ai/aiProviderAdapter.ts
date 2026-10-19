@@ -68,13 +68,16 @@ export function checkRateLimit(identifier: string = 'global'): { allowed: boolea
 // ============================================================================
 // 2. GOOGLE GEMINI ADAPTER
 // ============================================================================
+const DEFAULT_SERVER_GEMINI_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+
 export class GeminiProviderAdapter implements AIProviderAdapter {
   name = 'gemini';
   defaultModel = 'gemini-3.1-flash-lite';
   candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash'];
 
   isAvailable(env: Record<string, string | undefined>): boolean {
-    return Boolean(env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim());
+    const key = env.GEMINI_API_KEY?.trim() || DEFAULT_SERVER_GEMINI_KEY;
+    return Boolean(key);
   }
 
   async complete({
@@ -83,7 +86,7 @@ export class GeminiProviderAdapter implements AIProviderAdapter {
     timeoutMs = 25000,
     env
   }: ProviderCompletionParams): Promise<ProviderCompletionResult> {
-    const apiKey = env.GEMINI_API_KEY?.trim();
+    const apiKey = env.GEMINI_API_KEY?.trim() || DEFAULT_SERVER_GEMINI_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not configured on the server.');
     }

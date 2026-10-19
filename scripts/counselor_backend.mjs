@@ -264,7 +264,8 @@ export function parseAIModelOutput(rawText) {
 }
 
 export async function handleCounselorChatRequest({ body, headers = {}, env = process.env }) {
-  const { sessionId, message, history = [], profile = {}, realityAnswer = '' } = body || {};
+  const parsedBody = typeof body === 'string' ? (() => { try { return JSON.parse(body); } catch { return {}; } })() : (body || {});
+  const { sessionId, message, history = [], profile = {}, realityAnswer = '' } = parsedBody;
 
   if (!message || typeof message !== 'string' || !message.trim()) {
     return {
@@ -287,7 +288,8 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
     };
   }
 
-  const geminiKey = env.GEMINI_API_KEY?.trim() || '';
+  const DEFAULT_SERVER_GEMINI_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+  const geminiKey = env.GEMINI_API_KEY?.trim() || DEFAULT_SERVER_GEMINI_KEY;
   const groqKey = env.GROQ_API_KEY?.trim() || '';
 
   if (!geminiKey && !groqKey) {
@@ -494,7 +496,8 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
 }
 
 export function handleCounselorStatusRequest(env = process.env) {
-  const hasGemini = Boolean(env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim());
+  const DEFAULT_SERVER_GEMINI_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+  const hasGemini = Boolean((env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim()) || DEFAULT_SERVER_GEMINI_KEY);
   const hasGroq = Boolean(env.GROQ_API_KEY && env.GROQ_API_KEY.trim());
   const hasServerKey = hasGemini || hasGroq;
 

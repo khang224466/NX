@@ -185,7 +185,8 @@ export async function handleCounselorChatRequest({
   headers = {},
   env = process.env
 }: CounselorChatRequestArgs): Promise<CounselorChatResult> {
-  const { sessionId, message, history = [], profile = {}, realityAnswer = '' } = body || {};
+  const parsedBody = typeof body === 'string' ? (() => { try { return JSON.parse(body); } catch { return {}; } })() : (body || {});
+  const { sessionId, message, history = [], profile = {}, realityAnswer = '' } = parsedBody;
 
   // 1. Validate Input
   if (!message || typeof message !== 'string' || !message.trim()) {

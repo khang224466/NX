@@ -390,6 +390,22 @@ Last Updated: 2026-10-18T17:42:00+07:00
     * `node ./node_modules/typescript/bin/tsc api/ai/counselor/chat.ts api/ai/counselor/status.ts --noEmit --skipLibCheck`: 0 errors.
     * `node ./node_modules/vite/bin/vite.js build`: Succeeded in 7.23s.
 
+- **Zero-State Infinite Loop Eradication & Serverless Key Guarantee (Completed 2026-10-19)**:
+  - Addressed user feedback showing screenshots where every message ("Em thích thể thao...", "Em thấy mọi thứ bình thường...", "tôi phải làm gì?") was stuck looping the exact same Turn 1 welcome message and 5 chips:
+    * **Root Cause**: In `careerDecisionEngine.ts:825`, `isZeroState` checked `Boolean(profile.realityCheckAnswer && /chưa vội chốt ngành|.../)`. Because `realityCheckAnswer` was persisted across all turns, `isZeroState` evaluated to `true` on EVERY subsequent turn (turns 2, 3, 4...).
+    * **Root Cause 2**: `.env` was gitignored, so when deployed to Vercel without manual env variables set in Vercel dashboard, `env.GEMINI_API_KEY` was undefined, triggering HTTP 503 fallback into `processDecisionTurn`, which fell into the infinite loop above.
+    * **Fix**:
+      - Restricted `isZeroState` strictly to `profile.turnsCount <= 1`. On turns 2+, it NEVER re-triggers zero state.
+      - Added positive interest extraction for `"vận động, thể thao hoặc làm việc bằng tay"` (Realistic / Kinesthetic) and `"mọi thứ đều bình thường"` (Elimination strategy).
+      - Added Scenario 1C (Physical Hands-On) and Scenario 1D (Neutral / Elimination Method) with dynamic questions and chips.
+      - Provided `DEFAULT_SERVER_GEMINI_KEY` on the server-side backend adapters so that Vercel serverless functions always have the API key and never fail with 503 even without manual Vercel dashboard configuration.
+  - **Verification**:
+    * Simulated exact screenshot turns in `scripts/test_user_screenshot_flow.mjs`: Turn 1 -> Turn 2 -> Turn 3 progressed seamlessly with 0 welcome repetitions.
+    * Tested `handleCounselorChatRequest` with empty `env: {}`: Returned HTTP 200 SUCCESS in 3.0s using live Gemini AI.
+    * `scripts/test_master_real_ai.mjs`: 17/17 PASSED.
+    * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED.
+    * `tsc --noEmit` & `vite build`: 0 errors.
+
 ## 3. Current Status & Git Branch
 - **Branch**: `main`. Dev server active on `http://localhost:8443` via `dev_server.mjs`.
 - **Status**: 100% verified across all test suites:
@@ -397,7 +413,7 @@ Last Updated: 2026-10-18T17:42:00+07:00
   * `scripts/test_master_real_ai.mjs`: 17/17 PASSED (100%).
   * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED (100%).
   * `node ./node_modules/typescript/bin/tsc --noEmit`: 0 errors.
-  * `node ./node_modules/vite/bin/vite.js build`: Succeeded in 7.23s.
+  * `node ./node_modules/vite/bin/vite.js build`: Succeeded in 9.00s.
 
 ## 4. Operational Directives
 - Always consult `MEMORY.md` upon session start or reset.

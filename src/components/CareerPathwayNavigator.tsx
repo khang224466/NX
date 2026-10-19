@@ -2588,7 +2588,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
     // Tích lũy bằng chứng tươi mới cho buổi tư vấn 1:1, KHÔNG kế thừa profile cũ từ localStorage
     clearStoredLearnerProfile();
-    const initialProfile = createInitialProfile(text, rAnswer);
+    const initialProfile = createInitialProfile('', rAnswer);
     setLearnerEvidenceProfile(initialProfile);
     const decision = processDecisionTurn(text, initialProfile, rAnswer);
     let updatedProfile = decision.updatedProfile;

@@ -422,6 +422,19 @@ export function updateProfileWithInput(profile: LearnerEvidenceProfile, text: st
         updated.workEnvironmentPrefs.push('Môi trường mở, không gian ngoài trời thoáng đãng');
       }
     }
+    if (l.includes('vận động') || l.includes('thể thao') || l.includes('làm việc bằng tay') || l.includes('chân tay') || l.includes('thực hành tay')) {
+      if (!updated.statedInterests.includes('Hoạt động thể chất, Vận động thể thao & Kỹ năng thao tác thực tế')) {
+        updated.statedInterests.push('Hoạt động thể chất, Vận động thể thao & Kỹ năng thao tác thực tế');
+      }
+      if (!updated.workEnvironmentPrefs.includes('Môi trường năng động, linh hoạt di chuyển, ghét ngồi cố định một chỗ')) {
+        updated.workEnvironmentPrefs.push('Môi trường năng động, linh hoạt di chuyển, ghét ngồi cố định một chỗ');
+      }
+    }
+    if (l.includes('mọi thứ đều bình thường') || l.includes('chưa có hoạt động nào nổi bật') || l.includes('thấy bình thường')) {
+      if (!updated.untestedInterests.includes('Chưa xác định hoạt động yêu thích cụ thể (áp dụng phương pháp loại trừ)')) {
+        updated.untestedInterests.push('Chưa xác định hoạt động yêu thích cụ thể (áp dụng phương pháp loại trừ)');
+      }
+    }
     if (l.includes('máy móc') || l.includes('lắp ráp') || l.includes('phần cứng') || l.includes('sửa chữa') || l.includes('thực hành xưởng')) {
       const isRejected = updated.rejectedActivities.some(a => a.includes('Kỹ thuật'));
       if (!isRejected && !updated.statedInterests.includes('Kỹ thuật & Máy móc thực tế')) {
@@ -819,10 +832,10 @@ Khi chưa có dữ liệu rõ ràng, việc cố ép mình chọn một hướng
   // SCENARIO 1: NGƯỜI HỌC BẮT ĐẦU TỪ SỐ 0 (Test 1)
   // "Em học lớp 11, học lực bình thường, chưa biết mình thích gì."
   // =========================================================================
-  const isZeroState = 
+  const isZeroState = profile.turnsCount <= 1 && (
     /chưa biết mình thích gì|chưa biết thích gì|không biết thích gì|học lực bình thường|chưa biết chọn ngành|không biết mình giỏi môn nào|mất định hướng|chưa rõ mình muốn gì|không biết làm gì|chưa biết làm gì|phải làm gì|làm gì bây giờ|không biết phải làm gì|bắt đầu từ đâu|lạc lối|hoang mang|bối rối|mông lung|không có định hướng|tôi phải làm gì|em phải làm gì|chưa biết mình giỏi gì|chưa biết học gì|chưa biết thi gì/i.test(text) ||
-    Boolean(realityAnswer && /chưa vội chốt ngành|từng bước từ con số 0|thấu hiểu bản thân trước/i.test(realityAnswer)) ||
-    Boolean(profile.realityCheckAnswer && /chưa vội chốt ngành|từng bước từ con số 0|thấu hiểu bản thân trước/i.test(profile.realityCheckAnswer));
+    Boolean(realityAnswer && /chưa vội chốt ngành|từng bước từ con số 0|thấu hiểu bản thân trước/i.test(realityAnswer))
+  );
 
   if (isZeroState) {
     profile.currentStage = 'STATE_A_ZERO';
@@ -856,6 +869,85 @@ Một buổi tư vấn hướng nghiệp đúng nghĩa không phải là bài tr
         selfReported: profile.rawInputs,
         verified: profile.verifiedEvidence,
         hypotheses: ['Người học đang ở giai đoạn 0: cần nhận diện trải nghiệm tích cực tự nhiên.'],
+        missing: profile.missingEvidence
+      },
+      updatedProfile: profile
+    };
+  }
+
+  // =========================================================================
+  // SCENARIO 1C: THIÊN HƯỚNG VẬN ĐỘNG / THỂ THAO / LÀM VIỆC BẰNG TAY (REALISTIC)
+  // =========================================================================
+  const isPhysicalHandsOn = 
+    /(vận động|thể thao|làm việc bằng tay|thao tác tay|thể chất|chân tay)/i.test(text) ||
+    profile.statedInterests.some(i => i.includes('Vận động') || i.includes('thể thao') || i.includes('thao tác thực tế'));
+
+  if (isPhysicalHandsOn && profile.academicStrengths.length === 0) {
+    profile.currentStage = 'STATE_B_EXPLORING';
+    const replyText = 
+`Cảm ơn bạn! Việc bạn có cảm xúc tích cực với **các hoạt động vận động thể thao hoặc làm việc bằng tay** là một tín hiệu định hướng rất giá trị (thuộc nhóm Trí thông minh Vận động & Thực tế - Realistic trong trắc nghiệm hướng nghiệp).
+
+Những người có thế mạnh này thường học tốt nhất qua trải nghiệm thực tế, thích nhìn thấy sản phẩm hoặc chuyển động cụ thể và rất nhanh ngột ngạt nếu phải ngồi một chỗ 8 tiếng gõ máy tính văn phòng.`;
+
+    const primaryQuestion = "Trong các hướng gắn liền với vận động và thao tác thực tế sau, hướng nào khiến bạn thấy tự nhiên hoặc hứng thú hơn: Huấn luyện thể thao & chăm sóc sức khỏe thể chất, Kỹ thuật chế tạo cơ khí/sửa chữa thiết bị, hay Nghệ thuật thủ công tạo hình?";
+
+    saveLearnerProfile(profile);
+
+    return {
+      action: 'ASK_QUESTION',
+      stage: 'STATE_B_EXPLORING',
+      replyText: `${replyText}\n\n👉 **${primaryQuestion}**`,
+      primaryQuestion,
+      questionContext: 'Làm rõ phân nhánh của nhóm sở thích Vận động & Thực hành thực tế.',
+      quickReplies: [
+        "Em thích mảng thể thao, huấn luyện hoặc sức khỏe thể chất",
+        "Em thích chế tạo, cơ khí, kỹ thuật hoặc sửa chữa thiết bị",
+        "Em thích thủ công, tạo hình hoặc làm việc khéo léo bằng tay",
+        "Em thích kết hợp vận động ngoài trời với công nghệ"
+      ],
+      evidenceSummary: {
+        selfReported: profile.rawInputs,
+        verified: profile.verifiedEvidence,
+        hypotheses: ['Người học có thiên hướng Realistic/Kinesthetic: cần môi trường thực hành cao.'],
+        missing: profile.missingEvidence
+      },
+      updatedProfile: profile
+    };
+  }
+
+  // =========================================================================
+  // SCENARIO 1D: NGƯỜI HỌC THẤY MỌI THỨ BÌNH THƯỜNG / PHƯƠNG PHÁP LOẠI TRỪ
+  // =========================================================================
+  const isNeutralAverage = 
+    /(mọi thứ đều bình thường|chưa có hoạt động nào nổi bật|thấy bình thường|không có gì nổi bật)/i.test(text);
+
+  if (isNeutralAverage) {
+    profile.currentStage = 'STATE_B_EXPLORING';
+    const replyText = 
+`Không sao cả bạn nhé. Rất nhiều bạn học sinh cũng cảm thấy mọi thứ bình thường vì chưa có cơ hội cọ xát với nhiều môi trường thực tế khác nhau để nhận ra sự khác biệt.
+
+Khi chưa biết mình 'thích gì', cách đi khoa học và nhanh nhất trong tâm lý học hướng nghiệp là: **Đi từ việc loại trừ những thứ bạn chắc chắn không thích hoặc không muốn làm.**`;
+
+    const primaryQuestion = "Nếu phải chọn một kiểu môi trường hoặc tính chất công việc mà bạn cảm thấy 'ngại' hoặc 'dị ứng' nhất khi nghĩ đến việc phải làm hằng ngày, bạn sẽ muốn TRÁNH kiểu nào nhất?";
+
+    saveLearnerProfile(profile);
+
+    return {
+      action: 'ASK_QUESTION',
+      stage: 'STATE_B_EXPLORING',
+      replyText: `${replyText}\n\n👉 **${primaryQuestion}**`,
+      primaryQuestion,
+      questionContext: 'Áp dụng phương pháp loại trừ để xác định ranh giới nghề nghiệp khi người học thấy mọi thứ bình thường.',
+      quickReplies: [
+        "Em ngại nhất là ngồi văn phòng 8 tiếng gõ máy tính một chỗ",
+        "Em ngại nhất là phải đi chào mời, thuyết phục khách hàng liên tục",
+        "Em ngại nhất là các môn tính toán số liệu phức tạp",
+        "Em ngại môi trường kỷ luật gò bó, lặp đi lặp lại"
+      ],
+      evidenceSummary: {
+        selfReported: profile.rawInputs,
+        verified: profile.verifiedEvidence,
+        hypotheses: ['Cần dùng phương pháp loại trừ để định vị ranh giới mong muốn.'],
         missing: profile.missingEvidence
       },
       updatedProfile: profile
