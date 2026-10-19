@@ -1061,7 +1061,7 @@ const CombinationsCatalogView: React.FC<{
           <h1 className="text-2xl sm:text-3xl font-bold font-sans text-white tracking-tight">
             Tìm kiếm theo Môn, Tên trường &amp; Địa điểm
           </h1>
-          <p className="text-xs sm:text-sm text-[#94A3B8] mt-1 max-w-2xl leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed font-normal">
             Hệ thống phân tích ma trận dữ liệu tuyển sinh tự động: Kết hợp lọc theo nhiều môn học, tên ngành/trường không phân biệt dấu và khu vực địa lý trên toàn quốc.
           </p>
         </div>
@@ -1073,11 +1073,11 @@ const CombinationsCatalogView: React.FC<{
             className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'combos'
                 ? 'bg-[#2563EB] text-white font-bold shadow-md'
-                : 'text-[#94A3B8] hover:text-white'
+                : 'text-slate-200 hover:text-white font-medium'
             }`}
           >
             <span>📋 Tổ hợp môn</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30 font-semibold text-slate-200">
               {comboResults.length}
             </span>
           </button>
@@ -1086,11 +1086,11 @@ const CombinationsCatalogView: React.FC<{
             className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'schools'
                 ? 'bg-[#2563EB] text-white font-bold shadow-md'
-                : 'text-[#94A3B8] hover:text-white'
+                : 'text-slate-200 hover:text-white font-medium'
             }`}
           >
             <span>🏛️ Trường ĐH</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30 font-semibold text-slate-200">
               {schoolResults.length}
             </span>
           </button>
@@ -1099,11 +1099,11 @@ const CombinationsCatalogView: React.FC<{
             className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'majors'
                 ? 'bg-[#2563EB] text-white font-bold shadow-md'
-                : 'text-[#94A3B8] hover:text-white'
+                : 'text-slate-200 hover:text-white font-medium'
             }`}
           >
             <span>🎓 Ngành đào tạo</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/30 font-semibold text-slate-200">
               {majorResults.length}
             </span>
           </button>
@@ -1193,7 +1193,7 @@ const CombinationsCatalogView: React.FC<{
                   ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-md'
                   : selectedLocation !== 'Tất cả'
                   ? 'bg-[#1E293B] text-[#93C5FD] border-[#3B82F6]/50 font-medium'
-                  : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36]'
+                  : 'bg-[#181922] text-slate-200 hover:text-white border-[#2A2B36] font-medium'
               }`}
             >
               <MapPin className="w-3.5 h-3.5 text-[#3B82F6]" />
@@ -1201,7 +1201,7 @@ const CombinationsCatalogView: React.FC<{
               {activeFilterDrawer === 'location' ? (
                 <ChevronUp className="w-3 h-3 text-white/80" />
               ) : (
-                <ChevronDown className="w-3 h-3 text-[#64748B]" />
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               )}
             </button>
 
@@ -1214,7 +1214,7 @@ const CombinationsCatalogView: React.FC<{
                   ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-md'
                   : selectedSubjects.length > 0
                   ? 'bg-[#1E293B] text-[#93C5FD] border-[#3B82F6]/50 font-medium'
-                  : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36]'
+                  : 'bg-[#181922] text-slate-200 hover:text-white border-[#2A2B36] font-medium'
               }`}
             >
               <BookOpen className="w-3.5 h-3.5 text-[#3B82F6]" />
@@ -1224,7 +1224,7 @@ const CombinationsCatalogView: React.FC<{
               {activeFilterDrawer === 'subject' ? (
                 <ChevronUp className="w-3 h-3 text-white/80" />
               ) : (
-                <ChevronDown className="w-3 h-3 text-[#64748B]" />
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               )}
             </button>
           </div>
@@ -1232,7 +1232,7 @@ const CombinationsCatalogView: React.FC<{
           {/* Quick Active Indicators & Clear */}
           {hasActiveFilters && (
             <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono ml-auto">
-              <span className="text-[10px] text-[#64748B]">Đang chọn:</span>
+              <span className="text-xs text-slate-300 font-semibold">Đang chọn:</span>
               {selectedLocation !== 'Tất cả' && (
                 <span className="inline-flex items-center gap-1 text-[11px] bg-[#1E293B] text-[#93C5FD] px-2 py-0.5 rounded border border-[#3B82F6]/40">
                   📍 {selectedLocation}
@@ -1275,7 +1275,7 @@ const CombinationsCatalogView: React.FC<{
                     <button
                       type="button"
                       onClick={() => scrollRow('location-scroll-row', 'left')}
-                      className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-slate-200 hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
                       title="Cuộn sang trái"
                     >
                       <ChevronLeft className="w-3.5 h-3.5" />
@@ -1283,7 +1283,7 @@ const CombinationsCatalogView: React.FC<{
                     <button
                       type="button"
                       onClick={() => scrollRow('location-scroll-row', 'right')}
-                      className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-slate-200 hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
                       title="Cuộn sang phải"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -1307,7 +1307,7 @@ const CombinationsCatalogView: React.FC<{
                         className={`px-3 py-1.5 rounded-lg border text-xs font-mono whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                           isSelected
                             ? 'bg-[#2563EB] text-white border-[#3B82F6] font-bold shadow-md'
-                            : 'bg-[#181922] text-[#94A3B8] hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50'
+                            : 'bg-[#181922] text-slate-200 hover:text-white border-[#2A2B36] hover:border-[#3B82F6]/50 font-medium'
                         }`}
                       >
                         {loc}
@@ -1369,10 +1369,10 @@ const CombinationsCatalogView: React.FC<{
                       <button
                         type="button"
                         onClick={() => setSubjectMatchMode('AND')}
-                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer font-medium ${
                           subjectMatchMode === 'AND'
                             ? 'bg-[#3B82F6] text-white font-bold'
-                            : 'text-[#94A3B8] hover:text-white'
+                            : 'text-slate-200 hover:text-white'
                         }`}
                         title="Tổ hợp phải chứa ĐỦ TẤT CẢ các môn đã chọn"
                       >
@@ -1381,10 +1381,10 @@ const CombinationsCatalogView: React.FC<{
                       <button
                         type="button"
                         onClick={() => setSubjectMatchMode('OR')}
-                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer font-medium ${
                           subjectMatchMode === 'OR'
                             ? 'bg-[#3B82F6] text-white font-bold'
-                            : 'text-[#94A3B8] hover:text-white'
+                            : 'text-slate-200 hover:text-white'
                         }`}
                         title="Tổ hợp chứa BẤT KỲ môn nào đã chọn"
                       >
@@ -1396,7 +1396,7 @@ const CombinationsCatalogView: React.FC<{
                       <button
                         type="button"
                         onClick={() => setSelectedSubjects([])}
-                        className="text-[10px] text-rose-400 hover:underline cursor-pointer"
+                        className="text-xs text-rose-400 hover:underline cursor-pointer font-semibold"
                       >
                         Bỏ chọn
                       </button>
@@ -1407,7 +1407,7 @@ const CombinationsCatalogView: React.FC<{
                       <button
                         type="button"
                         onClick={() => scrollRow('subject-scroll-row', 'left')}
-                        className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-slate-200 hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
                         title="Cuộn sang trái"
                       >
                         <ChevronLeft className="w-3.5 h-3.5" />
@@ -1415,7 +1415,7 @@ const CombinationsCatalogView: React.FC<{
                       <button
                         type="button"
                         onClick={() => scrollRow('subject-scroll-row', 'right')}
-                        className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-[#94A3B8] hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg bg-[#181922] hover:bg-[#2563EB] text-slate-200 hover:text-white border border-[#2A2B36] transition-colors cursor-pointer"
                         title="Cuộn sang phải"
                       >
                         <ChevronRight className="w-3.5 h-3.5" />

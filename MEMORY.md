@@ -10,6 +10,14 @@ Last Updated: 2026-10-19T14:38:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **UI & High-Contrast Typography Optimization (Elimination of Dim Gray Text) - 2026-10-19**:
+  - Addressed user directives: *"tối ưu giao diện và hiển thị chữ"* & *"chữ cứ sáng hết lên đừng để xám, chữ nào bỏ được hoặc không cần thiết cứ bỏ"*:
+    * **100% Elimination of Dim Gray Text**: Excised all 45 instances of `text-slate-400`, `text-slate-500`, `text-[#94A3B8]`, and `text-[#64748B]` from [Scientific4TabPortal.tsx](file:///d:/src/components/Scientific4TabPortal.tsx).
+    * **Crisp Headings & Body Typography**: All titles, subtitles, field labels, descriptions, and inputs updated to `text-white`, `text-slate-100`, `text-slate-200`, and `text-slate-300` for effortless legibility against dark slate backgrounds.
+    * **Vivid Key Metrics & Highlights**: Dominant RIASEC badges, official admission scores, cutoffs, and margins upgraded to luminous `text-[#38BDF8]`, `text-emerald-300`, `text-amber-300`, and `text-[#C6F135]`.
+    * **Global CSS Dark Mode Boost**: Updated [src/index.css](file:///d:/src/index.css) to force dark mode gray text overrides from dim `#8E929F` to bright `#CBD5E1`.
+    * **Header Navbar & Search Pills**: Brightened navigation tabs in [BlueprintHeaderRuler.tsx](file:///d:/src/components/BlueprintHeaderRuler.tsx) and search section tabs/pills in [UNIROOTPlatform.tsx](file:///d:/src/components/UNIROOTPlatform.tsx).
+  - Full automated test suite passes 100%: TC-01 to TC-10 (10/10 PASS), Realtime Browser Suite (90/90 PASS in 37ms), Master Real AI Suite (17/17 PASS), P1/P2 Suite (18/18 PASS). Vite build completed in 2.90s with 0 errors.
 - **4-Tab Scientific Career & Admissions Architecture (EXORA F1 Pipeline) - 2026-10-19**:
   - Implemented [Scientific4TabPortal.tsx](file:///d:/src/components/Scientific4TabPortal.tsx) addressing user directives: *"bỏ hoặc ẩn phần chatbot đi, thay chat bot thành một khung để mình nhập thông tin"* & *"chỉ giữ lại duy nhất câu hỏi từ chính bản thân tôi"*:
     * **Tab 1: Nhập hồ sơ & Đánh giá năng lực**: Khung nhập thông tin có cấu trúc thay cho chatbot. Tiếp nhận 10 môn THPT (Toán, Văn, Anh, Lý, Hóa, Sinh, Sử, Địa, Tin, GDKT&PL), điểm ĐGNL HSA/V-ACT/TSA, chứng chỉ IELTS/SAT, 6 thanh trượt sở thích RIASEC (kèm modal 60 câu O*NET từ `seed_data.json`), ngân sách học phí gia đình (đối chiếu NĐ 238/2025/NĐ-CP & miễn học phí Sư phạm NĐ 116), khu vực & đối tượng ưu tiên (Thông tư 06/2026), và ô nhập câu hỏi băn khoăn chân thực từ chính người học.

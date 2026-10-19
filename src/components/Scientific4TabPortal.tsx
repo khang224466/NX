@@ -573,8 +573,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           Cố Vấn Hướng Nghiệp <span className="text-[#3B82F6]">1:1 Chuẩn Khoa Học</span>
         </h1>
 
-        <p className="text-xs sm:text-sm md:text-base text-[#94A3B8] font-normal max-w-3xl mx-auto leading-relaxed">
-          Tuân thủ nghiêm ngặt chuỗi quyết định <span className="text-amber-400 font-bold">F1: Chọn Ngành ➔ Chọn Trường ➔ Chọn Tổ Hợp</span>.
+        <p className="text-xs sm:text-sm md:text-base text-slate-200 font-normal max-w-3xl mx-auto leading-relaxed">
+          Tuân thủ nghiêm ngặt chuỗi quyết định <span className="text-amber-300 font-bold">F1: Chọn Ngành ➔ Chọn Trường ➔ Chọn Tổ Hợp</span>.
           Không dùng câu trả lời có sẵn hay ép buộc chọn nghề. Hoàn toàn cá nhân hóa theo hồ sơ và câu hỏi từ chính bạn.
         </p>
 
@@ -627,31 +627,31 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 className={`p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between relative group ${
                   isActive
                     ? 'bg-[#1D4ED8]/20 border-[#3B82F6] text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] ring-1 ring-[#60A5FA]'
-                    : 'bg-[#121316] border-[#262630] text-[#94A3B8] hover:border-slate-600 hover:text-white'
+                    : 'bg-[#121316] border-[#2A2B36] text-slate-100 hover:border-slate-500 hover:text-white'
                 }`}
               >
                 <div className="flex items-center justify-between w-full mb-1">
                   <div className="flex items-center gap-1.5">
                     <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                      isActive ? 'bg-[#3B82F6] text-white font-bold' : 'bg-white/10 text-slate-400'
+                      isActive ? 'bg-[#3B82F6] text-white font-bold' : 'bg-white/10 text-slate-200 font-bold'
                     }`}>
                       {tab.num}
                     </span>
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#60A5FA]' : 'text-slate-400'}`} />
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#60A5FA]' : 'text-slate-300'}`} />
                   </div>
                   <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full border ${
                     isActive
-                      ? 'border-[#3B82F6] bg-[#3B82F6]/20 text-[#93C5FD]'
-                      : 'border-slate-700 bg-slate-800/40 text-slate-400'
+                      ? 'border-[#3B82F6] bg-[#3B82F6]/20 text-[#93C5FD] font-semibold'
+                      : 'border-slate-600 bg-slate-800 text-slate-200 font-semibold'
                   }`}>
                     {tab.badge}
                   </span>
                 </div>
                 <div>
-                  <div className={`font-sans font-bold text-xs ${isActive ? 'text-white' : 'text-slate-200'}`}>
+                  <div className={`font-sans font-bold text-xs ${isActive ? 'text-white' : 'text-slate-100'}`}>
                     {tab.title}
                   </div>
-                  <div className="text-[10px] font-mono text-slate-400 truncate mt-0.5">
+                  <div className="text-[11px] font-mono text-slate-300 truncate mt-0.5">
                     {tab.desc}
                   </div>
                 </div>
@@ -676,39 +676,39 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     1. Điểm Học Bạ &amp; Điểm Thi THPT (10 Môn Học Cốt Lõi)
                   </h3>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Nhập điểm tổng kết hoặc điểm thi thử THPT (thang 10, bước nhảy 0.1). GPA hiện tại: <span className="text-[#60A5FA] font-bold font-mono">{averageGpa}/10</span>
+                <p className="text-xs text-slate-200 mt-0.5">
+                  Nhập điểm tổng kết hoặc điểm thi thử THPT (thang 10, bước nhảy 0.1). GPA hiện tại: <span className="text-[#38BDF8] font-black font-mono">{averageGpa}/10</span>
                 </p>
               </div>
 
               {/* Presets */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-mono text-slate-400 mr-1">Mẫu nhanh:</span>
+                <span className="text-xs font-mono text-slate-200 mr-1 font-semibold">Mẫu nhanh:</span>
                 <button
                   type="button"
                   onClick={() => handleApplyPreset('KHTN')}
-                  className="px-2.5 py-1 rounded-lg bg-blue-950/60 hover:bg-blue-900 border border-blue-500/30 text-blue-300 text-xs font-mono transition-colors cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-blue-950/80 hover:bg-blue-900 border border-blue-400/50 text-blue-200 text-xs font-mono font-bold transition-colors cursor-pointer"
                 >
                   KHTN (Toán Lý Hóa)
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApplyPreset('KHXH')}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 text-xs font-mono transition-colors cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-400/50 text-emerald-200 text-xs font-mono font-bold transition-colors cursor-pointer"
                 >
                   KHXH (Văn Sử Địa)
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApplyPreset('EVEN')}
-                  className="px-2.5 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-500/30 text-purple-300 text-xs font-mono transition-colors cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900 border border-purple-400/50 text-purple-200 text-xs font-mono font-bold transition-colors cursor-pointer"
                 >
                   Học đều (8.0 - 8.2)
                 </button>
                 <button
                   type="button"
                   onClick={() => handleApplyPreset('RESET')}
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono transition-colors cursor-pointer"
+                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-mono font-bold transition-colors cursor-pointer"
                 >
                   Đặt lại
                 </button>
@@ -730,12 +730,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 { key: 'economicLegal', label: 'GDKT & PL', icon: '⚖️' }
               ].map(sub => (
                 <div key={sub.key} className="p-2.5 rounded-xl bg-[#0A0B0E] border border-slate-800 hover:border-slate-700 transition-colors">
-                  <div className="flex items-center justify-between text-xs text-slate-300 mb-1">
-                    <span className="font-medium truncate flex items-center gap-1">
+                  <div className="flex items-center justify-between text-xs text-white mb-1">
+                    <span className="font-bold truncate flex items-center gap-1.5">
                       <span>{sub.icon}</span>
                       <span>{sub.label}</span>
                     </span>
-                    <span className="font-mono text-[11px] text-[#60A5FA] font-bold">{scores[sub.key] || 0}</span>
+                    <span className="font-mono text-xs text-[#38BDF8] font-black bg-blue-950/80 px-2 py-0.5 rounded border border-blue-500/40">{scores[sub.key] || 0}</span>
                   </div>
                   <input
                     type="range"
@@ -749,7 +749,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     }}
                     className="w-full accent-[#3B82F6] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
                   />
-                  <div className="flex justify-between text-[9px] font-mono text-slate-400 mt-1">
+                  <div className="flex justify-between text-[10px] font-mono text-slate-300 font-semibold mt-1">
                     <span>1.0</span>
                     <span>10.0</span>
                   </div>
@@ -767,14 +767,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   2. Điểm Đánh Giá Năng Lực / Tư Duy &amp; Chứng Chỉ Quốc Tế (Tùy Chọn)
                 </h3>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-200 mt-0.5 font-normal">
                 Nhập nếu bạn đã hoặc dự kiến thi (để xét tuyển theo các phương thức kết hợp ĐHQG, Bách Khoa)
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
               <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-[11px] font-mono text-slate-300 block">ĐGNL HSA (ĐHQGHN, max 150)</label>
+                <label className="text-xs font-mono text-slate-200 font-semibold block">ĐGNL HSA (ĐHQGHN, max 150)</label>
                 <input
                   type="number"
                   min="0"
@@ -782,12 +782,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   value={hsaScore}
                   onChange={(e) => setHsaScore(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="Ví dụ: 95"
-                  className="w-full bg-[#16181D] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
               </div>
 
               <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-[11px] font-mono text-slate-300 block">ĐGNL V-ACT (ĐHQG HCM, max 1200)</label>
+                <label className="text-xs font-mono text-slate-200 font-semibold block">ĐGNL V-ACT (ĐHQG HCM, max 1200)</label>
                 <input
                   type="number"
                   min="0"
@@ -795,12 +795,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   value={vactScore}
                   onChange={(e) => setVactScore(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="Ví dụ: 850"
-                  className="w-full bg-[#16181D] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
               </div>
 
               <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-[11px] font-mono text-slate-300 block">ĐGTD TSA (ĐHBK HN, max 100)</label>
+                <label className="text-xs font-mono text-slate-200 font-semibold block">ĐGTD TSA (ĐHBK HN, max 100)</label>
                 <input
                   type="number"
                   min="0"
@@ -808,12 +808,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   value={tsaScore}
                   onChange={(e) => setTsaScore(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="Ví dụ: 68"
-                  className="w-full bg-[#16181D] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
               </div>
 
               <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-[11px] font-mono text-slate-300 block">IELTS Band (max 9.0)</label>
+                <label className="text-xs font-mono text-slate-200 font-semibold block">IELTS Band (max 9.0)</label>
                 <input
                   type="number"
                   min="0"
@@ -822,12 +822,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   value={ieltsBand}
                   onChange={(e) => setIeltsBand(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="Ví dụ: 6.5"
-                  className="w-full bg-[#16181D] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
               </div>
 
               <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-[11px] font-mono text-slate-300 block">SAT Score (max 1600)</label>
+                <label className="text-xs font-mono text-slate-200 font-semibold block">SAT Score (max 1600)</label>
                 <input
                   type="number"
                   min="400"
@@ -836,7 +836,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   value={satScore}
                   onChange={(e) => setSatScore(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="Ví dụ: 1350"
-                  className="w-full bg-[#16181D] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
                 />
               </div>
             </div>
@@ -852,8 +852,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     3. Sở Thích Nghề Nghiệp RIASEC (Chuẩn O*NET IPSF)
                   </h3>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Điều chỉnh 6 thang đo từ 10 đến 50 điểm. Mã đỉnh sở thích của bạn: <span className="text-emerald-400 font-bold font-mono text-sm px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/30">{dominantRiasec}</span>
+                <p className="text-xs text-slate-200 mt-0.5 font-normal">
+                  Điều chỉnh 6 thang đo từ 10 đến 50 điểm. Mã đỉnh sở thích của bạn: <span className="text-emerald-300 font-black font-mono text-sm px-2.5 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-400/50">{dominantRiasec}</span>
                 </p>
               </div>
 
@@ -863,7 +863,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   sfx.playUiClick();
                   setShowOnetModal(true);
                 }}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-semibold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Làm trắc nghiệm O*NET 60 câu</span>
@@ -883,9 +883,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <div key={dim.key} className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className={`font-bold ${dim.color}`}>{dim.name}</span>
-                    <span className="font-mono text-[#60A5FA] font-bold text-sm">{riasec[dim.key]}đ</span>
+                    <span className="font-mono text-[#38BDF8] font-black text-sm bg-blue-950/70 border border-blue-500/40 px-2 py-0.5 rounded">{riasec[dim.key]}đ</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-tight">{dim.desc}</p>
+                  <p className="text-xs text-slate-200 leading-tight font-normal">{dim.desc}</p>
                   <input
                     type="range"
                     min="10"
@@ -898,7 +898,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     }}
                     className="w-full accent-[#10B981] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
                   />
-                  <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                  <div className="flex justify-between text-[10px] font-mono text-slate-300 font-semibold">
                     <span>10đ (Thấp)</span>
                     <span>50đ (Rất cao)</span>
                   </div>
@@ -918,15 +918,15 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     4. Ngân Sách Học Phí &amp; Tài Chính (NĐ 238/2025)
                   </h3>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-200 mt-0.5 font-normal">
                   Khung trần học phí công lập 2026: Bình quân 33.7 triệu/năm
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300">Ngân sách gia đình tối đa:</span>
-                  <span className="font-mono text-emerald-400 font-bold text-sm">{maxTuition} triệu VNĐ / năm</span>
+                  <span className="text-slate-100 font-semibold text-xs sm:text-sm">Ngân sách gia đình tối đa:</span>
+                  <span className="font-mono text-emerald-300 font-black text-base">{maxTuition} triệu VNĐ / năm</span>
                 </div>
                 <input
                   type="range"
@@ -937,18 +937,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   onChange={(e) => setMaxTuition(parseInt(e.target.value))}
                   className="w-full accent-[#10B981] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
                 />
-                <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-slate-400 text-center pt-1">
-                  <div className="p-1.5 rounded bg-black/40 border border-slate-800">
-                    <div className="text-emerald-400 font-bold">0 VNĐ</div>
-                    <div>Sư phạm (NĐ 116) / CA-QĐ</div>
+                <div className="grid grid-cols-3 gap-2 text-xs font-mono text-slate-200 text-center pt-1">
+                  <div className="p-2 rounded-xl bg-black/40 border border-slate-700/80">
+                    <div className="text-emerald-300 font-bold text-sm">0 VNĐ</div>
+                    <div className="text-slate-200 text-[11px] font-medium">Sư phạm (NĐ 116) / CA-QĐ</div>
                   </div>
-                  <div className="p-1.5 rounded bg-black/40 border border-slate-800">
-                    <div className="text-blue-400 font-bold">18 - 35 tr</div>
-                    <div>Công lập chưa tự chủ</div>
+                  <div className="p-2 rounded-xl bg-black/40 border border-slate-700/80">
+                    <div className="text-sky-300 font-bold text-sm">18 - 35 tr</div>
+                    <div className="text-slate-200 text-[11px] font-medium">Công lập chưa tự chủ</div>
                   </div>
-                  <div className="p-1.5 rounded bg-black/40 border border-slate-800">
-                    <div className="text-amber-400 font-bold">35 - 70 tr</div>
-                    <div>Tự chủ / Y Dược</div>
+                  <div className="p-2 rounded-xl bg-black/40 border border-slate-700/80">
+                    <div className="text-amber-300 font-bold text-sm">35 - 70 tr</div>
+                    <div className="text-slate-200 text-[11px] font-medium">Tự chủ / Y Dược</div>
                   </div>
                 </div>
               </div>
@@ -963,18 +963,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     5. Khu Vực &amp; Điểm Ưu Tiên Tuyển Sinh (TT 06/2026)
                   </h3>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Điểm ưu tiên gốc: <span className="text-[#60A5FA] font-bold font-mono">{basePriority} điểm</span> (Giảm dần từ 22.5/30)
+                <p className="text-xs text-slate-200 mt-0.5 font-normal">
+                  Điểm ưu tiên gốc: <span className="text-[#38BDF8] font-black font-mono">{basePriority} điểm</span> (Giảm dần từ 22.5/30)
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-mono text-slate-300 block">Khu vực ưu tiên:</label>
+                  <label className="text-xs font-mono text-slate-200 font-semibold block">Khu vực ưu tiên:</label>
                   <select
                     value={priorityRegion}
                     onChange={(e) => setPriorityRegion(e.target.value as any)}
-                    className="w-full bg-[#16181D] border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                    className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-medium focus:outline-none focus:border-[#3B82F6]"
                   >
                     <option value="KV1">KV1: +0.75 điểm (Vùng khó khăn)</option>
                     <option value="KV2-NT">KV2-NT: +0.50 điểm (Nông thôn)</option>
@@ -984,11 +984,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-mono text-slate-300 block">Đối tượng chính sách:</label>
+                  <label className="text-xs font-mono text-slate-200 font-semibold block">Đối tượng chính sách:</label>
                   <select
                     value={priorityObject}
                     onChange={(e) => setPriorityObject(e.target.value as any)}
-                    className="w-full bg-[#16181D] border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                    className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-medium focus:outline-none focus:border-[#3B82F6]"
                   >
                     <option value="DT_0">Không ưu tiên (0.0đ)</option>
                     <option value="DT_NHOM_1">Nhóm ưu tiên 1 (+2.0đ)</option>
@@ -997,7 +997,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </div>
 
                 <div className="col-span-2 space-y-1">
-                  <label className="text-[11px] font-mono text-slate-300 block">Vùng miền mong muốn học tập:</label>
+                  <label className="text-xs font-mono text-slate-200 font-semibold block">Vùng miền mong muốn học tập:</label>
                   <div className="grid grid-cols-5 gap-1.5 text-xs font-mono">
                     {[
                       { id: 'ALL', label: 'Toàn quốc' },
@@ -1013,7 +1013,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                         className={`py-1 rounded-lg border text-center transition-colors cursor-pointer ${
                           targetRegionFilter === r.id
                             ? 'bg-[#3B82F6] border-[#3B82F6] text-white font-bold'
-                            : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
+                            : 'bg-black/40 border-slate-700 text-slate-200 hover:text-white font-medium'
                         }`}
                       >
                         {r.label}
@@ -1038,7 +1038,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               onChange={(e) => setPersonalQuestion(e.target.value)}
               placeholder='Nhập câu hỏi hoặc băn khoăn chân thực nhất của bạn (Ví dụ: "Em sợ học CNTT sau này khó cạnh tranh với AI", hoặc "Gia đình muốn em thi Ngoại thương nhưng em thích vẽ đồ họa...")...'
               rows={2}
-              className="w-full bg-[#0A0B0E] border border-slate-700 focus:border-[#3B82F6] rounded-xl p-3 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none transition-colors resize-none"
+              className="w-full bg-[#0A0B0E] border border-slate-600 focus:border-[#3B82F6] rounded-xl p-3 text-xs sm:text-sm text-white placeholder-slate-400 font-medium focus:outline-none transition-colors resize-none"
             />
           </div>
 
@@ -1072,14 +1072,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   Bảng Xếp Hạng Ngành Đào Tạo Phù Hợp Nhất Với Bạn
                 </h2>
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Thuật toán Cosine Vector Matching so khớp hồ sơ RIASEC <span className="text-[#60A5FA] font-bold">({dominantRiasec})</span> và năng lực 10 môn của bạn với chuẩn danh mục cấp IV (TT 09/2022 &amp; TT 74/2026).
+              <p className="text-xs text-slate-200 mt-1 font-normal">
+                Thuật toán Cosine Vector Matching so khớp hồ sơ RIASEC <span className="text-[#38BDF8] font-bold">({dominantRiasec})</span> và năng lực 10 môn của bạn với chuẩn danh mục cấp IV (TT 09/2022 &amp; TT 74/2026).
               </p>
             </div>
 
             {/* Quick Filter */}
             <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
-              <span className="text-slate-400 text-[11px]">Lĩnh vực:</span>
+              <span className="text-slate-200 text-xs font-semibold">Lĩnh vực:</span>
               {[
                 { id: 'ALL', label: 'Tất cả' },
                 { id: 'CNTT_BAN_DAN_AI', label: 'CNTT & AI' },
@@ -1095,7 +1095,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   className={`px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
                     selectedSectorFilter === sec.id
                       ? 'bg-[#3B82F6] border-[#3B82F6] text-white font-bold'
-                      : 'bg-black/30 border-slate-800 text-slate-400 hover:text-white'
+                      : 'bg-black/40 border-slate-700 text-slate-200 hover:text-white font-medium'
                   }`}
                 >
                   {sec.label}
@@ -1122,10 +1122,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     <div className="space-y-3">
                       {/* Top Bar: Sector & Match Badge */}
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 truncate max-w-[200px]">
+                        <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-100 border border-slate-600 font-semibold truncate max-w-[220px]">
                           {major.sectorName}
                         </span>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 font-mono text-xs font-bold">
+                        <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-400/50 text-emerald-300 font-mono text-xs font-black">
                           <TrendingUp className="w-3 h-3" />
                           <span>Khớp {major.fitPercent}%</span>
                         </div>
@@ -1133,25 +1133,25 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
                       {/* Major Name & Codes */}
                       <div>
-                        <h3 className="font-sans font-black text-base text-white group-hover:text-[#60A5FA] transition-colors">
+                        <h3 className="font-sans font-black text-lg text-white group-hover:text-[#60A5FA] transition-colors">
                           {major.name}
                         </h3>
-                        <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 mt-0.5">
-                          <span>Mã TT09: <strong className="text-slate-200">{major.codeTT09}</strong></span>
+                        <div className="flex items-center gap-2 text-xs font-mono text-slate-300 mt-0.5">
+                          <span>Mã TT09: <strong className="text-white font-bold">{major.codeTT09}</strong></span>
                           <span>·</span>
-                          <span>Mã TT74: <strong className="text-slate-200">{major.codeTT74}</strong></span>
+                          <span>Mã TT74: <strong className="text-white font-bold">{major.codeTT74}</strong></span>
                         </div>
                       </div>
 
                       {/* Target Job Roles */}
-                      <div className="p-2.5 rounded-xl bg-black/40 border border-slate-800/80 space-y-1">
-                        <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <Briefcase className="w-3 h-3 text-blue-400" />
+                      <div className="p-2.5 rounded-xl bg-black/50 border border-slate-700/80 space-y-1">
+                        <div className="text-xs font-mono text-slate-200 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <Briefcase className="w-3.5 h-3.5 text-blue-400" />
                           <span>Vị trí việc làm mục tiêu (Job Roles):</span>
                         </div>
                         <div className="flex flex-wrap gap-1.5 pt-0.5">
                           {major.targetJobs?.map((job, jIdx) => (
-                            <span key={jIdx} className="text-[11px] px-2 py-0.5 rounded-md bg-blue-950/40 border border-blue-500/20 text-blue-200 font-medium">
+                            <span key={jIdx} className="text-xs px-2.5 py-0.5 rounded-md bg-blue-950/60 border border-blue-400/30 text-blue-100 font-semibold">
                               {job}
                             </span>
                           ))}
@@ -1159,14 +1159,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       </div>
 
                       {/* Labor Market & AI Risk */}
-                      <div className="grid grid-cols-2 gap-2 text-[11px] font-mono pt-1">
-                        <div className="p-2 rounded-lg bg-black/30 border border-slate-800">
-                          <span className="text-slate-400 text-[10px] block">Lương trung vị:</span>
-                          <span className="text-emerald-400 font-bold">{major.salaryMedian}</span>
+                      <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                        <div className="p-2.5 rounded-lg bg-black/40 border border-slate-700/80">
+                          <span className="text-slate-200 text-xs font-medium block">Lương trung vị:</span>
+                          <span className="text-emerald-300 font-black text-sm">{major.salaryMedian}</span>
                         </div>
-                        <div className="p-2 rounded-lg bg-black/30 border border-slate-800">
-                          <span className="text-slate-400 text-[10px] block">Rủi ro AI thay thế:</span>
-                          <span className={major.aiRisk === 'Cực thấp' || major.aiRisk === 'Thấp' ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                        <div className="p-2.5 rounded-lg bg-black/40 border border-slate-700/80">
+                          <span className="text-slate-200 text-xs font-medium block">Rủi ro AI thay thế:</span>
+                          <span className={major.aiRisk === 'Cực thấp' || major.aiRisk === 'Thấp' ? 'text-emerald-300 font-bold text-sm' : 'text-amber-300 font-bold text-sm'}>
                             {major.aiRisk} ({major.aiRiskPercent}%)
                           </span>
                         </div>
@@ -1181,7 +1181,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                           setSelectedMajorCode(major.codeTT09);
                           setActiveTab('tab-combo');
                         }}
-                        className="text-[11px] font-mono text-slate-400 hover:text-white px-2 py-1 rounded transition-colors cursor-pointer"
+                        className="text-xs font-mono text-slate-200 hover:text-white font-semibold px-2.5 py-1 rounded transition-colors cursor-pointer"
                       >
                         Xem tổ hợp môn ➔
                       </button>
@@ -1189,7 +1189,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleSelectMajorAndGoToUniversities(major.codeTT09)}
-                        className={`px-3.5 py-1.5 rounded-xl font-sans font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                        className={`px-4 py-2 rounded-xl font-sans font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white shadow-md'
                             : 'bg-white/10 hover:bg-[#3B82F6] text-white'
@@ -1220,11 +1220,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     F1 BƯỚC 2
                   </span>
                   <h2 className="font-sans font-bold text-lg text-white">
-                    Chiến Lược Chọn Trường 3 Tầng Cho Ngành: <span className="text-[#60A5FA]">{currentMajor?.name}</span>
+                    Chiến Lược Chọn Trường 3 Tầng Cho Ngành: <span className="text-[#38BDF8]">{currentMajor?.name}</span>
                   </h2>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
-                  Điểm xét tuyển dự kiến của bạn: <span className="text-[#60A5FA] font-bold font-mono">{stratifiedUniversities.candidateScore} điểm</span>. Ngân sách học phí: <span className="text-emerald-400 font-bold font-mono">{maxTuition} tr/năm</span>.
+                <p className="text-xs text-slate-200 mt-1 font-normal">
+                  Điểm xét tuyển dự kiến của bạn: <span className="text-[#38BDF8] font-black font-mono">{stratifiedUniversities.candidateScore} điểm</span>. Ngân sách học phí: <span className="text-emerald-300 font-black font-mono">{maxTuition} tr/năm</span>.
                 </p>
               </div>
 
@@ -1232,7 +1232,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <select
                 value={selectedMajorCode}
                 onChange={(e) => setSelectedMajorCode(e.target.value)}
-                className="bg-[#16181D] border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
               >
                 {rankedMajors.map(m => (
                   <option key={m.codeTT09} value={m.codeTT09}>
@@ -1246,11 +1246,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           {/* 3 TIERS CONTAINERS */}
           {/* TIER 1: DREAM TIER */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-bold uppercase tracking-wider px-1">
+            <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-black uppercase tracking-wider px-1">
               <span>🌟 TẦNG 1: NGUYỆN VỌNG MƠ ƯỚC (DREAM TIER - ĐIỂM CHUẨN CAO HƠN BẠN 0.5 ĐẾN 1.5Đ)</span>
             </div>
             {stratifiedUniversities.dream.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-400 text-xs">
+              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
                 Không có trường nào trong tầng mơ ước (Điểm của bạn đã ở mức rất cao, đủ an toàn cho nhóm trường dẫn đầu).
               </div>
             ) : (
@@ -1272,11 +1272,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
           {/* TIER 2: TARGET TIER */}
           <div className="space-y-3 pt-2">
-            <div className="flex items-center gap-2 text-[#60A5FA] font-mono text-xs font-bold uppercase tracking-wider px-1">
+            <div className="flex items-center gap-2 text-[#38BDF8] font-mono text-xs font-black uppercase tracking-wider px-1">
               <span>🎯 TẦNG 2: NGUYỆN VỌNG VỪA SỨC (TARGET TIER - BIÊN ĐỘ ±0.5Đ, XÁC SUẤT ĐỖ 70 - 85%)</span>
             </div>
             {stratifiedUniversities.target.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-400 text-xs">
+              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
                 Hiện chưa có trường trong dải vừa sức chính xác. Bạn có thể xem các trường ở tầng an toàn bên dưới.
               </div>
             ) : (
@@ -1298,11 +1298,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
           {/* TIER 3: SAFE TIER */}
           <div className="space-y-3 pt-2">
-            <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs font-bold uppercase tracking-wider px-1">
+            <div className="flex items-center gap-2 text-emerald-300 font-mono text-xs font-black uppercase tracking-wider px-1">
               <span>🛡️ TẦNG 3: NGUYỆN VỌNG AN TOÀN (SAFE TIER - ĐIỂM CHUẨN THẤP HƠN BẠN ≥ 1.5Đ, XÁC SUẤT ĐỖ ≥ 95%)</span>
             </div>
             {stratifiedUniversities.safe.length === 0 ? (
-              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-400 text-xs">
+              <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
                 Bạn chưa có trường an toàn nào cho ngành này. Hãy cân nhắc thêm các phân hiệu hoặc trường vùng.
               </div>
             ) : (
@@ -1338,10 +1338,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     F1 BƯỚC 3 (TỐI ƯU HÓA)
                   </span>
                   <h2 className="font-sans font-bold text-lg text-white">
-                    Tối Ưu Hóa Tổ Hợp Môn Cho Trường: <span className="text-[#60A5FA]">{currentUniversity?.official_name || selectedSchoolCode} ({selectedSchoolCode})</span>
+                    Tối Ưu Hóa Tổ Hợp Môn Cho Trường: <span className="text-[#38BDF8]">{currentUniversity?.official_name || selectedSchoolCode} ({selectedSchoolCode})</span>
                   </h2>
                 </div>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-200 mt-1 font-normal">
                   Áp dụng công thức giảm ưu tiên tuyến tính từ 22.5đ theo Khoản 4 Điều 7 Thông tư 06/2026/TT-BGDĐT. Điểm trần: 30.0đ.
                 </p>
               </div>
@@ -1351,7 +1351,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <select
                   value={selectedSchoolCode}
                   onChange={(e) => setSelectedSchoolCode(e.target.value)}
-                  className="bg-[#16181D] border border-slate-700 rounded-xl px-2.5 py-1 text-xs text-white font-mono focus:outline-none focus:border-[#3B82F6]"
+                  className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
                 >
                   <option value="BKA">BKA - ĐH Bách Khoa Hà Nội</option>
                   <option value="NTH">NTH - ĐH Ngoại Thương</option>
@@ -1380,7 +1380,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     {/* Left: Combo Code & Subjects */}
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-lg text-white px-2.5 py-0.5 rounded-lg bg-black/50 border border-slate-700">
+                        <span className="font-mono font-black text-xl text-white px-3 py-1 rounded-xl bg-black/60 border border-slate-600">
                           {combo.code}
                         </span>
                         {isBest && (
@@ -1389,34 +1389,34 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                             <span>TỔ HỢP TỐI ƯU NHẤT (#1)</span>
                           </span>
                         )}
-                        <span className="text-xs text-slate-300 font-medium">
+                        <span className="text-sm text-slate-100 font-bold">
                           {combo.subNames}
                         </span>
                       </div>
-                      <div className="text-[11px] font-mono text-slate-400">
-                        Điểm thành phần: Môn 1 = <strong className="text-white">{combo.m1}</strong>, Môn 2 = <strong className="text-white">{combo.m2}</strong>, Môn 3 = <strong className="text-white">{combo.m3}</strong>
+                      <div className="text-xs font-mono text-slate-200 font-medium">
+                        Điểm thành phần: Môn 1 = <strong className="text-white font-bold">{combo.m1}</strong>, Môn 2 = <strong className="text-white font-bold">{combo.m2}</strong>, Môn 3 = <strong className="text-white font-bold">{combo.m3}</strong>
                       </div>
                     </div>
 
                     {/* Right: Scores & Margin */}
                     <div className="flex items-center gap-4 text-right">
                       <div>
-                        <div className="text-[10px] font-mono text-slate-400 uppercase">Điểm gốc</div>
-                        <div className="font-mono text-sm text-slate-300 font-bold">{combo.rawScore}</div>
+                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm gốc</div>
+                        <div className="font-mono text-sm text-white font-bold">{combo.rawScore}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] font-mono text-slate-400 uppercase">
-                          Ưu tiên {combo.isReduced && <span className="text-amber-400 text-[9px]">(Giảm TT06)</span>}
+                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">
+                          Ưu tiên {combo.isReduced && <span className="text-amber-300 text-[10px] font-bold">(Giảm TT06)</span>}
                         </div>
-                        <div className="font-mono text-sm text-amber-400 font-bold">+{combo.effectivePriority}</div>
+                        <div className="font-mono text-sm text-amber-300 font-black">+{combo.effectivePriority}</div>
                       </div>
-                      <div className="p-2 rounded-xl bg-black/40 border border-slate-700 min-w-[90px]">
-                        <div className="text-[10px] font-mono text-slate-400 uppercase">Điểm xét tuyển</div>
-                        <div className="font-mono text-lg text-[#60A5FA] font-black">{combo.officialScore}</div>
+                      <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[95px]">
+                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm xét tuyển</div>
+                        <div className="font-mono text-xl text-[#38BDF8] font-black">{combo.officialScore}</div>
                       </div>
-                      <div className="p-2 rounded-xl bg-black/40 border border-slate-700 min-w-[85px]">
-                        <div className="text-[10px] font-mono text-slate-400 uppercase">Biên độ</div>
-                        <div className={`font-mono text-sm font-bold ${combo.margin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[90px]">
+                        <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Biên độ</div>
+                        <div className={`font-mono text-sm font-black ${combo.margin >= 0 ? 'text-emerald-300' : 'text-red-400'}`}>
                           {combo.margin >= 0 ? `+${combo.margin}` : combo.margin}
                         </div>
                       </div>
@@ -1425,12 +1425,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
                   {/* TT 06 Linear Reduction Formula Explainer */}
                   {combo.isReduced && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                      <div className="flex items-center gap-1.5 text-amber-300">
-                        <Info className="w-3.5 h-3.5" />
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-200">
+                      <div className="flex items-center gap-1.5 text-amber-300 font-medium">
+                        <Info className="w-3.5 h-3.5 shrink-0" />
                         <span>Khoản 4 Điều 7 TT 06/2026: Điểm gốc {combo.rawScore} ≥ 22.5 ➔ Hệ số giảm = [(30 - {combo.rawScore}) / 7.5] = {((30 - combo.rawScore) / 7.5).toFixed(2)} ➔ ĐƯT thực nhận = {combo.effectivePriority}đ</span>
                       </div>
-                      <span className="text-slate-400">Không vượt trần 30.0đ</span>
+                      <span className="text-slate-200 font-semibold shrink-0">Không vượt trần 30.0đ</span>
                     </div>
                   )}
                 </div>
@@ -1452,14 +1452,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <Sparkles className="w-4 h-4 text-emerald-400" />
                   <span>Bài Trắc Nghiệm Tâm Trắc O*NET Interest Profiler (60 Câu)</span>
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-200 font-normal">
                   Thang đo Likert 5 mức (1: Rất không thích ➔ 5: Rất thích). Tự động cập nhật 6 miền RIASEC.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowOnetModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs cursor-pointer"
+                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-xs cursor-pointer font-bold"
               >
                 ✕
               </button>
@@ -1472,10 +1472,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 return (
                   <div key={q.id} className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-0.5 max-w-lg">
-                      <div className="text-[10px] font-mono text-emerald-400 font-bold">
+                      <div className="text-xs font-mono text-emerald-300 font-bold">
                         Câu {idx + 1}/60 · Nhóm {q.dimension}
                       </div>
-                      <div className="text-xs text-slate-200 font-medium">{q.text}</div>
+                      <div className="text-sm text-white font-medium">{q.text}</div>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {[1, 2, 3, 4, 5].map(v => (
@@ -1487,8 +1487,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                           }}
                           className={`w-7 h-7 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                             currentVal === v
-                              ? 'bg-emerald-500 text-black shadow-sm scale-105'
-                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                              ? 'bg-emerald-400 text-black shadow-md scale-105 font-black'
+                              : 'bg-slate-800 text-slate-100 hover:bg-slate-700 hover:text-white font-bold'
                           }`}
                         >
                           {v}
@@ -1501,7 +1501,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </div>
 
             <div className="p-4 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs font-mono text-slate-200 font-semibold">
                 Đã trả lời: {Object.keys(onetAnswers).length}/60 câu
               </span>
               <button
@@ -1581,50 +1581,50 @@ const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
       <div className="space-y-2">
         {/* Header: Code & Location */}
         <div className="flex items-center justify-between text-xs font-mono">
-          <span className="font-bold text-white px-2 py-0.5 rounded bg-black/40 border border-slate-700">
+          <span className="font-black text-white px-2.5 py-0.5 rounded bg-black/60 border border-slate-600">
             {inst.schoolCode}
           </span>
-          <span className="text-slate-400">{inst.city}</span>
+          <span className="text-slate-200 text-xs font-medium">{inst.city}</span>
         </div>
 
         {/* School Name */}
-        <h4 className="font-sans font-bold text-sm text-white group-hover:text-[#60A5FA] transition-colors line-clamp-1">
+        <h4 className="font-sans font-bold text-base text-white group-hover:text-[#60A5FA] transition-colors line-clamp-1">
           {inst.schoolName}
         </h4>
 
         {/* Benchmarks 3 years */}
-        <div className="grid grid-cols-3 gap-1.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] font-mono text-center">
+        <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-black/50 border border-slate-700/80 text-xs font-mono text-center">
           <div>
-            <span className="text-[9px] text-slate-400 block">2024</span>
-            <span className="text-slate-300 font-bold">{inst.benchmark2024}</span>
+            <span className="text-[10px] text-slate-200 font-semibold block">2024</span>
+            <span className="text-slate-200 font-bold text-sm">{inst.benchmark2024}</span>
           </div>
           <div>
-            <span className="text-[9px] text-slate-400 block">2025</span>
-            <span className="text-white font-bold">{inst.benchmark2025}</span>
+            <span className="text-[10px] text-slate-200 font-semibold block">2025</span>
+            <span className="text-white font-black text-sm">{inst.benchmark2025}</span>
           </div>
           <div>
-            <span className="text-[9px] text-slate-400 block">2026 (Est)</span>
-            <span className="text-blue-400 font-bold">{inst.benchmark2026}</span>
+            <span className="text-[10px] text-slate-200 font-semibold block">2026 (Est)</span>
+            <span className="text-[#38BDF8] font-black text-sm">{inst.benchmark2026}</span>
           </div>
         </div>
 
         {/* Tuition & Financial Feasibility */}
         <div className="flex items-center justify-between text-xs font-mono pt-1">
-          <span className="text-slate-400 text-[11px]">Học phí:</span>
+          <span className="text-slate-200 text-xs font-medium">Học phí:</span>
           <div className="flex items-center gap-1.5">
-            <span className={inst.isFreeTuition ? 'text-emerald-400 font-bold' : isBudgetOk ? 'text-slate-200' : 'text-amber-400'}>
+            <span className={inst.isFreeTuition ? 'text-emerald-300 font-black' : isBudgetOk ? 'text-white font-bold' : 'text-amber-300 font-bold'}>
               {inst.tuitionDisplay}
             </span>
             {inst.isFreeTuition ? (
-              <span className="px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-500/40 text-[9px] text-emerald-400">
+              <span className="px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-500/50 text-[10px] text-emerald-300 font-bold">
                 Miễn 100%
               </span>
             ) : isBudgetOk ? (
-              <span className="px-1.5 py-0.2 rounded bg-blue-950 border border-blue-500/40 text-[9px] text-blue-300">
+              <span className="px-1.5 py-0.2 rounded bg-blue-950 border border-blue-500/50 text-[10px] text-blue-200 font-bold">
                 Hợp ngân sách
               </span>
             ) : (
-              <span className="px-1.5 py-0.2 rounded bg-amber-950 border border-amber-500/40 text-[9px] text-amber-300">
+              <span className="px-1.5 py-0.2 rounded bg-amber-950 border border-amber-500/50 text-[10px] text-amber-200 font-bold">
                 Vượt ngân sách
               </span>
             )}
@@ -1632,7 +1632,7 @@ const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
         </div>
 
         {inst.tuitionPolicyNote && (
-          <p className="text-[10px] text-emerald-400/90 leading-tight bg-emerald-950/30 p-1.5 rounded border border-emerald-500/20">
+          <p className="text-xs text-emerald-300 leading-tight bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/30 font-medium">
             {inst.tuitionPolicyNote}
           </p>
         )}
@@ -1640,7 +1640,7 @@ const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
 
       {/* Action Button */}
       <div className="pt-3 border-t border-slate-800 mt-3 flex items-center justify-between text-xs">
-        <span className={`font-mono font-bold ${margin >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+        <span className={`font-mono font-black text-sm ${margin >= 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
           Biên độ: {margin >= 0 ? `+${margin}` : margin}đ
         </span>
         <button
@@ -1649,7 +1649,7 @@ const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
             e.stopPropagation();
             onSelect();
           }}
-          className="text-[11px] font-sans font-bold text-[#60A5FA] hover:text-white flex items-center gap-1 cursor-pointer"
+          className="text-xs font-sans font-bold text-[#38BDF8] hover:text-white flex items-center gap-1 cursor-pointer"
         >
           <span>Tối ưu tổ hợp môn (Tab 3)</span>
           <ChevronRight className="w-3.5 h-3.5" />

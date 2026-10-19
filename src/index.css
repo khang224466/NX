@@ -315,7 +315,7 @@ html.dark [class*="text-[#D8DFEB]"] {
 html.dark [class*="text-[#8E9BAE]"],
 html.dark [class*="text-[#64748B]"],
 html.dark [class*="text-[#94A3B8]"] {
-  color: #8E929F !important;
+  color: #CBD5E1 !important;
 }
 
 html.dark [class*="border-white/"] {

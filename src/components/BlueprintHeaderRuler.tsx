@@ -144,8 +144,8 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             </span>
             <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-mono text-[#D1D5DB] tracking-wider uppercase">
               <span className="font-semibold text-white">NEXORA</span>
-              <span className="text-[#64748B]">/</span>
-              <span className="text-[#94A3B8] hidden sm:inline text-[11px]">WEBSITE HỖ TRỢ HƯỚNG NGHIỆP</span>
+              <span className="text-slate-500">/</span>
+              <span className="text-slate-200 hidden sm:inline text-[11px] font-medium">WEBSITE HỖ TRỢ HƯỚNG NGHIỆP</span>
             </div>
           </button>
         </div>
@@ -168,10 +168,10 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
                 className={`px-3 py-1.5 whitespace-nowrap text-xs transition-all duration-200 rounded-full flex items-center gap-1.5 cursor-pointer ${
                   isActive
                     ? 'bg-[#3B82F6]/20 text-white border border-[#3B82F6] font-semibold shadow-[0_0_12px_rgba(59,130,246,0.25)]'
-                    : 'bg-transparent text-[#94A3B8] hover:text-white border border-transparent hover:border-[#262630]'
+                    : 'bg-transparent text-slate-200 hover:text-white border border-transparent hover:border-[#262630] font-medium'
                 }`}
               >
-                <span className={`text-[10px] ${isActive ? 'text-[#60A5FA] font-bold' : 'text-[#64748B]'}`}>
+                <span className={`text-[10px] ${isActive ? 'text-[#60A5FA] font-bold' : 'text-slate-400 font-semibold'}`}>
                   {tab.num}
                 </span>
                 <span>{tab.label}</span>
