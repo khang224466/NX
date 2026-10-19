@@ -2533,21 +2533,21 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
       const data = await response.json().catch(() => ({}));
 
+      let aiReply = data?.replyText;
+      let aiQuickReplies = data?.quickReplies || [];
+
       if (!response.ok || !data.success) {
-        // Lỗi backend (hết quota, mất mạng, chưa có key...)
-        const errMsg = data.error || 'Máy chủ AI tạm thời gián đoạn kết nối. Bạn vui lòng thử lại nhé.';
-        setAnalysisError(errMsg);
-        setIsGeneratingAnalysis(false);
-        // Không ép hiển thị nghề giả lập, giữ nguyên giao diện để người học thử lại
-        return;
+        // Graceful non-blocking fallback: do not trap student on reality check
+        console.warn('[Nexora AI Counselor Fallback]:', data?.error || 'AI backend unavailable, utilizing grounded Decision Engine.');
+        aiReply = decision.replyText;
+        aiQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
+          ? decision.quickReplies
+          : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+        setAnalysisError(null);
       }
 
-      // Nhận phản hồi thành công từ AI
-      const aiReply = data.replyText;
-      const aiQuickReplies = data.quickReplies || [];
-
       // Đồng bộ các bằng chứng mới phát hiện nếu có
-      if (data.detectedUpdates?.statedInterests) {
+      if (data?.detectedUpdates?.statedInterests) {
         for (const item of data.detectedUpdates.statedInterests) {
           if (!updatedProfile.statedInterests.includes(item)) {
             updatedProfile.statedInterests.push(item);
@@ -2594,9 +2594,49 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       });
 
     } catch (err: any) {
-      console.error('[Nexora AI Counselor Call Error]:', err);
+      console.warn('[Nexora AI Counselor Call Network Fallback]:', err);
+      // Graceful non-blocking fallback on network exception
+      const fallbackReply = decision.replyText;
+      const fallbackQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
+        ? decision.quickReplies
+        : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+
+      const readiness = evaluateEvidenceReadiness(updatedProfile);
+      setLearnerEvidenceProfile(updatedProfile);
+      saveLearnerProfile(updatedProfile);
+
+      setAnalysisText(fallbackReply);
+      setAdaptiveQuickReplies(fallbackQuickReplies);
+
+      const newMessages = [
+        { role: 'user' as const, content: userPromptContent },
+        { role: 'model' as const, content: fallbackReply }
+      ];
+      setChatMessages(newMessages);
+
+      let newCareers: SuggestedCareerItem[] = [];
+      if (readiness.isReadyForCareers) {
+        newCareers = generateGroundedCareerProposals(updatedProfile) as SuggestedCareerItem[];
+        setSuggestedCareers(newCareers);
+      } else {
+        setSuggestedCareers([]);
+      }
+
       setIsGeneratingAnalysis(false);
-      setAnalysisError(`Lỗi kết nối tới máy chủ AI: ${err.message || 'Mất kết nối mạng'}. Bạn vui lòng kiểm tra kết nối và thử lại nhé.`);
+      setWorkflowStep('ANALYZED_COMBOS');
+      sfx.playActionSuccess();
+
+      saveSessionSnapshot({
+        title: text.slice(0, 45),
+        messages: newMessages,
+        profile: updatedProfile,
+        workflowStep: 'ANALYZED_COMBOS',
+        analysisText: fallbackReply,
+        suggestedCareers: newCareers,
+        adaptiveQuickReplies: fallbackQuickReplies,
+        activePromptQuery: text,
+        realityCheckAnswer: rAnswer
+      });
     }
   };
 
@@ -2640,27 +2680,20 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
 
       const data = await response.json().catch(() => ({}));
 
+      let aiReply = data?.replyText;
+      let aiQuickReplies = data?.quickReplies || [];
+
       if (!response.ok || !data.success) {
-        setIsAskingFollowUp(false);
-        const errMsg = data.error || 'Dịch vụ AI đang gặp gián đoạn tạm thời. Dữ liệu của bạn được bảo toàn.';
-        setAnalysisError(errMsg);
-        setChatMessages([
-          ...newMessages,
-          {
-            role: 'model' as const,
-            content: `⚠️ ${errMsg} Bạn hãy bấm vào gợi ý bên dưới để thử lại hoặc hỏi theo cách khác nhé.`
-          }
-        ]);
-        setAdaptiveQuickReplies([q, 'Chia sẻ thêm về trải nghiệm học tập của bạn']);
-        return;
+        console.warn('[Nexora Follow-Up Fallback]:', data?.error || 'AI backend unavailable, using Decision Engine.');
+        aiReply = decision.replyText;
+        aiQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
+          ? decision.quickReplies
+          : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+        setAnalysisError(null);
       }
 
-      // Phản hồi AI thành công
-      const aiReply = data.replyText;
-      const aiQuickReplies = data.quickReplies || [];
-
       // Đồng bộ bằng chứng mới phát hiện
-      if (data.detectedUpdates?.statedInterests) {
+      if (data?.detectedUpdates?.statedInterests) {
         for (const item of data.detectedUpdates.statedInterests) {
           if (!updatedProfile.statedInterests.includes(item)) {
             updatedProfile.statedInterests.push(item);
@@ -2694,17 +2727,27 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       });
 
     } catch (err: any) {
-      console.error('[Nexora AI Follow-Up Error]:', err);
+      console.warn('[Nexora AI Follow-Up Network Fallback]:', err);
       setIsAskingFollowUp(false);
-      setAnalysisError(`Lỗi kết nối tới máy chủ AI: ${err.message || 'Mất kết nối mạng'}.`);
-      setChatMessages([
+      const fallbackReply = decision.replyText;
+      const fallbackQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
+        ? decision.quickReplies
+        : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+
+      const finalMessages = [
         ...newMessages,
         {
           role: 'model' as const,
-          content: '⚠️ Lỗi kết nối mạng khi liên lạc với máy chủ AI. Dữ liệu của bạn được bảo toàn nguyên vẹn. Bạn vui lòng thử lại nhé.'
+          content: fallbackReply
         }
-      ]);
-      setAdaptiveQuickReplies([q, 'Thử lại câu hỏi này']);
+      ];
+      setChatMessages(finalMessages);
+      setAdaptiveQuickReplies(fallbackQuickReplies);
+      saveSessionSnapshot({
+        messages: finalMessages,
+        profile: updatedProfile,
+        adaptiveQuickReplies: fallbackQuickReplies
+      });
     }
   };
 

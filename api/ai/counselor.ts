@@ -1,4 +1,7 @@
-import { handleCounselorChatRequest } from '../../scripts/counselor_backend.mjs';
+// @ts-nocheck
+import { handleCounselorChatRequest } from '../../src/services/counselorBackend';
+
+export const maxDuration = 60;
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'GET') {

@@ -258,22 +258,6 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             )}
           </button>
 
-          {/* 3. Live Continuous Test Runner Pill */}
-          <button
-            onClick={() => {
-              sfx.playUiClick();
-              onOpenTestRunner?.();
-            }}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#141722] hover:bg-[#1E2333] border border-[#2B3142] hover:border-[#C6F135] text-slate-200 hover:text-white font-mono text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs group"
-            title="Mở Bảng Kiểm Thử Thời Gian Thực (Continuous Real-Time Test Runner - 66 Assertions)"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C6F135] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C6F135]" />
-            </span>
-            <span className="text-[#C6F135] group-hover:text-white">Live Test</span>
-            <span className="text-slate-400 group-hover:text-slate-300 font-normal text-[11px]">(66/66)</span>
-          </button>
 
           {/* 4. Signature White Pill Button */}
           <button

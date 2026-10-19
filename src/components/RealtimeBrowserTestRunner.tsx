@@ -92,17 +92,17 @@ export const RealtimeBrowserTestRunner: React.FC<RealtimeBrowserTestRunnerProps>
     });
   }, []);
 
-  // Initial immediate run on mount
+  // Continuous timer loop (only runs when modal is actively open)
   useEffect(() => {
-    executeCycle();
-  }, [executeCycle]);
-
-  // Continuous timer loop
-  useEffect(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    if (!isOpen) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
     }
+
+    executeCycle();
 
     if (isRunning && intervalMs > 0) {
       timerRef.current = setInterval(() => {
@@ -116,7 +116,7 @@ export const RealtimeBrowserTestRunner: React.FC<RealtimeBrowserTestRunnerProps>
         timerRef.current = null;
       }
     };
-  }, [isRunning, intervalMs, executeCycle]);
+  }, [isOpen, isRunning, intervalMs, executeCycle]);
 
   // Auto-scroll terminal
   useEffect(() => {
@@ -173,74 +173,12 @@ export const RealtimeBrowserTestRunner: React.FC<RealtimeBrowserTestRunnerProps>
   const passRate = lastSummary ? lastSummary.passRate : 100;
   const isAllPass = lastSummary ? lastSummary.failCount === 0 : true;
 
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <>
-      {/* 1. PERSISTENT FLOATING LIVE DOCK PILL (Bottom Right) */}
-      {!isOpen && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 group animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="flex items-center bg-[#0C0D12]/95 border border-[#2D3139] hover:border-[#C6F135] shadow-2xl rounded-full p-1.5 pl-3 backdrop-blur-md transition-all duration-200">
-            {/* Live Pulsing Dot */}
-            <div className="flex items-center gap-2 mr-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span 
-                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                    isAllPass ? 'bg-[#C6F135]' : 'bg-red-500'
-                  }`} 
-                />
-                <span 
-                  className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                    isAllPass ? 'bg-[#C6F135]' : 'bg-red-500'
-                  }`} 
-                />
-              </span>
-              <span className="text-xs font-mono font-bold text-white tracking-tight flex items-center gap-1.5">
-                <span className="text-[#C6F135]">LIVE TEST</span>
-                <span className="text-slate-300 font-normal">|</span>
-                <span className={isAllPass ? 'text-white' : 'text-red-400'}>
-                  {lastSummary ? `${lastSummary.passCount}/${lastSummary.totalTests} PASS` : '66/66 PASS'}
-                </span>
-                <span className="text-slate-300 text-[11px] font-normal">
-                  ({lastSummary ? `${lastSummary.totalDurationMs}ms` : '20ms'})
-                </span>
-                <span className="text-cyan-400 text-[10px] bg-cyan-950/70 px-1.5 py-0.2 rounded border border-cyan-800/60 ml-1">
-                  #{cycleCount}
-                </span>
-              </span>
-            </div>
-
-            {/* Quick Play/Pause */}
-            <button
-              onClick={() => setIsRunning(prev => !prev)}
-              className="p-1.5 text-slate-200 hover:text-white hover:bg-slate-800 rounded-full transition-colors cursor-pointer"
-              title={isRunning ? "Tạm dừng kiểm thử tự động" : "Tiếp tục kiểm thử tự động"}
-            >
-              {isRunning ? <Pause className="w-3.5 h-3.5 text-amber-400" /> : <Play className="w-3.5 h-3.5 text-[#C6F135]" />}
-            </button>
-
-            {/* Quick Run Once */}
-            <button
-              onClick={executeCycle}
-              className="p-1.5 text-slate-200 hover:text-white hover:bg-slate-800 rounded-full transition-colors cursor-pointer"
-              title="Chạy kiểm thử ngay"
-            >
-              <RotateCw className="w-3.5 h-3.5 text-cyan-400 hover:rotate-180 transition-transform duration-300" />
-            </button>
-
-            {/* Expand Modal Button */}
-            <button
-              onClick={() => setIsOpen(true)}
-              className="px-2.5 py-1 bg-[#1F232B] hover:bg-[#C6F135] text-slate-200 hover:text-black rounded-full text-xs font-mono font-semibold transition-all duration-200 ml-1 flex items-center gap-1 cursor-pointer"
-            >
-              <Maximize2 className="w-3 h-3" />
-              <span>Mở Chi Tiết</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 2. FULL INTERACTIVE REAL-TIME TEST RUNNER MODAL */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
           <div 
             className={`w-full bg-[#090A0F] border border-[#2B2F3A] shadow-2xl flex flex-col overflow-hidden rounded-2xl transition-all duration-300 ${
               isFullScreen ? 'h-full max-h-[100vh]' : 'h-[92vh] max-w-6xl'
@@ -734,7 +672,5 @@ export const RealtimeBrowserTestRunner: React.FC<RealtimeBrowserTestRunnerProps>
             </div>
           </div>
         </div>
-      )}
-    </>
   );
 };
