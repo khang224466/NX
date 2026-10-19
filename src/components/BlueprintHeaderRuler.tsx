@@ -150,13 +150,14 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
           </button>
         </div>
 
-        {/* Center: Consolidated Nav Tabs (01 Trang Chủ, 02 Tổ Hợp Môn) */}
+        {/* Center: Consolidated Nav Tabs (01 Cố Vấn & Tuyển Sinh, 02 Tra Cứu Tổ Hợp, 03 Tra Cứu 300 Trường) */}
         <div className="flex items-center gap-1 sm:gap-2">
           {[
-            { id: 'home', num: '01', label: 'Trang Chủ' },
-            { id: 'to-hop', num: '02', label: 'Tổ Hợp Môn' },
+            { id: 'home', num: '01', label: 'Cố Vấn & Tuyển Sinh' },
+            { id: 'to-hop', num: '02', label: 'Tra Cứu Tổ Hợp' },
+            { id: 'truong', num: '03', label: 'Tra Cứu 300 Trường' },
           ].map((tab) => {
-            const isActive = currentTab === tab.id || (tab.id === 'to-hop' && (currentTab === 'to-hop-detail' || currentTab === 'to-hop'));
+            const isActive = currentTab === tab.id || (tab.id === 'to-hop' && (currentTab === 'to-hop-detail' || currentTab === 'to-hop')) || (tab.id === 'truong' && (currentTab === 'truong-detail' || currentTab === 'truong'));
             return (
               <button
                 key={tab.id}

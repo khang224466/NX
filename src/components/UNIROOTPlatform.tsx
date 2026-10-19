@@ -69,6 +69,7 @@ import { BlueprintCommandPalette } from './BlueprintCommandPalette';
 import { PierGorelliMotionSuite } from './PierGorelliMotionSuite';
 import { PageTransitionShutter } from './PageTransitionShutter';
 import { CareerPathwayNavigator } from './CareerPathwayNavigator';
+import { Scientific4TabPortal } from './Scientific4TabPortal';
 import { AIMajorSchoolAssistant } from './AIMajorSchoolAssistant';
 import { MajorQuickDetailModal } from './MajorQuickDetailModal';
 import { 
@@ -559,7 +560,7 @@ const HomeView: React.FC<{
 }> = ({ stats, onNavigate, onOpenAIChat }) => {
   return (
     <div className="space-y-8 pb-16">
-      <CareerPathwayNavigator
+      <Scientific4TabPortal
         onSelectSchool={(schoolCode) => {
           onNavigate('truong-detail', schoolCode);
         }}

@@ -76,7 +76,7 @@ export class GeminiProviderAdapter implements AIProviderAdapter {
   candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash'];
 
   isAvailable(env: Record<string, string | undefined>): boolean {
-    const key = env.GEMINI_API_KEY?.trim() || DEFAULT_SERVER_GEMINI_KEY;
+    const key = env.GEMINI_API_KEY !== undefined ? env.GEMINI_API_KEY.trim() : DEFAULT_SERVER_GEMINI_KEY;
     return Boolean(key);
   }
 
@@ -86,7 +86,7 @@ export class GeminiProviderAdapter implements AIProviderAdapter {
     timeoutMs = 25000,
     env
   }: ProviderCompletionParams): Promise<ProviderCompletionResult> {
-    const apiKey = env.GEMINI_API_KEY?.trim() || DEFAULT_SERVER_GEMINI_KEY;
+    const apiKey = env.GEMINI_API_KEY !== undefined ? env.GEMINI_API_KEY.trim() : DEFAULT_SERVER_GEMINI_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is not configured on the server.');
     }

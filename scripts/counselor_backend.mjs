@@ -253,7 +253,7 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
   }
 
   const DEFAULT_SERVER_GEMINI_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
-  const geminiKey = env.GEMINI_API_KEY?.trim() || DEFAULT_SERVER_GEMINI_KEY;
+  const geminiKey = env.GEMINI_API_KEY !== undefined ? env.GEMINI_API_KEY.trim() : DEFAULT_SERVER_GEMINI_KEY;
   const groqKey = env.GROQ_API_KEY?.trim() || '';
 
   if (!geminiKey && !groqKey) {

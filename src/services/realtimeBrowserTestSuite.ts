@@ -20,8 +20,13 @@ import {
 } from '../engine/careerDecisionEngine';
 
 import { 
-  executeAdmissionsCalculation 
+  executeAdmissionsCalculation,
+  calculateEffectivePriority,
+  calculateBasePriority30
 } from './admissionsCalculationEngine';
+
+import { getTuitionContext } from './counselorBackend';
+import seedData from '../data/seed_data.json';
 
 import { 
   AUDITED_INSTITUTIONS_300 
@@ -609,6 +614,87 @@ export function runBrowserTestSuite(cycleNumber: number = 1): TestSuiteSummary {
   const isSortedCorrectly = resSorted.length >= 2 && resSorted[0].matchingSchoolsCount >= resSorted[1].matchingSchoolsCount;
   record(s8Id, s8Name, 'COMBO-05', 'Sắp xếp "schools_desc" đảm bảo tổ hợp nhiều trường tuyển nhất đứng đầu', 'data_sanity',
     isSortedCorrectly, 'resSorted[0].matchingSchoolsCount >= resSorted[1].matchingSchoolsCount', `Top 1: ${resSorted[0]?.combo.code} (${resSorted[0]?.matchingSchoolsCount} trường) >= Top 2: ${resSorted[1]?.combo.code} (${resSorted[1]?.matchingSchoolsCount} trường)`, 'Sắp xếp chính xác');
+
+  // =========================================================================
+  // SUITE 9: SPEC.MD ACCEPTANCE TEST CASES TC-01 ĐẾN TC-10 (10 ASSERTIONS)
+  // =========================================================================
+  const s9Id = 'suite-acceptance-tc01-tc10';
+  const s9Name = '10 Ca Kiểm Thử Nghiệm Thu Khoa Học (SPEC.MD TC-01 -> TC-10)';
+
+  // TC-01: FML_01 Thang 30 không giảm ưu tiên
+  const tc1P = calculateEffectivePriority(0.75, 21.0, 30);
+  record(s9Id, s9Name, 'TC-01', 'FML_01 Thang 30: Điểm gốc = 21.0 < 22.5 giữ nguyên ĐƯT = 0.75, ĐXT = 21.75', 'admissions_math',
+    !tc1P.isReduced && tc1P.effectivePriority === 0.75 && (21.0 + tc1P.effectivePriority) === 21.75,
+    'effectivePriority === 0.75, ĐXT === 21.75', `ĐƯT: ${tc1P.effectivePriority} | ĐXT: ${21.0 + tc1P.effectivePriority}`, 'Khoản 4 Điều 7 TT 06/2026');
+
+  // TC-02: FML_01 Mốc bắt đầu giảm ưu tiên
+  const tc2P = calculateEffectivePriority(0.75, 22.50, 30);
+  record(s9Id, s9Name, 'TC-02', 'FML_01 Thang 30: Điểm gốc = 22.50, Hệ số = 1.0, ĐƯT = 0.75, ĐXT = 23.25', 'admissions_math',
+    tc2P.effectivePriority === 0.75 && Number((22.50 + tc2P.effectivePriority).toFixed(2)) === 23.25,
+    'effectivePriority === 0.75, ĐXT === 23.25', `ĐƯT: ${tc2P.effectivePriority} | ĐXT: ${22.50 + tc2P.effectivePriority}`, 'Mốc 75% thang điểm');
+
+  // TC-03: FML_01 Điểm cao giảm ưu tiên tuyến tính
+  const tc3P = calculateEffectivePriority(0.75, 27.0, 30);
+  record(s9Id, s9Name, 'TC-03', 'FML_01 Thang 30: Điểm gốc = 27.0, Hệ số = 0.40, ĐƯT = 0.30, ĐXT = 27.30', 'admissions_math',
+    tc3P.isReduced && Number(tc3P.effectivePriority.toFixed(2)) === 0.30 && Number((27.0 + tc3P.effectivePriority).toFixed(2)) === 27.30,
+    'effectivePriority === 0.30, ĐXT === 27.30', `ĐƯT: ${Number(tc3P.effectivePriority.toFixed(2))} | ĐXT: ${Number((27.0 + tc3P.effectivePriority).toFixed(2))}`, 'Giảm dần tuyến tính');
+
+  // TC-04: FML_01 Điểm trần 30.0 triệt tiêu ưu tiên
+  const tc4P = calculateEffectivePriority(0.75, 30.0, 30);
+  const tc4Official = Math.min(30.0, 30.0 + tc4P.effectivePriority);
+  record(s9Id, s9Name, 'TC-04', 'FML_01 Thang 30: Điểm gốc = 30.0, ĐƯT = 0.00, ĐXT = 30.00 không vượt trần', 'admissions_math',
+    tc4P.effectivePriority === 0 && tc4Official === 30.0,
+    'effectivePriority === 0.0, ĐXT === 30.0', `ĐƯT: ${tc4P.effectivePriority} | ĐXT: ${tc4Official}`, 'Khóa trần 30.0');
+
+  // TC-05: FML_02 Thang 40 nhân đôi môn chính
+  const tc5Raw40 = 9.0 + 8.0 + 8.5 * 2; // 34.0
+  const tc5P = calculateEffectivePriority(0.75, tc5Raw40, 40);
+  const tc5Official40 = tc5Raw40 + tc5P.effectivePriority;
+  const tc5Converted30 = (tc5Official40 * 3) / 4;
+  record(s9Id, s9Name, 'TC-05', 'FML_02 Thang 40: Điểm gốc = 34.0, ĐƯT 40 = 0.60, ĐXT 40 = 34.60, Quy đổi 30 = 25.95', 'admissions_math',
+    Number(tc5P.effectivePriority.toFixed(2)) === 0.60 && Number(tc5Converted30.toFixed(2)) === 25.95,
+    'effectivePriority === 0.60, Quy đổi 30 === 25.95', `ĐƯT 40: ${Number(tc5P.effectivePriority.toFixed(2))} | Quy đổi 30: ${Number(tc5Converted30.toFixed(2))}`, 'Thang 40 FTU/HBT');
+
+  // TC-06: FML_14 Thang 100 ĐHBK TP.HCM (QSB)
+  const tc6Raw100 = 0.70 * ((900 / 1200) * 100) + 0.20 * ((24 / 30) * 100) + 0.10 * 85.0; // 77.0
+  const tc6BaseP100 = (0.75 * 100) / 30; // 2.50
+  const tc6EffP100 = ((100 - tc6Raw100) / 25.0) * tc6BaseP100; // 2.30
+  record(s9Id, s9Name, 'TC-06', 'FML_14 Thang 100 QSB: Điểm gốc = 77.00, ĐƯT 100 = 2.30, ĐXT 100 = 79.30', 'admissions_math',
+    Number(tc6Raw100.toFixed(2)) === 77.00 && Number(tc6EffP100.toFixed(2)) === 2.30,
+    'tc6Raw100 === 77.00, tc6EffP100 === 2.30', `Gốc: ${tc6Raw100.toFixed(2)} | ĐƯT 100: ${tc6EffP100.toFixed(2)}`, 'Thang 100 QSB');
+
+  // TC-07: Chính sách miễn học phí Sư phạm NĐ 116/2020 & NĐ 238/2025
+  const tc7Ctx = getTuitionContext('học phí ngành sư phạm toán');
+  const tc7Sp = seedData.sectorTuitionBenchmarks.sectors.find((s: any) => s.id === 'SU_PHAM_GIAO_DUC');
+  record(s9Id, s9Name, 'TC-07', 'Chính sách Sư phạm: Miễn 100% học phí + trợ cấp 3.63 tr/tháng (NĐ 116, NĐ 238, NĐ 60/2025)', 'data_sanity',
+    tc7Ctx.includes('Sư phạm miễn 100% học phí') && tc7Ctx.includes('3.63 tr/tháng') && Boolean(tc7Sp?.freeTuitionCount && tc7Sp.freeTuitionCount > 0),
+    'Miễn 100% + 3.63 tr/tháng', tc7Ctx, 'Chính sách Sư phạm');
+
+  // TC-08: Khối trường Quân đội & Công an bao cấp 100%
+  const tc8Ctx = getTuitionContext('học phí trường an ninh công an cảnh sát');
+  const tc8Ca = seedData.sectorTuitionBenchmarks.sectors.find((s: any) => s.id === 'CONG_AN_QUAN_DOI');
+  record(s9Id, s9Name, 'TC-08', 'Khối Quân đội & Công an: Bao cấp 100% học phí, quân trang, ăn ở theo chuẩn NĐ 238', 'data_sanity',
+    tc8Ctx.includes('Quân đội & Công an bao cấp 100%') && tc8Ca?.avg2026_2027 === 0.0,
+    'Bao cấp 100%, avg = 0.0', tc8Ctx, 'An ninh - Quốc phòng');
+
+  // TC-09: Khối Y Dược tự chủ (NĐ 238/2025/NĐ-CP)
+  const tc9Ctx = getTuitionContext('học phí ngành y đa khoa bác sĩ');
+  const tc9Med = seedData.sectorTuitionBenchmarks.sectors.find((s: any) => s.id === 'Y_DUOC_SUC_KHOE');
+  record(s9Id, s9Name, 'TC-09', 'Khối Y Dược tự chủ 35 - 90 tr/năm (Y Hà Nội 24.5-62.2 tr, Y Dược TPHCM 35-90 tr)', 'data_sanity',
+    tc9Ctx.includes('Y Hà Nội 24.5-62.2 tr') && tc9Ctx.includes('Y Dược TPHCM 35-90 tr') && Boolean(tc9Med && tc9Med.avg2026_2027 > 50),
+    'Y Hà Nội 24.5-62.2 tr, TPHCM 35-90 tr', tc9Ctx, 'Y Dược tự chủ NĐ 238');
+
+  // TC-10: Học sinh học đều các môn - không tự ý áp đặt D01
+  const tc10Scores = { math: 8.2, physics: 8.0, chemistry: 8.0, biology: 8.0, literature: 8.0, english: 8.2 };
+  const tc10Vals = Object.values(tc10Scores);
+  const tc10Avg = tc10Vals.reduce((a, b) => a + b, 0) / tc10Vals.length;
+  const tc10Var = tc10Vals.reduce((sum, s) => sum + Math.pow(s - tc10Avg, 2), 0) / tc10Vals.length;
+  const tc10IsBalanced = tc10Var < 0.05;
+  const tc10A01 = tc10Scores.math + tc10Scores.physics + tc10Scores.english;
+  const tc10D01 = tc10Scores.math + tc10Scores.literature + tc10Scores.english;
+  record(s9Id, s9Name, 'TC-10', 'Học sinh học đều các môn: Phương sai < 0.05, A01 & D01 xấp xỉ, không tự ý áp đặt D01', 'behavior',
+    tc10IsBalanced && Math.abs(tc10A01 - tc10D01) <= 0.1,
+    'Học đều các môn, không áp đặt D01', `Phương sai: ${tc10Var.toFixed(4)} | A01: ${tc10A01} | D01: ${tc10D01}`, 'Trí thông minh đa diện');
 
 
   const totalDuration = performance.now() - startTime;

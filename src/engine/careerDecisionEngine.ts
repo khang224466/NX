@@ -693,7 +693,9 @@ export function processDecisionTurn(
 
   // Khởi tạo hoặc cập nhật profile
   let profile = existingProfile 
-    ? updateProfileWithInput(existingProfile, text)
+    ? (existingProfile.rawInputs.length > 0 && existingProfile.rawInputs[existingProfile.rawInputs.length - 1] === text
+        ? { ...existingProfile }
+        : updateProfileWithInput(existingProfile, text))
     : createInitialProfile(text, realityAnswer);
 
   if (realityAnswer && !profile.realityCheckAnswer) {

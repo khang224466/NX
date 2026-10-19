@@ -77,6 +77,7 @@ import {
   DecisionActionType,
   evaluateEvidenceReadiness
 } from '../engine/careerDecisionEngine';
+import { Scientific4TabPortal } from './Scientific4TabPortal';
 
 export interface CareerPathwayNavigatorProps {
   onSelectSchool?: (schoolCode: string) => void;
