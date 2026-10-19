@@ -293,9 +293,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [aiAnalysisData, setAiAnalysisData] = useState<any>(null);
   const [aiModelUsed, setAiModelUsed] = useState<string>('Gemini 3.1 Flash-Lite');
 
-  // 60-Question O*NET IPSF Modal State
+  // 60-Question O*NET IPSF Inline Quiz State
   const [showOnetModal, setShowOnetModal] = useState<boolean>(false);
   const [onetAnswers, setOnetAnswers] = useState<Record<string, number>>({});
+  const [quizPage, setQuizPage] = useState<number>(0); // 0-5 for R,I,A,S,E,C dimensions
+  const [quizStarted, setQuizStarted] = useState<boolean>(false);
+  const [quizCompleted, setQuizCompleted] = useState<boolean>(false);
 
   // =========================================================================
   // STATE: SELECTION & F1 PIPELINE (STRICT DEPENDENCY: initially null)
@@ -1105,7 +1108,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
               </div>
             </div>
 
-            {/* Grid 10 Subjects */}
+            {/* Grid 10 Subjects — Direct Number Inputs */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-1">
               {[
                 { key: 'math', label: 'Toán học', icon: '📐' },
@@ -1119,43 +1122,39 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
                 { key: 'informatics', label: 'Tin học', icon: '💻' },
                 { key: 'economicLegal', label: 'GDKT & PL', icon: '⚖️' }
               ].map(sub => (
-                <div key={sub.key} className="p-2.5 rounded-xl bg-[#0A0B0E] border border-slate-800 hover:border-slate-700 transition-colors">
-                  <div className="flex items-center justify-between text-xs text-white mb-1">
-                    <span className="font-bold truncate flex items-center gap-1.5">
-                      <span>{sub.icon}</span>
-                      <span>{sub.label}</span>
-                    </span>
-                    <span className="font-mono text-xs text-[#38BDF8] font-black bg-blue-950/80 px-2 py-0.5 rounded border border-blue-500/40">
-                      {scores[sub.key] !== '' ? scores[sub.key] : '--'}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.0"
-                    max="10.0"
-                    step="0.1"
-                    value={scores[sub.key] !== '' ? scores[sub.key] : 0}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      handleScoreChange(sub.key, val);
-                    }}
-                    className={`w-full accent-[#3B82F6] cursor-pointer h-1.5 rounded-lg ${
-                      scores[sub.key] === '' ? 'bg-slate-700/60 opacity-60' : 'bg-slate-800'
-                    }`}
-                  />
-                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-300 font-semibold mt-1">
-                    <span>0.0</span>
+                <div key={sub.key} className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 hover:border-slate-600 transition-colors space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs text-white font-bold">
+                    <span>{sub.icon}</span>
+                    <span>{sub.label}</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={10}
+                      step={0.1}
+                      value={scores[sub.key] === '' ? '' : scores[sub.key]}
+                      onChange={(e) => {
+                        if (e.target.value === '') {
+                          handleScoreChange(sub.key, '');
+                        } else {
+                          const val = Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                          if (!isNaN(val)) handleScoreChange(sub.key, val);
+                        }
+                      }}
+                      placeholder="--"
+                      className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-3 py-2 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6]/30 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
                     {scores[sub.key] !== '' && (
                       <button
                         type="button"
                         onClick={() => handleScoreChange(sub.key, '')}
-                        className="text-red-400 hover:text-red-300 text-[10px] cursor-pointer"
-                        title="Xóa điểm môn này"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400 text-xs cursor-pointer transition-colors"
+                        title="Xóa điểm"
                       >
-                        ✕ Xóa
+                        ✕
                       </button>
                     )}
-                    <span>10.0</span>
                   </div>
                 </div>
               ))}
@@ -1261,83 +1260,353 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
             </div>
           </div>
 
-          {/* Section C: RIASEC Psychometric Assessment */}
           <div className="bg-[#121316] border border-[#262630] rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+            {/* RIASEC Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-emerald-400" />
+                  <BookOpen className="w-4 h-4 text-emerald-400" />
                   <h3 className="font-sans font-bold text-base text-white">
-                    3. Sở Thích Nghề Nghiệp RIASEC (Chuẩn O*NET IPSF)
+                    3. Khám Phá Sở Thích Nghề Nghiệp (Bài Trắc Nghiệm RIASEC — 60 Câu)
                   </h3>
                 </div>
-                <p className="text-xs text-slate-200 mt-0.5 font-normal">
-                  Điều chỉnh 6 thang đo từ 10 đến 50 điểm. Mã đỉnh sở thích của bạn: <span className="text-emerald-300 font-black font-mono text-sm px-2.5 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-400/50">{dominantRiasec || 'Chưa thiết lập'}</span>
+                <p className="text-xs text-slate-300 mt-1 font-normal leading-relaxed">
+                  Trả lời 60 câu hỏi ngắn để xác định xu hướng nghề nghiệp phù hợp nhất với bạn. Chuẩn O*NET Interest Profiler của Bộ Lao động Hoa Kỳ, phiên bản Việt hóa.
+                  {dominantRiasec && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-emerald-300 font-bold font-mono text-sm px-2.5 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-400/50">
+                      Mã đỉnh: {dominantRiasec}
+                    </span>
+                  )}
                 </p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setShowOnetModal(true);
-                }}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Làm trắc nghiệm O*NET 60 câu</span>
-              </button>
             </div>
 
-            {/* 6 Sliders Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                { key: 'R' as const, name: 'R - Thực tế (Realistic)', desc: 'Cơ khí, thiết bị, vận hành máy móc, kỹ thuật ngoài trời', color: 'text-orange-400' },
-                { key: 'I' as const, name: 'I - Nghiên cứu (Investigative)', desc: 'Khoa học, logic, giải bài toán khó, lập trình, công nghệ', color: 'text-blue-400' },
-                { key: 'A' as const, name: 'A - Nghệ thuật (Artistic)', desc: 'Thiết kế, sáng tác, mỹ thuật, âm nhạc, ý tưởng đổi mới', color: 'text-pink-400' },
-                { key: 'S' as const, name: 'S - Xã hội (Social)', desc: 'Giảng dạy, tư vấn, chăm sóc sức khỏe, hỗ trợ cộng đồng', color: 'text-emerald-400' },
-                { key: 'E' as const, name: 'E - Quản lý (Enterprising)', desc: 'Khởi nghiệp, lãnh đạo, kinh doanh, thuyết phục khách hàng', color: 'text-amber-400' },
-                { key: 'C' as const, name: 'C - Nghiệp vụ (Conventional)', desc: 'Quy củ, kế toán, dữ liệu có cấu trúc, kiểm toán chi tiết', color: 'text-cyan-400' }
-              ].map(dim => (
-                <div key={dim.key} className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={`font-bold ${dim.color}`}>{dim.name}</span>
-                    <span className="font-mono text-[#38BDF8] font-black text-sm bg-blue-950/70 border border-blue-500/40 px-2 py-0.5 rounded">
-                      {riasec[dim.key] !== '' ? `${riasec[dim.key]}đ` : '--'}
-                    </span>
+            {(() => {
+              const RIASEC_DIMS = [
+                { key: 'R', name: 'Thực tế (Realistic)', emoji: '🔧', desc: 'Làm việc với máy móc, thiết bị, vận hành ngoài trời', color: 'border-orange-500/50 bg-orange-950/30', textColor: 'text-orange-300', dotColor: 'bg-orange-400' },
+                { key: 'I', name: 'Nghiên cứu (Investigative)', emoji: '🔬', desc: 'Phân tích, khoa học, giải quyết vấn đề phức tạp', color: 'border-blue-500/50 bg-blue-950/30', textColor: 'text-blue-300', dotColor: 'bg-blue-400' },
+                { key: 'A', name: 'Nghệ thuật (Artistic)', emoji: '🎨', desc: 'Sáng tạo, thiết kế, nghệ thuật, ý tưởng mới', color: 'border-pink-500/50 bg-pink-950/30', textColor: 'text-pink-300', dotColor: 'bg-pink-400' },
+                { key: 'S', name: 'Xã hội (Social)', emoji: '🤝', desc: 'Giảng dạy, tư vấn, chăm sóc, hỗ trợ người khác', color: 'border-emerald-500/50 bg-emerald-950/30', textColor: 'text-emerald-300', dotColor: 'bg-emerald-400' },
+                { key: 'E', name: 'Quản lý (Enterprising)', emoji: '📊', desc: 'Lãnh đạo, kinh doanh, thuyết phục, khởi nghiệp', color: 'border-amber-500/50 bg-amber-950/30', textColor: 'text-amber-300', dotColor: 'bg-amber-400' },
+                { key: 'C', name: 'Nghiệp vụ (Conventional)', emoji: '📋', desc: 'Tổ chức, kế toán, dữ liệu, quy trình chuẩn mực', color: 'border-cyan-500/50 bg-cyan-950/30', textColor: 'text-cyan-300', dotColor: 'bg-cyan-400' }
+              ];
+              const LIKERT_LABELS = [
+                { value: 1, label: 'Rất không thích', shortLabel: '1', color: 'bg-red-900/60 border-red-500/40 text-red-200 hover:bg-red-800/80', activeColor: 'bg-red-600 border-red-400 text-white shadow-lg ring-2 ring-red-400/50' },
+                { value: 2, label: 'Không thích', shortLabel: '2', color: 'bg-orange-900/40 border-orange-500/30 text-orange-200 hover:bg-orange-800/60', activeColor: 'bg-orange-500 border-orange-400 text-white shadow-lg ring-2 ring-orange-400/50' },
+                { value: 3, label: 'Bình thường', shortLabel: '3', color: 'bg-slate-800/80 border-slate-600/50 text-slate-200 hover:bg-slate-700', activeColor: 'bg-slate-500 border-slate-400 text-white shadow-lg ring-2 ring-slate-400/50' },
+                { value: 4, label: 'Thích', shortLabel: '4', color: 'bg-emerald-900/40 border-emerald-500/30 text-emerald-200 hover:bg-emerald-800/60', activeColor: 'bg-emerald-500 border-emerald-400 text-white shadow-lg ring-2 ring-emerald-400/50' },
+                { value: 5, label: 'Rất thích', shortLabel: '5', color: 'bg-emerald-900/60 border-emerald-500/40 text-emerald-200 hover:bg-emerald-800/80', activeColor: 'bg-emerald-600 border-emerald-400 text-white shadow-lg ring-2 ring-emerald-400/50' }
+              ];
+
+              const allQuestions = seedData.riasecQuestionnaire?.questions || [];
+              const currentDim = RIASEC_DIMS[quizPage];
+              const pageQuestions = allQuestions.filter(q => q.dimension === currentDim?.key);
+              const answeredInPage = pageQuestions.filter(q => onetAnswers[q.id] !== undefined).length;
+              const totalAnswered = Object.keys(onetAnswers).length;
+              const progressPercent = Math.round((totalAnswered / 60) * 100);
+
+              // Compute live scores from answers
+              const computeScores = () => {
+                const dims: Record<string, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+                allQuestions.forEach(q => {
+                  if (onetAnswers[q.id] !== undefined) {
+                    dims[q.dimension] = (dims[q.dimension] || 0) + onetAnswers[q.id];
+                  }
+                });
+                return dims;
+              };
+
+              const applyScores = () => {
+                const dims = computeScores();
+                setRiasec({
+                  R: Math.max(10, Math.min(50, dims.R || 10)),
+                  I: Math.max(10, Math.min(50, dims.I || 10)),
+                  A: Math.max(10, Math.min(50, dims.A || 10)),
+                  S: Math.max(10, Math.min(50, dims.S || 10)),
+                  E: Math.max(10, Math.min(50, dims.E || 10)),
+                  C: Math.max(10, Math.min(50, dims.C || 10))
+                });
+                invalidateDownstream();
+              };
+
+              // ----- Not started: Show welcome card -----
+              if (!quizStarted && !quizCompleted) {
+                return (
+                  <div className="text-center py-8 space-y-5">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-600/20 to-blue-600/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-4xl">
+                      📝
+                    </div>
+                    <div className="max-w-md mx-auto space-y-2">
+                      <h4 className="font-sans font-bold text-lg text-white">Bài Trắc Nghiệm Sở Thích Nghề Nghiệp</h4>
+                      <p className="text-sm text-slate-300 leading-relaxed">
+                        60 câu hỏi ngắn, chia thành 6 nhóm (mỗi nhóm 10 câu). Bạn chỉ cần đánh giá mức độ thích / không thích đối với từng hoạt động nghề nghiệp. Mất khoảng 5-8 phút.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setQuizStarted(true);
+                        setQuizPage(0);
+                      }}
+                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-sm flex items-center gap-2 mx-auto transition-all cursor-pointer shadow-md"
+                    >
+                      <span>Bắt đầu làm bài</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
                   </div>
-                  <p className="text-xs text-slate-200 leading-tight font-normal">{dim.desc}</p>
-                  <input
-                    type="range"
-                    min="10"
-                    max="50"
-                    step="1"
-                    value={riasec[dim.key] !== '' ? riasec[dim.key] : 10}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      handleRiasecChange(dim.key, val);
-                    }}
-                    className={`w-full accent-[#10B981] cursor-pointer h-1.5 rounded-lg ${
-                      riasec[dim.key] === '' ? 'bg-slate-700/60 opacity-60' : 'bg-slate-800'
-                    }`}
-                  />
-                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-300 font-semibold">
-                    <span>10đ (Thấp)</span>
-                    {riasec[dim.key] !== '' && (
+                );
+              }
+
+              // ----- Completed: Show results summary -----
+              if (quizCompleted) {
+                const liveScores = computeScores();
+                const sortedDims = RIASEC_DIMS.map(d => ({
+                  ...d,
+                  score: liveScores[d.key] || 0,
+                  maxScore: 50
+                })).sort((a, b) => b.score - a.score);
+                const topCode = sortedDims.slice(0, 3).map(d => d.key).join('');
+
+                return (
+                  <div className="space-y-4">
+                    {/* Results Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-emerald-400" />
+                        <h4 className="font-sans font-bold text-base text-white">Kết quả khám phá sở thích nghề nghiệp</h4>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleRiasecChange(dim.key, '')}
-                        className="text-red-400 hover:text-red-300 text-[10px] cursor-pointer"
-                        title="Xóa điểm miền này"
+                        onClick={() => {
+                          sfx.playUiClick();
+                          setQuizCompleted(false);
+                          setQuizStarted(true);
+                          setQuizPage(0);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        ✕ Xóa
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Làm lại</span>
+                      </button>
+                    </div>
+
+                    {/* Dominant Code Badge */}
+                    <div className="flex items-center justify-center py-2">
+                      <div className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-blue-950/80 border border-emerald-500/40 text-center">
+                        <div className="text-xs text-slate-300 font-medium mb-1">Mã đỉnh sở thích nghề nghiệp của bạn</div>
+                        <div className="font-mono font-black text-3xl text-emerald-300 tracking-widest">{topCode}</div>
+                      </div>
+                    </div>
+
+                    {/* 6 Dimension Bars */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {sortedDims.map((dim, idx) => {
+                        const barPercent = Math.round((dim.score / dim.maxScore) * 100);
+                        return (
+                          <div key={dim.key} className={`p-3.5 rounded-xl border ${dim.color} space-y-2`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{dim.emoji}</span>
+                                <span className={`text-sm font-bold ${dim.textColor}`}>{dim.name}</span>
+                              </div>
+                              <span className="font-mono font-black text-white text-base">{dim.score}<span className="text-slate-400 text-xs font-medium">/{dim.maxScore}</span></span>
+                            </div>
+                            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${dim.dotColor}`}
+                                style={{ width: `${barPercent}%` }}
+                              />
+                            </div>
+                            {idx < 3 && (
+                              <div className="text-[11px] text-slate-300 font-medium">
+                                {idx === 0 ? '🥇 Xu hướng chính' : idx === 1 ? '🥈 Xu hướng phụ' : '🥉 Xu hướng bổ trợ'}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              // ----- In progress: Show current page of questions -----
+              return (
+                <div className="space-y-4">
+                  {/* Progress Bar & Page Navigation */}
+                  <div className="space-y-3">
+                    {/* Overall Progress */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-300"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-slate-300 font-bold whitespace-nowrap">{totalAnswered}/60 câu ({progressPercent}%)</span>
+                    </div>
+
+                    {/* Dimension Tabs */}
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                      {RIASEC_DIMS.map((dim, idx) => {
+                        const dimQuestions = allQuestions.filter(q => q.dimension === dim.key);
+                        const dimAnswered = dimQuestions.filter(q => onetAnswers[q.id] !== undefined).length;
+                        const isActive = quizPage === idx;
+                        const isComplete = dimAnswered === 10;
+                        return (
+                          <button
+                            key={dim.key}
+                            type="button"
+                            onClick={() => setQuizPage(idx)}
+                            className={`p-2 rounded-xl border text-center transition-all cursor-pointer space-y-0.5 ${
+                              isActive
+                                ? `${dim.color} ring-1 ring-white/20 shadow-md`
+                                : isComplete
+                                  ? 'bg-[#0A0B0E] border-emerald-500/30'
+                                  : 'bg-[#0A0B0E] border-slate-700/60 hover:border-slate-500'
+                            }`}
+                          >
+                            <div className="text-lg leading-none">{dim.emoji}</div>
+                            <div className={`text-[10px] font-bold ${isActive ? dim.textColor : isComplete ? 'text-emerald-300' : 'text-slate-300'}`}>
+                              {dim.key}
+                            </div>
+                            <div className="text-[9px] font-mono text-slate-400">
+                              {isComplete ? '✓' : `${dimAnswered}/10`}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Current Dimension Info */}
+                  {currentDim && (
+                    <div className={`p-3.5 rounded-xl border ${currentDim.color} flex items-center gap-3`}>
+                      <span className="text-2xl">{currentDim.emoji}</span>
+                      <div>
+                        <div className={`font-bold text-sm ${currentDim.textColor}`}>
+                          Nhóm {currentDim.key}: {currentDim.name}
+                        </div>
+                        <div className="text-xs text-slate-300">{currentDim.desc} — <span className="font-bold text-white">{answeredInPage}/10 câu đã trả lời</span></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Likert Scale Legend */}
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-3 flex-wrap">
+                    {LIKERT_LABELS.map(l => (
+                      <div key={l.value} className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+                        <span className={`w-3 h-3 rounded-sm border ${l.color} flex items-center justify-center text-[8px] font-black`}>{l.value}</span>
+                        <span className="hidden sm:inline">{l.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Questions List */}
+                  <div className="space-y-2">
+                    {pageQuestions.map((q, idx) => {
+                      const currentVal = onetAnswers[q.id];
+                      const globalIdx = allQuestions.findIndex(aq => aq.id === q.id);
+                      return (
+                        <div key={q.id} className={`p-3 sm:p-4 rounded-xl border transition-colors ${
+                          currentVal !== undefined
+                            ? 'bg-[#0D1117] border-emerald-500/20'
+                            : 'bg-[#0A0B0E] border-slate-800 hover:border-slate-700'
+                        }`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                            {/* Question */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xs font-mono text-slate-500 font-bold shrink-0">
+                                  {(globalIdx + 1).toString().padStart(2, '0')}
+                                </span>
+                                <span className="text-sm text-white font-medium leading-snug">
+                                  {q.text}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Likert Buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                              {LIKERT_LABELS.map(l => (
+                                <button
+                                  key={l.value}
+                                  type="button"
+                                  onClick={() => {
+                                    setOnetAnswers(prev => ({ ...prev, [q.id]: l.value }));
+                                  }}
+                                  title={l.label}
+                                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg border text-xs font-mono font-bold transition-all cursor-pointer ${
+                                    currentVal === l.value
+                                      ? l.activeColor
+                                      : l.color
+                                  }`}
+                                >
+                                  {l.shortLabel}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Page Navigation */}
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playUiClick();
+                        if (quizPage > 0) setQuizPage(quizPage - 1);
+                      }}
+                      disabled={quizPage === 0}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        quizPage === 0
+                          ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed'
+                          : 'bg-slate-800 hover:bg-slate-700 text-white'
+                      }`}
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Nhóm trước</span>
+                    </button>
+
+                    <span className="text-xs font-mono text-slate-400">
+                      Nhóm {quizPage + 1} / 6
+                    </span>
+
+                    {quizPage < 5 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sfx.playUiClick();
+                          setQuizPage(quizPage + 1);
+                        }}
+                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <span>Nhóm tiếp</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sfx.playActionSuccess();
+                          applyScores();
+                          setQuizStarted(false);
+                          setQuizCompleted(true);
+                        }}
+                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Hoàn tất & Xem kết quả</span>
                       </button>
                     )}
-                    <span>50đ (Rất cao)</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
 
           {/* Section D & E: Financial Budget, Region & Priority */}
@@ -2265,99 +2534,7 @@ YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
         </section>
       )}
 
-      {/* =========================================================================
-          60-QUESTION O*NET IPSF MODAL
-          ========================================================================= */}
-      {showOnetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#121316] border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="font-sans font-bold text-base text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <span>Bài Trắc Nghiệm Tâm Trắc O*NET Interest Profiler (60 Câu)</span>
-                </h3>
-                <p className="text-xs text-slate-200 font-normal">
-                  Thang đo Likert 5 mức (1: Rất không thích ➔ 5: Rất thích). Tự động cập nhật 6 miền RIASEC.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowOnetModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-xs cursor-pointer font-bold"
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Questions List */}
-            <div className="p-4 sm:p-5 overflow-y-auto space-y-3 flex-1">
-              {seedData.riasecQuestionnaire?.questions?.map((q, idx) => {
-                const currentVal = onetAnswers[q.id] || 3;
-                return (
-                  <div key={q.id} className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                    <div className="space-y-0.5 max-w-lg">
-                      <div className="text-xs font-mono text-emerald-300 font-bold">
-                        Câu {idx + 1}/60 · Nhóm {q.dimension}
-                      </div>
-                      <div className="text-sm text-white font-medium">{q.text}</div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {[1, 2, 3, 4, 5].map(v => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => {
-                            setOnetAnswers(prev => ({ ...prev, [q.id]: v }));
-                          }}
-                          className={`w-7 h-7 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                            currentVal === v
-                              ? 'bg-emerald-400 text-black shadow-md scale-105 font-black'
-                              : 'bg-slate-800 text-slate-100 hover:bg-slate-700 hover:text-white font-bold'
-                          }`}
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="p-4 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-mono text-slate-200 font-semibold">
-                Đã trả lời: {Object.keys(onetAnswers).length}/60 câu
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playActionSuccess();
-                  // Tự động tính điểm 6 miền từ onetAnswers
-                  const dims: Record<string, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-                  seedData.riasecQuestionnaire?.questions?.forEach(q => {
-                    const score = onetAnswers[q.id] || 3;
-                    dims[q.dimension] = (dims[q.dimension] || 0) + score;
-                  });
-                  setRiasec({
-                    R: Math.max(10, Math.min(50, dims.R || 30)),
-                    I: Math.max(10, Math.min(50, dims.I || 30)),
-                    A: Math.max(10, Math.min(50, dims.A || 30)),
-                    S: Math.max(10, Math.min(50, dims.S || 30)),
-                    E: Math.max(10, Math.min(50, dims.E || 30)),
-                    C: Math.max(10, Math.min(50, dims.C || 30))
-                  });
-                  invalidateDownstream();
-                  setShowOnetModal(false);
-                }}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-xs cursor-pointer shadow-md"
-              >
-                Hoàn tất &amp; Áp dụng điểm RIASEC
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* =========================================================================
           AI ANALYZING OVERLAY MODAL

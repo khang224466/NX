@@ -10,6 +10,32 @@ Last Updated: 2026-10-19T14:38:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **4-Step Sequential Career & Admissions Consultation Pop-up Rewrite (2026-10-19)**:
+  - Addressed user directives: *"cái prompt đó là để viết lại code cho cái web của tao ấy"*, *"nhớ là pop up phân tích và suggest, ít chữ, cơ bản tôn trọng, cổ điển"*, *"dự án này rất quan trọng với tôi, tôi tin bạn, làm nó ít AI nhất có thể"* & Flowchart decision tree:
+    * **4-Step Flowchart State Machine Implementation (`AICareerCopilot.tsx`)**:
+      - **Bước 1: Xác định Ngành**: Hỏi người học đã chọn ngành chưa. Nếu có ➔ lưu hồ sơ; nếu chưa ➔ phân tích sở thích/thế mạnh, gợi ý 2-3 ngành phù hợp từ danh mục cấp IV và yêu cầu chốt 1 ngành.
+      - **Bước 2: Chọn Tổ hợp môn**: Ràng buộc cứng chỉ xét các tổ hợp tuyển sinh của ngành đã chọn ở Bước 1. Phân tích hệ quả đỗ nhóm trường Top đầu, Top giữa hoặc an toàn dựa trên điểm dự kiến.
+      - **Bước 3: Định hướng Việc làm**: Ràng buộc bởi Ngành (B1) & Năng lực (B2). Đề xuất 2-3 vị trí việc làm thực tế.
+      - **Bước 4: Đối chiếu & Phân tích chuỗi ảnh hưởng (Domino Effect)**: Tự động xuất báo cáo tổng kết kiểm tra độ khớp (Ngành ⟷ Tổ hợp ⟷ Việc làm) và What-If Analysis (3-5 trường khả thi, cạnh tranh tổ hợp, triển vọng việc làm & lộ trình sự nghiệp).
+    * **Sticky Pinned Dossier Header (`📌 [HỒ SƠ ĐÃ LƯU]`)**:
+      - Always visible at the top of the consultation pop-up, updating in real time: Ngành, Tổ hợp & Điểm, Việc làm mục tiêu, Thế mạnh ghi nhận.
+    * **Strict 3-Block Response Structure**:
+      - Block 1: `📌 [HỒ SƠ ĐÃ LƯU]`
+      - Block 2: `💬 [PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]`
+      - Block 3: `👉 [CÂU HỎI TIẾP THEO]` (Hỏi ngắn gọn đúng 1 câu mỗi lượt, kế thừa dữ liệu, không hỏi dồn dập).
+    * **Classical, Minimalist, Dignified Aesthetic ("Ít AI nhất có thể")**:
+      - Excised all flashy neon glows, rainbow gradients, and buzzwords ("MODE SUPREME ⚡", "SUPER AI").
+      - Elegant academic slate styling (`#0E1117`, `#121622`), crisp typography, dignified tone.
+    * **Synchronized Backend System Prompts**:
+      - Updated `SUPREME_CAREER_COUNSELOR_PROMPT` in `src/services/geminiService.ts`.
+      - Updated `buildCounselorSystemPrompt` in `src/services/counselorBackend.ts` and `scripts/counselor_backend.mjs`.
+      - Deterministic local fallback generator guarantees 100% adherence to the 3 blocks even when offline.
+    * **Direct Number Inputs & Paginated Inline RIASEC**:
+      - In `Scientific4TabPortal.tsx`, replaced all subject sliders with direct numeric inputs (`0.0 - 10.0`) and implemented an inline paginated 60-question RIASEC assessment (10 questions per dimension).
+    * **Build & Test Verification**:
+      - Vite production build completes cleanly in 26.13s (0 errors).
+      - `scripts/test_major_linking_engine.mjs` passes 100%.
+
 - **AI Semantic Diagnosis Decoupling & Strict Major Linking Engine (2026-10-19)**:
   - Addressed user directives: *"nhận input r phân tích là rất okela nhưng bạn phân tích rất ngu, để con gemini phân tích r bạn lọc lại kết quả, nhận kết quả từ gemini r link với kho dữ liệu xem nghành nào ngon nhất. r mới hiện kết quả lên. Cuối cùng là giao diện, giao diện nhìn AI quá"*:
     * **Root Cause Fix for Inaccurate Subject Analysis**:

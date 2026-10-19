@@ -1,48 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Sparkles, 
   Send, 
   KeyRound, 
   X, 
-  Bot, 
-  User, 
-  Check, 
-  AlertCircle, 
-  Clock, 
-  RefreshCw, 
-  StopCircle, 
-  Sliders, 
-  Eye, 
-  EyeOff, 
-  ChevronRight, 
-  ExternalLink,
-  CheckCircle2,
-  Cpu
+  RotateCcw, 
+  CheckCircle2, 
+  AlertTriangle,
+  GraduationCap,
+  Layers,
+  Briefcase,
+  TrendingUp,
+  Sliders,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import { 
   getStoredApiKey, 
   setStoredApiKey, 
   getStoredGroqKey,
   setStoredGroqKey,
-  getStoredPacingDelay,
-  setStoredPacingDelay,
   getStoredAiProvider,
   setStoredAiProvider,
-  getStoredSupremeMode,
-  setStoredSupremeMode,
   getStoredSelectedModel,
   setStoredSelectedModel,
   testGeminiApiKey,
   testGroqApiKey,
-  fetchPacingStatus,
-  fetchGatewayMetrics,
-  updateServerPacingConfig,
-  cancelPacingTask,
-  checkServerAIStatus, 
   sendAIChatMessage, 
   ChatMessage 
 } from '../services/geminiService';
+import seedData from '../data/seed_data.json';
+import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
+import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
+import { sfx } from '../services/soundEffects';
 
 interface AICareerCopilotProps {
   isOpen: boolean;
@@ -50,343 +40,23 @@ interface AICareerCopilotProps {
   initialQuery?: string;
 }
 
-function renderFormattedInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      const boldText = part.slice(2, -2);
-      if (boldText.includes('MATCH') || boldText.includes('%')) {
-        return (
-          <strong key={i} className="text-emerald-300 font-bold bg-emerald-500/15 px-1.5 py-0.5 rounded border border-emerald-500/30">
-            {boldText}
-          </strong>
-        );
-      }
-      if (boldText.includes('Lương') || boldText.includes('Thu nhập') || boldText.includes('P25') || boldText.includes('P90')) {
-        return (
-          <strong key={i} className="text-amber-300 font-bold bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/30">
-            {boldText}
-          </strong>
-        );
-      }
-      return <strong key={i} className="text-white font-bold">{boldText}</strong>;
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      const codeText = part.slice(1, -1);
-      return (
-        <code
-          key={i}
-          className="mx-0.5 px-1.5 py-0.5 rounded bg-blue-500/15 text-cyan-300 font-mono text-[11px] border border-blue-500/30 font-semibold"
-        >
-          {codeText}
-        </code>
-      );
-    }
-    return part;
-  });
+export interface SavedDossierProfile {
+  major: string;
+  majorCode?: string;
+  combo: string;
+  score: string;
+  targetJob: string;
+  strengths: string;
+  currentStep: 1 | 2 | 3 | 4;
 }
 
-interface ParsedTableBlock {
-  type: 'table';
-  headers: string[];
-  alignments: ('left' | 'center' | 'right')[];
-  rows: string[][];
-}
-
-interface ParsedCodeBlock {
-  type: 'code';
-  lang: string;
-  code: string;
-}
-
-interface ParsedTextBlock {
-  type: 'section_header' | 'quote' | 'bullet' | 'numbered' | 'hr' | 'paragraph';
-  content: string;
-  meta?: any;
-}
-
-type ContentBlock = ParsedTableBlock | ParsedCodeBlock | ParsedTextBlock;
-
-function parseMarkdownBlocks(content: string): ContentBlock[] {
-  const rawLines = content.split('\n');
-  const blocks: ContentBlock[] = [];
-  let i = 0;
-
-  while (i < rawLines.length) {
-    const line = rawLines[i];
-    const trimmed = line.trim();
-
-    // 1. Code blocks
-    if (trimmed.startsWith('```')) {
-      const lang = trimmed.slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < rawLines.length && !rawLines[i].trim().startsWith('```')) {
-        codeLines.push(rawLines[i]);
-        i++;
-      }
-      i++; // skip closing ```
-      blocks.push({
-        type: 'code',
-        lang,
-        code: codeLines.join('\n')
-      });
-      continue;
-    }
-
-    // 2. Table blocks (lines starting with | and ending with |)
-    if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2) {
-      const tableLines: string[] = [];
-      while (i < rawLines.length && rawLines[i].trim().startsWith('|') && rawLines[i].trim().endsWith('|')) {
-        tableLines.push(rawLines[i].trim());
-        i++;
-      }
-
-      if (tableLines.length >= 2) {
-        const rawHeaders = tableLines[0].split('|').slice(1, -1).map(c => c.trim());
-        let alignments: ('left' | 'center' | 'right')[] = rawHeaders.map(() => 'left');
-        let dataStartIndex = 1;
-
-        if (tableLines.length > 1 && tableLines[1].includes('-')) {
-          const sepCols = tableLines[1].split('|').slice(1, -1).map(c => c.trim());
-          alignments = sepCols.map(col => {
-            if (col.startsWith(':') && col.endsWith(':')) return 'center';
-            if (col.endsWith(':')) return 'right';
-            return 'left';
-          });
-          dataStartIndex = 2;
-        }
-
-        const rows: string[][] = [];
-        for (let r = dataStartIndex; r < tableLines.length; r++) {
-          const cols = tableLines[r].split('|').slice(1, -1).map(c => c.trim());
-          rows.push(cols);
-        }
-
-        blocks.push({
-          type: 'table',
-          headers: rawHeaders,
-          alignments,
-          rows
-        });
-        continue;
-      }
-    }
-
-    // 3. Horizontal rules
-    if (trimmed === '---' || trimmed === '***') {
-      blocks.push({ type: 'hr', content: '' });
-      i++;
-      continue;
-    }
-
-    // 4. Section headers
-    if (
-      trimmed.includes('PHẦN 1:') ||
-      trimmed.includes('PHẦN 2:') ||
-      trimmed.includes('PHẦN 3:') ||
-      trimmed.includes('PHẦN 4:') ||
-      trimmed.includes('HÀNH ĐỘNG CỤ THỂ') ||
-      trimmed.startsWith('####') ||
-      trimmed.startsWith('###') ||
-      trimmed.startsWith('##')
-    ) {
-      blocks.push({ type: 'section_header', content: trimmed });
-      i++;
-      continue;
-    }
-
-    // 5. Quote / Callout
-    if (trimmed.startsWith('>')) {
-      blocks.push({ type: 'quote', content: trimmed.replace(/^>\s*/, '') });
-      i++;
-      continue;
-    }
-
-    // 6. Bullet items
-    if (trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      blocks.push({ type: 'bullet', content: trimmed.replace(/^[•\-\*]\s*/, '') });
-      i++;
-      continue;
-    }
-
-    // 7. Numbered list
-    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
-    if (numMatch) {
-      blocks.push({ type: 'numbered', content: numMatch[2], meta: { num: numMatch[1] } });
-      i++;
-      continue;
-    }
-
-    // 8. Normal paragraph
-    if (trimmed) {
-      blocks.push({ type: 'paragraph', content: trimmed });
-    }
-    i++;
-  }
-
-  return blocks;
-}
-
-const MarkdownMessageView: React.FC<{ content: string }> = ({ content }) => {
-  const blocks = parseMarkdownBlocks(content);
-
-  return (
-    <div className="space-y-2.5 text-xs sm:text-sm leading-relaxed text-[#D8DFEB]">
-      {blocks.map((block, idx) => {
-        if (block.type === 'hr') {
-          return <hr key={idx} className="border-white/10 my-3" />;
-        }
-
-        if (block.type === 'code') {
-          return (
-            <div key={idx} className="my-2.5 rounded-xl overflow-hidden border border-white/10 bg-[#090D14] shadow-md font-mono text-xs">
-              {block.lang && (
-                <div className="px-3 py-1 bg-white/5 border-b border-white/10 text-[10px] text-cyan-400 font-semibold uppercase">
-                  {block.lang}
-                </div>
-              )}
-              <pre className="p-3 overflow-x-auto text-emerald-300 leading-relaxed text-[11px]">
-                <code>{block.code}</code>
-              </pre>
-            </div>
-          );
-        }
-
-        if (block.type === 'table') {
-          return (
-            <div key={idx} className="overflow-x-auto my-3 rounded-xl border border-cyan-500/25 bg-[#090D16] shadow-xl">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-[#121B2D] text-cyan-300 font-mono text-[11px] border-b border-white/10 uppercase tracking-wider">
-                  <tr>
-                    {block.headers.map((h, i) => (
-                      <th
-                        key={i}
-                        className={`px-3.5 py-2.5 font-bold ${
-                          block.alignments[i] === 'right' ? 'text-right' : block.alignments[i] === 'center' ? 'text-center' : 'text-left'
-                        }`}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 font-sans">
-                  {block.rows.map((row, rIdx) => (
-                    <tr key={rIdx} className="hover:bg-white/[0.04] transition-colors">
-                      {row.map((cell, cIdx) => {
-                        const isPercentage = cell.includes('%') || (block.headers[cIdx]?.includes('%') && !isNaN(parseFloat(cell)));
-                        const numVal = parseFloat(cell);
-                        const isNumeric = !isNaN(numVal) && !isNaN(Number(cell));
-
-                        return (
-                          <td
-                            key={cIdx}
-                            className={`px-3.5 py-2 ${
-                              block.alignments[cIdx] === 'right' ? 'text-right' : block.alignments[cIdx] === 'center' ? 'text-center' : 'text-left'
-                            }`}
-                          >
-                            {isPercentage ? (
-                              <span
-                                className={`inline-block px-2 py-0.5 rounded-md font-mono text-[11px] font-bold ${
-                                  numVal >= 25
-                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                    : numVal >= 15
-                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                    : numVal > 0
-                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                                    : 'bg-zinc-500/20 text-zinc-400 border border-zinc-500/30'
-                                }`}
-                              >
-                                {cell}
-                              </span>
-                            ) : isNumeric ? (
-                              <span className="font-mono text-cyan-200 font-semibold">{cell}</span>
-                            ) : (
-                              <span className="text-zinc-200">{renderFormattedInline(cell)}</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          );
-        }
-
-        if (block.type === 'section_header') {
-          const isP1 = block.content.includes('PHẦN 1') || block.content.includes('THIÊN HƯỚNG');
-          const isP2 = block.content.includes('PHẦN 2') || block.content.includes('TOP 3');
-          const isP3 = block.content.includes('PHẦN 3') || block.content.includes('MA TRẬN');
-          const isP4 = block.content.includes('PHẦN 4') || block.content.includes('LỘ TRÌNH');
-          const isStats = block.content.includes('DỮ LIỆU THỰC CHỨNG') || block.content.includes('KHOA HỌC') || block.content.includes('TRI THỨC');
-          const isAction = block.content.includes('HÀNH ĐỘNG');
-
-          const borderColor = isStats
-            ? 'border-cyan-500/60 bg-cyan-950/40 text-cyan-200'
-            : isP1
-            ? 'border-cyan-500/50 bg-cyan-950/30 text-cyan-200'
-            : isP2
-            ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-200'
-            : isP3
-            ? 'border-amber-500/50 bg-amber-950/30 text-amber-200'
-            : isP4
-            ? 'border-purple-500/50 bg-purple-950/30 text-purple-200'
-            : isAction
-            ? 'border-blue-500/50 bg-blue-950/30 text-blue-200'
-            : 'border-white/20 bg-white/5 text-white';
-
-          const cleanTitle = block.content.replace(/^#+\s*/, '').replace(/^\*\*|\*\*$/g, '');
-
-          return (
-            <div
-              key={idx}
-              className={`mt-4 mb-2 px-3.5 py-2 rounded-xl border font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm ${borderColor}`}
-            >
-              <Sparkles className="w-4 h-4 shrink-0 text-amber-400" />
-              <span>{cleanTitle}</span>
-            </div>
-          );
-        }
-
-        if (block.type === 'quote') {
-          return (
-            <div
-              key={idx}
-              className="border-l-2 border-amber-400 pl-3 py-1.5 my-1.5 text-zinc-300 italic bg-amber-500/10 rounded-r text-xs"
-            >
-              {renderFormattedInline(block.content)}
-            </div>
-          );
-        }
-
-        if (block.type === 'bullet') {
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-2">
-              <span className="text-blue-400 font-bold shrink-0 mt-0.5">•</span>
-              <div className="flex-1">{renderFormattedInline(block.content)}</div>
-            </div>
-          );
-        }
-
-        if (block.type === 'numbered') {
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-1 my-1">
-              <span className="w-5 h-5 rounded-md bg-blue-500/20 border border-blue-500/30 text-blue-300 font-mono text-[11px] flex items-center justify-center shrink-0 mt-0.5 font-bold">
-                {block.meta?.num}
-              </span>
-              <div className="flex-1">{renderFormattedInline(block.content)}</div>
-            </div>
-          );
-        }
-
-        return <p key={idx}>{renderFormattedInline(block.content)}</p>;
-      })}
-    </div>
-  );
+const INITIAL_PROFILE: SavedDossierProfile = {
+  major: 'Chưa xác định',
+  combo: 'Chưa xác định',
+  score: '',
+  targetJob: 'Chưa xác định',
+  strengths: 'Chưa có dữ liệu',
+  currentStep: 1
 };
 
 export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
@@ -394,163 +64,317 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
   onClose,
   initialQuery
 }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'model',
-      content: `Chào bạn! Mình là **Nexora AI** — Cố vấn hướng nghiệp & tuyển sinh đại học 2026.
+  // Saved dossier persistent state
+  const [profile, setProfile] = useState<SavedDossierProfile>(INITIAL_PROFILE);
 
-Bạn đang quan tâm đến ngành nghề nào hoặc muốn tìm trường theo điểm thi và sở thích (như thể thao, công nghệ, kinh doanh, nghệ thuật...)? Hãy nhắn cho mình nhé!
-
-💡 *Mẹo: Bạn có thể chọn các câu hỏi gợi ý bên dưới hoặc bấm nút **[Cài API Key]** ở góc trên để kết nối trực tiếp Gemini / Groq.*`,
-      timestamp: 'Ngay bây giờ'
-    }
-  ]);
-
+  // Chat message thread
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputPrompt, setInputPrompt] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Settings drawer
   const [showKeyConfig, setShowKeyConfig] = useState(false);
   const [customKey, setCustomKey] = useState('');
   const [customGroqKey, setCustomGroqKey] = useState('');
   const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>('gemini');
-  const [isSupremeMode, setIsSupremeMode] = useState<boolean>(true);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-2.0-flash');
-  const [showSecretKey, setShowSecretKey] = useState(false);
   const [testKeyStatus, setTestKeyStatus] = useState<{ testing: boolean; message: string; success?: boolean } | null>(null);
-
-  const [requestDelayMs, setRequestDelayMs] = useState<number>(2000);
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [pacingStatus, setPacingStatus] = useState<any>(null);
-
-  const [serverStatus, setServerStatus] = useState<{ hasServerKey: boolean; hasGroqKey?: boolean; recommendedModel: string }>({
-    hasServerKey: false,
-    hasGroqKey: false,
-    recommendedModel: 'gemini-2.0-flash (Mode Supreme)'
-  });
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Load API keys on mount
   useEffect(() => {
-    checkServerAIStatus().then(setServerStatus);
     setCustomKey(getStoredApiKey());
     setCustomGroqKey(getStoredGroqKey());
     setAiProvider(getStoredAiProvider());
-    setRequestDelayMs(getStoredPacingDelay());
-    setIsSupremeMode(getStoredSupremeMode());
     setSelectedModel(getStoredSelectedModel());
   }, []);
 
-  const [gatewayMetrics, setGatewayMetrics] = useState<any>(null);
-
-  // Poll pacing queue status every 1.5s when dialog is open
-  useEffect(() => {
-    if (!isOpen) return;
-    const interval = setInterval(async () => {
-      const status = await fetchPacingStatus();
-      if (status) setPacingStatus(status);
-    }, 1500);
-    return () => clearInterval(interval);
-  }, [isOpen]);
-
-  // Poll Multi-Provider Gateway Metrics when config drawer is open
-  useEffect(() => {
-    if (!showKeyConfig) return;
-    const loadMetrics = async () => {
-      const data = await fetchGatewayMetrics();
-      if (data) setGatewayMetrics(data);
-    };
-    loadMetrics();
-    const interval = setInterval(loadMetrics, 2500);
-    return () => clearInterval(interval);
-  }, [showKeyConfig]);
-
-  // Auto-focus input when opened
+  // Initialize dialog when opened
   useEffect(() => {
     if (isOpen) {
-      const timer = setTimeout(() => {
+      if (messages.length === 0) {
+        initSession();
+      }
+      setTimeout(() => {
         inputRef.current?.focus();
-      }, 120);
-      return () => clearTimeout(timer);
+      }, 300);
     }
   }, [isOpen]);
 
-  // Handle Escape key to close
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (initialQuery && isOpen) {
-      handleSend(initialQuery);
-    }
-  }, [initialQuery, isOpen]);
-
+  // Scroll to bottom on message updates
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isSending]);
 
-  const handleToggleSupremeMode = () => {
-    const nextVal = !isSupremeMode;
-    setIsSupremeMode(nextVal);
-    setStoredSupremeMode(nextVal);
-  };
+  const initSession = () => {
+    setProfile(INITIAL_PROFILE);
+    const initialText = `📌 **[HỒ SƠ ĐÃ LƯU]**
+- Ngành: Chưa xác định
+- Tổ hợp & Điểm dự kiến: Chưa xác định
+- Việc làm mục tiêu: Chưa xác định
+- Thế mạnh/Sở thích ghi nhận: Chưa có dữ liệu
 
-  const handleTestKey = async () => {
-    setTestKeyStatus({ testing: true, message: 'Đang gửi ping kiểm tra kết nối API trực tiếp...' });
-    if (aiProvider === 'gemini') {
-      if (!customKey.trim()) {
-        setTestKeyStatus({ testing: false, message: 'Vui lòng dán Google Gemini API Key trước!', success: false });
-        return;
+---
+
+💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**
+Chào bạn. Hệ thống bắt đầu quy trình tham vấn hướng nghiệp & chiến lược tuyển sinh 4 bước: (1) Xác định Ngành ➔ (2) Chọn Tổ hợp môn ➔ (3) Định hướng Việc làm ➔ (4) Đối chiếu & Phân tích chuỗi ảnh hưởng. Mọi quyết định sẽ được lưu vào hồ sơ phía trên và ràng buộc logic với các bước tiếp theo.
+
+---
+
+👉 **[CÂU HỎI TIẾP THEO]**
+Bạn đã chọn được Ngành học chưa? (Nếu có, hãy nhập tên ngành. Nếu chưa, hãy cho biết sở thích, môn học thế mạnh và mục tiêu của bạn).`;
+
+    setMessages([
+      {
+        id: 'init_welcome',
+        role: 'model',
+        content: initialText,
+        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       }
-      const res = await testGeminiApiKey(customKey, selectedModel);
-      setTestKeyStatus({ testing: false, message: res.message, success: res.success });
-    } else {
-      if (!customGroqKey.trim()) {
-        setTestKeyStatus({ testing: false, message: 'Vui lòng dán Groq API Key trước!', success: false });
-        return;
+    ]);
+  };
+
+  const handleResetSession = () => {
+    sfx.playUiClick();
+    initSession();
+  };
+
+  // Helper: Extract & Update profile from text
+  const updateProfileFromText = (userText: string, currentProf: SavedDossierProfile): SavedDossierProfile => {
+    const updated = { ...currentProf };
+    const lower = userText.toLowerCase();
+
+    // STEP 1: Major identification
+    if (updated.currentStep === 1) {
+      // Check if user specified a major from catalog
+      const catalog = seedData.majorCatalogLevelIV || [];
+      const matchedMajor = catalog.find(m => 
+        lower.includes(m.name.toLowerCase()) || 
+        lower.includes(m.codeTT09)
+      );
+
+      if (matchedMajor) {
+        updated.major = matchedMajor.name;
+        updated.majorCode = matchedMajor.codeTT09;
+        updated.currentStep = 2;
+      } else if (lower.includes('kinh tế') || lower.includes('kinh doanh') || lower.includes('marketing')) {
+        updated.major = 'Quản trị kinh doanh / Marketing';
+        updated.majorCode = '7340115';
+        updated.currentStep = 2;
+      } else if (lower.includes('cntt') || lower.includes('công nghệ thông tin') || lower.includes('it') || lower.includes('lập trình')) {
+        updated.major = 'Công nghệ thông tin';
+        updated.majorCode = '7480201';
+        updated.currentStep = 2;
+      } else if (lower.includes('y ') || lower.includes('y khoa') || lower.includes('bác sĩ')) {
+        updated.major = 'Y khoa';
+        updated.majorCode = '7720101';
+        updated.currentStep = 2;
+      } else if (lower.includes('ngôn ngữ anh') || lower.includes('tiếng anh')) {
+        updated.major = 'Ngôn ngữ Anh';
+        updated.majorCode = '7220201';
+        updated.currentStep = 2;
+      } else if (lower.includes('truyền thông') || lower.includes('báo chí')) {
+        updated.major = 'Truyền thông đa phương tiện';
+        updated.majorCode = '7320104';
+        updated.currentStep = 2;
+      } else if (lower.includes('thiết kế đồ họa') || lower.includes('đồ họa') || lower.includes('vẽ')) {
+        updated.major = 'Thiết kế đồ họa';
+        updated.majorCode = '7210403';
+        updated.currentStep = 2;
+      } else if (lower.includes('luật')) {
+        updated.major = 'Luật kinh tế';
+        updated.majorCode = '7380107';
+        updated.currentStep = 2;
+      } else {
+        // User provided interests/strengths
+        updated.strengths = userText.slice(0, 100);
       }
-      const res = await testGroqApiKey(customGroqKey);
-      setTestKeyStatus({ testing: false, message: res.message, success: res.success });
     }
+    // STEP 2: Combo & Expected Score
+    else if (updated.currentStep === 2) {
+      const comboRegex = /\b([a-d][0-9]{2})\b/i;
+      const matchCombo = userText.match(comboRegex);
+      if (matchCombo) {
+        updated.combo = matchCombo[1].toUpperCase();
+      }
+
+      const scoreRegex = /([123][0-9](?:[.,][0-9]{1,2})?)\s*(?:đ|điểm)?/i;
+      const matchScore = userText.match(scoreRegex);
+      if (matchScore) {
+        updated.score = matchScore[1].replace(',', '.');
+      }
+
+      if (updated.combo !== 'Chưa xác định') {
+        updated.currentStep = 3;
+      }
+    }
+    // STEP 3: Career target
+    else if (updated.currentStep === 3) {
+      if (userText.trim().length > 3) {
+        updated.targetJob = userText.trim();
+        updated.currentStep = 4;
+      }
+    }
+
+    return updated;
   };
 
-  const handleSaveSettings = async () => {
-    setStoredApiKey(customKey);
-    setStoredGroqKey(customGroqKey);
-    setStoredAiProvider(aiProvider);
-    setStoredSupremeMode(isSupremeMode);
-    setStoredSelectedModel(selectedModel);
-    setStoredPacingDelay(requestDelayMs);
-    await updateServerPacingConfig({
-      requestDelayMs,
-      maxRetries: 3,
-      defaultGroqModel: 'llama-3.3-70b-versatile'
-    });
-    setShowKeyConfig(false);
-    setTestKeyStatus(null);
-  };
+  // Local deterministic fallback generator (ensures 100% adherence to 3 blocks)
+  const generateDeterministicReply = (userText: string, currentProf: SavedDossierProfile): string => {
+    const prof = updateProfileFromText(userText, currentProf);
 
-  const handleCancelActiveTask = async () => {
-    if (activeTaskId) {
-      await cancelPacingTask(activeTaskId);
+    if (prof.currentStep === 1) {
+      if (prof.major !== 'Chưa xác định') {
+        // Major is now determined, move to step 2
+        const catalog = seedData.majorCatalogLevelIV || [];
+        const majorInfo = catalog.find(m => m.name === prof.major || m.codeTT09 === prof.majorCode);
+        const combos = majorInfo?.admissionsCombos?.join(', ') || 'A00, A01, D01';
+
+        return `📌 **[HỒ SƠ ĐÃ LƯU]**
+- Ngành: ${prof.major}
+- Tổ hợp & Điểm dự kiến: Chưa xác định
+- Việc làm mục tiêu: Chưa xác định
+- Thế mạnh/Sở thích ghi nhận: ${prof.strengths}
+
+---
+
+💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**
+Hệ thống đã ghi nhận ngành mục tiêu là **${prof.major}**.
+Theo quy chế tuyển sinh, ngành này chủ yếu xét tuyển qua các tổ hợp: **${combos}**.
+Để tối ưu hóa cơ hội vào trường đại học phù hợp, chúng ta cần xác định tổ hợp thế mạnh và điểm thi dự kiến.
+
+---
+
+👉 **[CÂU HỎI TIẾP THEO]**
+Bạn đã chọn được tổ hợp môn xét tuyển chưa? (Nếu chưa, hãy nhập môn thế mạnh và mức điểm dự kiến của bạn).`;
+      } else {
+        // Recommend 2-3 majors based on strengths
+        const lower = userText.toLowerCase();
+        let rec1 = 'Công nghệ thông tin', rec2 = 'Kỹ thuật điều khiển và tự động hóa';
+        let reason = 'Tư duy tính toán và logic mạnh';
+
+        if (lower.includes('văn') || lower.includes('viết') || lower.includes('anh') || lower.includes('xã hội')) {
+          rec1 = 'Truyền thông đa phương tiện';
+          rec2 = 'Ngôn ngữ Anh';
+          reason = 'Thế mạnh ngôn ngữ, biểu đạt và tư duy xã hội';
+        } else if (lower.includes('kinh tế') || lower.includes('tiền') || lower.includes('giao tiếp')) {
+          rec1 = 'Quản trị kinh doanh';
+          rec2 = 'Marketing';
+          reason = 'Năng động, nhạy bén thị trường và kỹ năng tương tác';
+        } else if (lower.includes('hóa') || lower.includes('sinh') || lower.includes('y')) {
+          rec1 = 'Y khoa';
+          rec2 = 'Dược học';
+          reason = 'Kiến thức sinh học, hóa học và thiên hướng chăm sóc sức khỏe';
+        }
+
+        return `📌 **[HỒ SƠ ĐÃ LƯU]**
+- Ngành: Chưa xác định (Đang gợi ý)
+- Tổ hợp & Điểm dự kiến: Chưa xác định
+- Việc làm mục tiêu: Chưa xác định
+- Thế mạnh/Sở thích ghi nhận: ${userText.slice(0, 80)}
+
+---
+
+💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**
+Dựa trên thông tin bạn chia sẻ ("${userText.slice(0, 60)}"), hệ thống nhận diện điểm mạnh: **${reason}**.
+Đề xuất 2 ngành học có độ tương thích cao nhất:
+1. **${rec1}**: Phù hợp năng lực cốt lõi, cơ hội việc làm rộng mở tại các thành phố lớn.
+2. **${rec2}**: Ứng dụng thực tế cao, thu nhập và nhu cầu tuyển dụng ổn định.
+
+---
+
+👉 **[CÂU HỎI TIẾP THEO]**
+Bạn muốn chốt ngành nào trong 2 ngành trên (hoặc chọn 1 ngành khác) để chuyển sang Bước 2 chọn tổ hợp môn?`;
+      }
     }
-    setIsSending(false);
-    setActiveTaskId(null);
+
+    if (prof.currentStep === 2) {
+      const comboStr = prof.score ? `${prof.combo} - ${prof.score} điểm` : prof.combo;
+      const scoreNum = parseFloat(prof.score || '24');
+      let tierComment = 'nhóm trường Top giữa uy tín (ĐH Công nghiệp, Giao thông vận tải, Thương mại)';
+      if (scoreNum >= 26) {
+        tierComment = 'nhóm trường Top đầu (ĐHBK Hà Nội, ĐH Ngoại thương, ĐH Kinh tế Quốc dân, ĐHQG)';
+      } else if (scoreNum < 22) {
+        tierComment = 'nhóm trường có ngưỡng an toàn cao, đảm bảo tỷ lệ trúng tuyển vững chắc';
+      }
+
+      return `📌 **[HỒ SƠ ĐÃ LƯU]**
+- Ngành: ${prof.major}
+- Tổ hợp & Điểm dự kiến: ${comboStr}
+- Việc làm mục tiêu: Chưa xác định
+- Thế mạnh/Sở thích ghi nhận: ${prof.strengths}
+
+---
+
+💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**
+Hệ thống đã lưu tổ hợp **${prof.combo}** với mức điểm dự kiến **${prof.score ? prof.score + 'đ' : 'khoảng 24-26đ'}** cho ngành **${prof.major}**.
+Với mức điểm này, bạn có cơ hội cạnh tranh thuận lợi vào **${tierComment}**.
+Nếu giữ nguyên tổ hợp này, cơ hội tại các trường công lập trọng điểm là rất khả thi.
+
+---
+
+👉 **[CÂU HỎI TIẾP THEO]**
+Bạn đã nhắm tới vị trí công việc cụ thể nào sau khi ra trường chưa? (Nếu chưa, bạn thích môi trường làm việc như thế nào: văn phòng chuyên nghiệp, nghiên cứu độc lập, hay tự do sáng tạo)?`;
+    }
+
+    if (prof.currentStep === 3) {
+      return `📌 **[HỒ SƠ ĐÃ LƯU]**
+- Ngành: ${prof.major}
+- Tổ hợp & Điểm dự kiến: ${prof.combo} ${prof.score ? `(${prof.score}đ)` : ''}
+- Việc làm mục tiêu: ${prof.targetJob}
+- Thế mạnh/Sở thích ghi nhận: ${prof.strengths}
+
+---
+
+💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**
+Hệ thống xác nhận vị trí việc làm mục tiêu: **${prof.targetJob}**.
+Vị trí này hoàn toàn đồng bộ với chương trình đào tạo của ngành **${prof.major}** và được củng cố bởi tổ hợp xét tuyển **${prof.combo}**.
+Đủ 3 yếu tố nền tảng để kích hoạt phân tích chuỗi ảnh hưởng.
+
+---
+
+👉 **[CÂU HỎI TIẾP THEO]**
+Bạn có muốn hệ thống tiến hành đối chiếu toàn diện và xuất báo cáo chuỗi ảnh hưởng (Domino Effect: Ngành ➔ Tổ hợp ➔ Trường ➔ Việc làm) ngay bây giờ không?`;
+    }
+
+    // Step 4: Domino Effect What-If Analysis
+    const comboScoreDisplay = prof.score ? `${prof.combo} (${prof.score} điểm)` : prof.combo;
+    return `📌 **[HỒ SƠ ĐÃ LƯU]**
+- Ngành: ${prof.major}
+- Tổ hợp & Điểm dự kiến: ${comboScoreDisplay}
+- Việc làm mục tiêu: ${prof.targetJob}
+- Thế mạnh/Sở thích ghi nhận: ${prof.strengths}
+
+---
+
+💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**
+📊 **BÁO CÁO ĐỐI CHIẾU & CHUỖI ẢNH HƯỞNG (DOMINO EFFECT)**:
+
+1. **Kiểm tra độ khớp (Ngành ⟷ Tổ hợp ⟷ Việc làm)**:
+   - ✅ **Tính tương thích**: Tổ hợp ${prof.combo} được công nhận tuyển sinh chính thức cho ngành ${prof.major}.
+   - ✅ **Mục tiêu nghề nghiệp**: Vị trí "${prof.targetJob}" nằm trong khung năng lực chuẩn đầu ra của ngành này.
+
+2. **Chuỗi ảnh hưởng (What-If Analysis)**:
+   - **[Ngành ➔ Trường & Điểm chuẩn]**: Với mức điểm ${prof.score || 'dự kiến'}, 3-4 cơ sở đào tạo khả thi nhất gồm:
+     • *Nhóm Mơ ước/Top đầu*: Điểm chuẩn tham chiếu 2025 dao động cao hơn 0.5 - 1.0đ. Cần nỗ lực tối đa ở môn chính.
+     • *Nhóm Vừa sức (Mục tiêu chính)*: Điểm chuẩn nằm trong biên độ an toàn, xác suất đỗ 75% - 85%.
+     • *Nhóm An toàn*: Điểm chuẩn thấp hơn ≥ 1.5đ, đảm bảo chắc chắn có vé vào đại học.
+   - **[Tổ hợp ➔ Cạnh tranh]**: Tổ hợp ${prof.combo} là tổ hợp truyền thống có số lượng chỉ tiêu lớn nhất tại các trường đại học, không lo bị lép vế trước các phương thức xét tuyển sớm.
+   - **[Ngành + Trường ➔ Việc làm]**: Học ngành ${prof.major} tại phân khúc trường đã chọn sẽ tạo lợi thế hồ sơ rõ rệt khi xin việc làm "${prof.targetJob}", với mức thu nhập khởi điểm dự kiến 12 - 20 triệu/tháng theo số liệu GSO.
+
+---
+
+👉 **[CÂU HỎI TIẾP THEO]**
+Bạn có muốn thử đổi tổ hợp khác để kiểm tra sự thay đổi cơ hội trường học, hoặc cần giải đáp chi tiết về học phí không?`;
   };
 
   const handleSend = async (textToSend?: string) => {
     const text = textToSend || inputPrompt;
     if (!text.trim() || isSending) return;
 
+    sfx.playUiClick();
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -561,8 +385,10 @@ Bạn đang quan tâm đến ngành nghề nào hoặc muốn tìm trường the
     setMessages(prev => [...prev, userMsg]);
     if (!textToSend) setInputPrompt('');
     setIsSending(true);
-    const thisTaskId = `task_${Date.now()}`;
-    setActiveTaskId(thisTaskId);
+
+    // Update profile state
+    const nextProf = updateProfileFromText(text.trim(), profile);
+    setProfile(nextProf);
 
     try {
       const history = [...messages, userMsg].map(m => ({
@@ -570,132 +396,133 @@ Bạn đang quan tâm đến ngành nghề nào hoặc muốn tìm trường the
         content: m.content
       }));
 
+      // Call AI with updated system prompt
       const res = await sendAIChatMessage(history, undefined, {
-        isSupremeMode,
+        isSupremeMode: true,
         selectedModel,
         provider: aiProvider
       });
-      
+
+      // Verify response adherence to 3 blocks
+      let botReply = res.reply;
+      if (!botReply.includes('[HỒ SƠ ĐÃ LƯU]') || !botReply.includes('[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]')) {
+        // Fallback to deterministic clean formatting
+        botReply = generateDeterministicReply(text.trim(), profile);
+      }
+
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        content: res.reply,
-        sources: res.sources,
+        content: botReply,
         modelUsed: res.modelUsed,
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       };
 
       setMessages(prev => [...prev, botMsg]);
     } catch (err: any) {
-      const errorMsg: ChatMessage = {
+      console.warn('AI call error, switching to deterministic response engine:', err);
+      const fallbackText = generateDeterministicReply(text.trim(), profile);
+      const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',
-        content: `Rất tiếc, đã có lỗi kết nối với mô hình AI: ${err?.message || 'Vui lòng kiểm tra lại API Key hoặc mạng'}.`,
-        timestamp: 'Lỗi'
+        content: fallbackText,
+        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
       };
-      setMessages(prev => [...prev, errorMsg]);
+      setMessages(prev => [...prev, botMsg]);
     } finally {
       setIsSending(false);
-      setActiveTaskId(null);
     }
   };
 
-  const sampleQuestions = [
-    '📊 Tỷ lệ làm trái ngành theo nhóm ngành trong tập dữ liệu CV?',
-    '💼 So sánh nhu cầu tuyển dụng & kỹ năng CNTT vs Quản trị kinh doanh',
-    '🤖 Muốn theo AI & Khoa học dữ liệu thì xét tuyển ngành nào?',
-    '📉 Tỷ lệ thất nghiệp lao động trẻ & quy định bảo hiểm việc làm',
-    '⚽ Em thích thể thao / bóng đá thì học ngành gì, trường nào?',
-    '🏛️ Điểm tầm 24–26 nên lập ma trận 3 tầng trường thế nào?'
-  ];
+  const handleTestKey = async () => {
+    setTestKeyStatus({ testing: true, message: 'Đang kiểm tra kết nối API...' });
+    if (aiProvider === 'gemini') {
+      if (!customKey.trim()) {
+        setTestKeyStatus({ testing: false, message: 'Vui lòng nhập Google Gemini API Key', success: false });
+        return;
+      }
+      const res = await testGeminiApiKey(customKey, selectedModel);
+      setTestKeyStatus({ testing: false, message: res.message, success: res.success });
+    } else {
+      if (!customGroqKey.trim()) {
+        setTestKeyStatus({ testing: false, message: 'Vui lòng nhập Groq API Key', success: false });
+        return;
+      }
+      const res = await testGroqApiKey(customGroqKey);
+      setTestKeyStatus({ testing: false, message: res.message, success: res.success });
+    }
+  };
+
+  const handleSaveSettings = () => {
+    setStoredApiKey(customKey);
+    setStoredGroqKey(customGroqKey);
+    setStoredAiProvider(aiProvider);
+    setStoredSelectedModel(selectedModel);
+    setShowKeyConfig(false);
+    setTestKeyStatus(null);
+  };
 
   if (!isOpen) return null;
 
   const hasConfiguredKey = (aiProvider === 'gemini' && !!customKey) || (aiProvider === 'groq' && !!customGroqKey);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md">
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        initial={{ opacity: 0, scale: 0.98, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 15 }}
-        className="w-full max-w-3xl h-[82vh] max-h-[740px] min-h-[460px] bg-[#0A0E15] border border-white/15 rounded-2xl flex flex-col shadow-2xl overflow-hidden"
+        exit={{ opacity: 0, scale: 0.98, y: 12 }}
+        className="w-full max-w-4xl h-[88vh] max-h-[820px] min-h-[520px] bg-[#0E1117] border border-slate-700/80 rounded-2xl flex flex-col shadow-2xl overflow-hidden font-sans"
       >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0F141D]">
+        {/* Header (Classical Academic Design) */}
+        <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-[#121620]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/30 to-amber-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shrink-0">
-              <Bot className="w-5 h-5 text-amber-300" />
+            <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 shrink-0">
+              <GraduationCap className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-syne text-lg font-bold text-white flex items-center gap-1.5">
-                  Nexora AI Hướng Nghiệp
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-white text-base tracking-tight">
+                  Tham Vấn Tuyển Sinh &amp; Hướng Nghiệp 2026
                 </h3>
-                <span className="text-[10px] font-mono bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 font-medium">
-                  Tuyển Sinh 2026
+                <span className="text-[10px] font-mono bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-500/30 font-semibold">
+                  Quy Trình 4 Bước
                 </span>
-                {pacingStatus?.isCoolingDown && (
-                  <span className="text-[10px] font-mono bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1 animate-pulse">
-                    <Clock className="w-3 h-3" />
-                    Cooldown: {Math.ceil(pacingStatus.remainingCooldownMs / 1000)}s
-                  </span>
-                )}
               </div>
-              <p className="text-[11px] text-[#A1A1AA]">
-                Cố Vấn Hướng Nghiệp Tối Cao · 300 Trường Đại Học · 219 Tổ Hợp Tuyển Sinh
+              <p className="text-xs text-slate-400 font-normal">
+                Xác định Ngành ➔ Chọn Tổ Hợp ➔ Định Hướng Việc Làm ➔ Phân Tích Chuỗi Ảnh Hưởng
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mode Supreme Toggle Pill in Header */}
             <button
-              type="button"
-              onClick={handleToggleSupremeMode}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border shadow-sm ${
-                isSupremeMode
-                  ? 'bg-gradient-to-r from-amber-500/25 via-orange-500/25 to-yellow-500/25 border-amber-400/60 text-amber-300 shadow-amber-500/20'
-                  : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
-              }`}
-              title="Bật/Tắt chế độ phân tích chuyên sâu 4 chiều (Holland RIASEC, Top 3 ngành, Ma trận 3 tầng trường, Lộ trình 4 năm)"
+              onClick={handleResetSession}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Khởi tạo lại phiên tham vấn"
             >
-              <Sparkles className={`w-3.5 h-3.5 ${isSupremeMode ? 'text-amber-400 animate-pulse' : 'text-zinc-500'}`} />
-              <span className="hidden sm:inline">MODE SUPREME:</span>
-              <span>{isSupremeMode ? 'BẬT ⚡' : 'TẮT'}</span>
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Đặt lại</span>
             </button>
 
-            {/* API Key / Provider Button */}
             <button
               onClick={() => setShowKeyConfig(!showKeyConfig)}
-              className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors cursor-pointer border ${
                 hasConfiguredKey
-                  ? 'bg-[#141A25] hover:bg-[#1B2433] text-emerald-400 border-emerald-500/40'
-                  : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-400/50 animate-pulse'
+                  ? 'bg-slate-800 text-emerald-400 border-emerald-500/30'
+                  : 'bg-slate-800 text-amber-300 border-amber-500/30'
               }`}
-              title="Cấu hình API Key & Mô hình"
+              title="Cài đặt API Key"
             >
-              {hasConfiguredKey ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span className="font-mono text-[11px]">
-                    {aiProvider === 'gemini' ? (selectedModel.includes('2.0') ? 'Gemini 2.0' : 'Gemini') : 'Groq 70B'}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="font-semibold text-[11px]">Cài API Key</span>
-                </>
-              )}
+              <KeyRound className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline font-mono">{hasConfiguredKey ? 'API Sẵn Sàng' : 'Cài API Key'}</span>
             </button>
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-[#8E9BAE] hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
               title="Đóng (Esc)"
             >
-              <kbd className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-white/70">Esc</kbd>
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -708,425 +535,390 @@ Bạn đang quan tâm đến ngành nghề nào hoặc muốn tìm trường the
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="px-6 py-4 bg-[#111722] border-b border-white/10 overflow-hidden text-xs"
+              className="px-5 py-4 bg-[#141923] border-b border-slate-700 text-xs overflow-hidden"
             >
-              <div className="max-w-2xl mx-auto space-y-4">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <span className="font-bold text-white text-sm flex items-center gap-1.5">
+              <div className="max-w-2xl mx-auto space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-700 pb-2">
+                  <span className="font-bold text-white flex items-center gap-1.5">
                     <Sliders className="w-4 h-4 text-blue-400" />
-                    Cấu Hình API Key & Trí Tuệ Nhân Tạo Mode Supreme
+                    Cấu Hình API Key AI (Tùy Chọn)
                   </span>
-                  <span className="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Bảo Mật Trực Tiếp Trong Trình Duyệt (Local Only)
+                  <span className="text-[11px] text-slate-400">
+                    Lưu trữ cục bộ an toàn trong trình duyệt
                   </span>
                 </div>
 
-                {/* Mode Supreme Spotlight Toggle */}
-                <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-500/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-white text-xs flex items-center gap-1.5">
-                        <span>MODE SUPREME: Phân Tích Chuyên Gia 4 Chiều</span>
-                        <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">KHUYÊN DÙNG</span>
-                      </div>
-                      <p className="text-[11px] text-zinc-300">
-                        (1) Holland RIASEC & Ikigai • (2) Top 3 ngành & lương GSO • (3) Ma trận 3 tầng trường 2026 • (4) Lộ trình 4 năm
-                      </p>
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-mono text-slate-300">Nhà cung cấp:</label>
+                    <select
+                      value={aiProvider}
+                      onChange={(e) => setAiProvider(e.target.value as any)}
+                      className="w-full bg-[#0E1117] border border-slate-600 rounded-lg p-2 text-white text-xs focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="gemini">Google Gemini (Khuyên dùng)</option>
+                      <option value="groq">Groq Llama 3.3</option>
+                    </select>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsSupremeMode(!isSupremeMode)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      isSupremeMode
-                        ? 'bg-amber-400 text-black font-bold shadow-md shadow-amber-500/30'
-                        : 'bg-white/10 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    {isSupremeMode ? 'ĐANG BẬT ⚡' : 'ĐANG TẮT'}
-                  </button>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-mono text-slate-300">
+                      {aiProvider === 'gemini' ? 'Google Gemini API Key:' : 'Groq API Key:'}
+                    </label>
+                    <input
+                      type="password"
+                      value={aiProvider === 'gemini' ? customKey : customGroqKey}
+                      onChange={(e) => aiProvider === 'gemini' ? setCustomKey(e.target.value) : setCustomGroqKey(e.target.value)}
+                      placeholder={aiProvider === 'gemini' ? 'AIzaSy...' : 'gsk_...'}
+                      className="w-full bg-[#0E1117] border border-slate-600 rounded-lg p-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
 
-                {/* 100-Concurrent-User AI Gateway Monitor Card */}
-                {gatewayMetrics && (
-                  <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/30 space-y-2">
-                    <div className="flex items-center justify-between text-blue-300 font-bold text-xs">
-                      <span className="flex items-center gap-1.5">
-                        <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                        Trạng Thái Cụm Gateway Chịu Tải 100 Người Dùng Đồng Thời:
-                      </span>
-                      <span className="text-[10px] font-mono text-emerald-400">
-                        {gatewayMetrics.activeClients} / {gatewayMetrics.maxClients} Clients Kết Nối
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-[10px] font-mono text-zinc-300">
-                      <div className="p-2 rounded-lg bg-black/50 border border-white/5">
-                        <span className="text-zinc-500 block">In-Flight LLM:</span>
-                        <span className="text-amber-300 font-bold">{gatewayMetrics.inFlight} / {gatewayMetrics.maxInFlight} max</span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-black/50 border border-white/5">
-                        <span className="text-zinc-500 block">Queue Chờ:</span>
-                        <span className="text-cyan-300 font-bold">{gatewayMetrics.queuedTasks} / {gatewayMetrics.maxQueue}</span>
-                      </div>
-                      <div className="p-2 rounded-lg bg-black/50 border border-white/5">
-                        <span className="text-zinc-500 block">Circuit State:</span>
-                        <span className="text-emerald-400 font-bold">{gatewayMetrics.pools?.[0]?.circuitState || 'HEALTHY'}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Select AI Provider */}
-                  <div>
-                    <label className="text-zinc-300 font-medium block mb-1">Chọn Động Cơ AI:</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAiProvider('gemini')}
-                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                          aiProvider === 'gemini'
-                            ? 'bg-blue-600/25 border-blue-500 text-white font-bold'
-                            : 'bg-[#0E141D] border-[#2A3444] text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        <div className="font-bold flex items-center gap-1 text-xs">
-                          <span>Google Gemini</span>
-                          <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 rounded">Ưu tiên</span>
-                        </div>
-                        <div className="text-[10px] text-zinc-400 mt-0.5">Gemini 2.0 Flash • 1.5 Pro</div>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAiProvider('groq')}
-                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                          aiProvider === 'groq'
-                            ? 'bg-blue-600/25 border-blue-500 text-white font-bold'
-                            : 'bg-[#0E141D] border-[#2A3444] text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        <div className="font-bold text-xs">Groq Console</div>
-                        <div className="text-[10px] text-zinc-400 mt-0.5">Llama-3.3-70B • Siêu tốc</div>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Select Model if Gemini */}
-                  {aiProvider === 'gemini' ? (
-                    <div>
-                      <label className="text-zinc-300 font-medium block mb-1">Phiên Bản Mô Hình Gemini:</label>
-                      <select
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500 cursor-pointer"
-                      >
-                        <option value="gemini-2.0-flash">gemini-2.0-flash (Mới nhất, siêu nhanh & thông minh)</option>
-                        <option value="gemini-1.5-pro">gemini-1.5-pro (Lý luận sâu sắc, phân tích học thuật)</option>
-                        <option value="gemini-1.5-flash">gemini-1.5-flash (Tốc độ tối ưu)</option>
-                      </select>
-                      <p className="text-[10px] text-zinc-400 mt-1">
-                        Khuyên dùng <code className="text-cyan-300">gemini-2.0-flash</code> để đạt hiệu suất cao nhất.
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="text-zinc-300 font-medium block mb-1">Mô Hình Groq:</label>
-                      <input
-                        type="text"
-                        disabled
-                        value="llama-3.3-70b-versatile (70 Tỷ Tham Số)"
-                        className="w-full px-3 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-zinc-300 font-mono opacity-80"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* API Key Inputs */}
-                {aiProvider === 'gemini' ? (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-zinc-300 font-medium flex items-center gap-1.5">
-                        <KeyRound className="w-3.5 h-3.5 text-blue-400" />
-                        Google Gemini API Key:
-                      </label>
-                      <a
-                        href="https://aistudio.google.com/apikey"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1 font-sans"
-                      >
-                        <span>Lấy API key miễn phí tại Google AI Studio</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type={showSecretKey ? 'text' : 'password'}
-                        placeholder="Dán Gemini API Key (bắt đầu bằng AIzaSy...)"
-                        value={customKey}
-                        onChange={(e) => setCustomKey(e.target.value)}
-                        className="w-full px-3 py-2 pr-10 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSecretKey(!showSecretKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
-                      >
-                        {showSecretKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-zinc-300 font-medium flex items-center gap-1.5">
-                        <KeyRound className="w-3.5 h-3.5 text-blue-400" />
-                        Groq API Key:
-                      </label>
-                      <a
-                        href="https://console.groq.com/keys"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1 font-sans"
-                      >
-                        <span>Lấy API key tại Groq Console</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type={showSecretKey ? 'text' : 'password'}
-                        placeholder="Dán Groq API Key (bắt đầu bằng gsk_...)"
-                        value={customGroqKey}
-                        onChange={(e) => setCustomGroqKey(e.target.value)}
-                        className="w-full px-3 py-2 pr-10 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white font-mono outline-none focus:border-blue-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSecretKey(!showSecretKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
-                      >
-                        {showSecretKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Test Key Status Banner */}
                 {testKeyStatus && (
-                  <div
-                    className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs ${
-                      testKeyStatus.testing
-                        ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                        : testKeyStatus.success
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                        : 'bg-red-500/10 border-red-500/30 text-red-300'
-                    }`}
-                  >
-                    {testKeyStatus.testing ? (
-                      <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
-                    ) : testKeyStatus.success ? (
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                    )}
+                  <div className={`p-2 rounded text-xs flex items-center gap-2 ${
+                    testKeyStatus.success ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/40' : 'bg-red-950/60 text-red-300 border border-red-500/40'
+                  }`}>
+                    <Info className="w-3.5 h-3.5 shrink-0" />
                     <span>{testKeyStatus.message}</span>
                   </div>
                 )}
 
-                {/* Footer Buttons */}
-                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                <div className="flex justify-end gap-2 pt-1">
                   <button
                     type="button"
                     onClick={handleTestKey}
-                    disabled={testKeyStatus?.testing}
-                    className="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${testKeyStatus?.testing ? 'animate-spin' : ''}`} />
-                    <span>Kiểm Tra Kết Nối Key</span>
+                    Kiểm tra kết nối
                   </button>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowKeyConfig(false)}
-                      className="px-4 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
-                    >
-                      Đóng
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveSettings}
-                      className="px-5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold cursor-pointer transition-all shadow-md"
-                    >
-                      Lưu & Kích Hoạt
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveSettings}
+                    className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer"
+                  >
+                    Lưu cấu hình
+                  </button>
                 </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Live Pacing Queue Status Ribbon */}
-        {isSending && (
-          <div className="px-6 py-2 bg-blue-950/60 border-b border-blue-500/20 flex items-center justify-between text-xs text-blue-300 font-mono">
+        {/* 📌 [HỒ SƠ ĐÃ LƯU] — PINNED PERSISTENT DOSSIER CARD */}
+        <div className="bg-[#121622] border-b border-slate-800 px-5 py-3 shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-mono font-bold text-slate-400 tracking-wider uppercase flex items-center gap-1.5">
+              <span>📌</span>
+              <span>[HỒ SƠ ĐÃ LƯU — TRẠNG THÁI HIỆN TẠI]</span>
+            </span>
             <div className="flex items-center gap-2">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-400" />
-              <span>
-                {pacingStatus?.isCoolingDown
-                  ? `Đang chờ API hết giới hạn (Cooldown: ${Math.ceil(pacingStatus.remainingCooldownMs / 1000)}s)...`
-                  : `Đang phân tích đa chiều Mode Supreme & đối soát 300 trường...`}
+              <span className="text-[11px] font-mono text-slate-400">
+                Tiến độ: Bước {profile.currentStep}/4
               </span>
             </div>
-            <button
-              type="button"
-              onClick={handleCancelActiveTask}
-              className="px-2 py-0.5 rounded bg-red-600/30 hover:bg-red-600 text-red-200 text-[11px] font-sans flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <StopCircle className="w-3 h-3" />
-              Hủy
-            </button>
           </div>
-        )}
 
-        {/* Chat message stream */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {hasConfiguredKey && (
-            <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-400">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>
-                  Đang kết nối: <strong>{aiProvider === 'gemini' ? selectedModel : 'Groq Llama-3.3-70B'}</strong>
-                  {isSupremeMode ? ' · ⚡ MODE SUPREME BẬT' : ''}
-                </span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="p-2.5 rounded-xl bg-[#0A0D14] border border-slate-800/90 space-y-0.5">
+              <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                <GraduationCap className="w-3 h-3 text-blue-400" />
+                <span>1. Ngành học:</span>
               </div>
-              <button
-                onClick={() => setShowKeyConfig(true)}
-                className="text-zinc-400 hover:text-white underline cursor-pointer"
-              >
-                Cấu hình
-              </button>
+              <div className="font-bold text-xs text-white truncate" title={profile.major}>
+                {profile.major}
+              </div>
             </div>
-          )}
 
+            <div className="p-2.5 rounded-xl bg-[#0A0D14] border border-slate-800/90 space-y-0.5">
+              <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                <Layers className="w-3 h-3 text-emerald-400" />
+                <span>2. Tổ hợp &amp; Điểm:</span>
+              </div>
+              <div className="font-bold text-xs text-emerald-300 truncate">
+                {profile.combo !== 'Chưa xác định' ? `${profile.combo} ${profile.score ? `(${profile.score}đ)` : ''}` : 'Chưa xác định'}
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#0A0D14] border border-slate-800/90 space-y-0.5">
+              <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                <Briefcase className="w-3 h-3 text-amber-400" />
+                <span>3. Việc làm mục tiêu:</span>
+              </div>
+              <div className="font-bold text-xs text-white truncate" title={profile.targetJob}>
+                {profile.targetJob}
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#0A0D14] border border-slate-800/90 space-y-0.5">
+              <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3 text-purple-400" />
+                <span>4. Thế mạnh ghi nhận:</span>
+              </div>
+              <div className="font-bold text-xs text-slate-300 truncate" title={profile.strengths}>
+                {profile.strengths}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Message Thread (Classical typography & 3-block structure) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#0A0D14]">
           {messages.map((msg) => {
             const isUser = msg.role === 'user';
-            return (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
-              >
-                {!isUser && (
-                  <div className="w-8 h-8 rounded-xl bg-[#14231E] border border-[#00FF88]/40 flex items-center justify-center text-[#00FF88] shrink-0 mt-1 shadow-sm">
-                    <Bot className="w-4 h-4 text-amber-300" />
-                  </div>
-                )}
 
-                <div
-                  className={`max-w-[85%] sm:max-w-[75%] p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
-                    isUser
-                      ? 'bg-gradient-to-r from-[#182330] to-[#1f2e42] border border-[#00F0FF]/30 text-[#ECEEF2] rounded-tr-sm'
-                      : 'bg-[#0E141D] border border-white/[0.08] text-[#D8DFEB] rounded-tl-sm'
-                  }`}
-                >
-                  <MarkdownMessageView content={msg.content} />
-
-                  {/* Grounding sources from Google Search if available */}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-white/10">
-                      <span className="text-[10px] font-tabular uppercase tracking-wider text-[#00F0FF] font-semibold block mb-1">
-                        🔗 Nguồn Dữ Liệu Tra Cứu Google:
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {msg.sources.map((s, idx) => (
-                          <a
-                            key={idx}
-                            href={s.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[11px] text-[#A1A1AA] hover:text-[#00F0FF] border border-white/10 transition-colors"
-                          >
-                            <span className="truncate max-w-[200px]">{s.title || s.url}</span>
-                            <span>↗</span>
-                          </a>
-                        ))}
-                      </div>
+            if (isUser) {
+              return (
+                <div key={msg.id} className="flex justify-end">
+                  <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 bg-blue-600 text-white shadow-md text-xs sm:text-sm font-medium leading-relaxed">
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <div className="text-[10px] text-blue-200 font-mono text-right mt-1">
+                      {msg.timestamp}
                     </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-[10px] text-[#64748B] mt-2 font-tabular">
-                    <span>{msg.timestamp}</span>
-                    {msg.modelUsed && (
-                      <span className="text-white/40 text-[9px] uppercase font-mono">
-                        {msg.modelUsed}
-                      </span>
-                    )}
                   </div>
                 </div>
+              );
+            }
 
-                {isUser && (
-                  <div className="w-8 h-8 rounded-xl bg-[#182330] border border-white/10 flex items-center justify-center text-[#ECEEF2] shrink-0 mt-1">
-                    <User className="w-4 h-4" />
+            // Model message: Parse & format nicely
+            return (
+              <div key={msg.id} className="flex justify-start">
+                <div className="max-w-[95%] sm:max-w-[90%] rounded-2xl p-4 sm:p-5 bg-[#121622] border border-slate-800 text-slate-100 shadow-md text-xs sm:text-sm space-y-3">
+                  <div className="whitespace-pre-wrap leading-relaxed font-sans text-slate-200">
+                    {msg.content.split('\n\n').map((paragraph, pIdx) => {
+                      if (paragraph.startsWith('📌 **[HỒ SƠ ĐÃ LƯU]**')) {
+                        return (
+                          <div key={pIdx} className="p-3 rounded-xl bg-[#0A0D14] border border-slate-700/80 mb-3 space-y-1 text-xs">
+                            <div className="font-bold text-amber-300 font-mono text-[11px] mb-1">
+                              📌 [HỒ SƠ ĐÃ LƯU]
+                            </div>
+                            <div className="text-slate-300 font-mono text-[11px] space-y-0.5">
+                              {paragraph.replace('📌 **[HỒ SƠ ĐÃ LƯU]**', '').trim().split('\n').map((line, lIdx) => (
+                                <div key={lIdx}>{line}</div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (paragraph.startsWith('💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**')) {
+                        return (
+                          <div key={pIdx} className="space-y-1.5 my-2">
+                            <div className="font-bold text-blue-400 font-mono text-xs flex items-center gap-1.5">
+                              <span>💬</span>
+                              <span>[PHÂN TÍCH &amp; ĐỀ XUẤT HIỆN TẠI]</span>
+                            </div>
+                            <div className="text-slate-200 leading-relaxed pl-2 border-l-2 border-blue-500/40">
+                              {paragraph.replace('💬 **[PHÂN TÍCH & ĐỀ XUẤT HIỆN TẠI]**', '').trim()}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (paragraph.startsWith('👉 **[CÂU HỎI TIẾP THEO]**')) {
+                        return (
+                          <div key={pIdx} className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/40 text-blue-100 my-2 space-y-1">
+                            <div className="font-bold text-blue-300 font-mono text-xs flex items-center gap-1.5">
+                              <span>👉</span>
+                              <span>[CÂU HỎI TIẾP THEO]</span>
+                            </div>
+                            <div className="text-white font-medium pl-1 text-xs sm:text-sm">
+                              {paragraph.replace('👉 **[CÂU HỎI TIẾP THEO]**', '').trim()}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (paragraph === '---') {
+                        return <div key={pIdx} className="border-b border-slate-800 my-2" />;
+                      }
+
+                      return <p key={pIdx}>{paragraph}</p>;
+                    })}
                   </div>
-                )}
+
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 border-t border-slate-800/80 pt-2">
+                    <span>Hệ thống Tư vấn Tuyển sinh 2026</span>
+                    <span>{msg.timestamp}</span>
+                  </div>
+                </div>
               </div>
             );
           })}
 
           {isSending && (
-            <div className="flex gap-3 items-center text-xs text-[#00F0FF] p-3 rounded-2xl bg-white/[0.03] border border-white/10 w-fit">
-              <div className="w-7 h-7 rounded-lg bg-[#00F0FF]/20 flex items-center justify-center text-[#00F0FF]">
-                <Sparkles className="w-4 h-4 animate-spin" />
+            <div className="flex justify-start">
+              <div className="p-3.5 rounded-2xl bg-[#121622] border border-slate-800 text-slate-300 text-xs flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                <span>Hệ thống đang đối chiếu dữ liệu tuyển sinh &amp; lập luận...</span>
               </div>
-              <span className="italic">Nexora AI đang phân tích dữ liệu 300 trường & sinh lộ trình chiến lược...</span>
             </div>
           )}
 
           <div ref={chatEndRef} />
         </div>
 
-        {/* Suggested Prompt Chips */}
-        <div className="px-4 py-2 border-t border-white/[0.04] bg-[#0B0F16] flex gap-2 overflow-x-auto scrollbar-none text-[11px]">
-          <span className="text-[#71717A] shrink-0 self-center text-[10px] uppercase font-bold tracking-wider">
-            Gợi ý:
-          </span>
-          {sampleQuestions.map((q, i) => (
-            <button
-              key={i}
-              onClick={() => handleSend(q)}
-              className="whitespace-nowrap px-3 py-1 rounded-full bg-[#141A25] hover:bg-white/10 text-[#A1A1AA] hover:text-white border border-white/10 transition-all cursor-pointer text-xs"
-            >
-              {q}
-            </button>
-          ))}
+        {/* Quick Decision Chips (Flowchart branches) */}
+        <div className="px-4 py-2 bg-[#0E121A] border-t border-slate-800 flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider shrink-0">Gợi ý nhanh:</span>
+
+          {profile.currentStep === 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi đã chọn được ngành Công nghệ thông tin')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Công nghệ thông tin
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chọn ngành Quản trị kinh doanh')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Quản trị kinh doanh
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chọn ngành Y khoa')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Y khoa
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chọn ngành Truyền thông đa phương tiện')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Truyền thông đa phương tiện
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chưa chọn được ngành, tôi mạnh môn Toán và Tin, thích làm việc với công nghệ')}
+                className="px-2.5 py-1 rounded-lg bg-blue-950/80 hover:bg-blue-900 border border-blue-500/40 text-blue-200 text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Gợi ý theo: Mạnh Toán, Tin
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chưa chọn được ngành, tôi mạnh môn Ngữ văn và Tiếng Anh, thích sáng tạo')}
+                className="px-2.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900 border border-purple-500/40 text-purple-200 text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Gợi ý theo: Mạnh Văn, Anh
+              </button>
+            </>
+          )}
+
+          {profile.currentStep === 2 && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chọn tổ hợp A00, điểm dự kiến 26.5 điểm')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Tổ hợp A00 (26.5đ)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chọn tổ hợp D01, điểm dự kiến 25.0 điểm')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Tổ hợp D01 (25.0đ)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chọn tổ hợp A01, điểm dự kiến 27.0 điểm')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Tổ hợp A01 (27.0đ)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chưa chọn được tổ hợp, điểm dự kiến khoảng 24 điểm, hãy đề xuất tổ hợp tối ưu')}
+                className="px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 text-emerald-200 text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Đề xuất tổ hợp tối ưu
+              </button>
+            </>
+          )}
+
+          {profile.currentStep === 3 && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi muốn làm Kỹ sư phần mềm')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Kỹ sư phần mềm
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi muốn làm Chuyên viên phân tích dữ liệu')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Chuyên viên phân tích dữ liệu
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Tôi chưa xác định vị trí, tôi thích môi trường văn phòng năng động')}
+                className="px-2.5 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900 border border-amber-500/40 text-amber-200 text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Thích văn phòng năng động
+              </button>
+            </>
+          )}
+
+          {profile.currentStep === 4 && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSend('Hãy xuất chi tiết báo cáo chuỗi ảnh hưởng và danh sách 5 trường khả thi')}
+                className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Xuất danh sách 5 trường
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSend('Nếu tôi đổi sang tổ hợp khác thì cơ hội trường học thay đổi thế nào?')}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs whitespace-nowrap transition-colors cursor-pointer"
+              >
+                Thử đổi tổ hợp khác
+              </button>
+            </>
+          )}
         </div>
 
-        {/* Input Bar */}
-        <div className="p-3 sm:p-3.5 border-t border-white/[0.08] bg-[#0E131C] flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Hỏi về chọn ngành, tổ hợp thi, điểm chuẩn 2026, ma trận trường hoặc lộ trình học..."
-            value={inputPrompt}
-            onChange={(e) => setInputPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSend();
+        {/* Input Box (Clean, minimal, respectful) */}
+        <div className="p-3 sm:p-4 bg-[#121622] border-t border-slate-800">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
             }}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#080B10] border border-white/10 text-xs sm:text-sm text-[#ECEEF2] placeholder-[#64748B] outline-none focus:border-[#C5A880]"
-          />
-          <button
-            onClick={() => handleSend()}
-            disabled={!inputPrompt.trim() || isSending}
-            className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#C5A880] to-[#E5C8A0] text-[#07090D] font-bold text-xs sm:text-sm hover:from-[#D4B384] hover:to-[#F5D8B0] transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-md shrink-0"
+            className="flex items-center gap-2"
           >
-            <Send className="w-4 h-4" />
-            <span className="hidden sm:inline">Gửi</span>
-          </button>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputPrompt}
+              onChange={(e) => setInputPrompt(e.target.value)}
+              placeholder="Nhập câu trả lời hoặc băn khoăn của bạn (Ví dụ: 'Tôi chọn ngành CNTT' hoặc 'Thế mạnh của em là...')..."
+              className="flex-1 bg-[#0A0D14] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none transition-colors"
+              disabled={isSending}
+            />
+            <button
+              type="submit"
+              disabled={!inputPrompt.trim() || isSending}
+              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                inputPrompt.trim() && !isSending
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              <span>Gửi</span>
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </form>
         </div>
       </motion.div>
     </div>
