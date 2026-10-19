@@ -2484,7 +2484,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
   };
 
   // =========================================================================
-  // STEP 0: HERO SUBMISSION -> REALITY-CHECK INQUIRY CHECKPOINT
+  // STEP 0: DIRECT 1-ON-1 COUNSELING ENTRY (NO ARTIFICIAL GATEKEEPING)
   // =========================================================================
   const handleInitialStart = (textToStart?: string) => {
     const text = (textToStart || chatInput).trim();
@@ -2493,12 +2493,20 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     setActivePromptQuery(text);
     sfx.playUiClick();
 
+    // Dọn dẹp trạng thái phiên cũ để đảm bảo phiên tư vấn mới bắt đầu từ con số 0
+    clearStoredLearnerProfile();
+    setLearnerEvidenceProfile(null);
+    setSuggestedCareers([]);
+    setSuggestedCombos([]);
+    setChatMessages([]);
+    setAnalysisText('');
+
     // Check if domain is undecided
     const domain = detectDomain(text);
     setDetectedDomainType(domain);
 
-    // Prompt user with the creator's solemn reality check question
-    setWorkflowStep('REALITY_CHECK');
+    // Bắt đầu ngay buổi tư vấn 1:1 trực tiếp với AI Cố Vấn, không chặn học sinh bằng modal trắc nghiệm
+    handleAnalyzeInput(text);
   };
 
   const handleConfirmRealityCheck = (overrideChoice?: string) => {
@@ -2512,7 +2520,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     }));
 
     const text = activePromptQuery || chatInput;
-    // Always enter the adaptive conversation flow from scratch
+    // Enter the adaptive conversation flow from scratch
     handleAnalyzeInput(text, answer);
   };
 
@@ -2527,18 +2535,23 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     setActivePromptQuery(text);
     sfx.playUiClick();
 
+    // Dọn sạch danh sách nghề cũ khi mở đầu buổi tư vấn 1:1
+    setSuggestedCareers([]);
+    setSuggestedCombos([]);
+
     const domain = detectDomain(text);
     setDetectedDomainType(domain);
     setIsGeneratingAnalysis(true);
     setAnalysisError(null);
 
-    const userPromptContent = rAnswer 
-      ? `Băn khoăn ban đầu: "${text}"\nCâu trả lời tự vấn thực tế: "${rAnswer}"`
-      : text;
+    // Tin nhắn tự nhiên thuần túy của học sinh trong buổi trò chuyện 1:1
+    const userPromptContent = text;
 
-    // Tích lũy bằng chứng song song qua Decision Engine
+    // Tích lũy bằng chứng tươi mới cho buổi tư vấn 1:1, KHÔNG kế thừa profile cũ từ localStorage
+    clearStoredLearnerProfile();
     const initialProfile = createInitialProfile(text, rAnswer);
-    const decision = processDecisionTurn(text, learnerEvidenceProfile || initialProfile);
+    setLearnerEvidenceProfile(initialProfile);
+    const decision = processDecisionTurn(text, initialProfile, rAnswer);
     let updatedProfile = decision.updatedProfile;
     setLearnerEvidenceProfile(decision.updatedProfile);
     saveLearnerProfile(decision.updatedProfile);
@@ -2643,13 +2656,9 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       ];
       setChatMessages(newMessages);
 
-      let newCareers: SuggestedCareerItem[] = [];
-      if (readiness.isReadyForCareers) {
-        newCareers = generateGroundedCareerProposals(updatedProfile) as SuggestedCareerItem[];
-        setSuggestedCareers(newCareers);
-      } else {
-        setSuggestedCareers([]);
-      }
+      // Trong buổi tư vấn 1:1, lượt mở đầu luôn tập trung lắng nghe và bóc tách bản thân, tuyệt đối không xuất thẻ nghề
+      const newCareers: SuggestedCareerItem[] = [];
+      setSuggestedCareers([]);
 
       setIsGeneratingAnalysis(false);
       setWorkflowStep('ANALYZED_COMBOS');
@@ -2830,10 +2839,12 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       setChatMessages(finalMessages);
       setAdaptiveQuickReplies(aiQuickReplies);
 
-      let newCareers: SuggestedCareerItem[] = suggestedCareers;
-      if (readiness.isReadyForCareers) {
+      let newCareers: SuggestedCareerItem[] = [];
+      if (readiness.isReadyForCareers && updatedProfile.turnsCount >= 3) {
         newCareers = generateGroundedCareerProposals(updatedProfile) as SuggestedCareerItem[];
         setSuggestedCareers(newCareers);
+      } else {
+        setSuggestedCareers([]);
       }
 
       setIsAskingFollowUp(false);
@@ -2855,6 +2866,15 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
         ? decision.quickReplies
         : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
 
+      const readiness = evaluateEvidenceReadiness(updatedProfile);
+      let fallbackCareers: SuggestedCareerItem[] = [];
+      if (readiness.isReadyForCareers && updatedProfile.turnsCount >= 3) {
+        fallbackCareers = generateGroundedCareerProposals(updatedProfile) as SuggestedCareerItem[];
+        setSuggestedCareers(fallbackCareers);
+      } else {
+        setSuggestedCareers([]);
+      }
+
       const finalMessages = [
         ...newMessages,
         {
@@ -2867,6 +2887,7 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
       saveSessionSnapshot({
         messages: finalMessages,
         profile: updatedProfile,
+        suggestedCareers: fallbackCareers,
         adaptiveQuickReplies: fallbackQuickReplies
       });
     }
@@ -4191,14 +4212,14 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-sm sm:text-base text-white tracking-wide">
-                        Cố Vấn Hướng Nghiệp Nexora
+                        Cố Vấn Hướng Nghiệp Nexora · Buổi Tư Vấn 1:1
                       </h3>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                        AI 1-on-1
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        Phòng tư vấn 1:1
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-400 font-sans">
-                      Định hướng từng bước từ con số 0 · Đối thoại dựa trên bằng chứng thực tế
+                      Lắng nghe và đồng hành từ con số 0 · Không ép chọn nghề hay chọn khối vội vã
                     </p>
                   </div>
                 </div>
@@ -4273,15 +4294,15 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-500">Độ hoàn thiện:</span>
+                  <span className="text-slate-500">Tiến trình:</span>
                   <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                    evidenceReadiness.score >= 75
+                    evidenceReadiness.isReadyForCareers
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : evidenceReadiness.score >= 45
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                   }`}>
-                    {evidenceReadiness.score}/100đ
+                    {evidenceReadiness.isReadyForCareers 
+                      ? 'Đã đủ căn cứ gợi ý nghề' 
+                      : `Đang lắng nghe & khám phá từ con số 0 (${evidenceReadiness.score}/100đ)`}
                   </span>
                 </div>
               </div>
@@ -4363,45 +4384,13 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                   </div>
                 )}
 
-                {/* Target Career Roles Revealed (Gate 2: Target Career Roles) */}
-                {isAnalysisDone && (suggestedCareers.length > 0 || suggestedCombos.length > 0) && (
+                {/* Target Career Roles Revealed (Gate 2: Target Career Roles) - Tuyệt đối CHỈ hiển thị khi đã đủ bằng chứng qua các lượt đối thoại thực tế */}
+                {isAnalysisDone && suggestedCareers.length > 0 && evidenceReadiness.isReadyForCareers && (learnerEvidenceProfile?.turnsCount || 0) >= 3 && (
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="pt-4 border-t border-[#1E3A8A]/40 space-y-4"
                   >
-                    {/* Discovery Triage Banner if user is undecided or lacks direction */}
-                    {(detectedDomainType === 'UNDECIDED' || /chưa biết|không biết|mất định hướng|hoang mang|mông lung|làm gì hết|phải làm gì|chưa rõ|chưa biết giỏi gì/i.test(activePromptQuery || chatInput)) && (
-                      <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-[#172033] via-[#0F172A] to-[#111827] border border-[#3B82F6]/40 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 rounded-xl bg-[#2563EB]/25 text-[#60A5FA] mt-0.5 shrink-0 border border-[#3B82F6]/30">
-                            <Compass className="w-5 h-5 animate-pulse text-[#60A5FA]" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-xs font-bold text-white flex items-center gap-2">
-                              <span>Bạn vẫn đang bối rối &amp; chưa biết mình giỏi môn gì?</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold">Đừng chọn vội!</span>
-                            </div>
-                            <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                              Không ai có thể chọn đúng nghề nếu chưa thu thập đủ yếu tố (loại trừ việc ngại nhất, môi trường làm việc RIASEC, điều kiện tài chính). Hãy để AI hỏi thêm 4 câu để định vị chuẩn xác!
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sfx.playUiClick();
-                            setDetectedDomainType('UNDECIDED');
-                            setWorkflowStep('INTERMEDIATE_DISCOVERY');
-                          }}
-                          className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white text-xs font-bold rounded-xl shrink-0 flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 transition-transform active:scale-95 cursor-pointer"
-                        >
-                          <Sliders className="w-3.5 h-3.5" />
-                          <span>Khảo sát 4 trụ cột định hướng</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
 
                     {/* Header of Gate 2 Career Cards */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1E3A8A]/30 pb-2.5">
@@ -4411,10 +4400,10 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                         </div>
                         <div>
                           <span className="text-xs font-mono font-bold text-white uppercase tracking-wider block">
-                            Top 3 Vị Trí Việc Làm Mục Tiêu Đề Xuất (Gate 2: Target Career Roles)
+                            Gợi Ý 3 Vị Trí Nghề Nghiệp Tham Khảo (Gate 2: Target Career Roles)
                           </span>
                           <span className="text-[11px] text-[#94A3B8] font-mono">
-                            Định hướng từ con số 0: Chọn việc làm trước ➔ Hệ thống truy hồi Ngành học &amp; Tuyển sinh
+                            Đã tích lũy đủ 3 trụ cột qua hội thoại: Bấm vào từng nghề để cùng Cố vấn khám phá Ngành học &amp; Tuyển sinh
                           </span>
                         </div>
                       </div>

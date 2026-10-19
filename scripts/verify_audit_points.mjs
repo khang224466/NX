@@ -33,7 +33,7 @@ console.log('Test 5 (Career Trade-off & Elimination Explanation whyNotOthers):',
 
 // Test 6: Learner Profile & Conversation Continuity in Follow-Up (Adaptive Architecture & Multi-Turn Behavior Audit)
 const hasLearnerEvidenceState = source.includes('learnerEvidenceProfile') && source.includes('getStoredLearnerProfile');
-const hasProfileInAnalyzeInput = /processDecisionTurn\s*\(\s*text\s*,\s*learnerEvidenceProfile/.test(source) &&
+const hasProfileInAnalyzeInput = /processDecisionTurn\s*\(\s*text\s*,\s*(?:learnerEvidenceProfile|initialProfile)/.test(source) &&
   source.includes('saveLearnerProfile(decision.updatedProfile)');
 const hasProfileInFollowUp = /processDecisionTurn\s*\(\s*q\s*,\s*learnerEvidenceProfile\s*\)/.test(source) &&
   source.includes('setLearnerEvidenceProfile(decision.updatedProfile)');

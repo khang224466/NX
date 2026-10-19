@@ -70,7 +70,7 @@ export function checkRateLimit(identifier: string = 'global'): { allowed: boolea
 // ============================================================================
 export class GeminiProviderAdapter implements AIProviderAdapter {
   name = 'gemini';
-  defaultModel = 'gemini-3.5-flash-lite';
+  defaultModel = 'gemini-3.8-flash';
 
   isAvailable(env: Record<string, string | undefined>): boolean {
     return Boolean(env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim());

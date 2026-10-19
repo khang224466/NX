@@ -138,6 +138,18 @@ async function runMasterTestSuite() {
     assert(decision.replyText.includes('hoàn toàn tự nhiên'), 'Must reassure student with empathy');
   });
 
+  test('B.2b Exact user input: "tôi phải làm gì bây giờ" + "chưa vội chốt ngành" enters 1-on-1 counseling without career cards', () => {
+    const input = "tôi phải làm gì bây giờ";
+    const reality = "Em cần một người lắng nghe và phân tích từng bước từ con số 0, chưa vội chốt ngành để em thấu hiểu bản thân trước.";
+    const profile = createInitialProfile(input, reality);
+    const decision = processDecisionTurn(input, profile, reality);
+
+    assert.strictEqual(decision.stage, 'STATE_A_ZERO');
+    assert.strictEqual(decision.action, 'ASK_QUESTION');
+    assert.strictEqual(decision.suggestedCareers, undefined, 'Must NEVER dump career cards when user asks what to do');
+    assert(decision.replyText.includes('tư vấn hướng nghiệp 1:1'), 'Must establish 1-on-1 counseling environment');
+  });
+
   test('B.3 Short/vague response: "ko biet", "...", "sao cung duoc"', () => {
     const input = "ko biet";
     const profile = createInitialProfile('');

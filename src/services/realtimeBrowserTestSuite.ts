@@ -41,6 +41,8 @@ import {
   formatFormulaDisplay 
 } from '../utils/formulaFormatter';
 
+import { searchCombinations } from './unifiedSearchEngine';
+
 export interface TestCaseResult {
   id: string;
   suiteId: string;
@@ -570,6 +572,44 @@ export function runBrowserTestSuite(cycleNumber: number = 1): TestSuiteSummary {
   const hasVerifiedVetSchools = vetAdmissions.some(a => a.schoolCode === 'HVN') || vetAdmissions.some(a => a.schoolCode === 'NLS');
   record(s7Id, s7Name, 'AI-05', 'Tuyển sinh ngành Thú y đối chiếu nguồn xác minh HVN (Học viện Nông nghiệp) và NLS', 'data_sanity',
     hasVerifiedVetSchools, 'Trường xét tuyển chứa HVN hoặc NLS', vetAdmissions.map(a => `${a.schoolCode}: ${a.verificationNote}`).join(' | '), 'Minh bạch nguồn dữ liệu');
+
+  // =========================================================================
+  // SUITE 8: COMBINATION SEARCH ENGINE & CANONICAL MATCHING (5 ASSERTIONS)
+  // =========================================================================
+  const s8Id = 'suite-combo-search-engine';
+  const s8Name = 'Tra Cứu Tổ Hợp Môn & Chuẩn Hóa Chính Tả (5 Assertions)';
+
+  // COMBO-01: Chính tả tương đương i/y ("Vật lí" vs "Vật lý")
+  const resVatLi = searchCombinations({ selectedSubjects: ['Vật lí'] });
+  const resVatLy = searchCombinations({ selectedSubjects: ['Vật lý'] });
+  const isSpellingParity = resVatLi.length > 0 && resVatLi.length === resVatLy.length && resVatLi[0]?.combo.code === resVatLy[0]?.combo.code;
+  record(s8Id, s8Name, 'COMBO-01', 'Lọc môn "Vật lí" và "Vật lý" đồng nhất 100% kết quả và số lượng', 'data_sanity',
+    isSpellingParity, 'resVatLi.length === resVatLy.length > 0', `Vật lí: ${resVatLi.length} tổ hợp | Vật lý: ${resVatLy.length} tổ hợp`, 'Chuẩn hóa i/y');
+
+  // COMBO-02: Cụm môn tự nhiên "toán lý hóa" -> A00 là #1
+  const resToanLyHoa = searchCombinations({ searchQuery: 'toán lý hóa' });
+  const isA00Top = resToanLyHoa.length > 0 && resToanLyHoa[0]?.combo.code === 'A00';
+  record(s8Id, s8Name, 'COMBO-02', 'Tìm cụm tự nhiên "toán lý hóa" định tuyến chính xác A00 ở vị trí số 1', 'behavior',
+    isA00Top, 'A00 là kết quả số 1', `Top 1: ${resToanLyHoa[0]?.combo.code} (${resToanLyHoa[0]?.combo.name})`, 'Khớp cụm tự nhiên');
+
+  // COMBO-03: Cụm môn tự nhiên "văn sử địa" -> C00 là #1
+  const resVanSuDia = searchCombinations({ searchQuery: 'văn sử địa' });
+  const isC00Top = resVanSuDia.length > 0 && resVanSuDia[0]?.combo.code === 'C00';
+  record(s8Id, s8Name, 'COMBO-03', 'Tìm cụm tự nhiên "văn sử địa" định tuyến chính xác C00 ở vị trí số 1', 'behavior',
+    isC00Top, 'C00 là kết quả số 1', `Top 1: ${resVanSuDia[0]?.combo.code} (${resVanSuDia[0]?.combo.name})`, 'Khớp cụm tự nhiên');
+
+  // COMBO-04: Lọc nhóm GDPT Mới (Tin & Công nghệ)
+  const resGDPT = searchCombinations({ category: 'GDPT_MOI' });
+  const isAllGDPT = resGDPT.length > 0 && resGDPT.every(r => r.combo.category === 'GDPT_MOI');
+  record(s8Id, s8Name, 'COMBO-04', 'Lọc danh mục "GDPT_MOI" chỉ trả về đúng các tổ hợp GDPT 2018 Mới', 'data_sanity',
+    isAllGDPT, '100% tổ hợp thuộc category GDPT_MOI', `Số tổ hợp GDPT: ${resGDPT.length}`, 'Phân loại danh mục');
+
+  // COMBO-05: Sắp xếp theo số trường xét tuyển giảm dần
+  const resSorted = searchCombinations({ sortBy: 'schools_desc' });
+  const isSortedCorrectly = resSorted.length >= 2 && resSorted[0].matchingSchoolsCount >= resSorted[1].matchingSchoolsCount;
+  record(s8Id, s8Name, 'COMBO-05', 'Sắp xếp "schools_desc" đảm bảo tổ hợp nhiều trường tuyển nhất đứng đầu', 'data_sanity',
+    isSortedCorrectly, 'resSorted[0].matchingSchoolsCount >= resSorted[1].matchingSchoolsCount', `Top 1: ${resSorted[0]?.combo.code} (${resSorted[0]?.matchingSchoolsCount} trường) >= Top 2: ${resSorted[1]?.combo.code} (${resSorted[1]?.matchingSchoolsCount} trường)`, 'Sắp xếp chính xác');
+
 
   const totalDuration = performance.now() - startTime;
   const passCount = tests.filter(t => t.status === 'PASS').length;

@@ -1074,6 +1074,121 @@ export const VERIFIED_COMBINATIONS_219: SubjectComboItem[] = [
     "majorCount": 85,
     "benchmarkRange": "23.0 - 28.8",
     "description": "Tổ hợp đặc thù đánh giá trọng số tư duy toán và năng lực logic chuyên sâu cho các trường kỹ thuật trọng điểm."
+  },
+  {
+    "code": "CA1",
+    "name": "Toán, Ngữ văn, Bài thi ĐGNL Bộ Công An (CA1)",
+    "subjects": [
+      "Toán",
+      "Ngữ văn",
+      "ĐGNL Bộ Công An"
+    ],
+    "category": "KHTN_KY_THUAT",
+    "categoryLabel": "Tổ hợp Bộ Công An & Quân đội",
+    "popularRank": 18,
+    "majorCount": 40,
+    "benchmarkRange": "19.5 - 26.5",
+    "description": "Tổ hợp tuyển sinh đặc thù khối các học viện, trường đại học Công an nhân dân (T01 - T05)."
+  },
+  {
+    "code": "CA2",
+    "name": "Toán, Khoa học tự nhiên, Bài thi ĐGNL Bộ Công An (CA2)",
+    "subjects": [
+      "Toán",
+      "Khoa học tự nhiên",
+      "ĐGNL Bộ Công An"
+    ],
+    "category": "KHTN_KY_THUAT",
+    "categoryLabel": "Tổ hợp Bộ Công An & Quân đội",
+    "popularRank": 19,
+    "majorCount": 35,
+    "benchmarkRange": "20.0 - 26.8",
+    "description": "Tổ hợp kỹ thuật hình sự, an ninh mạng và điều tra tội phạm công nghệ cao."
+  },
+  {
+    "code": "D43",
+    "name": "Toán, Địa lý, Tiếng Nga",
+    "subjects": [
+      "Toán",
+      "Địa lý",
+      "Tiếng Nga"
+    ],
+    "category": "XA_HOI_NGOAI_NGU",
+    "categoryLabel": "Khoa học xã hội & Ngoại ngữ",
+    "majorCount": 25,
+    "benchmarkRange": "19.0 - 25.5",
+    "description": "Khối ngành Ngôn ngữ Nga, Quan hệ quốc tế và Địa kinh tế Á - Âu."
+  },
+  {
+    "code": "D63",
+    "name": "Ngữ văn, Lịch sử, Tiếng Nhật",
+    "subjects": [
+      "Ngữ văn",
+      "Lịch sử",
+      "Tiếng Nhật"
+    ],
+    "category": "XA_HOI_NGOAI_NGU",
+    "categoryLabel": "Khoa học xã hội & Ngoại ngữ",
+    "majorCount": 30,
+    "benchmarkRange": "20.0 - 26.0",
+    "description": "Ngôn ngữ & Văn hóa Nhật Bản, Đông phương học và Ngoại giao song phương."
+  },
+  {
+    "code": "DD2",
+    "name": "Ngữ văn, Toán, Tiếng Hàn",
+    "subjects": [
+      "Ngữ văn",
+      "Toán",
+      "Tiếng Hàn"
+    ],
+    "category": "XA_HOI_NGOAI_NGU",
+    "categoryLabel": "Khoa học xã hội & Ngoại ngữ",
+    "popularRank": 25,
+    "majorCount": 65,
+    "benchmarkRange": "21.5 - 28.0",
+    "description": "Ngôn ngữ Hàn Quốc, Thương mại điện tử song ngữ và Hàn Quốc học."
+  },
+  {
+    "code": "DH1",
+    "name": "Ngữ văn, Lịch sử, Tiếng Pháp",
+    "subjects": [
+      "Ngữ văn",
+      "Lịch sử",
+      "Tiếng Pháp"
+    ],
+    "category": "XA_HOI_NGOAI_NGU",
+    "categoryLabel": "Khoa học xã hội & Ngoại ngữ",
+    "majorCount": 28,
+    "benchmarkRange": "19.5 - 26.2",
+    "description": "Ngôn ngữ Pháp, Luật quốc tế khối Pháp ngữ và Báo chí quốc tế."
+  },
+  {
+    "code": "N00",
+    "name": "Ngữ văn, Năng khiếu Âm nhạc 1, Năng khiếu Âm nhạc 2",
+    "subjects": [
+      "Ngữ văn",
+      "Âm nhạc 1",
+      "Âm nhạc 2"
+    ],
+    "category": "NANG_KHIEU_KHAC",
+    "categoryLabel": "Năng khiếu & Nghệ thuật",
+    "majorCount": 35,
+    "benchmarkRange": "20.0 - 26.5",
+    "description": "Thanh nhạc, Biểu diễn nhạc cụ truyền thống & phương Tây, Sư phạm Âm nhạc."
+  },
+  {
+    "code": "S00",
+    "name": "Ngữ văn, Năng khiếu Sân khấu 1, Năng khiếu Sân khấu 2",
+    "subjects": [
+      "Ngữ văn",
+      "Sân khấu 1",
+      "Sân khấu 2"
+    ],
+    "category": "NANG_KHIEU_KHAC",
+    "categoryLabel": "Năng khiếu & Nghệ thuật",
+    "majorCount": 30,
+    "benchmarkRange": "21.0 - 27.0",
+    "description": "Đạo diễn điện ảnh, Diễn viên kịch, Biên kịch và Nghệ thuật truyền hình."
   }
 ];
 

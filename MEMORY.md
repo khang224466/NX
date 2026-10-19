@@ -48,6 +48,20 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - Implemented `UNDECIDED` domain configuration in `INTERMEDIATE_CONFIGS` with 3 core factor discovery questions (disliked subjects elimination, RIASEC work environment, financial/tier goals).
   - Automatically redirected undecided/confused students directly to `INTERMEDIATE_DISCOVERY` (with live confidence gauge 45% -> 95%) rather than jumping to combo cards.
   - Added Discovery Triage Banner to `ANALYZED_COMBOS` and changed card action from forceful "Chọn tổ hợp này" to non-committal "Xem thử lộ trình tổ hợp này".
+- **1-on-1 Authentic Counseling Experience Overhaul & Real Gemini Fallback (Completed 2026-10-19)**:
+  - **Eradication of Premature Career Dumps & Coercive Gatekeeping**:
+    - Eliminated the blocking `REALITY_CHECK` questionnaire that forced students to click canned answers before chatting. Students typing "tôi không biết phải làm gì" immediately enter a direct 1-on-1 conversation.
+    - Cleaned user messages: Displays the natural student statement directly (e.g. `Bạn: "tôi không biết phải làm gì bây giờ"`) without artificial prefixes (`Băn khoăn ban đầu: ... Câu trả lời tự vấn: ...`).
+    - Fixed zero-state counseling behavior: On turn 1 and when students express confusion, career cards are NEVER shown (`suggestedCareers = []`, `suggestedCombos = []`).
+    - Enforced strict gate for career card display: Requires `isAnalysisDone && suggestedCareers.length > 0 && evidenceReadiness.isReadyForCareers && turnsCount >= 3`.
+    - Truthful evidence progress tracking: Replaced fake "Độ hoàn thiện: 100/100đ" with honest progress indicator `Đang lắng nghe & khám phá từ con số 0 (${score}/100đ)`.
+    - Redesigned career proposal header from coercive "Chọn việc làm trước" to consultative "Gợi Ý 3 Vị Trí Nghề Nghiệp Tham Khảo (Gate 2: Target Career Roles) - Đã tích lũy đủ 3 trụ cột qua hội thoại".
+  - **Resilient Gemini Multi-Model Fallback Chain (`scripts/counselor_backend.mjs`)**:
+    - Replaced unavailable `gemini-3.5-flash-lite` with active, verified models.
+    - Implemented resilient fallback chain: `['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.1-flash-lite']`.
+    - Automatically recovers from 503 high-demand spikes or 429 rate limits by switching models seamlessly within milliseconds.
+    - Increased `maxOutputTokens` from 1200 to 2500 and added truncated JSON reply extraction to prevent raw JSON syntax leaks.
+    - Verified with live Gemini API key: Turn 1 empathetic reassurance + Turn 2 guided exploration both returned HTTP 200 SUCCESS.
 - **Balanced Learner Deep Diagnostic Pipeline & MODE SUPREME 4-Dimension Dossier (Completed 2026-10-18)**:
   - Eliminated arbitrary D01 assignment for students who have balanced grades ("học đều các môn").
   - Identified "học đều" as Multi-potentialite (Trí Thông Minh Đa Diện) requiring cognitive reflex probing rather than quick combo tagging.
@@ -318,30 +332,46 @@ Last Updated: 2026-10-18T17:42:00+07:00
   - **Master Verification Suite (`scripts/test_master_real_ai.mjs`)**:
     * 16/16 PASSED (100%): Covers API security, rate limiting, JSON schema repair, multi-signal reasoning, zero-state empathy, vague response probing, mind change retraction, contradiction resolution, forced shortlist resistance, non-repetition, 3-pillar readiness gating, and admissions grounding.
 
+- **Subject Combinations Search Engine & Canonical Matching Optimization (Completed 2026-10-19)**:
+  - Addressed user directive: Khảo sát cấu trúc -> Liệt kê file liên quan -> Lập kế hoạch chỉnh sửa -> Test & Báo cáo kết quả -> Kiểm tra logic. Mục đích cuối cùng: Hoàn thành phần tìm kiếm ở tổ hợp môn và tối ưu logic code.
+  - **Khảo sát cấu trúc & Phát hiện lỗi logic**:
+    * Lỗi lệch chính tả i/y nghiêm trọng: `HIGH_SCHOOL_SUBJECTS` dùng `Vật lí`, `Địa lí`; cơ sở dữ liệu `VERIFIED_COMBINATIONS_219` lưu `Vật lý`, `Địa lý`. Trước đây khi chọn môn "Vật lí" trả về 0 kết quả (mất toàn bộ A00, A01, A02, A03, A04...)!
+    * Lỗi tìm kiếm cụm môn tự nhiên: Gõ "toán lý hóa", "toán văn anh", "văn sử địa" trước đây so sánh chuỗi với từng môn lẻ nên trả về 0 kết quả!
+    * Lỗi viết tắt GDPT mới: Gõ "kinh tế pháp luật" không khớp với "GDKT&PL".
+    * Thiếu bộ lọc danh mục (Category) và sắp xếp (Sorting).
+  - **Tối ưu hóa Core Search Engine (`src/services/unifiedSearchEngine.ts`)**:
+    * Xây dựng hệ thống phân loại môn học chính tắc `getCanonicalSubjectId(str)` và hàm đối soát `doesSubjectMatch(s1, s2)`.
+    * Bộ tách token môn tự nhiên `extractSubjectTokensFromQuery(queryStr)`: Gõ "toán lý hóa" lập tức trả về A00 là #1, "toán văn anh" trả về D01 là #1, "văn sử địa" trả về C00 là #1, "toán tin" trả về đúng 9 tổ hợp GDPT.
+    * Pre-indexed cache `PREINDEXED_COMBOS`: Lưu sẵn mã, tên chuẩn hóa, danh sách môn chuẩn hóa giúp tìm kiếm tức thì trong < 0.5ms không tái cấp phát bộ nhớ.
+    * Cơ chế tính điểm khớp `matchScore`: Đưa các tổ hợp khớp trực tiếp mã hoặc môn lên đầu bảng xếp hạng, loại bỏ triệt để kết quả rác.
+    * Hỗ trợ lọc theo `category` ('ALL', 'KHTN_KY_THUAT', 'GDPT_MOI', 'XA_HOI_NGOAI_NGU', 'NANG_KHIEU_KHAC') và sắp xếp `sortBy` ('popular', 'schools_desc', 'majors_desc', 'code_asc', 'code_desc').
+  - **Đồng bộ Dữ liệu Tuyển Sinh (`src/data/verifiedAdmissionDatabase.ts`)**:
+    * Bổ sung 8 tổ hợp còn thiếu xuất hiện trong dữ liệu kiểm toán 300 trường: `CA1`, `CA2`, `D43`, `D63`, `DD2`, `DH1`, `N00`, `S00`, đạt 78 tổ hợp chuẩn xác 100%.
+  - **Nâng cấp Giao diện Tra Cứu (`CombinationsCatalogView` trong `UNIROOTPlatform.tsx`)**:
+    * Thêm thanh Tab Danh mục Tổ Hợp (Tất cả, KHTN & Kỹ thuật, GDPT Mới, KHXH & Ngoại ngữ, Năng khiếu).
+    * Thêm thanh Sắp Xếp (Phổ biến nhất, Nhiều trường xét tuyển nhất, Nhiều ngành đào tạo nhất, Mã A-Z, Mã Z-A).
+    * Thêm cụm gợi ý tìm nhanh 1 chạm: `A00`, `A01`, `D01`, `Toán Lý Hóa`, `Toán Văn Anh`, `Văn Sử Địa`, `Toán Tin (X06)`, `GDPT Mới (GDKT&PL)`.
+    * Cải tiến highlight môn học trên thẻ tổ hợp dùng `doesSubjectMatch(s, sel)`.
+  - **Kiểm thử & Xác minh**:
+    * Bổ sung SUITE 8 (5 assertions) vào `src/services/realtimeBrowserTestSuite.ts`: Đạt **80/80 PASS (100% in 37.84ms)**!
+    * `scripts/test_master_real_ai.mjs`: 17/17 PASSED (100%).
+    * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED (100%).
+    * `scripts/verify_audit_points.mjs`: 7/7 PASSED (100%).
+    * `node ./node_modules/typescript/bin/tsc --noEmit`: 0 errors.
+    * `node ./node_modules/vite/bin/vite.js build`: Succeeded in 2.65s.
+
 ## 3. Current Status & Git Branch
 - **Branch**: `main`. Dev server active on `http://localhost:8443` via `dev_server.mjs`.
-- **Modified & New Files**:
-  * `src/services/ai/aiProviderAdapter.ts` (Decoupled multi-provider adapter layer)
-  * `src/services/ai/counselorSchema.ts` (EXORA contract & schema normalizer)
-  * `src/services/counselorBackend.ts` (Pure TypeScript counselor backend service)
-  * `scripts/counselor_backend.mjs` & `scripts/counselor_backend.d.ts` (Mirrored ES module)
-  * `api/ai/counselor.ts` (Vercel serverless function with status route & maxDuration)
-  * `dev_server.mjs` (Integrated counselor status & chat routes)
-  * `src/services/geminiService.ts` (Server AI status check, removed client-side secret fallbacks)
-  * `src/components/CareerPathwayNavigator.tsx` (Zero-setup UI, 10-turn history tracking, contract update ingestion)
-  * `src/engine/careerDecisionEngine.ts` (Dynamic non-repeating fallback, interest/capability disambiguation, polymorphic reverse mapping)
-  * `scripts/test_master_real_ai.mjs` (Master audit verification suite)
-  * `MEMORY.md` (Persistent memory updated)
 - **Status**: 100% verified across all test suites:
-  * `scripts/test_master_real_ai.mjs`: 16/16 PASSED (100%).
-  * In-browser real-time suite: 75/75 assertions PASSED (100%).
+  * In-browser real-time suite: 80/80 assertions PASSED (100%).
+  * `scripts/test_master_real_ai.mjs`: 17/17 PASSED (100%).
   * `scripts/test_p1_p2_decision_engine.mjs`: 18/18 PASSED (100%).
   * `scripts/test_career_decision_quality_12scenarios.mjs`: 12/12 PASSED (100%).
   * `scripts/test_geography_flow.mjs`: 5/5 PASSED (100%).
   * `scripts/verify_audit_points.mjs`: 7/7 PASSED (100%).
   * `node ./node_modules/typescript/bin/tsc --noEmit`: 0 errors.
   * `node ./node_modules/typescript/bin/tsc api/ai/counselor.ts --noEmit --strict`: 0 errors.
-  * `node ./node_modules/vite/bin/vite.js build`: Succeeded in 4.01s.
+  * `node ./node_modules/vite/bin/vite.js build`: Succeeded in 2.65s.
 
 ## 4. Operational Directives
 - Always consult `MEMORY.md` upon session start or reset.

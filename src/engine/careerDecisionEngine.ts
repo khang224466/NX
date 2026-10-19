@@ -627,9 +627,13 @@ export function evaluateEvidenceReadiness(profile: LearnerEvidenceProfile): {
   const hasEnvironment = profile.workEnvironmentPrefs.length > 0 || profile.personalValues.length > 0;
   if (hasEnvironment) score += 25;
 
-  // Điều kiện sẵn sàng: Phải có đủ 3 trụ cột và đạt điểm số tin cậy >= 75
+  // Điều kiện sẵn sàng: Phải có đủ 3 trụ cột, đạt điểm số tin cậy >= 75, có ít nhất 2 lượt hội thoại, và không chọn hoãn đề xuất nghề
+  const wantsDelayedShortlist = Boolean(
+    profile.realityCheckAnswer && /chưa vội chốt ngành|từng bước từ con số 0|thấu hiểu bản thân trước/i.test(profile.realityCheckAnswer)
+  );
+
   const hasAllPillars = hasInterests && hasCapabilities && hasEnvironment;
-  const isReady = hasAllPillars && score >= 75;
+  const isReady = hasAllPillars && score >= 75 && (profile.turnsCount >= 2) && !wantsDelayedShortlist && (!profile.unresolvedContradictions || profile.unresolvedContradictions.length === 0);
 
   let reason = '';
   if (!isReady) {
@@ -803,25 +807,27 @@ Khi chưa có dữ liệu bên trong, việc cố ép mình trả lời câu h�
   // "Em học lớp 11, học lực bình thường, chưa biết mình thích gì."
   // =========================================================================
   const isZeroState = 
-    /chưa biết mình thích gì|chưa biết thích gì|không biết thích gì|học lực bình thường|chưa biết chọn ngành|không biết mình giỏi môn nào|mất định hướng|chưa rõ mình muốn gì/i.test(text) &&
-    profile.statedInterests.length === 0;
+    /chưa biết mình thích gì|chưa biết thích gì|không biết thích gì|học lực bình thường|chưa biết chọn ngành|không biết mình giỏi môn nào|mất định hướng|chưa rõ mình muốn gì|không biết làm gì|chưa biết làm gì|phải làm gì|làm gì bây giờ|không biết phải làm gì|bắt đầu từ đâu|lạc lối|hoang mang|bối rối|mông lung|không có định hướng|tôi phải làm gì|em phải làm gì|chưa biết mình giỏi gì|chưa biết học gì|chưa biết thi gì/i.test(text) ||
+    Boolean(realityAnswer && /chưa vội chốt ngành|từng bước từ con số 0|thấu hiểu bản thân trước/i.test(realityAnswer)) ||
+    Boolean(profile.realityCheckAnswer && /chưa vội chốt ngành|từng bước từ con số 0|thấu hiểu bản thân trước/i.test(profile.realityCheckAnswer));
 
   if (isZeroState) {
     profile.currentStage = 'STATE_A_ZERO';
     const replyText = 
-`Chào bạn! Cảm ơn bạn đã chia sẻ thật lòng. Mình muốn nói ngay rằng: **Học lực bình thường và chưa biết mình thích gì ở lớp 11 là điều hoàn toàn tự nhiên**, và bạn không hề đơn độc hay chậm chân hơn ai cả.
+`Chào bạn! Cảm ơn bạn đã trải lòng trong buổi tư vấn hướng nghiệp 1:1 hôm nay.
 
-Ở độ tuổi này, khi chưa có cơ hội trải nghiệm nhiều môi trường làm việc thực tế, việc bắt bạn phải chọn ngay một ngành nghề hay một tổ hợp môn là một yêu cầu quá vội vã. Chúng mình sẽ không đoán mò hay ép bạn chọn bất kỳ nghề nào ngay lúc này.
+Cảm giác **"chưa biết phải làm gì" hoặc "mông lung về tương lai"** ở thời điểm này là điều hoàn toàn tự nhiên và rất phổ biến. Hầu hết các bạn học sinh THPT đều từng trải qua giai đoạn bế tắc này. Mình muốn khẳng định với bạn ngay từ đầu: **Buổi tư vấn 1:1 này tuyệt đối KHÔNG ép bạn phải chọn nghề, chọn ngành hay chọn khối thi ngay lúc này.**
 
-Thay vào đó, chúng mình sẽ đi từng bước nhỏ để tìm kiếm những mảnh ghép đầu tiên về bản thân bạn.`;
+Một buổi tư vấn hướng nghiệp đúng nghĩa không phải là bài trắc nghiệm chấm điểm hay một danh sách nghề áp đặt, mà là một hành trình bóc tách từng mảnh ghép về chính bạn từ con số 0 một cách nhẹ nhàng nhất.`;
 
-    const primaryQuestion = "Khi không phải chịu áp lực bài vở trên lớp, trong các hoạt động hàng ngày (như xem video, tìm tòi đồ đạc/máy tính, vẽ vời/viết lách, nói chuyện tâm sự với bạn bè, hay sắp xếp đồ đạc), việc gì khiến bạn cảm thấy cuốn hút hoặc dễ chịu nhất?";
+    const primaryQuestion = "Để bắt đầu thật thoải mái: Khi không phải chịu áp lực bài tập điểm số trên lớp, trong các hoạt động đời thường (như xem video, tìm tòi máy tính/đồ dùng, vẽ vời/nghe nhạc/viết lách, nói chuyện tâm sự với bạn bè, hay làm việc bằng tay/chơi thể thao), việc gì khiến bạn cảm thấy cuốn hút, dễ chịu hoặc đỡ chán nhất?";
 
     const quickReplies = [
       "Em hay xem video về máy tính, công nghệ hoặc các thiết bị mới",
       "Em thích vẽ vời, nghe nhạc, viết lách hoặc sáng tạo nội dung",
       "Em thích nói chuyện, lắng nghe và chia sẻ tâm sự với bạn bè",
-      "Em thích các hoạt động làm việc bằng tay, lắp ráp đồ đạc thực tế"
+      "Em thích các hoạt động vận động, thể thao hoặc làm việc bằng tay",
+      "Em thấy mọi thứ đều bình thường, chưa có hoạt động nào nổi bật"
     ];
 
     saveLearnerProfile(profile);

@@ -11,6 +11,9 @@ import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringData
 // =========================================================================
 // 1. VIETNAMESE ACCENT NORMALIZATION HELPER
 // =========================================================================
+// =========================================================================
+// 1. VIETNAMESE ACCENT & SUBJECT NORMALIZATION HELPERS
+// =========================================================================
 export function removeVietnameseTones(str: string): string {
   if (!str) return '';
   return str
@@ -20,6 +23,155 @@ export function removeVietnameseTones(str: string): string {
     .replace(/Đ/g, 'D')
     .toLowerCase()
     .trim();
+}
+
+/**
+ * Chuẩn hóa các biến thể chính tả môn học tiếng Việt:
+ * - i/y: vat li <-> vat ly, dia li <-> dia ly, triet li <-> triet ly, ki thuat <-> ky thuat
+ * - Viết tắt môn GDPT mới: gdkt&pl, gdkt va pl, giao duc kinh te va phap luat -> gdktpl
+ * - Dấu phân cách & ký tự đặc biệt
+ */
+export function normalizeSubjectSpelling(str: string): string {
+  if (!str) return '';
+  let s = removeVietnameseTones(str);
+  // Thay thế ký tự đặc biệt & dấu phân cách
+  s = s.replace(/[&,+/-]/g, ' ');
+  // Chuẩn hóa i / y phổ biến trong tên môn học
+  s = s
+    .replace(/\bvat\s+li\b/g, 'vat ly')
+    .replace(/\bdia\s+li\b/g, 'dia ly')
+    .replace(/\bki\s+thuat\b/g, 'ky thuat')
+    .replace(/\btriet\s+li\b/g, 'triet ly');
+  // Chuẩn hóa môn GD Kinh tế & Pháp luật
+  s = s
+    .replace(/\bgdkt\s*pl\b/g, 'gdktpl')
+    .replace(/\bgdkt&pl\b/g, 'gdktpl')
+    .replace(/\bgiao\s+duc\s+kinh\s+te\s+(va\s+)?phap\s+luat\b/g, 'gdktpl')
+    .replace(/\bkinh\s+te\s+(va\s+)?phap\s+luat\b/g, 'gdktpl')
+    .replace(/\bkinh\s+te\s+phap\s+luat\b/g, 'gdktpl');
+  // Chuẩn hóa khoảng trắng
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+// =========================================================================
+// 1b. CANONICAL SUBJECT TAXONOMY & MATCHING
+// =========================================================================
+export type CanonicalSubjectId = 
+  | 'toan'
+  | 'vat_ly'
+  | 'hoa_hoc'
+  | 'sinh_hoc'
+  | 'ngu_van'
+  | 'lich_su'
+  | 'dia_ly'
+  | 'tieng_anh'
+  | 'tin_hoc'
+  | 'cong_nghe'
+  | 'gdktpl'
+  | 'tieng_nga'
+  | 'tieng_phap'
+  | 'tieng_trung'
+  | 'tieng_duc'
+  | 'tieng_nhat'
+  | 'my_thuat'
+  | 'tdtt'
+  | 'mam_non'
+  | 'bao_chi';
+
+/**
+ * Phân loại một chuỗi môn học thành Canonical ID duy nhất,
+ * giúp giải quyết triệt để vấn đề lệch chính tả i/y (Vật lí/Vật lý, Địa lí/Địa lý)
+ * và tên viết tắt (GDKT&PL / GD Kinh tế & Pháp luật).
+ */
+export function getCanonicalSubjectId(str: string): CanonicalSubjectId | null {
+  if (!str) return null;
+  const s = normalizeSubjectSpelling(str).trim();
+
+  // 1. Môn học phức hợp & viết tắt
+  if (/\b(gdktpl|gdkt|kinh te phap luat|gdcd|giao duc cong dan)\b/.test(s)) return 'gdktpl';
+  if (/\b(cong nghe|cn)\b/.test(s)) return 'cong_nghe';
+  if (/\b(tin hoc|tin)\b/.test(s)) return 'tin_hoc';
+  if (/\b(dia ly|dia li|\bdia\b)\b/.test(s)) return 'dia_ly';
+  if (/\b(lich su|\bsu\b)\b/.test(s)) return 'lich_su';
+  if (/\b(ngu van|\bvan\b|van hoc)\b/.test(s)) return 'ngu_van';
+  if (/\b(sinh hoc|\bsinh\b)\b/.test(s)) return 'sinh_hoc';
+  if (/\b(hoa hoc|\bhoa\b)\b/.test(s)) return 'hoa_hoc';
+  if (/\b(vat ly|vat li|\bly\b|\bli\b)\b/.test(s)) return 'vat_ly';
+  if (/\b(toan|toan hoc)\b/.test(s)) return 'toan';
+
+  // 2. Ngoại ngữ
+  if (/\b(tieng anh|\banh\b)\b/.test(s)) return 'tieng_anh';
+  if (/\b(tieng nga|\bnga\b)\b/.test(s)) return 'tieng_nga';
+  if (/\b(tieng phap|\bphap\b)\b/.test(s)) return 'tieng_phap';
+  if (/\b(tieng trung|\btrung\b)\b/.test(s)) return 'tieng_trung';
+  if (/\b(tieng duc|\bduc\b)\b/.test(s)) return 'tieng_duc';
+  if (/\b(tieng nhat|\bnhat\b)\b/.test(s)) return 'tieng_nhat';
+
+  // 3. Năng khiếu
+  if (/\b(ve|my thuat|hinh hoa|trang tri|ve mau|nang khieu v|nang khieu h)\b/.test(s)) return 'my_thuat';
+  if (/\b(the duc|tdtt|nang khieu tdtt)\b/.test(s)) return 'tdtt';
+  if (/\b(mam non|nk mam non)\b/.test(s)) return 'mam_non';
+  if (/\b(bao chi|nk bao chi)\b/.test(s)) return 'bao_chi';
+
+  return null;
+}
+
+/**
+ * Kiểm tra xem 2 môn học có trùng khớp không (kể cả biến thể i/y hoặc tên gọi tắt)
+ */
+export function doesSubjectMatch(subjectInCombo: string, querySubject: string): boolean {
+  const id1 = getCanonicalSubjectId(subjectInCombo);
+  const id2 = getCanonicalSubjectId(querySubject);
+  if (id1 && id2) {
+    return id1 === id2;
+  }
+  const norm1 = normalizeSubjectSpelling(subjectInCombo);
+  const norm2 = normalizeSubjectSpelling(querySubject);
+  return norm1 === norm2 || norm1.includes(norm2) || norm2.includes(norm1);
+}
+
+/**
+ * Tách chuỗi tìm kiếm tự do thành danh sách các môn được nhắc đến
+ * Ví dụ: "toán lý hóa" -> ["toan", "vat_ly", "hoa_hoc"]
+ *        "văn sử địa"  -> ["ngu_van", "lich_su", "dia_ly"]
+ *        "toán tin"    -> ["toan", "tin_hoc"]
+ */
+export function extractSubjectTokensFromQuery(queryStr: string): CanonicalSubjectId[] {
+  const norm = normalizeSubjectSpelling(queryStr);
+  const detected: CanonicalSubjectId[] = [];
+
+  const tokenMatchers: { canonical: CanonicalSubjectId; pattern: RegExp }[] = [
+    { canonical: 'gdktpl', pattern: /\b(gdktpl|gdkt|kinh te phap luat|gdcd)\b/ },
+    { canonical: 'cong_nghe', pattern: /\b(cong nghe|cn)\b/ },
+    { canonical: 'tin_hoc', pattern: /\b(tin hoc|tin)\b/ },
+    { canonical: 'tieng_anh', pattern: /\b(tieng anh|anh)\b/ },
+    { canonical: 'tieng_nga', pattern: /\b(tieng nga|nga)\b/ },
+    { canonical: 'tieng_phap', pattern: /\b(tieng phap|phap)\b/ },
+    { canonical: 'tieng_trung', pattern: /\b(tieng trung|trung)\b/ },
+    { canonical: 'tieng_duc', pattern: /\b(tieng duc|duc)\b/ },
+    { canonical: 'tieng_nhat', pattern: /\b(tieng nhat|nhat)\b/ },
+    { canonical: 'dia_ly', pattern: /\b(dia ly|dia li|dia)\b/ },
+    { canonical: 'lich_su', pattern: /\b(lich su|su)\b/ },
+    { canonical: 'ngu_van', pattern: /\b(ngu van|van)\b/ },
+    { canonical: 'sinh_hoc', pattern: /\b(sinh hoc|sinh)\b/ },
+    { canonical: 'hoa_hoc', pattern: /\b(hoa hoc|hoa)\b/ },
+    { canonical: 'vat_ly', pattern: /\b(vat ly|vat li|ly|li)\b/ },
+    { canonical: 'toan', pattern: /\b(toan|toan hoc)\b/ },
+    { canonical: 'my_thuat', pattern: /\b(ve|my thuat|hinh hoa|trang tri)\b/ },
+    { canonical: 'tdtt', pattern: /\b(the duc|tdtt)\b/ },
+    { canonical: 'mam_non', pattern: /\b(mam non)\b/ },
+    { canonical: 'bao_chi', pattern: /\b(bao chi)\b/ },
+  ];
+
+  for (const item of tokenMatchers) {
+    if (item.pattern.test(norm)) {
+      if (!detected.includes(item.canonical)) {
+        detected.push(item.canonical);
+      }
+    }
+  }
+
+  return detected;
 }
 
 // =========================================================================
@@ -132,15 +284,20 @@ AUDITED_INSTITUTIONS_300.forEach(inst => {
 });
 
 // =========================================================================
-// 4. UNIFIED SEARCH INTERFACES & IMPLEMENTATIONS
+// 4. UNIFIED SEARCH INTERFACES & PRE-INDEXED CACHE
 // =========================================================================
 
+export type ComboCategoryFilter = 'ALL' | 'KHTN_KY_THUAT' | 'GDPT_MOI' | 'XA_HOI_NGOAI_NGU' | 'NANG_KHIEU_KHAC';
+export type ComboSortOption = 'popular' | 'schools_desc' | 'majors_desc' | 'code_asc' | 'code_desc';
+
 export interface SearchFilterParams {
-  searchQuery?: string;            // Tìm theo tên, mã trường, ngành, từ khóa
+  searchQuery?: string;            // Tìm theo tên, mã trường, ngành, từ khóa hoặc cụm môn
   selectedSubjects?: string[];     // Mảng các môn học cần tìm (Toán, Lý, Hóa...)
   subjectMatchMode?: 'AND' | 'OR'; // Chứa tất cả môn (AND) hay bất kỳ môn (OR)
   location?: string;               // Tỉnh/Thành phố hoặc Miền (Hà Nội, TP.HCM, BAC, NAM...)
   sector?: string;                 // Khối ngành (Kỹ thuật, Kinh tế, Y Dược...)
+  category?: ComboCategoryFilter | string; // Lọc theo nhóm tổ hợp
+  sortBy?: ComboSortOption;        // Sắp xếp kết quả
 }
 
 export interface ComboSearchResult {
@@ -173,7 +330,47 @@ export interface MajorSearchResult {
 }
 
 /**
- * 1. SEARCH COMBINATIONS (Theo Môn × Theo Tên × Theo Địa Điểm)
+ * Pre-indexed Item để tối ưu hóa tốc độ tìm kiếm < 1ms, tránh re-allocations
+ */
+interface PreindexedComboItem {
+  combo: VerifiedCombination;
+  normCode: string;
+  normName: string;
+  normDesc: string;
+  normSubjects: string[];
+  spellingSubjects: string[];
+  matchingSchools: { code: string; name: string; city: string }[];
+  matchingSchoolsCount: number;
+  matchingMajorsCount: number;
+  benchmarkRange: string;
+}
+
+// Khởi tạo bảng index sẵn ngay khi load module
+const PREINDEXED_COMBOS: PreindexedComboItem[] = VERIFIED_COMBINATIONS_219.map(combo => {
+  const instCodes = Array.from(comboInstitutionsMap.get(combo.code.toUpperCase()) || []);
+  const matchingSchools = instCodes
+    .map(code => {
+      const inst = AUDITED_INSTITUTIONS_300.find(i => i.code === code);
+      return inst ? { code: inst.code, name: inst.official_name, city: inst.verified_province_city || 'Việt Nam' } : null;
+    })
+    .filter(Boolean) as { code: string; name: string; city: string }[];
+
+  return {
+    combo,
+    normCode: combo.code.toLowerCase(),
+    normName: removeVietnameseTones(combo.name),
+    normDesc: removeVietnameseTones(combo.description),
+    normSubjects: combo.subjects.map(s => removeVietnameseTones(s)),
+    spellingSubjects: combo.subjects.map(s => normalizeSubjectSpelling(s)),
+    matchingSchools,
+    matchingSchoolsCount: matchingSchools.length || (combo.majorCount ? Math.round(combo.majorCount / 3) : 12),
+    matchingMajorsCount: combo.majorCount || 35,
+    benchmarkRange: combo.benchmarkRange || '19.0 – 28.5',
+  };
+});
+
+/**
+ * 1. SEARCH COMBINATIONS (Theo Môn × Theo Tên × Theo Cụm Đa Môn × Theo Địa Điểm × Theo Nhóm)
  */
 export function searchCombinations(params: SearchFilterParams): ComboSearchResult[] {
   const {
@@ -181,35 +378,51 @@ export function searchCombinations(params: SearchFilterParams): ComboSearchResul
     selectedSubjects = [],
     subjectMatchMode = 'AND',
     location = 'Tất cả',
+    category = 'ALL',
+    sortBy = 'popular',
   } = params;
 
   const rawQuery = searchQuery.trim();
   const normQuery = removeVietnameseTones(rawQuery);
+  const spellingQuery = normalizeSubjectSpelling(rawQuery);
+  const queryTokens = rawQuery ? extractSubjectTokensFromQuery(rawQuery) : [];
   const normLocation = removeVietnameseTones(location);
   const isAllLocation = !location || location === 'Tất cả' || location === 'ALL';
+  const isAllCategory = !category || category === 'ALL';
 
-  return VERIFIED_COMBINATIONS_219.filter(combo => {
-    // --- A. Lọc theo Môn học ---
+  type ScoredCombo = {
+    item: PreindexedComboItem;
+    score: number;
+  };
+
+  const filtered: ScoredCombo[] = [];
+
+  for (const item of PREINDEXED_COMBOS) {
+    const { combo, normCode, normName, normDesc } = item;
+
+    // --- A. Lọc theo Danh mục Tổ hợp (Category) ---
+    if (!isAllCategory && combo.category !== category) {
+      continue;
+    }
+
+    // --- B. Lọc theo Môn học đã chọn qua Chips/Drawer ---
     if (selectedSubjects.length > 0) {
-      const comboSubsNorm = combo.subjects.map(s => removeVietnameseTones(s));
       if (subjectMatchMode === 'AND') {
-        // Tổ hợp phải chứa TẤT CẢ môn đã chọn
+        // Tổ hợp phải chứa TẤT CẢ môn đã chọn (sử dụng đối soát chuẩn hóa i/y và alias)
         const hasAll = selectedSubjects.every(selSub => {
-          const normSel = removeVietnameseTones(selSub);
-          return comboSubsNorm.some(cs => cs.includes(normSel) || normSel.includes(cs));
+          return combo.subjects.some(cs => doesSubjectMatch(cs, selSub));
         });
-        if (!hasAll) return false;
+        if (!hasAll) continue;
       } else {
         // Tổ hợp chứa ÍT NHẤT 1 môn đã chọn
         const hasAny = selectedSubjects.some(selSub => {
-          const normSel = removeVietnameseTones(selSub);
-          return comboSubsNorm.some(cs => cs.includes(normSel) || normSel.includes(cs));
+          return combo.subjects.some(cs => doesSubjectMatch(cs, selSub));
         });
-        if (!hasAny) return false;
+        if (!hasAny) continue;
       }
     }
 
-    // --- B. Lọc theo Địa điểm ---
+    // --- C. Lọc theo Địa điểm ---
     if (!isAllLocation) {
       const offeredInstitutions = comboInstitutionsMap.get(combo.code.toUpperCase());
       if (offeredInstitutions && offeredInstitutions.size > 0) {
@@ -231,40 +444,84 @@ export function searchCombinations(params: SearchFilterParams): ComboSearchResul
             }
           }
         }
-        if (!hasLocationMatch) return false;
+        if (!hasLocationMatch) continue;
       }
     }
 
-    // --- C. Lọc theo Tên / Mã / Từ khóa ---
+    // --- D. Lọc theo Tên / Mã / Cụm Môn Tự Nhiên & Tính điểm độ khớp ---
+    let matchScore = 0;
     if (normQuery) {
-      const codeMatch = combo.code.toLowerCase().includes(normQuery);
-      const nameMatch = removeVietnameseTones(combo.name).includes(normQuery);
-      const descMatch = removeVietnameseTones(combo.description).includes(normQuery);
-      const subMatch = combo.subjects.some(s => removeVietnameseTones(s).includes(normQuery));
-      if (!codeMatch && !nameMatch && !descMatch && !subMatch) {
-        return false;
+      // 1. Khớp mã tổ hợp (A00, A01, X06...)
+      const codeMatch = normCode.includes(normQuery);
+      if (normCode === normQuery) {
+        matchScore += 1000;
+      } else if (normCode.startsWith(normQuery)) {
+        matchScore += 500;
+      } else if (codeMatch) {
+        matchScore += 250;
+      }
+
+      // 2. Khớp cụm môn tự nhiên (ví dụ người dùng gõ "toán lý hóa", "văn sử địa", "toán tin"...)
+      let multiTokenMatch = false;
+      if (queryTokens.length >= 2) {
+        multiTokenMatch = queryTokens.every(qToken => {
+          return combo.subjects.some(cs => getCanonicalSubjectId(cs) === qToken);
+        });
+        if (multiTokenMatch) {
+          matchScore += 400 + (queryTokens.length * 50);
+        }
+      } else if (queryTokens.length === 1) {
+        multiTokenMatch = combo.subjects.some(cs => getCanonicalSubjectId(cs) === queryTokens[0]);
+        if (multiTokenMatch) {
+          matchScore += 350;
+        }
+      }
+
+      // 3. Khớp tên hoặc mô tả hoặc trường đào tạo tiêu biểu
+      const nameMatch = normName.includes(normQuery) || normalizeSubjectSpelling(combo.name).includes(spellingQuery);
+      if (nameMatch) matchScore += 100;
+
+      const descMatch = normDesc.includes(normQuery);
+      if (descMatch) matchScore += 50;
+
+      const schoolMatch = item.matchingSchools.some(s => removeVietnameseTones(s.name).includes(normQuery));
+      if (schoolMatch) matchScore += 30;
+
+      if (!codeMatch && !multiTokenMatch && !nameMatch && !descMatch && !schoolMatch) {
+        continue;
       }
     }
 
-    return true;
-  }).map(combo => {
-    // Enrich with real audited school count and samples
-    const instCodes = Array.from(comboInstitutionsMap.get(combo.code.toUpperCase()) || []);
-    const matchingSchools = instCodes
-      .map(code => {
-        const inst = AUDITED_INSTITUTIONS_300.find(i => i.code === code);
-        return inst ? { code: inst.code, name: inst.official_name, city: inst.verified_province_city || 'Việt Nam' } : null;
-      })
-      .filter(Boolean) as { code: string; name: string; city: string }[];
+    filtered.push({ item, score: matchScore });
+  }
 
-    return {
-      combo,
-      matchingSchoolsCount: matchingSchools.length || (combo.majorCount ? Math.round(combo.majorCount / 3) : 12),
-      sampleSchools: matchingSchools.slice(0, 3),
-      matchingMajorsCount: combo.majorCount || 35,
-      benchmarkRange: combo.benchmarkRange || '19.0 – 28.5',
-    };
-  });
+  // --- E. Sắp xếp kết quả ---
+  if (normQuery && sortBy === 'popular') {
+    // Khi người dùng nhập từ khóa tìm kiếm: ưu tiên xếp các tổ hợp khớp cao nhất lên đầu
+    filtered.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (a.item.combo.popularRank || 999) - (b.item.combo.popularRank || 999);
+    });
+  } else if (sortBy === 'popular') {
+    filtered.sort((a, b) => (a.item.combo.popularRank || 999) - (b.item.combo.popularRank || 999));
+  } else if (sortBy === 'schools_desc') {
+    filtered.sort((a, b) => b.item.matchingSchoolsCount - a.item.matchingSchoolsCount);
+  } else if (sortBy === 'majors_desc') {
+    filtered.sort((a, b) => b.item.matchingMajorsCount - a.item.matchingMajorsCount);
+  } else if (sortBy === 'code_asc') {
+    filtered.sort((a, b) => a.item.combo.code.localeCompare(b.item.combo.code));
+  } else if (sortBy === 'code_desc') {
+    filtered.sort((a, b) => b.item.combo.code.localeCompare(a.item.combo.code));
+  }
+
+  // Chuyển đổi sang định dạng ComboSearchResult
+  return filtered.map(({ item }) => ({
+    combo: item.combo,
+    matchingSchoolsCount: item.matchingSchoolsCount,
+    sampleSchools: item.matchingSchools.slice(0, 3),
+    matchingMajorsCount: item.matchingMajorsCount,
+    benchmarkRange: item.benchmarkRange,
+  }));
 }
 
 /**

@@ -59,8 +59,12 @@ export function validateAndNormalizeCounselorResponse(rawText) {
   }
 
   if (!parsed || typeof parsed !== 'object') {
+    // Trích xuất trường reply ngay cả khi JSON bị cắt cụt giữa chừng
+    const replyMatch = cleaned.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const fallbackText = replyMatch ? replyMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : cleaned.slice(0, 1500);
+
     return {
-      reply: cleaned.slice(0, 1500),
+      reply: fallbackText,
       profileUpdates: {},
       decision: {
         stage: 'DISCOVERY',
@@ -69,7 +73,7 @@ export function validateAndNormalizeCounselorResponse(rawText) {
         reason: 'Tiếp tục tìm hiểu thông tin định hướng',
         evidenceSufficiency: 'LOW'
       },
-      quickReplies: ['Chia sẻ thêm về môn học thế mạnh', 'Khám phá sở thích hoạt động hằng ngày']
+      quickReplies: ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh']
     };
   }
 
@@ -197,11 +201,14 @@ ${realityAnswer ? `- Tâm thế đối diện thực tế ban đầu: "${reality
    - "Chưa thử" khác với "Từ chối / Không thích".
    - "Thích công nghệ nhưng không muốn code" là 2 tín hiệu độc lập.
    - "Không phải ghét Toán, chỉ sợ Toán nâng cao" là e ngại giải tích chuyên sâu, không ghét Toán căn bản.
-4. XỬ LÝ ĐỔI Ý & MÂU THUẪN:
-   - Nếu học sinh đổi ý (trước thích máy tính nay thích động vật): Chuyển hẳn sang sở thích mới, đưa sở thích cũ vào retractedInterests.
-   - Nếu có mâu thuẫn (ghét văn phòng nhưng muốn bàn giấy 8 tiếng ổn định): Đặt câu hỏi giúp học sinh tự soi chiếu sự đánh đổi.
-5. GIỌNG ĐIỆU CỐ VẤN: Ấm áp, gần gũi, tôn trọng người học, không phán xét, không dạy đời. Tuyệt đối không dùng câu từ máy móc như "Hệ thống ghi nhận", "Dữ liệu đã được lưu".
-6. TÍNH CHÂN THỰC DỮ LIỆU: Tuyệt đối không bịa đặt điểm chuẩn, học phí, mã ngành hoặc mức lương.
+5. GIỌNG ĐIỆU CỐ VẤN 1:1: Ấm áp, gần gũi, tôn trọng người học, không phán xét, không dạy đời. Tuyệt đối không dùng câu từ máy móc như "Hệ thống ghi nhận", "Dữ liệu đã được lưu".
+6. NGUYÊN TẮC VÀNG CHO BUỔI TƯ VẤN 1:1 KHI BẮT ĐẦU TỪ CON SỐ 0:
+   - Nếu học sinh chia sẻ: "tôi không biết phải làm gì bây giờ", "em mất định hướng", "chưa biết chọn gì", "mông lung", "bắt đầu từ số 0", "chưa vội chốt ngành":
+     * TUYỆT ĐỐI KHÔNG xuất danh sách nghề nghiệp (trả về "careers": []). KHÔNG bắt học sinh chọn bất kỳ nghề nào ngay lúc này.
+     * Phản hồi như một chuyên gia tư vấn hướng nghiệp 1:1 thực thụ: trấn an ngay rằng cảm giác bế tắc ở thời điểm này là hoàn toàn tự nhiên; khẳng định buổi tư vấn 1:1 sẽ không ép chọn nghề hay chọn khối; cùng bóc tách từng mảnh ghép từ trải nghiệm đời thường.
+     * Đặt ĐÚNG 1 CÂU HỎI gợi mở nhẹ nhàng về trải nghiệm hoặc hoạt động đời thường (khi rảnh rỗi hoặc không áp lực bài vở, điều gì khiến em thấy cuốn hút, dễ chịu hoặc đỡ chán nhất).
+     * Gợi ý 3-4 quickReplies đời thường, gần gũi.
+7. TÍNH CHÂN THỰC DỮ LIỆU: Tuyệt đối không bịa đặt điểm chuẩn, học phí, mã ngành hoặc mức lương.
 
 === YÊU CẦU ĐẦU RA (OUTPUT FORMAT) ===
 Hãy trả về DUY NHẤT một chuỗi JSON hợp lệ theo cấu trúc sau (không kèm văn bản thừa ngoài JSON):
@@ -291,11 +298,9 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
 
   const systemInstruction = buildCounselorSystemPrompt({ profile, realityAnswer });
 
-  // 1. If Gemini Key is present, call Google Gemini 2.0 Flash
+  // 1. If Gemini Key is present, call Google Gemini with resilient model fallback
   if (geminiKey) {
-    const model = 'gemini-3.5-flash-lite';
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-
+    const geminiModels = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
     const contents = [];
     const recentHistory = Array.isArray(history) ? history.slice(-10) : [];
 
@@ -314,75 +319,85 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
       parts: [{ text: cleanMessage }]
     });
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+    let lastError = null;
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1200,
-            responseMimeType: 'application/json'
-          }
-        }),
-        signal: controller.signal
-      });
+    for (const model of geminiModels) {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
 
-      clearTimeout(timeoutId);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-      if (!response.ok) {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents,
+            systemInstruction: {
+              parts: [{ text: systemInstruction }]
+            },
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2500,
+              responseMimeType: 'application/json'
+            }
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const parsed = parseAIModelOutput(rawText);
+
+          return {
+            status: 200,
+            data: {
+              success: true,
+              sessionId: sessionId || `sess_${Date.now()}`,
+              modelUsed: model,
+              provider: 'gemini',
+              ...parsed
+            }
+          };
+        }
+
         const status = response.status;
         const errJson = await response.json().catch(() => ({}));
-        let userMsg = 'Đã có lỗi xảy ra khi kết nối tới dịch vụ Google Gemini.';
+        lastError = { status, message: errJson?.error?.message || `HTTP ${status}` };
 
-        if (status === 429) {
-          userMsg = 'Hệ thống AI đang nhận được nhiều yêu cầu cùng lúc (vượt hạn mức tốc độ). Bạn vui lòng chờ một lát rồi nhấn Thử lại nhé.';
-        } else if (status === 401 || status === 403) {
-          userMsg = 'Khóa API Gemini trên máy chủ không hợp lệ hoặc đã hết hạn. Quản trị viên vui lòng kiểm tra lại cấu hình GEMINI_API_KEY.';
-        } else if (errJson?.error?.message) {
-          userMsg = `Lỗi dịch vụ AI: ${errJson.error.message}`;
+        // If rate limited or service overloaded, try next model in fallback list
+        if (status === 503 || status === 429 || status === 404) {
+          continue;
         }
 
-        return {
-          status: status >= 400 && status < 600 ? status : 500,
-          data: { success: false, code: `AI_HTTP_${status}`, error: userMsg }
-        };
+        // If invalid API key (401 / 403), do not retry other models with the same bad key
+        if (status === 401 || status === 403) {
+          break;
+        }
+
+      } catch (err) {
+        lastError = { status: 504, message: err.message };
+        continue;
+      }
+    }
+
+    // If all models in the fallback chain were exhausted
+    if (lastError) {
+      let userMsg = 'Đã có lỗi xảy ra khi kết nối tới dịch vụ Google Gemini.';
+      if (lastError.status === 429 || lastError.status === 503) {
+        userMsg = 'Hệ thống AI đang nhận được nhiều yêu cầu cùng lúc. Bạn vui lòng thử lại nhé.';
+      } else if (lastError.status === 401 || lastError.status === 403) {
+        userMsg = 'Khóa API Gemini trên máy chủ không hợp lệ hoặc đã hết hạn. Quản trị viên vui lòng kiểm tra lại cấu hình GEMINI_API_KEY.';
+      } else if (lastError.message) {
+        userMsg = `Lỗi dịch vụ AI: ${lastError.message}`;
       }
 
-      const data = await response.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const parsed = parseAIModelOutput(rawText);
-
       return {
-        status: 200,
-        data: {
-          success: true,
-          sessionId: sessionId || `sess_${Date.now()}`,
-          modelUsed: model,
-          provider: 'gemini',
-          ...parsed
-        }
-      };
-    } catch (err) {
-      const isTimeout = err.name === 'AbortError';
-      const userMsg = isTimeout
-        ? 'Yêu cầu kết nối AI bị quá thời gian chờ (timeout sau 25 giây). Bạn vui lòng thử lại nhé.'
-        : `Lỗi kết nối mạng: ${err.message || 'Không thể liên lạc với máy chủ AI'}.`;
-
-      return {
-        status: 504,
-        data: {
-          success: false,
-          code: isTimeout ? 'TIMEOUT' : 'NETWORK_ERROR',
-          error: userMsg
-        }
+        status: lastError.status >= 400 && lastError.status < 600 ? lastError.status : 500,
+        data: { success: false, code: `AI_HTTP_${lastError.status}`, error: userMsg }
       };
     }
   }
@@ -484,7 +499,7 @@ export function handleCounselorStatusRequest(env = process.env) {
       success: true,
       hasServerKey,
       provider: hasGemini ? 'gemini' : (hasGroq ? 'groq' : 'none'),
-      model: hasGemini ? 'gemini-3.5-flash-lite' : (hasGroq ? 'llama-3.3-70b-versatile' : 'none'),
+      model: hasGemini ? 'gemini-3.8-flash' : (hasGroq ? 'llama-3.3-70b-versatile' : 'none'),
       requiresAdminSetup: !hasServerKey
     }
   };
