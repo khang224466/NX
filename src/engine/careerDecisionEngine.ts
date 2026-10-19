@@ -404,9 +404,22 @@ export function updateProfileWithInput(profile: LearnerEvidenceProfile, text: st
         updated.statedInterests.push('Kinh doanh & Quản trị');
       }
     }
-    if (l.includes('giao tiếp') || l.includes('tâm sự') || l.includes('giúp đỡ') || l.includes('dạy học') || l.includes('sư phạm') || l.includes('xã hội')) {
-      if (!updated.statedInterests.includes('Xã hội & Giúp đỡ con người')) {
-        updated.statedInterests.push('Xã hội & Giúp đỡ con người');
+    if (l.includes('giao tiếp') || l.includes('tâm sự') || l.includes('giúp đỡ') || l.includes('dạy học') || l.includes('sư phạm') || l.includes('xã hội') || l.includes('bạn bè') || l.includes('nói chuyện')) {
+      if (!updated.statedInterests.includes('Giao lưu, Lắng nghe & Kết nối bạn bè, xã hội')) {
+        updated.statedInterests.push('Giao lưu, Lắng nghe & Kết nối bạn bè, xã hội');
+      }
+    }
+    if (l.includes('game') || l.includes('chơi game') || l.includes('esport') || l.includes('điện tử')) {
+      if (!updated.statedInterests.includes('Trải nghiệm Game & Giải trí Kỹ thuật số')) {
+        updated.statedInterests.push('Trải nghiệm Game & Giải trí Kỹ thuật số');
+      }
+    }
+    if (l.includes('đi dạo') || l.includes('ngoài trời') || l.includes('dạo phố') || l.includes('thiên nhiên')) {
+      if (!updated.statedInterests.includes('Hoạt động tự do ngoài trời & Khám phá đời sống')) {
+        updated.statedInterests.push('Hoạt động tự do ngoài trời & Khám phá đời sống');
+      }
+      if (!updated.workEnvironmentPrefs.includes('Môi trường mở, không gian ngoài trời thoáng đãng')) {
+        updated.workEnvironmentPrefs.push('Môi trường mở, không gian ngoài trời thoáng đãng');
       }
     }
     if (l.includes('máy móc') || l.includes('lắp ráp') || l.includes('phần cứng') || l.includes('sửa chữa') || l.includes('thực hành xưởng')) {
@@ -772,25 +785,25 @@ Trong thực tế, môi trường làm việc quyết định trực tiếp đ�
   if (isVagueInput || (profile.turnsCount >= 3 && profile.statedInterests.length === 0 && profile.academicStrengths.length === 0)) {
     profile.currentStage = 'STATE_B_EXPLORING';
     const replyText = 
-`Mình hiểu là bạn đang cảm thấy khá mông lung hoặc chưa có câu trả lời rõ ràng lúc này. Đừng quá lo lắng hay tự trách mình — rất nhiều bạn học sinh cũng từng trải qua cảm giác "không biết mình thích gì hay giỏi gì" như bạn.
+`Mình hiểu là bạn đang cảm thấy khá mông lung hoặc chưa có câu trả lời rõ ràng lúc này. Đừng quá lo lắng hay tự trách mình — rất nhiều bạn học sinh cũng từng trải qua cảm giác này.
 
-Khi chưa có dữ liệu bên trong, việc cố ép mình trả lời câu hỏi lớn thường gây bế tắc. Thay vì hỏi bạn thích nghề gì, chúng mình hãy thử một hoạt động quan sát nhỏ:`;
+Khi chưa có dữ liệu rõ ràng, việc cố ép mình chọn một hướng đi thường gây bế tắc. Thay vì nghĩ về những thứ to tát, chúng mình hãy thử một hoạt động quan sát nhỏ rất đời thường nhé.`;
 
-    const primaryQuestion = "Nếu ngày mai bạn được miễn toàn bộ bài tập và có 1 buổi chiều tự do hoàn toàn, bạn sẽ tự nhiên muốn dành thời gian làm gì nhất trong 3 lựa chọn sau: (1) Khám phá máy tính, chơi game, xem công nghệ; (2) Vẽ tranh, nghe nhạc, đọc truyện hoặc viết linh tinh; hay (3) Gặp gỡ bạn bè trò chuyện ngoài trời?";
+    const primaryQuestion = "Khi không phải chịu bất kỳ áp lực nào về bài tập hay điểm số, việc gì trong ngày thường khiến bạn cảm thấy tự nhiên, thoải mái hoặc đỡ chán nhất?";
 
     saveLearnerProfile(profile);
 
     return {
       action: 'ASK_QUESTION',
       stage: 'STATE_B_EXPLORING',
-      replyText: `${replyText}\n\n👉 **Hãy chọn một tình huống phản ánh đúng bạn nhất:**\n${primaryQuestion}`,
+      replyText: `${replyText}\n\n👉 **${primaryQuestion}**`,
       primaryQuestion,
-      questionContext: 'Gợi mở qua kịch bản tình huống cụ thể khi người học trả lời ngắn hoặc mơ hồ nhiều lượt.',
+      questionContext: 'Gợi mở nhẹ nhàng qua trải nghiệm hằng ngày khi người học cảm thấy mông lung.',
       quickReplies: [
-        "Em thích ngồi với máy tính, điện thoại tìm hiểu thứ mới",
-        "Em thích vẽ tranh, nghe nhạc hoặc làm việc sáng tạo một mình",
-        "Em thích ra ngoài gặp gỡ bạn bè, trò chuyện",
-        "Em chỉ muốn nghỉ ngơi và chưa nghĩ ra gì cả"
+        "Em thích mày mò máy tính, điện thoại hoặc chơi game",
+        "Em thích vẽ vời, nghe nhạc hoặc làm việc sáng tạo một mình",
+        "Em thích ra ngoài gặp gỡ, trò chuyện cùng bạn bè",
+        "Em chỉ muốn nghỉ ngơi thư giãn và chưa nghĩ ra gì cả"
       ],
       evidenceSummary: {
         selfReported: profile.rawInputs,

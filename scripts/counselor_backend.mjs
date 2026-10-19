@@ -129,8 +129,13 @@ export function validateAndNormalizeCounselorResponse(rawText) {
       }));
   }
 
+  let fullReply = reply;
+  if (question && !reply.includes(question)) {
+    fullReply = `${reply}\n\n👉 **${question}**`;
+  }
+
   return {
-    reply,
+    reply: fullReply,
     profileUpdates,
     decision: { stage, action, question, reason, evidenceSufficiency },
     quickReplies: quickReplies.slice(0, 4),
@@ -300,7 +305,7 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
 
   // 1. If Gemini Key is present, call Google Gemini with resilient model fallback
   if (geminiKey) {
-    const geminiModels = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+    const geminiModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash'];
     const contents = [];
     const recentHistory = Array.isArray(history) ? history.slice(-10) : [];
 
@@ -326,7 +331,7 @@ export async function handleCounselorChatRequest({ body, headers = {}, env = pro
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -499,7 +504,7 @@ export function handleCounselorStatusRequest(env = process.env) {
       success: true,
       hasServerKey,
       provider: hasGemini ? 'gemini' : (hasGroq ? 'groq' : 'none'),
-      model: hasGemini ? 'gemini-3.8-flash' : (hasGroq ? 'llama-3.3-70b-versatile' : 'none'),
+      model: hasGemini ? 'gemini-3.1-flash-lite' : (hasGroq ? 'llama-3.3-70b-versatile' : 'none'),
       requiresAdminSetup: !hasServerKey
     }
   };

@@ -186,8 +186,13 @@ export function validateAndNormalizeCounselorResponse(rawText: string): Counselo
       }));
   }
 
+  let fullReply = reply;
+  if (question && !reply.includes(question)) {
+    fullReply = `${reply}\n\n👉 **${question}**`;
+  }
+
   return {
-    reply,
+    reply: fullReply,
     profileUpdates,
     decision,
     quickReplies: quickReplies.slice(0, 4),

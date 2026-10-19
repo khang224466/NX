@@ -70,7 +70,8 @@ export function checkRateLimit(identifier: string = 'global'): { allowed: boolea
 // ============================================================================
 export class GeminiProviderAdapter implements AIProviderAdapter {
   name = 'gemini';
-  defaultModel = 'gemini-3.8-flash';
+  defaultModel = 'gemini-3.1-flash-lite';
+  candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash'];
 
   isAvailable(env: Record<string, string | undefined>): boolean {
     return Boolean(env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim());
@@ -87,9 +88,6 @@ export class GeminiProviderAdapter implements AIProviderAdapter {
       throw new Error('GEMINI_API_KEY is not configured on the server.');
     }
 
-    const model = this.defaultModel;
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
     // Format chat history for Gemini API
     const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
@@ -103,55 +101,83 @@ export class GeminiProviderAdapter implements AIProviderAdapter {
       }
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let lastError: any = null;
 
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1200,
-            responseMimeType: 'application/json'
-          }
-        }),
-        signal: controller.signal
-      });
+    for (const model of this.candidateModels) {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const controller = new AbortController();
+      const perModelTimeout = Math.min(15000, timeoutMs);
+      const timeoutId = setTimeout(() => controller.abort(), perModelTimeout);
 
-      clearTimeout(timeoutId);
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents,
+            systemInstruction: {
+              parts: [{ text: systemPrompt }]
+            },
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2500,
+              responseMimeType: 'application/json'
+            }
+          }),
+          signal: controller.signal
+        });
 
-      if (!response.ok) {
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = (await response.json()) as any;
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          return {
+            text,
+            modelUsed: model,
+            provider: this.name
+          };
+        }
+
         const status = response.status;
         const errJson = (await response.json().catch(() => ({}))) as any;
         const errMsg = errJson?.error?.message || `Google Gemini API error (HTTP ${status})`;
         const errorObj = new Error(errMsg);
         (errorObj as any).status = status;
-        throw errorObj;
+        lastError = errorObj;
+
+        // If rate limit, high load, or model deprecated, fallback to next model
+        if (status === 503 || status === 429 || status === 404) {
+          continue;
+        }
+
+        // If auth failure, do not retry with same key
+        if (status === 401 || status === 403) {
+          throw errorObj;
+        }
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        lastError = err;
+        if (err.name === 'AbortError') {
+          // Model timeout, try next candidate
+          continue;
+        }
+        if (err.status === 401 || err.status === 403) {
+          throw err;
+        }
       }
+    }
 
-      const data = (await response.json()) as any;
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-      return {
-        text,
-        modelUsed: model,
-        provider: this.name
-      };
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (err.name === 'AbortError') {
+    if (lastError) {
+      if (lastError.name === 'AbortError') {
         const timeoutError = new Error(`Kết nối tới Google Gemini bị timeout sau ${Math.round(timeoutMs / 1000)}s.`);
         (timeoutError as any).status = 504;
         throw timeoutError;
       }
-      throw err;
+      throw lastError;
     }
+
+    throw new Error('Không thể kết nối tới bất kỳ mô hình Google Gemini nào khả dụng.');
   }
 }
 

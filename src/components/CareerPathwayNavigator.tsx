@@ -2524,6 +2524,45 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
     handleAnalyzeInput(text, answer);
   };
 
+  // Helper: call counselor chat with automatic endpoint fallback (/api/ai/counselor/chat -> /api/ai/counselor)
+  const callCounselorChatApi = async (payload: {
+    sessionId?: string;
+    message: string;
+    history: Array<{ role: string; content: string }>;
+    profile: any;
+    realityAnswer?: string;
+  }) => {
+    const endpoints = ['/api/ai/counselor/chat', '/api/ai/counselor'];
+    let lastError: any = null;
+
+    for (const ep of endpoints) {
+      try {
+        const response = await fetch(ep, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (response.status === 404) {
+          continue; // Try next endpoint
+        }
+        const data = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, data };
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    return {
+      ok: false,
+      status: 504,
+      data: {
+        success: false,
+        code: 'NETWORK_ERROR',
+        error: lastError?.message || 'Không thể kết nối tới máy chủ AI hướng nghiệp.'
+      }
+    };
+  };
+
   // =========================================================================
   // STEP 1: ADAPTIVE DECISION ANALYZER (AI CAREER COUNSELOR BACKEND INTEGRATION)
   // =========================================================================
@@ -2563,32 +2602,31 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
         content: m.content
       }));
 
-      const response = await fetch('/api/ai/counselor/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sessionId: activeSessionId,
-          message: text,
-          history: formattedHistory,
-          profile: updatedProfile,
-          realityAnswer: rAnswer
-        })
+      const apiRes = await callCounselorChatApi({
+        sessionId: activeSessionId,
+        message: text,
+        history: formattedHistory,
+        profile: updatedProfile,
+        realityAnswer: rAnswer
       });
 
-      const data = await response.json().catch(() => ({}));
-
+      const data = apiRes.data;
       let aiReply = data?.replyText || data?.contract?.reply;
       let aiQuickReplies = data?.quickReplies || data?.contract?.quickReplies || [];
 
-      if (!response.ok || !data.success) {
-        // Graceful non-blocking fallback: do not trap student on reality check
+      if (!apiRes.ok || !data?.success) {
         console.warn('[Nexora AI Counselor Fallback]:', data?.error || 'AI backend unavailable, utilizing grounded Decision Engine.');
-        aiReply = decision.replyText;
-        aiQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
-          ? decision.quickReplies
-          : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+        if (data?.code === 'ADMIN_KEY_REQUIRED') {
+          aiReply = 'Hệ thống Cố vấn AI đang chờ cấu hình khóa GEMINI_API_KEY trên máy chủ. Bạn có thể trò chuyện theo chế độ quy tắc hướng nghiệp hoặc quản trị viên có thể thêm API key để kích hoạt AI trực tiếp.';
+        } else if (data?.code === 'TIMEOUT') {
+          aiReply = 'Cố vấn AI phản hồi chậm do quá tải mạng. Bạn vui lòng bấm nút Thử lại bên dưới để tiếp tục trò chuyện nhé.';
+          aiQuickReplies = ['Thử lại', 'Chia sẻ thêm về bản thân'];
+        } else {
+          aiReply = decision.replyText;
+          aiQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
+            ? decision.quickReplies
+            : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+        }
         setAnalysisError(null);
       }
 
@@ -2752,31 +2790,31 @@ export const CareerPathwayNavigator: React.FC<CareerPathwayNavigatorProps> = ({
         content: m.content
       }));
 
-      const response = await fetch('/api/ai/counselor/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sessionId: activeSessionId,
-          message: q,
-          history: formattedHistory,
-          profile: updatedProfile,
-          realityAnswer: learnerProfile.realityCheckAnswer
-        })
+      const apiRes = await callCounselorChatApi({
+        sessionId: activeSessionId,
+        message: q,
+        history: formattedHistory,
+        profile: updatedProfile,
+        realityAnswer: learnerProfile.realityCheckAnswer
       });
 
-      const data = await response.json().catch(() => ({}));
-
+      const data = apiRes.data;
       let aiReply = data?.replyText || data?.contract?.reply;
       let aiQuickReplies = data?.quickReplies || data?.contract?.quickReplies || [];
 
-      if (!response.ok || !data.success) {
+      if (!apiRes.ok || !data?.success) {
         console.warn('[Nexora Follow-Up Fallback]:', data?.error || 'AI backend unavailable, using Decision Engine.');
-        aiReply = decision.replyText;
-        aiQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
-          ? decision.quickReplies
-          : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+        if (data?.code === 'ADMIN_KEY_REQUIRED') {
+          aiReply = 'Hệ thống Cố vấn AI đang chờ cấu hình khóa GEMINI_API_KEY trên máy chủ.';
+        } else if (data?.code === 'TIMEOUT') {
+          aiReply = 'Cố vấn AI phản hồi chậm do quá tải mạng. Bạn vui lòng bấm nút Thử lại bên dưới để tiếp tục nhé.';
+          aiQuickReplies = ['Thử lại', 'Chia sẻ thêm về bản thân'];
+        } else {
+          aiReply = decision.replyText;
+          aiQuickReplies = decision.quickReplies && decision.quickReplies.length > 0
+            ? decision.quickReplies
+            : ['Chia sẻ thêm về trải nghiệm học tập', 'Khám phá môn thế mạnh'];
+        }
         setAnalysisError(null);
       }
 

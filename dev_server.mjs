@@ -85,7 +85,7 @@ async function start() {
     }
 
     // AI Career Counselor Status Endpoint
-    if (url === '/api/ai/counselor/status' && req.method === 'GET') {
+    if ((url === '/api/ai/counselor/status' || (url === '/api/ai/counselor' && req.method === 'GET')) && req.method === 'GET') {
       const statusRes = handleCounselorStatusRequest(process.env);
       res.writeHead(statusRes.status, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(statusRes.data));
@@ -93,7 +93,7 @@ async function start() {
     }
 
     // AI Career Counselor Realtime Chat Endpoint (P0)
-    if (url === '/api/ai/counselor/chat' && req.method === 'POST') {
+    if ((url === '/api/ai/counselor/chat' || url === '/api/ai/counselor') && req.method === 'POST') {
       let body = '';
       req.on('data', chunk => { body += chunk; });
       req.on('end', async () => {
