@@ -123,7 +123,7 @@ export class GeminiProviderAdapter implements AIProviderAdapter {
             },
             generationConfig: {
               temperature: 0.7,
-              maxOutputTokens: 2500,
+              maxOutputTokens: 500,
               responseMimeType: 'application/json'
             }
           }),
