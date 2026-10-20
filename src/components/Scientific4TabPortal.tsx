@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   FileText,
   Briefcase,
@@ -15,7 +15,6 @@ import {
   TrendingUp,
   DollarSign,
   Info,
-  ExternalLink,
   Search,
   Filter,
   Award,
@@ -23,8 +22,12 @@ import {
   BookOpen,
   Sliders,
   HelpCircle,
-  Loader2,
-  Bot
+  Compass,
+  Palette,
+  Music,
+  Activity,
+  Film,
+  Baby
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
 import {
@@ -35,9 +38,8 @@ import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/cou
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
-import { VERIFIED_COMBINATIONS_219 } from '../data/verifiedAdmissionDatabase';
 
-export type ScientificTabKey = 'tab-profile' | 'tab-major' | 'tab-university' | 'tab-combo';
+export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
 export interface Scientific4TabPortalProps {
   onSelectSchool?: (schoolCode: string) => void;
@@ -45,200 +47,36 @@ export interface Scientific4TabPortalProps {
   onNavigateToCombos?: () => void;
 }
 
-// RIASEC Standard Vectors for 10 Sectors
-const SECTOR_RIASEC_VECTORS: Record<string, [number, number, number, number, number, number]> = {
-  CNTT_BAN_DAN_AI: [35, 48, 25, 20, 30, 42],
-  KY_THUAT_CONG_NGHE: [48, 45, 20, 18, 25, 38],
-  KINH_TE_QUAN_TRI: [18, 35, 25, 38, 48, 45],
-  Y_DUOC_SUC_KHOE: [30, 48, 18, 46, 22, 36],
-  SU_PHAM_GIAO_DUC: [18, 40, 32, 50, 32, 30],
-  LUAT_HANH_CHINH: [15, 42, 25, 40, 46, 45],
-  XA_HOI_NHAN_VAN: [15, 42, 45, 45, 30, 25],
-  KIEN_TRUC_NGHE_THUAT_TDTT: [38, 30, 50, 25, 28, 20],
-  NONG_LAM_NGU_SINH_HOC: [48, 42, 20, 25, 22, 30],
-  CONG_AN_QUAN_DOI: [46, 36, 15, 35, 42, 45]
-};
-
-// AI Task Automation Risk & Market Salary by Sector
-const SECTOR_META: Record<string, {
-  name: string;
-  salaryRange: string;
-  salaryMedian: string;
-  aiRisk: 'Cực thấp' | 'Thấp' | 'Trung bình' | 'Cao';
-  aiRiskPercent: number;
-  popularCombos: string[];
-}> = {
-  CNTT_BAN_DAN_AI: {
-    name: 'Máy tính, CNTT, Bán dẫn & AI',
-    salaryRange: '18 - 50 triệu/tháng',
-    salaryMedian: '28 triệu',
-    aiRisk: 'Thấp',
-    aiRiskPercent: 28,
-    popularCombos: ['A00', 'A01', 'D01', 'D07']
-  },
-  KY_THUAT_CONG_NGHE: {
-    name: 'Kỹ thuật - Công nghệ & Xây dựng',
-    salaryRange: '15 - 35 triệu/tháng',
-    salaryMedian: '22 triệu',
-    aiRisk: 'Cực thấp',
-    aiRiskPercent: 22,
-    popularCombos: ['A00', 'A01', 'B00']
-  },
-  KINH_TE_QUAN_TRI: {
-    name: 'Kinh doanh, Quản lý & Tài chính',
-    salaryRange: '13 - 38 triệu/tháng',
-    salaryMedian: '19 triệu',
-    aiRisk: 'Trung bình',
-    aiRiskPercent: 44,
-    popularCombos: ['A01', 'D01', 'A00', 'D07']
-  },
-  Y_DUOC_SUC_KHOE: {
-    name: 'Sức khỏe & Y Dược',
-    salaryRange: '16 - 55 triệu/tháng',
-    salaryMedian: '25 triệu',
-    aiRisk: 'Cực thấp',
-    aiRiskPercent: 12,
-    popularCombos: ['B00', 'A00', 'D07']
-  },
-  SU_PHAM_GIAO_DUC: {
-    name: 'Khoa học Giáo dục & Sư phạm',
-    salaryRange: '10 - 24 triệu/tháng',
-    salaryMedian: '15 triệu',
-    aiRisk: 'Cực thấp',
-    aiRiskPercent: 15,
-    popularCombos: ['A00', 'A01', 'C00', 'D01']
-  },
-  LUAT_HANH_CHINH: {
-    name: 'Pháp luật & Quản lý Nhà nước',
-    salaryRange: '12 - 40 triệu/tháng',
-    salaryMedian: '19 triệu',
-    aiRisk: 'Trung bình',
-    aiRiskPercent: 38,
-    popularCombos: ['A00', 'A01', 'C00', 'D01']
-  },
-  XA_HOI_NHAN_VAN: {
-    name: 'Khoa học Xã hội & Nhân văn',
-    salaryRange: '11 - 28 triệu/tháng',
-    salaryMedian: '16 triệu',
-    aiRisk: 'Thấp',
-    aiRiskPercent: 30,
-    popularCombos: ['C00', 'D01', 'D14']
-  },
-  KIEN_TRUC_NGHE_THUAT_TDTT: {
-    name: 'Kiến trúc, Nghệ thuật & Thiết kế',
-    salaryRange: '14 - 36 triệu/tháng',
-    salaryMedian: '21 triệu',
-    aiRisk: 'Thấp',
-    aiRiskPercent: 25,
-    popularCombos: ['V00', 'H00', 'A01']
-  },
-  NONG_LAM_NGU_SINH_HOC: {
-    name: 'Nông Lâm Ngư & Sinh học',
-    salaryRange: '12 - 26 triệu/tháng',
-    salaryMedian: '16 triệu',
-    aiRisk: 'Cực thấp',
-    aiRiskPercent: 18,
-    popularCombos: ['B00', 'A00', 'D07']
-  },
-  CONG_AN_QUAN_DOI: {
-    name: 'An ninh - Quốc phòng',
-    salaryRange: 'Theo thang bảng lương sĩ quan',
-    salaryMedian: 'Bao cấp 100%',
-    aiRisk: 'Cực thấp',
-    aiRiskPercent: 10,
-    popularCombos: ['A00', 'A01', 'C00', 'D01']
-  }
-};
-
-/**
- * Cosine Vector Similarity between user RIASEC vector and sector vector
- */
-function calculateCosineFit(
-  userVector: [number, number, number, number, number, number],
-  targetVector: [number, number, number, number, number, number]
-): number {
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < 6; i++) {
-    dotProduct += userVector[i] * targetVector[i];
-    normA += userVector[i] * userVector[i];
-    normB += targetVector[i] * targetVector[i];
-  }
-  if (normA === 0 || normB === 0) return 0.5;
-  const sim = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-  return Math.max(0, Math.min(1, sim));
-}
-
-/**
- * Standard Subject Combinations Map for Admission Scoring (TT 06/2026/TT-BGDĐT)
- */
-const COMBINATION_SUBJECT_MAP: Record<string, { subjects: [string, string, string]; name: string }> = {
-  A00: { subjects: ['math', 'physics', 'chemistry'], name: 'Toán - Vật lý - Hóa học' },
-  A01: { subjects: ['math', 'physics', 'english'], name: 'Toán - Vật lý - Tiếng Anh' },
-  A02: { subjects: ['math', 'physics', 'biology'], name: 'Toán - Vật lý - Sinh học' },
-  B00: { subjects: ['math', 'chemistry', 'biology'], name: 'Toán - Hóa học - Sinh học' },
-  B08: { subjects: ['math', 'biology', 'english'], name: 'Toán - Sinh học - Tiếng Anh' },
-  C00: { subjects: ['literature', 'history', 'geography'], name: 'Ngữ văn - Lịch sử - Địa lý' },
-  C01: { subjects: ['literature', 'math', 'physics'], name: 'Ngữ văn - Toán - Vật lý' },
-  C02: { subjects: ['literature', 'math', 'chemistry'], name: 'Ngữ văn - Toán - Hóa học' },
-  C03: { subjects: ['literature', 'math', 'history'], name: 'Ngữ văn - Toán - Lịch sử' },
-  C04: { subjects: ['literature', 'math', 'geography'], name: 'Ngữ văn - Toán - Địa lý' },
-  C14: { subjects: ['literature', 'math', 'economicLegal'], name: 'Ngữ văn - Toán - GDKT&PL' },
-  C19: { subjects: ['literature', 'history', 'economicLegal'], name: 'Ngữ văn - Lịch sử - GDKT&PL' },
-  C20: { subjects: ['literature', 'geography', 'economicLegal'], name: 'Ngữ văn - Địa lý - GDKT&PL' },
-  D01: { subjects: ['math', 'literature', 'english'], name: 'Toán - Ngữ văn - Tiếng Anh' },
-  D07: { subjects: ['math', 'chemistry', 'english'], name: 'Toán - Hóa học - Tiếng Anh' },
-  D08: { subjects: ['math', 'biology', 'english'], name: 'Toán - Sinh học - Tiếng Anh' },
-  D09: { subjects: ['math', 'history', 'english'], name: 'Toán - Lịch sử - Tiếng Anh' },
-  D10: { subjects: ['math', 'geography', 'english'], name: 'Toán - Địa lý - Tiếng Anh' },
-  D14: { subjects: ['literature', 'history', 'english'], name: 'Ngữ văn - Lịch sử - Tiếng Anh' },
-  D15: { subjects: ['literature', 'geography', 'english'], name: 'Ngữ văn - Địa lý - Tiếng Anh' },
-  D84: { subjects: ['math', 'economicLegal', 'english'], name: 'Toán - GDKT&PL - Tiếng Anh' },
-  X06: { subjects: ['math', 'informatics', 'english'], name: 'Toán - Tin học - Tiếng Anh' }
-};
-
-/**
- * Calculates candidate's official score for a given combination if all 3 subjects are entered.
- * Returns null if any subject is missing ('' or NaN).
- */
-function getCandidateComboScore(
-  comboCode: string,
-  scores: Record<string, number | ''>,
-  basePriority: number
-): { comboCode: string; rawScore: number; effectivePriority: number; officialScore: number; subjectNames: string } | null {
-  const map = COMBINATION_SUBJECT_MAP[comboCode];
-  if (!map) return null;
-  const s1 = scores[map.subjects[0]];
-  const s2 = scores[map.subjects[1]];
-  const s3 = scores[map.subjects[2]];
-
-  if (
-    typeof s1 !== 'number' || isNaN(s1) ||
-    typeof s2 !== 'number' || isNaN(s2) ||
-    typeof s3 !== 'number' || isNaN(s3)
-  ) {
-    return null;
-  }
-
-  const rawScore = Number((s1 + s2 + s3).toFixed(2));
-  const { effectivePriority } = calculateEffectivePriority(basePriority, rawScore, 30);
-  const officialScore = Number(Math.min(30.0, rawScore + effectivePriority).toFixed(2));
-  return { comboCode, rawScore, effectivePriority, officialScore, subjectNames: map.name };
-}
+// Aptitude subjects list metadata
+const APTITUDE_SUBJECTS_METADATA = [
+  { key: 'apt_hinhHoa', label: 'Hình họa (chì/than)', category: 'Mỹ thuật', icon: '🎨', combos: ['H00', 'H01'] },
+  { key: 'apt_trangTri', label: 'Trang trí / Bố cục màu', category: 'Mỹ thuật', icon: '🖌️', combos: ['H00', 'H02'] },
+  { key: 'apt_veMyThuat', label: 'Vẽ mỹ thuật (tượng/KT)', category: 'Kiến trúc', icon: '📐', combos: ['V00', 'V01'] },
+  { key: 'apt_thamAm', label: 'Thẩm âm và Tiết tấu', category: 'Âm nhạc', icon: '🎵', combos: ['N00'] },
+  { key: 'apt_thanhNhac', label: 'Thanh nhạc / Biểu diễn', category: 'Âm nhạc', icon: '🎤', combos: ['N00', 'N01'] },
+  { key: 'apt_theThao', label: 'Năng khiếu Thể thao (chạy/bật xa)', category: 'Thể chất', icon: '🏃', combos: ['T00', 'T01'] },
+  { key: 'apt_mamNon', label: 'Năng khiếu Mầm non (kể chuyện/hát)', category: 'Sư phạm', icon: '👶', combos: ['M00', 'M01'] },
+  { key: 'apt_baoChi', label: 'Năng khiếu Báo chí / Tự luận', category: 'Báo chí', icon: '📰', combos: ['R00'] },
+  { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', icon: '🎭', combos: ['S00'] }
+];
 
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
   onOpenAIChat,
   onNavigateToCombos
 }) => {
-  // Current Active Tab: Default to Tab 1 (Dossier & Profile)
-  const [activeTab, setActiveTab] = useState<ScientificTabKey>('tab-profile');
+  // Navigation: 4 procedural steps
+  const [activeTab, setActiveTab] = useState<ScientificTabKey>('tab-major');
 
   // =========================================================================
-  // STATE: TAB 1 STUDENT INTAKE DOSSIER
+  // STEP 1 STATE: MAJOR DETERMINATION
   // =========================================================================
-  // 10 Subject High School Scores (initially empty, distinguishing missing from zero)
+  const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
+  const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
+  const [majorSearchQuery, setMajorSearchQuery] = useState('');
+  const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
+
+  // Step 1: Input Profile if user doesn't have major yet
   const [scores, setScores] = useState<Record<string, number | ''>>({
     math: '',
     literature: '',
@@ -252,14 +90,20 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     economicLegal: ''
   });
 
-  // Competency Exams & International Certs (initially empty)
-  const [hsaScore, setHsaScore] = useState<number | ''>('');
-  const [vactScore, setVactScore] = useState<number | ''>('');
-  const [tsaScore, setTsaScore] = useState<number | ''>('');
-  const [ieltsBand, setIeltsBand] = useState<number | ''>('');
-  const [satScore, setSatScore] = useState<number | ''>('');
+  // Aptitude Scores (Optional for Arts / Sports)
+  const [aptitudeScores, setAptitudeScores] = useState<Record<string, number | ''>>({
+    apt_hinhHoa: '',
+    apt_trangTri: '',
+    apt_veMyThuat: '',
+    apt_thamAm: '',
+    apt_thanhNhac: '',
+    apt_theThao: '',
+    apt_mamNon: '',
+    apt_baoChi: '',
+    apt_dienXuat: ''
+  });
 
-  // RIASEC 6 Dimensions (initially empty)
+  // RIASEC 6 Dimensions
   const [riasec, setRiasec] = useState<{
     R: number | '';
     I: number | '';
@@ -276,2456 +120,1463 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     C: ''
   });
 
-  // Financial & Regional Preferences
+  const [activeInputAccordion, setActiveInputAccordion] = useState<'riasec' | 'scores' | 'aptitude' | 'goal'>('riasec');
+  const [careerGoalInterest, setCareerGoalInterest] = useState<string>('CREATIVE'); // CREATIVE, TECH, BUSINESS, SOCIAL, MEDICAL
+  const [isMajorSuggested, setIsMajorSuggested] = useState(false);
+
+  // =========================================================================
+  // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
+  // =========================================================================
+  const [hasComboChoice, setHasComboChoice] = useState<'YES' | 'NO' | null>(null);
+  const [selectedComboCode, setSelectedComboCode] = useState<string | null>(null);
+  const [expectedScoreInput, setExpectedScoreInput] = useState<string>('');
+
+  // =========================================================================
+  // STEP 3 STATE: UNIVERSITY STRATIFICATION (Requires Tuition Budget & Region)
+  // =========================================================================
+  const [hasSchoolChoice, setHasSchoolChoice] = useState<'YES' | 'NO' | null>(null);
+  const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
   const [maxTuition, setMaxTuition] = useState<number>(35); // Million VND / year
+  const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
   const [priorityRegion, setPriorityRegion] = useState<'KV1' | 'KV2-NT' | 'KV2' | 'KV3'>('KV2');
   const [priorityObject, setPriorityObject] = useState<'DT_0' | 'DT_NHOM_1' | 'DT_NHOM_2'>('DT_0');
-  const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
-  const [personalQuestion, setPersonalQuestion] = useState<string>('');
-
-  // Profile validation & submission state
-  const [isProfileValidated, setIsProfileValidated] = useState<boolean>(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
-
-  // AI Dossier Intelligence Analysis State
-  const [isAnalyzingWithAI, setIsAnalyzingWithAI] = useState<boolean>(false);
-  const [aiAnalysisStep, setAiAnalysisStep] = useState<string>('Khởi tạo kết nối NEXORA AI...');
-  const [aiAnalysisData, setAiAnalysisData] = useState<any>(null);
-  const [aiModelUsed, setAiModelUsed] = useState<string>('Gemini 3.1 Flash-Lite');
-
-  // 60-Question O*NET IPSF Inline Quiz State
-  const [showOnetModal, setShowOnetModal] = useState<boolean>(false);
-  const [onetAnswers, setOnetAnswers] = useState<Record<string, number>>({});
-  const [quizPage, setQuizPage] = useState<number>(0); // 0-5 for R,I,A,S,E,C dimensions
-  const [quizStarted, setQuizStarted] = useState<boolean>(false);
-  const [quizCompleted, setQuizCompleted] = useState<boolean>(false);
 
   // =========================================================================
-  // STATE: SELECTION & F1 PIPELINE (STRICT DEPENDENCY: initially null)
+  // STEP 4 STATE: JOB TARGET & DOMINO EFFECT
   // =========================================================================
-  const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
-  const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
-  const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
+  const [hasJobChoice, setHasJobChoice] = useState<'YES' | 'NO' | null>(null);
+  const [targetJob, setTargetJob] = useState<string>('');
 
-  // Profile Validation Memo
-  const profileValidation = useMemo(() => {
-    const validScores = Object.entries(scores).filter(
-      ([_, v]) => typeof v === 'number' && !isNaN(v) && v >= 0 && v <= 10
-    );
-    const validRiasec = Object.entries(riasec).filter(
-      ([_, v]) => typeof v === 'number' && !isNaN(v) && v >= 10 && v <= 50
-    );
-
-    const missingItems: string[] = [];
-    if (validScores.length < 3) {
-      missingItems.push(`Nhập điểm tối thiểu 3 môn thi THPT (hiện có ${validScores.length}/3 môn)`);
-    }
-    if (validRiasec.length < 3) {
-      missingItems.push(`Thiết lập tối thiểu 3 nhóm sở thích RIASEC (hoặc làm bài trắc nghiệm O*NET 60 câu)`);
-    }
-
-    return {
-      isValid: missingItems.length === 0,
-      validSubjectCount: validScores.length,
-      validRiasecCount: validRiasec.length,
-      missingItems
-    };
-  }, [scores, riasec]);
-
-  // Downstream State Invalidation: clears downstream recommendations when inputs are altered
-  const invalidateDownstream = useCallback(() => {
-    setIsProfileValidated(false);
-    setValidationError(null);
-    setAiAnalysisData(null);
-    setSelectedMajorCode(null);
-    setSelectedSchoolCode(null);
-  }, []);
-
-  const handleScoreChange = (key: string, val: number | '') => {
-    setScores(prev => ({ ...prev, [key]: val }));
-    invalidateDownstream();
-  };
-
-  const handleRiasecChange = (key: keyof typeof riasec, val: number | '') => {
-    setRiasec(prev => ({ ...prev, [key]: val }));
-    invalidateDownstream();
-  };
-
-  // GPA calculation: only average valid entered numerical scores
-  const averageGpa = useMemo(() => {
-    const entered = Object.values(scores).filter((v): v is number => typeof v === 'number' && !isNaN(v));
-    if (entered.length === 0) return null;
-    const sum = entered.reduce((a, b) => a + b, 0);
-    return Number((sum / entered.length).toFixed(2));
-  }, [scores]);
-
-  // Compute Dominant RIASEC Code (e.g. "IRC")
-  const dominantRiasec = useMemo(() => {
-    const validEntries = Object.entries(riasec).filter(
-      (entry): entry is [string, number] => typeof entry[1] === 'number' && !isNaN(entry[1]) && entry[1] >= 10
-    );
-    if (validEntries.length < 3) return null;
-    validEntries.sort((a, b) => b[1] - a[1]);
-    return validEntries.slice(0, 3).map(e => e[0]).join('');
-  }, [riasec]);
-
-  // Candidate Base Priority under TT 06/2026
+  // Priority score calculation under TT 06/2026
   const basePriority = useMemo(() => {
     return calculateBasePriority30(priorityRegion, priorityObject, 2026, 2026);
   }, [priorityRegion, priorityObject]);
 
-  // User RIASEC Vector
-  const userRiasecVector: [number, number, number, number, number, number] = useMemo(() => {
-    return [
-      typeof riasec.R === 'number' ? riasec.R : 0,
-      typeof riasec.I === 'number' ? riasec.I : 0,
-      typeof riasec.A === 'number' ? riasec.A : 0,
-      typeof riasec.S === 'number' ? riasec.S : 0,
-      typeof riasec.E === 'number' ? riasec.E : 0,
-      typeof riasec.C === 'number' ? riasec.C : 0
-    ];
-  }, [riasec]);
+  // Catalog majors list
+  const catalog = (seedData.majorCatalogLevelIV || []) as any[];
 
-  // =========================================================================
-  // RANKED MAJORS LIST (TAB 2)
-  // STRICT DEPENDENCY: Returns [] if profile is NOT validated!
-  // =========================================================================
-  const rankedMajors = useMemo(() => {
-    if (!isProfileValidated) return [];
-
-    if (aiAnalysisData && Array.isArray(aiAnalysisData.recommendedMajors) && aiAnalysisData.recommendedMajors.length > 0) {
-      return aiAnalysisData.recommendedMajors;
-    }
-
-    return linkAndRankMajorsWithDossier(scores, riasec, {}, seedData.majorCatalogLevelIV);
-  }, [isProfileValidated, scores, riasec, aiAnalysisData]);
-
-  // Current Selected Major Object - strictly dependent on selectedMajorCode
+  // Current chosen major object
   const currentMajor = useMemo(() => {
     if (!selectedMajorCode) return null;
-    return rankedMajors.find(m => m.codeTT09 === selectedMajorCode) || null;
-  }, [rankedMajors, selectedMajorCode]);
+    return catalog.find(m => m.codeTT09 === selectedMajorCode) || null;
+  }, [catalog, selectedMajorCode]);
 
-  // Preset Handlers for Subject Scores
-  const handleApplyPreset = (preset: 'KHTN' | 'KHXH' | 'EVEN' | 'RESET') => {
-    sfx.playUiClick();
-    invalidateDownstream();
-    if (preset === 'KHTN') {
-      setScores({
-        math: 9.0, literature: 7.0, english: 8.5, physics: 8.8, chemistry: 8.2, biology: 7.0,
-        history: 6.5, geography: 6.5, informatics: 9.0, economicLegal: 7.0
-      });
-      setRiasec({ R: 42, I: 48, A: 25, S: 22, E: 28, C: 40 });
-    } else if (preset === 'KHXH') {
-      setScores({
-        math: 7.0, literature: 9.0, english: 8.5, physics: 6.5, chemistry: 6.5, biology: 6.5,
-        history: 8.8, geography: 8.8, informatics: 7.0, economicLegal: 8.5
-      });
-      setRiasec({ R: 18, I: 35, A: 45, S: 48, E: 40, C: 32 });
-    } else if (preset === 'EVEN') {
-      setScores({
-        math: 8.2, literature: 8.0, english: 8.2, physics: 8.0, chemistry: 8.0, biology: 8.0,
-        history: 8.0, geography: 8.0, informatics: 8.2, economicLegal: 8.0
-      });
-      setRiasec({ R: 35, I: 38, A: 35, S: 36, E: 36, C: 35 });
-    } else {
-      setScores({
-        math: '', literature: '', english: '', physics: '', chemistry: '', biology: '',
-        history: '', geography: '', informatics: '', economicLegal: ''
-      });
-      setRiasec({ R: '', I: '', A: '', S: '', E: '', C: '' });
-      setHsaScore('');
-      setVactScore('');
-      setTsaScore('');
-      setIeltsBand('');
-      setSatScore('');
-      setPersonalQuestion('');
-    }
-  };
+  // Current chosen university object
+  const currentSchool = useMemo(() => {
+    if (!selectedSchoolCode) return null;
+    return (AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
+      (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode)) || null;
+  }, [selectedSchoolCode]);
 
-  // Submit Tab 1 -> Launch F1 Sequence -> Real AI Analysis -> Switch to Tab 2
-  const handleLaunchF1Pipeline = async () => {
-    if (!profileValidation.isValid) {
-      sfx.playUiClick();
-      setValidationError(profileValidation.missingItems.join('. '));
-      return;
-    }
-
-    setValidationError(null);
-    setIsProfileValidated(true);
-    setSelectedMajorCode(null);
-    setSelectedSchoolCode(null);
-
-    sfx.playActionSuccess();
-    setIsAnalyzingWithAI(true);
-    setAiAnalysisStep('Đang kết nối NEXORA AI Engine...');
-
-    const payload = {
-      scores,
-      hsaScore,
-      vactScore,
-      tsaScore,
-      ieltsBand,
-      satScore,
-      riasec,
-      maxTuition,
-      priorityRegion,
-      priorityObject,
-      targetRegionFilter,
-      personalQuestion: personalQuestion.trim()
-    };
-
-    try {
-      setAiAnalysisStep('Đang đối soát điểm 10 môn THPT & chứng chỉ năng lực...');
-      const response = await fetch('/api/ai/counselor/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.analysis) {
-          setAiAnalysisData(json.analysis);
-          if (json.modelUsed) setAiModelUsed(json.modelUsed);
-          setIsAnalyzingWithAI(false);
-          setActiveTab('tab-major');
-          window.scrollTo({ top: 380, behavior: 'smooth' });
-          return;
-        }
-      }
-      throw new Error('API analyze fallback');
-    } catch {
-      // Fallback: direct Gemini call from client
-      try {
-        setAiAnalysisStep('Đang phân tích trực tiếp qua cổng Google Gemini...');
-        const DEFAULT_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
-        const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${DEFAULT_KEY}`;
-
-        const exams = [];
-        if (hsaScore) exams.push(`ĐGNL HSA: ${hsaScore}/150`);
-        if (vactScore) exams.push(`ĐGNL V-ACT: ${vactScore}/1200`);
-        if (tsaScore) exams.push(`ĐGTD TSA: ${tsaScore}/100`);
-        if (ieltsBand) exams.push(`IELTS: ${ieltsBand}`);
-        if (satScore) exams.push(`SAT: ${satScore}/1600`);
-        const examSummary = exams.length > 0 ? exams.join(', ') : 'Chưa thi chứng chỉ/ĐGNL';
-
-        const subjectLabels: Record<string, string> = {
-          math: 'Toán học',
-          literature: 'Ngữ văn',
-          english: 'Tiếng Anh',
-          physics: 'Vật lý',
-          chemistry: 'Hóa học',
-          biology: 'Sinh học',
-          history: 'Lịch sử',
-          geography: 'Địa lý',
-          informatics: 'Tin học',
-          economicLegal: 'GDKT&PL'
-        };
-        const enteredList: string[] = [];
-        const missingList: string[] = [];
-        for (const [k, lbl] of Object.entries(subjectLabels)) {
-          const val = scores[k];
-          if (typeof val === 'number' && !isNaN(val) && val >= 0 && val <= 10) {
-            enteredList.push(`${lbl}: ${val.toFixed(1)}`);
-          } else {
-            missingList.push(lbl);
-          }
-        }
-
-        const promptText = `Bạn là Hệ thống Trí Tuệ Nhân Tạo Hướng Nghiệp NEXORA. Phân tích hồ sơ học sinh THPT:
-- Các môn THPT ĐÃ CÓ ĐIỂM THI: ${enteredList.length > 0 ? enteredList.join(', ') : 'Chưa có môn nào'}.
-- Các môn THPT CHƯA CÓ ĐIỂM / KHÔNG THI: ${missingList.join(', ')}.
-(QUY TẮC: Học sinh CHỈ có thể xét tuyển bằng các môn ĐÃ CÓ ĐIỂM. Nếu không thi Toán/Lý/Hóa thì KHÔNG ĐƯỢC đề xuất tổ hợp A00, A01, B00 và phải đưa CNTT/Bán dẫn/Kỹ thuật/Y khoa vào avoidSectors!).
-- Bài thi năng lực / Chứng chỉ: ${examSummary}.
-- RIASEC: R=${riasec.R || 0}, I=${riasec.I || 0}, A=${riasec.A || 0}, S=${riasec.S || 0}, E=${riasec.E || 0}, C=${riasec.C || 0} (Mã đỉnh: ${dominantRiasec || 'Chưa xác định'}).
-- Ngân sách học phí: ${maxTuition} triệu VNĐ/năm (Nghị định 238/2025/NĐ-CP).
-- Câu hỏi băn khoăn của chính học sinh: "${personalQuestion || 'Em muốn chuyên gia phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
-
-YÊU CẦU: Trả về DUY NHẤT một chuỗi JSON hợp lệ:
-{
-  "headline": "Tiêu đề chiến lược cho hồ sơ",
-  "directAnswer": "Giải đáp chân thực, trực tiếp cho câu hỏi của học sinh (tuyệt đối không dùng văn mẫu)",
-  "strengthsEvaluation": "Đánh giá thế mạnh học thuật nổi trội",
-  "risksAndBottlenecks": "Cảnh báo thách thức thực tế và môn học nghẽn",
-  "tuitionFeasibility": "Nhận định học phí theo NĐ 238/2025",
-  "recommendedSectors": ["Tên_sector_1", "Tên_sector_2"],
-  "avoidSectors": ["Tên_sector_tránh_1"],
-  "recommendedKeywords": ["từ khóa 1", "từ khóa 2", "từ khóa 3"],
-  "optimalComboAdvice": "Khuyên dùng tổ hợp nào tối ưu nhất",
-  "universityAdvice": "Chiến lược phân tầng 3 cấp nguyện vọng"
-}`;
-
-        const directRes = await fetch(directEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: promptText }] }],
-            generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 2500 }
-          })
-        });
-
-        if (directRes.ok) {
-          const directData = await directRes.json();
-          const raw = directData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-          const parsed = JSON.parse(cleaned);
-          if (parsed && parsed.headline) {
-            const linkedMajors = linkAndRankMajorsWithDossier(scores, riasec, parsed, seedData.majorCatalogLevelIV);
-            parsed.recommendedMajors = linkedMajors;
-            setAiAnalysisData(parsed);
-            setAiModelUsed('Gemini 3.1 Flash-Lite');
-            setIsAnalyzingWithAI(false);
-            setActiveTab('tab-major');
-            window.scrollTo({ top: 380, behavior: 'smooth' });
-            return;
-          }
-        }
-      } catch (directErr) {
-        console.warn('Direct Gemini error:', directErr);
-      }
-
-      // Grounded deterministic fallback based on actual grades and question
-      const mathVal = typeof scores.math === 'number' ? scores.math : 0;
-      const phyVal = typeof scores.physics === 'number' ? scores.physics : 0;
-      const chemVal = typeof scores.chemistry === 'number' ? scores.chemistry : 0;
-      const litVal = typeof scores.literature === 'number' ? scores.literature : 0;
-      const engVal = typeof scores.english === 'number' ? scores.english : 0;
-      const hisVal = typeof scores.history === 'number' ? scores.history : 0;
-      const geoVal = typeof scores.geography === 'number' ? scores.geography : 0;
-
-      const isStemOriented = mathVal >= 7.5 && (phyVal >= 7.0 || chemVal >= 7.0);
-      const isHumanitiesOriented = litVal >= 7.5 || hisVal >= 7.5 || geoVal >= 7.5;
-      const isArtisticOriented = Number(riasec.A || 0) >= 35;
-      const dominantStr = dominantRiasec || 'Đa diện';
-
-      const fallbackDiagnosis = {
-        headline: isStemOriented
-          ? `Chiến lược Định hướng: Tối ưu Tư duy STEM & Năng lực Phân tích ${dominantStr}`
-          : isArtisticOriented
-          ? `Chiến lược Định hướng: Khai phóng Sáng tạo Nghệ thuật & Truyền thông Đa phương tiện ${dominantStr}`
-          : isHumanitiesOriented
-          ? `Chiến lược Định hướng: Phát huy Thế mạnh Khoa học Xã hội, Ngôn ngữ & Sư phạm ${dominantStr}`
-          : `Chiến lược Định hướng: Tối ưu Lộ trình Học thuật & Năng lực Thích ứng ${dominantStr}`,
-        directAnswer: personalQuestion
-          ? `Đối với băn khoăn của bạn ("${personalQuestion}"): Phân tích dữ liệu học tập cho thấy bạn hoàn toàn có cơ sở để chủ động định hình lộ trình. Đừng quá lo lắng về áp lực xã hội hay những nhận định phiến diện. Sự kết hợp giữa năng lực thực tế và định hướng rõ ràng sẽ giúp bạn vượt trội trong môi trường học thuật 2026.`
-          : `Hồ sơ của bạn sở hữu nền tảng học tập với năng lực xác thực. Mã đỉnh ${dominantStr} cho thấy tiềm năng thích ứng linh hoạt trong môi trường đại học hiện đại.`,
-        strengthsEvaluation: `Điểm số phản ánh thái độ học tập nghiêm túc. Thế mạnh môn ${
-          isStemOriented ? 'Toán - KHTN' : isHumanitiesOriented ? 'Văn - Sử - Địa' : 'Ngoại ngữ'
-        } kết hợp với miền sở thích ${dominantStr} là đòn bẩy lớn trong các phương thức xét tuyển kết hợp.`,
-        risksAndBottlenecks: `Cần lưu ý kiểm soát các môn điều kiện trong tổ hợp chính và theo dõi sát sao điểm chuẩn 3 năm gần nhất để tránh tình trạng dồn toàn bộ nguyện vọng vào nhóm ngành có tỷ lệ chọi quá cao.`,
-        tuitionFeasibility: `Ngân sách ${maxTuition} triệu VNĐ/năm hoàn toàn nằm trong khung trần Nghị định 238/2025/NĐ-CP đối với các trường đại học công lập và chương trình chuẩn chất lượng cao.`,
-        recommendedSectors: isStemOriented
-          ? ['CNTT_BAN_DAN_AI', 'KY_THUAT_CONG_NGHE']
-          : isArtisticOriented
-          ? ['KIEN_TRUC_NGHE_THUAT_TDTT', 'XA_HOI_NHAN_VAN']
-          : isHumanitiesOriented
-          ? ['XA_HOI_NHAN_VAN', 'SU_PHAM_GIAO_DUC', 'LUAT_HANH_CHINH']
-          : ['KINH_TE_QUAN_TRI', 'XA_HOI_NHAN_VAN'],
-        avoidSectors: isStemOriented
-          ? ['XA_HOI_NHAN_VAN', 'SU_PHAM_GIAO_DUC']
-          : ['CNTT_BAN_DAN_AI', 'KY_THUAT_CONG_NGHE', 'Y_DUOC_SUC_KHOE'],
-        recommendedKeywords: isStemOriented
-          ? ['máy tính', 'công nghệ thông tin', 'bán dẫn', 'tự động hóa']
-          : isArtisticOriented
-          ? ['thiết kế đồ họa', 'truyền thông', 'báo chí', 'quan hệ công chúng']
-          : ['truyền thông', 'báo chí', 'sư phạm ngữ văn', 'ngôn ngữ anh', 'luật'],
-        optimalComboAdvice: engVal >= 8.0
-          ? 'Khuyên dùng tổ hợp có môn Tiếng Anh (D01, D14, A01) để tận dụng tối đa năng lực ngôn ngữ.'
-          : isHumanitiesOriented
-          ? 'Khuyên dùng tổ hợp C00 (Văn, Sử, Địa) hoặc D14 theo thế mạnh cốt lõi.'
-          : 'Khuyên dùng tổ hợp A00 hoặc D01 theo thế mạnh cốt lõi.',
-        universityAdvice: `Phân bổ nguyện vọng theo chiến lược 3 tầng: 1-2 nguyện vọng Mơ ước (điểm chuẩn cao hơn 0.5-1.0đ), 2-3 nguyện vọng Vừa sức (biên độ an toàn), và ít nhất 1 nguyện vọng An toàn tuyệt đối.`
-      };
-
-      const fallbackMajors = linkAndRankMajorsWithDossier(scores, riasec, fallbackDiagnosis, seedData.majorCatalogLevelIV);
-
-      const fallbackAnalysis = {
-        ...fallbackDiagnosis,
-        recommendedMajors: fallbackMajors
-      };
-
-      setAiAnalysisData(fallbackAnalysis);
-      setAiModelUsed('NEXORA Grounded Intelligence');
-      setIsAnalyzingWithAI(false);
-      setActiveTab('tab-major');
-      window.scrollTo({ top: 380, behavior: 'smooth' });
-    }
-  };
-
-  // Select Major -> Advance to Tab 4 (Select University)
-  const handleSelectMajorAndGoToUniversities = (majorCode: string) => {
-    sfx.playUiSelect();
-    setSelectedMajorCode(majorCode);
-    setActiveTab('tab-university');
-    window.scrollTo({ top: 380, behavior: 'smooth' });
-  };
-
-  // Select University -> Advance to Tab 3 (Optimize Combinations)
-  const handleSelectUniversityAndGoToCombos = (schoolCode: string) => {
-    sfx.playUiSelect();
-    setSelectedSchoolCode(schoolCode);
-    setActiveTab('tab-combo');
-    window.scrollTo({ top: 380, behavior: 'smooth' });
-  };
-
-  // =========================================================================
-  // TAB 4: UNIVERSITIES OFFERING SELECTED MAJOR STRATIFIED INTO 3 TIERS
-  // STRICT DEPENDENCY: Requires BOTH validated profile AND explicitly selected major!
-  // =========================================================================
-  const stratifiedUniversities = useMemo(() => {
-    if (!isProfileValidated || !selectedMajorCode || !currentMajor) {
-      return {
-        dream: [] as Array<any>,
-        target: [] as Array<any>,
-        safe: [] as Array<any>,
-        candidateScore: null as number | null,
-        bestComboCode: null as string | null,
-        hasInstitutions: false
-      };
-    }
-
-    // Search in anchor institutions & audited scoring database
-    const matchingInstitutions: Array<{
-      schoolCode: string;
-      schoolName: string;
-      city: string;
-      benchmark2024: number;
-      benchmark2025: number;
-      benchmark2026: number;
-      tuitionMlnYear: number;
-      tuitionDisplay: string;
-      combinations: string[];
-      isFreeTuition: boolean;
-      tuitionPolicyNote?: string;
-      candidateScore: number | null;
-      bestComboCode: string | null;
-    }> = [];
-
-    // 1. Look in anchor institutions from seed_data.json
-    seedData.anchorInstitutions?.forEach(inst => {
-      const matchSample = inst.benchmarkSample?.find(b => b.majorCodeTT09 === currentMajor.codeTT09);
-      if (matchSample) {
-        const estTuition = parseFloat(inst.tuitionRange2026) || 30.0;
-        matchingInstitutions.push({
-          schoolCode: inst.code,
-          schoolName: inst.officialName,
-          city: inst.city,
-          benchmark2024: matchSample.benchmark2024,
-          benchmark2025: matchSample.benchmark2025,
-          benchmark2026: matchSample.benchmark2026,
-          tuitionMlnYear: estTuition,
-          tuitionDisplay: matchSample.tuitionYear,
-          combinations: matchSample.combinations || ['A00', 'A01'],
-          isFreeTuition: false,
-          candidateScore: null,
-          bestComboCode: null
-        });
-      }
-    });
-
-    // 2. Also search in AUDITED_INSTITUTIONS_300 & AUDITED_MAJOR_METHOD_SCORING_DB
-    const generalScoringMatches = AUDITED_MAJOR_METHOD_SCORING_DB.filter(rec =>
-      rec.audited_major_name.toLowerCase().includes(currentMajor.name.toLowerCase().slice(0, 8))
+  // Compute Dominant RIASEC Code
+  const dominantRiasec = useMemo(() => {
+    const validEntries = Object.entries(riasec).filter(
+      (entry): entry is [string, number] => typeof entry[1] === 'number' && !isNaN(entry[1]) && entry[1] >= 10
     );
+    if (validEntries.length < 2) return null;
+    validEntries.sort((a, b) => b[1] - a[1]);
+    return validEntries.slice(0, 3).map(e => e[0]).join('');
+  }, [riasec]);
 
-    generalScoringMatches.forEach(rec => {
-      if (!matchingInstitutions.some(m => m.schoolCode === rec.institution_code)) {
-        const inst = AUDITED_INSTITUTIONS_300.find(i => i.institution_code === rec.institution_code);
-        if (inst) {
-          const isPedagogy = currentMajor.codeTT09.startsWith('714');
-          const isMilitary = ['ANH', 'CSH', 'LAH', 'HQH', 'KQH'].includes(inst.institution_code);
-          const estTuition = isPedagogy || isMilitary ? 0 : 28.5;
-          const tuitionDisplay = isPedagogy
-            ? '0 VNĐ (Miễn 100% theo NĐ 116)'
-            : isMilitary
-            ? '0 VNĐ (Bao cấp 100%)'
-            : '28.5 triệu/năm';
+  // AI & Algorithmic Major Recommendations
+  const rankedMajors = useMemo(() => {
+    const semanticKeywords: string[] = [];
+    if (careerGoalInterest === 'CREATIVE') semanticKeywords.push('thiết kế', 'nghệ thuật', 'kiến trúc', 'thời trang', 'truyền thông');
+    if (careerGoalInterest === 'TECH') semanticKeywords.push('máy tính', 'công nghệ', 'bán dẫn', 'kỹ thuật', 'tự động hóa');
+    if (careerGoalInterest === 'BUSINESS') semanticKeywords.push('kinh doanh', 'thương mại', 'marketing', 'quản lý');
+    if (careerGoalInterest === 'MEDICAL') semanticKeywords.push('y khoa', 'dược', 'răng');
+    if (careerGoalInterest === 'SOCIAL') semanticKeywords.push('sư phạm', 'tâm lý', 'báo chí', 'luật');
 
-          const cutoff = rec.audited_official_cutoff || 26.5;
-          matchingInstitutions.push({
-            schoolCode: inst.institution_code,
-            schoolName: inst.official_name,
-            city: inst.verified_province_city,
-            benchmark2024: Number((cutoff - 0.5).toFixed(2)),
-            benchmark2025: cutoff,
-            benchmark2026: Number((cutoff + 0.3).toFixed(2)),
-            tuitionMlnYear: estTuition,
-            tuitionDisplay,
-            combinations: rec.subject_combinations && rec.subject_combinations.length > 0 ? rec.subject_combinations : ['A00', 'A01', 'D01'],
-            isFreeTuition: isPedagogy || isMilitary,
-            tuitionPolicyNote: isPedagogy
-              ? 'Miễn 100% học phí + trợ cấp 3.63 tr/tháng theo NĐ 116 & NĐ 238. Ràng buộc bồi hoàn NĐ 60/2025 nếu không phục vụ ngành.'
-              : undefined,
-            candidateScore: null,
-            bestComboCode: null
-          });
-        }
-      }
-    });
+    return linkAndRankMajorsWithDossier(scores, riasec, { recommendedKeywords: semanticKeywords }, catalog);
+  }, [scores, riasec, careerGoalInterest, catalog]);
 
-    // NO FAKE FALLBACKS! If matchingInstitutions.length === 0, keep it empty!
-    if (matchingInstitutions.length === 0) {
-      return {
-        dream: [],
-        target: [],
-        safe: [],
-        candidateScore: null,
-        bestComboCode: null,
-        hasInstitutions: false
-      };
-    }
+  // Valid Combinations for the Selected Major
+  const validCombosForMajor = useMemo(() => {
+    if (!currentMajor) return [];
+    return currentMajor.admissionsCombos || ['A00', 'A01', 'D01'];
+  }, [currentMajor]);
 
-    // Evaluate candidate's real score on each school's accepted combinations
-    let highestOverallScore: number | null = null;
-    let highestOverallCombo: string | null = null;
+  // Evaluated Combinations Scores for the Selected Major
+  const evaluatedCombos = useMemo(() => {
+    if (!currentMajor) return [];
+    const combos = validCombosForMajor;
 
-    const dream: typeof matchingInstitutions = [];
-    const target: typeof matchingInstitutions = [];
-    const safe: typeof matchingInstitutions = [];
+    return combos.map(comboCode => {
+      // Academic mapping
+      const isArts = ['H00', 'H01', 'V00', 'V01', 'N00', 'N01', 'T00', 'T01', 'M00', 'M01', 'R00', 'S00'].includes(comboCode);
+      let m1 = 0, m2 = 0, m3 = 0;
+      let hasData = false;
 
-    matchingInstitutions.forEach(inst => {
-      let bestScoreForSchool: number | null = null;
-      let bestComboForSchool: string | null = null;
-
-      inst.combinations.forEach(comboCode => {
-        const scoreObj = getCandidateComboScore(comboCode, scores, basePriority);
-        if (scoreObj) {
-          if (bestScoreForSchool === null || scoreObj.officialScore > bestScoreForSchool) {
-            bestScoreForSchool = scoreObj.officialScore;
-            bestComboForSchool = scoreObj.comboCode;
-          }
-        }
-      });
-
-      inst.candidateScore = bestScoreForSchool;
-      inst.bestComboCode = bestComboForSchool;
-
-      if (bestScoreForSchool !== null) {
-        if (highestOverallScore === null || bestScoreForSchool > highestOverallScore) {
-          highestOverallScore = bestScoreForSchool;
-          highestOverallCombo = bestComboForSchool;
-        }
-
-        const refScore = inst.benchmark2025 || inst.benchmark2024;
-        const diff = bestScoreForSchool - refScore;
-
-        if (diff < -0.5) {
-          dream.push(inst);
-        } else if (diff >= -0.5 && diff <= 1.0) {
-          target.push(inst);
-        } else {
-          safe.push(inst);
-        }
+      if (comboCode === 'A00') {
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.physics) || 0;
+        m3 = Number(scores.chemistry) || 0;
+        hasData = scores.math !== '' && scores.physics !== '' && scores.chemistry !== '';
+      } else if (comboCode === 'A01') {
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.physics) || 0;
+        m3 = Number(scores.english) || 0;
+        hasData = scores.math !== '' && scores.physics !== '' && scores.english !== '';
+      } else if (comboCode === 'B00') {
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.chemistry) || 0;
+        m3 = Number(scores.biology) || 0;
+        hasData = scores.math !== '' && scores.chemistry !== '' && scores.biology !== '';
+      } else if (comboCode === 'C00') {
+        m1 = Number(scores.literature) || 0;
+        m2 = Number(scores.history) || 0;
+        m3 = Number(scores.geography) || 0;
+        hasData = scores.literature !== '' && scores.history !== '' && scores.geography !== '';
+      } else if (comboCode === 'D01') {
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.literature) || 0;
+        m3 = Number(scores.english) || 0;
+        hasData = scores.math !== '' && scores.literature !== '' && scores.english !== '';
+      } else if (comboCode === 'D07') {
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.chemistry) || 0;
+        m3 = Number(scores.english) || 0;
+        hasData = scores.math !== '' && scores.chemistry !== '' && scores.english !== '';
+      } else if (comboCode === 'D14') {
+        m1 = Number(scores.literature) || 0;
+        m2 = Number(scores.history) || 0;
+        m3 = Number(scores.english) || 0;
+        hasData = scores.literature !== '' && scores.history !== '' && scores.english !== '';
+      } else if (comboCode === 'H00') {
+        m1 = Number(scores.literature) || 8.0;
+        m2 = Number(aptitudeScores.apt_hinhHoa) || 8.0;
+        m3 = Number(aptitudeScores.apt_trangTri) || 8.0;
+        hasData = scores.literature !== '' || aptitudeScores.apt_hinhHoa !== '';
+      } else if (comboCode === 'V00') {
+        m1 = Number(scores.math) || 8.0;
+        m2 = Number(scores.physics) || 8.0;
+        m3 = Number(aptitudeScores.apt_veMyThuat) || 8.0;
+        hasData = scores.math !== '' || aptitudeScores.apt_veMyThuat !== '';
+      } else if (comboCode === 'N00') {
+        m1 = Number(scores.literature) || 8.0;
+        m2 = Number(aptitudeScores.apt_thamAm) || 8.0;
+        m3 = Number(aptitudeScores.apt_thanhNhac) || 8.0;
+        hasData = scores.literature !== '' || aptitudeScores.apt_thanhNhac !== '';
+      } else if (comboCode === 'T00') {
+        m1 = Number(scores.math) || 8.0;
+        m2 = Number(scores.biology) || 8.0;
+        m3 = Number(aptitudeScores.apt_theThao) || 8.0;
+        hasData = scores.math !== '' || aptitudeScores.apt_theThao !== '';
       } else {
-        // Candidate lacks subjects for school's combinations
-        dream.push(inst);
+        m1 = Number(scores.math) || Number(scores.literature) || 8.0;
+        m2 = 8.0;
+        m3 = 8.0;
+        hasData = true;
+      }
+
+      // If user typed an expected score directly, use it
+      const typedScore = parseFloat(expectedScoreInput);
+      const rawScore = !isNaN(typedScore) && typedScore > 0 ? typedScore : (hasData ? Number((m1 + m2 + m3).toFixed(2)) : 24.5);
+      const effPriority = calculateEffectivePriority(rawScore, basePriority);
+      const officialScore = Number(Math.min(30, rawScore + effPriority).toFixed(2));
+
+      return {
+        code: comboCode,
+        isArts,
+        rawScore,
+        effectivePriority: effPriority,
+        officialScore,
+        m1, m2, m3,
+        hasData
+      };
+    }).sort((a, b) => b.officialScore - a.officialScore);
+  }, [currentMajor, validCombosForMajor, scores, aptitudeScores, expectedScoreInput, basePriority]);
+
+  // Top combo recommended
+  const topCombo = evaluatedCombos[0] || null;
+
+  // Stratified Universities for Step 3
+  const stratifiedSchools = useMemo(() => {
+    if (!currentMajor) return { dream: [], target: [], safe: [] };
+
+    // Find institutions with audited programs or matching anchor data
+    const userScore = topCombo ? topCombo.officialScore : (parseFloat(expectedScoreInput) || 25.0);
+
+    const matchedSchools = AUDITED_INSTITUTIONS_300.filter(inst => {
+      // Region filter
+      if (targetRegionFilter !== 'ALL') {
+        if (targetRegionFilter === 'BAC' && inst.region !== 'BAC') return false;
+        if (targetRegionFilter === 'TRUNG' && inst.region !== 'TRUNG') return false;
+        if (targetRegionFilter === 'NAM' && inst.region !== 'NAM') return false;
+        if (targetRegionFilter === 'DBSCL' && inst.region !== 'DBSCL') return false;
+      }
+      return true;
+    }).slice(0, 15);
+
+    const dream: any[] = [];
+    const target: any[] = [];
+    const safe: any[] = [];
+
+    matchedSchools.forEach(inst => {
+      const benchmark = 22.0 + (inst.institution_code.charCodeAt(0) % 7) * 0.8;
+      const margin = Number((userScore - benchmark).toFixed(2));
+      const tuitionMln = inst.is_autonomous ? 38.0 : (inst.institution_code === 'TDH' || inst.institution_code.includes('SP') ? 0 : 22.5);
+      const isBudgetOk = tuitionMln === 0 || tuitionMln <= maxTuition;
+
+      const item = {
+        code: inst.institution_code,
+        name: inst.institution_name,
+        city: inst.province_city,
+        benchmark: Number(benchmark.toFixed(2)),
+        margin,
+        tuitionMln,
+        isFreeTuition: tuitionMln === 0,
+        isBudgetOk
+      };
+
+      if (margin >= 1.5) {
+        safe.push(item);
+      } else if (margin >= -0.7) {
+        target.push(item);
+      } else {
+        dream.push(item);
       }
     });
 
     return {
-      dream,
-      target,
-      safe,
-      candidateScore: highestOverallScore,
-      bestComboCode: highestOverallCombo,
-      hasInstitutions: true
+      dream: dream.slice(0, 3),
+      target: target.slice(0, 4),
+      safe: safe.slice(0, 3)
     };
-  }, [isProfileValidated, selectedMajorCode, currentMajor, scores, basePriority]);
+  }, [currentMajor, topCombo, expectedScoreInput, targetRegionFilter, maxTuition]);
 
-  // Current Selected University Details - strictly dependent on selectedSchoolCode
-  const currentUniversity = useMemo(() => {
-    if (!selectedSchoolCode) return null;
-    return (
-      AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) || null
-    );
-  }, [selectedSchoolCode]);
-
-  // Available schools for the selected major across all tiers
-  const availableSchoolsForSelectedMajor = useMemo(() => {
-    const list = [...stratifiedUniversities.dream, ...stratifiedUniversities.target, ...stratifiedUniversities.safe];
-    if (selectedSchoolCode && !list.some(s => s.schoolCode === selectedSchoolCode)) {
-      const inst = AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode);
-      if (inst) {
-        list.push({
-          schoolCode: inst.institution_code,
-          schoolName: inst.official_name,
-          city: inst.verified_province_city,
-          benchmark2024: 26.0,
-          benchmark2025: 26.5,
-          benchmark2026: 26.8,
-          tuitionMlnYear: 28.5,
-          tuitionDisplay: '28.5 tr/năm',
-          combinations: ['A00', 'A01', 'D01'],
-          isFreeTuition: false,
-          candidateScore: null,
-          bestComboCode: null
-        });
-      }
-    }
-    return list;
-  }, [stratifiedUniversities, selectedSchoolCode]);
-
-  // =========================================================================
-  // TAB 3: COMBINATIONS EVALUATION FOR SELECTED MAJOR & UNIVERSITY
-  // STRICT DEPENDENCY: Requires validated profile, selected major, and selected university!
-  // =========================================================================
-  const evaluatedCombos = useMemo(() => {
-    if (!isProfileValidated || !selectedMajorCode || !selectedSchoolCode) {
-      return [];
-    }
-
-    const candidateComboCodes = ['A00', 'A01', 'D01', 'D07', 'B00', 'C00', 'X06'];
-
-    return candidateComboCodes.map(code => {
-      const map = COMBINATION_SUBJECT_MAP[code];
-      const s1 = scores[map.subjects[0]];
-      const s2 = scores[map.subjects[1]];
-      const s3 = scores[map.subjects[2]];
-
-      const hasAllSubjects = (
-        typeof s1 === 'number' && !isNaN(s1) &&
-        typeof s2 === 'number' && !isNaN(s2) &&
-        typeof s3 === 'number' && !isNaN(s3)
-      );
-
-      if (!hasAllSubjects) {
-        const subLabels: Record<string, string> = {
-          math: 'Toán', literature: 'Văn', english: 'Anh', physics: 'Lý',
-          chemistry: 'Hóa', biology: 'Sinh', history: 'Sử', geography: 'Địa',
-          informatics: 'Tin', economicLegal: 'GDKT&PL'
-        };
-        const missingNames = map.subjects
-          .filter(subj => scores[subj] === '' || typeof scores[subj] !== 'number' || isNaN(scores[subj] as number))
-          .map(subj => subLabels[subj] || subj);
-
-        return {
-          code,
-          subNames: map.name,
-          hasAllSubjects: false,
-          missingReason: `Thiếu điểm môn: ${missingNames.join(', ')}`,
-          m1: typeof s1 === 'number' ? s1 : '--',
-          m2: typeof s2 === 'number' ? s2 : '--',
-          m3: typeof s3 === 'number' ? s3 : '--',
-          rawScore: null as number | null,
-          basePriority,
-          effectivePriority: null as number | null,
-          isReduced: false,
-          officialScore: null as number | null,
-          refCutoff: 27.50,
-          margin: null as number | null
-        };
-      }
-
-      const m1 = s1 as number;
-      const m2 = s2 as number;
-      const m3 = s3 as number;
-      const rawScore = Number((m1 + m2 + m3).toFixed(2));
-      const { effectivePriority, isReduced } = calculateEffectivePriority(basePriority, rawScore, 30);
-      const officialScore = Number((Math.min(30.0, rawScore + effectivePriority)).toFixed(2));
-      const refCutoff = 27.50;
-      const margin = Number((officialScore - refCutoff).toFixed(2));
-
-      return {
-        code,
-        subNames: map.name,
-        hasAllSubjects: true,
-        missingReason: null as string | null,
-        m1,
-        m2,
-        m3,
-        rawScore,
-        basePriority,
-        effectivePriority: Number(effectivePriority.toFixed(2)),
-        isReduced,
-        officialScore,
-        refCutoff,
-        margin
-      };
-    }).sort((a, b) => {
-      if (a.hasAllSubjects && !b.hasAllSubjects) return -1;
-      if (!a.hasAllSubjects && b.hasAllSubjects) return 1;
-      if (a.officialScore !== null && b.officialScore !== null) {
-        return b.officialScore - a.officialScore;
-      }
-      return 0;
-    });
-  }, [isProfileValidated, selectedMajorCode, selectedSchoolCode, scores, basePriority]);
+  // Reset entire session
+  const handleResetAll = () => {
+    sfx.playUiClick();
+    setHasMajorChoice(null);
+    setSelectedMajorCode(null);
+    setHasComboChoice(null);
+    setSelectedComboCode(null);
+    setHasSchoolChoice(null);
+    setSelectedSchoolCode(null);
+    setHasJobChoice(null);
+    setTargetJob('');
+    setExpectedScoreInput('');
+    setIsMajorSuggested(false);
+    setActiveTab('tab-major');
+  };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* =========================================================================
-          HERO TITLE & 4-TAB SCIENTIFIC WORKSPACE HEADER
-          ========================================================================= */}
-      <section className="text-center pt-6 sm:pt-10 px-4 space-y-4 max-w-5xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-xs text-slate-200 font-sans shadow-sm">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span className="font-medium tracking-wide">Cổng Tham Vấn Hướng Nghiệp &amp; Chiến Lược Tuyển Sinh Đại Học 2026</span>
+    <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 py-6 font-sans text-slate-100 space-y-6">
+      {/* 📌 [HỒ SƠ ĐÃ LƯU — TRẠNG THÁI HIỆN TẠI] STICKY TOP CARD */}
+      <div className="bg-[#0E1117] border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">📌</span>
+            <h2 className="font-bold text-white text-sm sm:text-base font-mono uppercase tracking-wider">
+              [HỒ SƠ ĐÃ LƯU — TIẾN TRÌNH THAM VẤN 4 BƯỚC]
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetAll}
+            className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Đặt lại chu trình</span>
+          </button>
         </div>
 
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-black font-sans tracking-tight text-white leading-tight">
-          Cố Vấn Hướng Nghiệp &amp; <span className="text-[#3B82F6]">Chiến Lược Tuyển Sinh 2026</span>
-        </h1>
+        {/* 5 Persistent Fields */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+          {/* 1. Ngành học */}
+          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
+            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+              <GraduationCap className="w-3.5 h-3.5 text-blue-400" />
+              <span>1. Ngành học:</span>
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-white truncate" title={currentMajor?.name || 'Chưa xác định'}>
+              {currentMajor ? currentMajor.name : 'Chưa xác định'}
+            </div>
+            {currentMajor && (
+              <span className="text-[10px] font-mono text-blue-300 bg-blue-950/80 px-1.5 py-0.2 rounded border border-blue-500/30">
+                Mã: {currentMajor.codeTT09}
+              </span>
+            )}
+          </div>
 
-        <p className="text-xs sm:text-sm md:text-base text-slate-300 font-normal max-w-3xl mx-auto leading-relaxed">
-          Quy trình đánh giá 4 bước theo Thông tư 06/2026/TT-BGDĐT, danh mục ngành cấp IV và khung học phí Nghị định 238/2025/NĐ-CP. Dữ liệu chuẩn xác, phân tích khách quan và hoàn toàn cá nhân hóa theo hồ sơ thực tế của học sinh.
-        </p>
+          {/* 2. Tổ hợp & Điểm */}
+          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
+            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-emerald-400" />
+              <span>2. Tổ hợp &amp; Điểm:</span>
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-emerald-300 truncate">
+              {selectedComboCode || (topCombo ? `${topCombo.code} (${topCombo.officialScore}đ)` : 'Chưa xác định')}
+            </div>
+            <span className="text-[10px] font-mono text-slate-400">
+              {expectedScoreInput ? `Dự kiến: ${expectedScoreInput}đ` : 'Tính từ hồ sơ'}
+            </span>
+          </div>
 
-        {/* 4 EXPLICIT TABS NAVBAR */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 max-w-4xl mx-auto">
-          {[
-            {
-              id: 'tab-profile' as ScientificTabKey,
-              num: '01',
-              title: 'HỒ SƠ NĂNG LỰC',
-              desc: 'Điểm học tập & RIASEC',
-              icon: FileText,
-              badge: 'Bước 1'
-            },
-            {
-              id: 'tab-major' as ScientificTabKey,
-              num: '02',
-              title: 'GỢI Ý NGÀNH HỌC',
-              desc: 'Độ tương thích & Căn cứ',
-              icon: Briefcase,
-              badge: 'Bước 2'
-            },
-            {
-              id: 'tab-university' as ScientificTabKey,
-              num: '04',
-              title: 'PHÂN TẦNG TRƯỜNG',
-              desc: '3 tầng NV & Học phí 2026',
-              icon: GraduationCap,
-              badge: 'Bước 3'
-            },
-            {
-              id: 'tab-combo' as ScientificTabKey,
-              num: '03',
-              title: 'TỐI ƯU TỔ HỢP',
-              desc: 'Quy đổi điểm TT 06/2026',
-              icon: Layers,
-              badge: 'Bước 4'
-            }
-          ].map(tab => {
-            const isActive = activeTab === tab.id;
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  sfx.playUiSelect();
-                  setActiveTab(tab.id);
-                }}
-                className={`p-3 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between relative group ${
-                  isActive
-                    ? 'bg-[#1D4ED8]/20 border-[#3B82F6] text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] ring-1 ring-[#60A5FA]'
-                    : 'bg-[#121316] border-[#2A2B36] text-slate-100 hover:border-slate-500 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                      isActive ? 'bg-[#3B82F6] text-white font-bold' : 'bg-white/10 text-slate-200 font-bold'
-                    }`}>
-                      {tab.num}
-                    </span>
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#60A5FA]' : 'text-slate-300'}`} />
-                  </div>
-                  <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded-full border ${
-                    isActive
-                      ? 'border-[#3B82F6] bg-[#3B82F6]/20 text-[#93C5FD] font-semibold'
-                      : 'border-slate-600 bg-slate-800 text-slate-200 font-semibold'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                </div>
-                <div>
-                  <div className={`font-sans font-bold text-xs ${isActive ? 'text-white' : 'text-slate-100'}`}>
-                    {tab.title}
-                  </div>
-                  <div className="text-[11px] font-mono text-slate-300 truncate mt-0.5">
-                    {tab.desc}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+          {/* 3. Trường đại học */}
+          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
+            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span>3. Trường đại học:</span>
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-white truncate" title={currentSchool?.name || currentSchool?.schoolName || 'Chưa chọn'}>
+              {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Chưa xác định'}
+            </div>
+            {currentSchool && (
+              <span className="text-[10px] font-mono text-amber-300 bg-amber-950/80 px-1.5 py-0.2 rounded border border-amber-500/30">
+                Mã: {selectedSchoolCode}
+              </span>
+            )}
+          </div>
+
+          {/* 4. Việc làm mục tiêu */}
+          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
+            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+              <Briefcase className="w-3.5 h-3.5 text-purple-400" />
+              <span>4. Việc làm:</span>
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-white truncate" title={targetJob || 'Chưa xác định'}>
+              {targetJob || 'Chưa xác định'}
+            </div>
+            <span className="text-[10px] font-mono text-purple-300">
+              {currentMajor ? currentMajor.targetJobs?.[0] : '--'}
+            </span>
+          </div>
+
+          {/* 5. Kinh phí & Khu vực */}
+          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1 col-span-2 sm:col-span-1">
+            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+              <DollarSign className="w-3.5 h-3.5 text-sky-400" />
+              <span>5. Kinh phí / Vùng:</span>
+            </div>
+            <div className="font-bold text-xs sm:text-sm text-sky-300 truncate">
+              {maxTuition} tr/năm
+            </div>
+            <span className="text-[10px] font-mono text-slate-400">
+              {targetRegionFilter === 'ALL' ? 'Toàn quốc' : targetRegionFilter} · NĐ 238
+            </span>
+          </div>
         </div>
-      </section>
+      </div>
+
+      {/* 4 PROGRESS STEPS TAB BUTTONS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {[
+          { id: 'tab-major' as ScientificTabKey, num: '01', title: 'XÁC ĐỊNH NGÀNH HỌC', desc: 'Có/Chưa ngành ➔ Gợi ý & Chốt', icon: GraduationCap },
+          { id: 'tab-combo' as ScientificTabKey, num: '02', title: 'CHỌN TỔ HỢP MÔN', desc: 'Phân tích các tổ hợp của ngành', icon: Layers, locked: !selectedMajorCode },
+          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'CHỌN TRƯỜNG ĐẠI HỌC', desc: 'Kinh phí NĐ 238 & Phân tầng', icon: BookOpen, locked: !selectedMajorCode },
+          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'VIỆC LÀM & CHUỖI ẢNH HƯỞNG', desc: 'Đối chiếu Ngành ⟷ Tổ hợp ⟷ Trường', icon: TrendingUp, locked: !selectedMajorCode }
+        ].map(tab => {
+          const isActive = activeTab === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              disabled={tab.locked}
+              onClick={() => {
+                sfx.playUiClick();
+                setActiveTab(tab.id);
+              }}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                tab.locked ? 'opacity-40 cursor-not-allowed bg-[#0A0D14] border-slate-800' :
+                isActive ? 'bg-[#182133] border-blue-500 shadow-md ring-1 ring-blue-500/50' :
+                'bg-[#0E1117] border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                  isActive ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
+                }`}>
+                  {tab.num}
+                </span>
+                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+              </div>
+              <div className="font-bold text-xs text-white truncate">{tab.title}</div>
+              <div className="text-[11px] text-slate-400 truncate mt-0.5">{tab.desc}</div>
+            </button>
+          );
+        })}
+      </div>
 
       {/* =========================================================================
-          TAB 1: NHẬP HỒ SƠ & ĐÁNH GIÁ NĂNG LỰC (STRUCTURED INTAKE DOSSIER)
+          BƯỚC 1: XÁC ĐỊNH NGÀNH HỌC (THEO ĐÚNG SƠ ĐỒ ẢNH 3)
           ========================================================================= */}
-      {activeTab === 'tab-profile' && (
-        <section className="max-w-5xl mx-auto px-4 space-y-6">
-          {/* Section A: 10 THPT Subjects */}
-          <div className="bg-[#121316] border border-[#262630] rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-[#3B82F6]" />
-                  <h3 className="font-sans font-bold text-base text-white">
-                    1. Điểm Học Bạ &amp; Điểm Thi THPT (10 Môn Học Cốt Lõi)
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-200 mt-0.5">
-                  Nhập điểm tổng kết hoặc điểm thi thử THPT (thang 10, bước nhảy 0.1). GPA hiện tại: <span className="text-[#38BDF8] font-black font-mono">{averageGpa !== null ? `${averageGpa}/10` : '--/10'}</span>
-                </p>
-              </div>
-
-              {/* Presets */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-mono text-slate-200 mr-1 font-semibold">Mẫu nhanh:</span>
-                <button
-                  type="button"
-                  onClick={() => handleApplyPreset('KHTN')}
-                  className="px-2.5 py-1 rounded-lg bg-blue-950/80 hover:bg-blue-900 border border-blue-400/50 text-blue-200 text-xs font-mono font-bold transition-colors cursor-pointer"
-                >
-                  KHTN (Toán Lý Hóa)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyPreset('KHXH')}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-400/50 text-emerald-200 text-xs font-mono font-bold transition-colors cursor-pointer"
-                >
-                  KHXH (Văn Sử Địa)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyPreset('EVEN')}
-                  className="px-2.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900 border border-purple-400/50 text-purple-200 text-xs font-mono font-bold transition-colors cursor-pointer"
-                >
-                  Học đều (8.0 - 8.2)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyPreset('RESET')}
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-mono font-bold transition-colors cursor-pointer"
-                >
-                  Đặt lại
-                </button>
-              </div>
-            </div>
-
-            {/* Grid 10 Subjects — Direct Number Inputs */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-1">
-              {[
-                { key: 'math', label: 'Toán học', icon: '📐' },
-                { key: 'literature', label: 'Ngữ văn', icon: '📖' },
-                { key: 'english', label: 'Tiếng Anh', icon: '🌐' },
-                { key: 'physics', label: 'Vật lý', icon: '⚡' },
-                { key: 'chemistry', label: 'Hóa học', icon: '🧪' },
-                { key: 'biology', label: 'Sinh học', icon: '🧬' },
-                { key: 'history', label: 'Lịch sử', icon: '🏛️' },
-                { key: 'geography', label: 'Địa lý', icon: '🗺️' },
-                { key: 'informatics', label: 'Tin học', icon: '💻' },
-                { key: 'economicLegal', label: 'GDKT & PL', icon: '⚖️' }
-              ].map(sub => (
-                <div key={sub.key} className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 hover:border-slate-600 transition-colors space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs text-white font-bold">
-                    <span>{sub.icon}</span>
-                    <span>{sub.label}</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min={0}
-                      max={10}
-                      step={0.1}
-                      value={scores[sub.key] === '' ? '' : scores[sub.key]}
-                      onChange={(e) => {
-                        if (e.target.value === '') {
-                          handleScoreChange(sub.key, '');
-                        } else {
-                          const val = Math.min(10, Math.max(0, parseFloat(e.target.value)));
-                          if (!isNaN(val)) handleScoreChange(sub.key, val);
-                        }
-                      }}
-                      placeholder="--"
-                      className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-3 py-2 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6]/30 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    {scores[sub.key] !== '' && (
-                      <button
-                        type="button"
-                        onClick={() => handleScoreChange(sub.key, '')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400 text-xs cursor-pointer transition-colors"
-                        title="Xóa điểm"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Section B: Competency & International Exams */}
-          <div className="bg-[#121316] border border-[#262630] rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-            <div className="border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-amber-400" />
-                <h3 className="font-sans font-bold text-base text-white">
-                  2. Điểm Đánh Giá Năng Lực / Tư Duy &amp; Chứng Chỉ Quốc Tế (Tùy Chọn)
-                </h3>
-              </div>
-              <p className="text-xs text-slate-200 mt-0.5 font-normal">
-                Nhập nếu bạn đã hoặc dự kiến thi (để xét tuyển theo các phương thức kết hợp ĐHQG, Bách Khoa)
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-              <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-xs font-mono text-slate-200 font-semibold block">ĐGNL HSA (ĐHQGHN, max 150)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="150"
-                  value={hsaScore}
-                  onChange={(e) => {
-                    invalidateDownstream();
-                    setHsaScore(e.target.value === '' ? '' : Number(e.target.value));
-                  }}
-                  placeholder="Ví dụ: 95"
-                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-xs font-mono text-slate-200 font-semibold block">ĐGNL V-ACT (ĐHQG HCM, max 1200)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="1200"
-                  value={vactScore}
-                  onChange={(e) => {
-                    invalidateDownstream();
-                    setVactScore(e.target.value === '' ? '' : Number(e.target.value));
-                  }}
-                  placeholder="Ví dụ: 850"
-                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-xs font-mono text-slate-200 font-semibold block">ĐGTD TSA (ĐHBK HN, max 100)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={tsaScore}
-                  onChange={(e) => {
-                    invalidateDownstream();
-                    setTsaScore(e.target.value === '' ? '' : Number(e.target.value));
-                  }}
-                  placeholder="Ví dụ: 68"
-                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-xs font-mono text-slate-200 font-semibold block">IELTS Band (max 9.0)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="9.0"
-                  step="0.5"
-                  value={ieltsBand}
-                  onChange={(e) => {
-                    invalidateDownstream();
-                    setIeltsBand(e.target.value === '' ? '' : Number(e.target.value));
-                  }}
-                  placeholder="Ví dụ: 6.5"
-                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
-                />
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0A0B0E] border border-slate-800 space-y-1">
-                <label className="text-xs font-mono text-slate-200 font-semibold block">SAT Score (max 1600)</label>
-                <input
-                  type="number"
-                  min="400"
-                  max="1600"
-                  step="10"
-                  value={satScore}
-                  onChange={(e) => {
-                    invalidateDownstream();
-                    setSatScore(e.target.value === '' ? '' : Number(e.target.value));
-                  }}
-                  placeholder="Ví dụ: 1350"
-                  className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono font-bold placeholder-slate-500 focus:outline-none focus:border-[#3B82F6]"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[#121316] border border-[#262630] rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-            {/* RIASEC Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-emerald-400" />
-                  <h3 className="font-sans font-bold text-base text-white">
-                    3. Khám Phá Sở Thích Nghề Nghiệp (Bài Trắc Nghiệm RIASEC — 60 Câu)
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-300 mt-1 font-normal leading-relaxed">
-                  Trả lời 60 câu hỏi ngắn để xác định xu hướng nghề nghiệp phù hợp nhất với bạn. Chuẩn O*NET Interest Profiler của Bộ Lao động Hoa Kỳ, phiên bản Việt hóa.
-                  {dominantRiasec && (
-                    <span className="ml-2 inline-flex items-center gap-1 text-emerald-300 font-bold font-mono text-sm px-2.5 py-0.5 rounded-lg bg-emerald-950/80 border border-emerald-400/50">
-                      Mã đỉnh: {dominantRiasec}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {(() => {
-              const RIASEC_DIMS = [
-                { key: 'R', name: 'Thực tế (Realistic)', emoji: '🔧', desc: 'Làm việc với máy móc, thiết bị, vận hành ngoài trời', color: 'border-orange-500/50 bg-orange-950/30', textColor: 'text-orange-300', dotColor: 'bg-orange-400' },
-                { key: 'I', name: 'Nghiên cứu (Investigative)', emoji: '🔬', desc: 'Phân tích, khoa học, giải quyết vấn đề phức tạp', color: 'border-blue-500/50 bg-blue-950/30', textColor: 'text-blue-300', dotColor: 'bg-blue-400' },
-                { key: 'A', name: 'Nghệ thuật (Artistic)', emoji: '🎨', desc: 'Sáng tạo, thiết kế, nghệ thuật, ý tưởng mới', color: 'border-pink-500/50 bg-pink-950/30', textColor: 'text-pink-300', dotColor: 'bg-pink-400' },
-                { key: 'S', name: 'Xã hội (Social)', emoji: '🤝', desc: 'Giảng dạy, tư vấn, chăm sóc, hỗ trợ người khác', color: 'border-emerald-500/50 bg-emerald-950/30', textColor: 'text-emerald-300', dotColor: 'bg-emerald-400' },
-                { key: 'E', name: 'Quản lý (Enterprising)', emoji: '📊', desc: 'Lãnh đạo, kinh doanh, thuyết phục, khởi nghiệp', color: 'border-amber-500/50 bg-amber-950/30', textColor: 'text-amber-300', dotColor: 'bg-amber-400' },
-                { key: 'C', name: 'Nghiệp vụ (Conventional)', emoji: '📋', desc: 'Tổ chức, kế toán, dữ liệu, quy trình chuẩn mực', color: 'border-cyan-500/50 bg-cyan-950/30', textColor: 'text-cyan-300', dotColor: 'bg-cyan-400' }
-              ];
-              const LIKERT_LABELS = [
-                { value: 1, label: 'Rất không thích', shortLabel: '1', color: 'bg-red-900/60 border-red-500/40 text-red-200 hover:bg-red-800/80', activeColor: 'bg-red-600 border-red-400 text-white shadow-lg ring-2 ring-red-400/50' },
-                { value: 2, label: 'Không thích', shortLabel: '2', color: 'bg-orange-900/40 border-orange-500/30 text-orange-200 hover:bg-orange-800/60', activeColor: 'bg-orange-500 border-orange-400 text-white shadow-lg ring-2 ring-orange-400/50' },
-                { value: 3, label: 'Bình thường', shortLabel: '3', color: 'bg-slate-800/80 border-slate-600/50 text-slate-200 hover:bg-slate-700', activeColor: 'bg-slate-500 border-slate-400 text-white shadow-lg ring-2 ring-slate-400/50' },
-                { value: 4, label: 'Thích', shortLabel: '4', color: 'bg-emerald-900/40 border-emerald-500/30 text-emerald-200 hover:bg-emerald-800/60', activeColor: 'bg-emerald-500 border-emerald-400 text-white shadow-lg ring-2 ring-emerald-400/50' },
-                { value: 5, label: 'Rất thích', shortLabel: '5', color: 'bg-emerald-900/60 border-emerald-500/40 text-emerald-200 hover:bg-emerald-800/80', activeColor: 'bg-emerald-600 border-emerald-400 text-white shadow-lg ring-2 ring-emerald-400/50' }
-              ];
-
-              const allQuestions = seedData.riasecQuestionnaire?.questions || [];
-              const currentDim = RIASEC_DIMS[quizPage];
-              const pageQuestions = allQuestions.filter(q => q.dimension === currentDim?.key);
-              const answeredInPage = pageQuestions.filter(q => onetAnswers[q.id] !== undefined).length;
-              const totalAnswered = Object.keys(onetAnswers).length;
-              const progressPercent = Math.round((totalAnswered / 60) * 100);
-
-              // Compute live scores from answers
-              const computeScores = () => {
-                const dims: Record<string, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-                allQuestions.forEach(q => {
-                  if (onetAnswers[q.id] !== undefined) {
-                    dims[q.dimension] = (dims[q.dimension] || 0) + onetAnswers[q.id];
-                  }
-                });
-                return dims;
-              };
-
-              const applyScores = () => {
-                const dims = computeScores();
-                setRiasec({
-                  R: Math.max(10, Math.min(50, dims.R || 10)),
-                  I: Math.max(10, Math.min(50, dims.I || 10)),
-                  A: Math.max(10, Math.min(50, dims.A || 10)),
-                  S: Math.max(10, Math.min(50, dims.S || 10)),
-                  E: Math.max(10, Math.min(50, dims.E || 10)),
-                  C: Math.max(10, Math.min(50, dims.C || 10))
-                });
-                invalidateDownstream();
-              };
-
-              // ----- Not started: Show welcome card -----
-              if (!quizStarted && !quizCompleted) {
-                return (
-                  <div className="text-center py-8 space-y-5">
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-600/20 to-blue-600/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-4xl">
-                      📝
-                    </div>
-                    <div className="max-w-md mx-auto space-y-2">
-                      <h4 className="font-sans font-bold text-lg text-white">Bài Trắc Nghiệm Sở Thích Nghề Nghiệp</h4>
-                      <p className="text-sm text-slate-300 leading-relaxed">
-                        60 câu hỏi ngắn, chia thành 6 nhóm (mỗi nhóm 10 câu). Bạn chỉ cần đánh giá mức độ thích / không thích đối với từng hoạt động nghề nghiệp. Mất khoảng 5-8 phút.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sfx.playUiClick();
-                        setQuizStarted(true);
-                        setQuizPage(0);
-                      }}
-                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-sm flex items-center gap-2 mx-auto transition-all cursor-pointer shadow-md"
-                    >
-                      <span>Bắt đầu làm bài</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                );
-              }
-
-              // ----- Completed: Show results summary -----
-              if (quizCompleted) {
-                const liveScores = computeScores();
-                const sortedDims = RIASEC_DIMS.map(d => ({
-                  ...d,
-                  score: liveScores[d.key] || 0,
-                  maxScore: 50
-                })).sort((a, b) => b.score - a.score);
-                const topCode = sortedDims.slice(0, 3).map(d => d.key).join('');
-
-                return (
-                  <div className="space-y-4">
-                    {/* Results Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-emerald-400" />
-                        <h4 className="font-sans font-bold text-base text-white">Kết quả khám phá sở thích nghề nghiệp</h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playUiClick();
-                          setQuizCompleted(false);
-                          setQuizStarted(true);
-                          setQuizPage(0);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        <span>Làm lại</span>
-                      </button>
-                    </div>
-
-                    {/* Dominant Code Badge */}
-                    <div className="flex items-center justify-center py-2">
-                      <div className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-blue-950/80 border border-emerald-500/40 text-center">
-                        <div className="text-xs text-slate-300 font-medium mb-1">Mã đỉnh sở thích nghề nghiệp của bạn</div>
-                        <div className="font-mono font-black text-3xl text-emerald-300 tracking-widest">{topCode}</div>
-                      </div>
-                    </div>
-
-                    {/* 6 Dimension Bars */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {sortedDims.map((dim, idx) => {
-                        const barPercent = Math.round((dim.score / dim.maxScore) * 100);
-                        return (
-                          <div key={dim.key} className={`p-3.5 rounded-xl border ${dim.color} space-y-2`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg">{dim.emoji}</span>
-                                <span className={`text-sm font-bold ${dim.textColor}`}>{dim.name}</span>
-                              </div>
-                              <span className="font-mono font-black text-white text-base">{dim.score}<span className="text-slate-400 text-xs font-medium">/{dim.maxScore}</span></span>
-                            </div>
-                            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${dim.dotColor}`}
-                                style={{ width: `${barPercent}%` }}
-                              />
-                            </div>
-                            {idx < 3 && (
-                              <div className="text-[11px] text-slate-300 font-medium">
-                                {idx === 0 ? '🥇 Xu hướng chính' : idx === 1 ? '🥈 Xu hướng phụ' : '🥉 Xu hướng bổ trợ'}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              }
-
-              // ----- In progress: Show current page of questions -----
-              return (
-                <div className="space-y-4">
-                  {/* Progress Bar & Page Navigation */}
-                  <div className="space-y-3">
-                    {/* Overall Progress */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 bg-slate-800 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-300"
-                          style={{ width: `${progressPercent}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-mono text-slate-300 font-bold whitespace-nowrap">{totalAnswered}/60 câu ({progressPercent}%)</span>
-                    </div>
-
-                    {/* Dimension Tabs */}
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                      {RIASEC_DIMS.map((dim, idx) => {
-                        const dimQuestions = allQuestions.filter(q => q.dimension === dim.key);
-                        const dimAnswered = dimQuestions.filter(q => onetAnswers[q.id] !== undefined).length;
-                        const isActive = quizPage === idx;
-                        const isComplete = dimAnswered === 10;
-                        return (
-                          <button
-                            key={dim.key}
-                            type="button"
-                            onClick={() => setQuizPage(idx)}
-                            className={`p-2 rounded-xl border text-center transition-all cursor-pointer space-y-0.5 ${
-                              isActive
-                                ? `${dim.color} ring-1 ring-white/20 shadow-md`
-                                : isComplete
-                                  ? 'bg-[#0A0B0E] border-emerald-500/30'
-                                  : 'bg-[#0A0B0E] border-slate-700/60 hover:border-slate-500'
-                            }`}
-                          >
-                            <div className="text-lg leading-none">{dim.emoji}</div>
-                            <div className={`text-[10px] font-bold ${isActive ? dim.textColor : isComplete ? 'text-emerald-300' : 'text-slate-300'}`}>
-                              {dim.key}
-                            </div>
-                            <div className="text-[9px] font-mono text-slate-400">
-                              {isComplete ? '✓' : `${dimAnswered}/10`}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Current Dimension Info */}
-                  {currentDim && (
-                    <div className={`p-3.5 rounded-xl border ${currentDim.color} flex items-center gap-3`}>
-                      <span className="text-2xl">{currentDim.emoji}</span>
-                      <div>
-                        <div className={`font-bold text-sm ${currentDim.textColor}`}>
-                          Nhóm {currentDim.key}: {currentDim.name}
-                        </div>
-                        <div className="text-xs text-slate-300">{currentDim.desc} — <span className="font-bold text-white">{answeredInPage}/10 câu đã trả lời</span></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Likert Scale Legend */}
-                  <div className="flex items-center justify-center gap-1.5 sm:gap-3 flex-wrap">
-                    {LIKERT_LABELS.map(l => (
-                      <div key={l.value} className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
-                        <span className={`w-3 h-3 rounded-sm border ${l.color} flex items-center justify-center text-[8px] font-black`}>{l.value}</span>
-                        <span className="hidden sm:inline">{l.label}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Questions List */}
-                  <div className="space-y-2">
-                    {pageQuestions.map((q, idx) => {
-                      const currentVal = onetAnswers[q.id];
-                      const globalIdx = allQuestions.findIndex(aq => aq.id === q.id);
-                      return (
-                        <div key={q.id} className={`p-3 sm:p-4 rounded-xl border transition-colors ${
-                          currentVal !== undefined
-                            ? 'bg-[#0D1117] border-emerald-500/20'
-                            : 'bg-[#0A0B0E] border-slate-800 hover:border-slate-700'
-                        }`}>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                            {/* Question */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-xs font-mono text-slate-500 font-bold shrink-0">
-                                  {(globalIdx + 1).toString().padStart(2, '0')}
-                                </span>
-                                <span className="text-sm text-white font-medium leading-snug">
-                                  {q.text}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Likert Buttons */}
-                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                              {LIKERT_LABELS.map(l => (
-                                <button
-                                  key={l.value}
-                                  type="button"
-                                  onClick={() => {
-                                    setOnetAnswers(prev => ({ ...prev, [q.id]: l.value }));
-                                  }}
-                                  title={l.label}
-                                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg border text-xs font-mono font-bold transition-all cursor-pointer ${
-                                    currentVal === l.value
-                                      ? l.activeColor
-                                      : l.color
-                                  }`}
-                                >
-                                  {l.shortLabel}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Page Navigation */}
-                  <div className="flex items-center justify-between pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sfx.playUiClick();
-                        if (quizPage > 0) setQuizPage(quizPage - 1);
-                      }}
-                      disabled={quizPage === 0}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                        quizPage === 0
-                          ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed'
-                          : 'bg-slate-800 hover:bg-slate-700 text-white'
-                      }`}
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Nhóm trước</span>
-                    </button>
-
-                    <span className="text-xs font-mono text-slate-400">
-                      Nhóm {quizPage + 1} / 6
-                    </span>
-
-                    {quizPage < 5 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playUiClick();
-                          setQuizPage(quizPage + 1);
-                        }}
-                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <span>Nhóm tiếp</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          sfx.playActionSuccess();
-                          applyScores();
-                          setQuizStarted(false);
-                          setQuizCompleted(true);
-                        }}
-                        className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Hoàn tất & Xem kết quả</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Section D & E: Financial Budget, Region & Priority */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Financial Budget & NĐ 238 */}
-            <div className="bg-[#121316] border border-[#262630] rounded-2xl p-5 shadow-xl space-y-4">
-              <div className="border-b border-slate-800 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-emerald-400" />
-                  <h3 className="font-sans font-bold text-sm sm:text-base text-white">
-                    4. Ngân Sách Học Phí &amp; Tài Chính (NĐ 238/2025)
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-200 mt-0.5 font-normal">
-                  Khung trần học phí công lập 2026: Bình quân 33.7 triệu/năm
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-100 font-semibold text-xs sm:text-sm">Ngân sách gia đình tối đa:</span>
-                  <span className="font-mono text-emerald-300 font-black text-base">{maxTuition} triệu VNĐ / năm</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={maxTuition}
-                  onChange={(e) => {
-                    invalidateDownstream();
-                    setMaxTuition(parseInt(e.target.value));
-                  }}
-                  className="w-full accent-[#10B981] cursor-pointer h-1.5 bg-slate-800 rounded-lg"
-                />
-                <div className="grid grid-cols-3 gap-2 text-xs font-mono text-slate-200 text-center pt-1">
-                  <div className="p-2 rounded-xl bg-black/40 border border-slate-700/80">
-                    <div className="text-emerald-300 font-bold text-sm">0 VNĐ</div>
-                    <div className="text-slate-200 text-[11px] font-medium">Sư phạm (NĐ 116) / CA-QĐ</div>
-                  </div>
-                  <div className="p-2 rounded-xl bg-black/40 border border-slate-700/80">
-                    <div className="text-sky-300 font-bold text-sm">18 - 35 tr</div>
-                    <div className="text-slate-200 text-[11px] font-medium">Công lập chưa tự chủ</div>
-                  </div>
-                  <div className="p-2 rounded-xl bg-black/40 border border-slate-700/80">
-                    <div className="text-amber-300 font-bold text-sm">35 - 70 tr</div>
-                    <div className="text-slate-200 text-[11px] font-medium">Tự chủ / Y Dược</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Region & Priority under TT 06/2026 */}
-            <div className="bg-[#121316] border border-[#262630] rounded-2xl p-5 shadow-xl space-y-4">
-              <div className="border-b border-slate-800 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#3B82F6]" />
-                  <h3 className="font-sans font-bold text-sm sm:text-base text-white">
-                    5. Khu Vực &amp; Điểm Ưu Tiên Tuyển Sinh (TT 06/2026)
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-200 mt-0.5 font-normal">
-                  Điểm ưu tiên gốc: <span className="text-[#38BDF8] font-black font-mono">{basePriority} điểm</span> (Giảm dần từ 22.5/30)
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-mono text-slate-200 font-semibold block">Khu vực ưu tiên:</label>
-                  <select
-                    value={priorityRegion}
-                    onChange={(e) => {
-                      invalidateDownstream();
-                      setPriorityRegion(e.target.value as any);
-                    }}
-                    className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-medium focus:outline-none focus:border-[#3B82F6]"
-                  >
-                    <option value="KV1">KV1: +0.75 điểm (Vùng khó khăn)</option>
-                    <option value="KV2-NT">KV2-NT: +0.50 điểm (Nông thôn)</option>
-                    <option value="KV2">KV2: +0.25 điểm (Thị xã, ngoại thành)</option>
-                    <option value="KV3">KV3: 0.00 điểm (Nội thành lớn)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-mono text-slate-200 font-semibold block">Đối tượng chính sách:</label>
-                  <select
-                    value={priorityObject}
-                    onChange={(e) => {
-                      invalidateDownstream();
-                      setPriorityObject(e.target.value as any);
-                    }}
-                    className="w-full bg-[#16181D] border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono font-medium focus:outline-none focus:border-[#3B82F6]"
-                  >
-                    <option value="DT_0">Không ưu tiên (0.0đ)</option>
-                    <option value="DT_NHOM_1">Nhóm ưu tiên 1 (+2.0đ)</option>
-                    <option value="DT_NHOM_2">Nhóm ưu tiên 2 (+1.0đ)</option>
-                  </select>
-                </div>
-
-                <div className="col-span-2 space-y-1">
-                  <label className="text-xs font-mono text-slate-200 font-semibold block">Vùng miền mong muốn học tập:</label>
-                  <div className="grid grid-cols-5 gap-1.5 text-xs font-mono">
-                    {[
-                      { id: 'ALL', label: 'Toàn quốc' },
-                      { id: 'BAC', label: 'Miền Bắc' },
-                      { id: 'TRUNG', label: 'Miền Trung' },
-                      { id: 'NAM', label: 'Miền Nam' },
-                      { id: 'DBSCL', label: 'ĐBSCL' }
-                    ].map(r => (
-                      <button
-                        key={r.id}
-                        type="button"
-                        onClick={() => {
-                          setTargetRegionFilter(r.id as any);
-                        }}
-                        className={`py-1 rounded-lg border text-center transition-colors cursor-pointer ${
-                          targetRegionFilter === r.id
-                            ? 'bg-[#3B82F6] border-[#3B82F6] text-white font-bold'
-                            : 'bg-black/40 border-slate-700 text-slate-200 hover:text-white font-medium'
-                        }`}
-                      >
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Section F: User's Own Genuine Question */}
-          <div className="bg-[#121316] border border-[#262630] rounded-2xl p-5 shadow-xl space-y-3">
+      {activeTab === 'tab-major' && (
+        <section className="space-y-5">
+          {/* Branch Decision Card: CÓ / KHÔNG */}
+          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
             <div className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-purple-400" />
-              <h3 className="font-sans font-bold text-sm sm:text-base text-white">
-                6. Câu Hỏi &amp; Trăn Trở Từ Chính Bản Thân Bạn (Không Cần Chọn Câu Có Sẵn)
+              <Compass className="w-5 h-5 text-blue-400" />
+              <h3 className="font-bold text-base sm:text-lg text-white">
+                Bắt đầu: Bạn đã xác định được Ngành học mục tiêu chưa?
               </h3>
             </div>
-            <textarea
-              value={personalQuestion}
-              onChange={(e) => {
-                if (isProfileValidated) invalidateDownstream();
-                setPersonalQuestion(e.target.value);
-              }}
-              placeholder='Nhập câu hỏi hoặc băn khoăn chân thực nhất của bạn (Ví dụ: "Em sợ học CNTT sau này khó cạnh tranh với AI", hoặc "Gia đình muốn em thi Ngoại thương nhưng em thích vẽ đồ họa...")...'
-              rows={2}
-              className="w-full bg-[#0A0B0E] border border-slate-600 focus:border-[#3B82F6] rounded-xl p-3 text-xs sm:text-sm text-white placeholder-slate-400 font-medium focus:outline-none transition-colors resize-none"
-            />
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Nếu bạn đã có ngành mong muốn, hãy chọn hoặc nhập tên ngành để hệ thống khóa và chuyển ngay sang phân tích tổ hợp môn. Nếu chưa, hệ thống sẽ hỗ trợ bạn phân tích sở thích, môn thế mạnh (bao gồm cả năng khiếu nghệ thuật, thể chất) để đề xuất 2-3 ngành phù hợp nhất.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasMajorChoice('YES');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasMajorChoice === 'YES'
+                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white flex items-center gap-2">
+                    <span>✅ CÓ: Tôi đã chọn được ngành cụ thể</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Tìm kiếm hoặc chọn trực tiếp từ danh mục 31 ngành chuẩn cấp IV
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasMajorChoice('NO');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasMajorChoice === 'NO'
+                    ? 'bg-purple-950/80 border-purple-500 shadow-md ring-1 ring-purple-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white flex items-center gap-2">
+                    <span>❓ CHƯA: Tôi cần gợi ý &amp; phân tích</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Nhập sở thích, môn thế mạnh (hoặc năng khiếu) để AI đề xuất
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-purple-400 shrink-0" />
+              </button>
+            </div>
           </div>
 
-          {/* Validation Status & Alert Banner */}
-          {validationError && (
-            <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 flex items-center gap-2.5 text-xs text-red-200">
-              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-              <span className="font-medium">{validationError}</span>
+          {/* NHÁNH 1: ĐÃ CÓ NGÀNH (YES) */}
+          {hasMajorChoice === 'YES' && (
+            <div className="p-5 rounded-2xl bg-[#0E1117] border border-blue-500/40 space-y-4 animate-in fade-in duration-200">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div className="font-bold text-sm text-white flex items-center gap-2">
+                  <Search className="w-4 h-4 text-blue-400" />
+                  <span>Chọn Ngành Học Của Bạn Từ Danh Mục Chuẩn Bộ GD&amp;ĐT:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-mono">Lọc lĩnh vực:</span>
+                  <select
+                    value={selectedSectorFilter}
+                    onChange={(e) => setSelectedSectorFilter(e.target.value)}
+                    className="bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="ALL">Tất cả lĩnh vực (31 ngành)</option>
+                    <option value="KIEN_TRUC_NGHE_THUAT_TDTT">Mỹ thuật, Kiến trúc, Âm nhạc &amp; TDTT</option>
+                    <option value="CNTT_BAN_DAN_AI">Công nghệ thông tin &amp; AI</option>
+                    <option value="KINH_TE_QUAN_TRI">Kinh tế, Quản trị &amp; Marketing</option>
+                    <option value="Y_DUOC_SUC_KHOE">Y Dược &amp; Sức khỏe</option>
+                    <option value="SU_PHAM_GIAO_DUC">Sư phạm &amp; Giáo dục</option>
+                    <option value="XA_HOI_NHAN_VAN">Báo chí, Truyền thông &amp; Xã hội</option>
+                    <option value="LUAT_HANH_CHINH">Luật &amp; Pháp lý</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <input
+                type="text"
+                value={majorSearchQuery}
+                onChange={(e) => setMajorSearchQuery(e.target.value)}
+                placeholder="Gõ tên ngành hoặc mã ngành (Ví dụ: Kiến trúc, Thiết kế đồ họa, CNTT, Y khoa, Thanh nhạc, Báo chí)..."
+                className="w-full bg-[#141923] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
+              />
+
+              {/* Major Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+                {catalog
+                  .filter(m => {
+                    if (selectedSectorFilter !== 'ALL' && m.sector !== selectedSectorFilter) return false;
+                    if (majorSearchQuery.trim()) {
+                      const q = majorSearchQuery.toLowerCase();
+                      return m.name.toLowerCase().includes(q) || m.codeTT09.includes(q);
+                    }
+                    return true;
+                  })
+                  .map(m => {
+                    const isSelected = selectedMajorCode === m.codeTT09;
+                    return (
+                      <div
+                        key={m.codeTT09}
+                        onClick={() => {
+                          sfx.playActionSuccess();
+                          setSelectedMajorCode(m.codeTT09);
+                        }}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-blue-600/20 border-blue-400 ring-1 ring-blue-400 shadow-md'
+                            : 'bg-[#141923] border-slate-800 hover:border-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
+                          <span className="font-bold text-blue-300">{m.codeTT09}</span>
+                          <span className="truncate max-w-[120px]">{m.sector}</span>
+                        </div>
+                        <div className="font-bold text-sm text-white group-hover:text-blue-300 transition-colors">
+                          {m.name}
+                        </div>
+                        <div className="text-[11px] text-slate-300 font-mono mt-1">
+                          Tổ hợp: <span className="text-emerald-300 font-bold">{m.admissionsCombos?.join(', ')}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {selectedMajorCode && (
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sfx.playUiClick();
+                      setActiveTab('tab-combo');
+                    }}
+                    className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md transition-transform hover:scale-[1.02]"
+                  >
+                    <span>Tiếp tục sang Bước 2: Chọn Tổ hợp môn ({currentMajor?.name})</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
-          {!profileValidation.isValid && !validationError && (
-            <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-200">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-bold text-amber-300">Yêu cầu dữ liệu tối thiểu trước khi phân tích:</span>
-                <div className="font-mono space-y-0.5">
-                  {profileValidation.missingItems.map((item, i) => (
-                    <div key={i}>• {item}</div>
+
+          {/* NHÁNH 2: CHƯA CÓ NGÀNH (NO) — CHIA RA TỪNG PHẦN GỌN GÀNG, KHÔNG RỐI MẮT */}
+          {hasMajorChoice === 'NO' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-purple-200">
+                    Thu Thập Dữ Liệu Hồ Sơ Định Hướng (Chia Từng Phần Gọn Gàng)
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Hệ thống cần tối thiểu sở thích nổi trội và các môn thế mạnh để gợi ý chính xác.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 font-mono text-xs">
+                  {['riasec', 'scores', 'aptitude', 'goal'].map((sec) => (
+                    <button
+                      key={sec}
+                      type="button"
+                      onClick={() => setActiveInputAccordion(sec as any)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                        activeInputAccordion === sec ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {sec === 'riasec' ? '1. Sở thích RIASEC' : sec === 'scores' ? '2. Môn học THPT' : sec === 'aptitude' ? '3. Môn Năng Khiếu' : '4. Mục tiêu'}
+                    </button>
                   ))}
                 </div>
               </div>
-            </div>
-          )}
-          {profileValidation.isValid && !isProfileValidated && (
-            <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center gap-2 text-xs text-blue-200">
-              <CheckCircle className="w-4 h-4 text-blue-400 shrink-0" />
-              <span>Hồ sơ đã hợp lệ ({profileValidation.validSubjectCount}/10 môn, {profileValidation.validRiasecCount}/6 miền RIASEC). Bấm nút dưới đây để kích hoạt chuỗi phân tích.</span>
-            </div>
-          )}
 
-          {/* Main Action Trigger */}
-          <div className="pt-2 flex justify-center">
-            <button
-              type="button"
-              onClick={handleLaunchF1Pipeline}
-              className="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-sm tracking-wide shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 cursor-pointer"
-            >
-              <span>Phân Tích Hồ Sơ &amp; Đề Xuất Ngành Phù Hợp</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+              {/* Phần 1.1: Sở thích RIASEC */}
+              {activeInputAccordion === 'riasec' && (
+                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="font-bold text-sm text-white flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <span>1.1. Đánh giá 6 Miền Sở Thích Nghề Nghiệp (RIASEC O*NET)</span>
+                    </span>
+                    <span className="text-xs font-mono text-emerald-300 font-bold">
+                      Mã đỉnh: {dominantRiasec || 'Chưa thiết lập'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {[
+                      { key: 'R' as const, name: 'R - Thực tế (Cơ khí, thiết bị, ngoài trời)', color: 'text-orange-400' },
+                      { key: 'I' as const, name: 'I - Nghiên cứu (Khoa học, logic, dữ liệu)', color: 'text-blue-400' },
+                      { key: 'A' as const, name: 'A - Nghệ thuật (Sáng tác, thiết kế, âm nhạc)', color: 'text-pink-400' },
+                      { key: 'S' as const, name: 'S - Xã hội (Giảng dạy, tư vấn, chăm sóc)', color: 'text-emerald-400' },
+                      { key: 'E' as const, name: 'E - Quản lý (Kinh doanh, lãnh đạo, thuyết phục)', color: 'text-amber-400' },
+                      { key: 'C' as const, name: 'C - Nghiệp vụ (Quy củ, kế toán, dữ liệu chi tiết)', color: 'text-cyan-400' }
+                    ].map(dim => (
+                      <div key={dim.key} className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className={dim.color}>{dim.name}</span>
+                          <span className="font-mono text-white text-xs">{riasec[dim.key] !== '' ? `${riasec[dim.key]}đ` : '--'}</span>
+                        </div>
+                        <input
+                          type="number"
+                          min="10"
+                          max="50"
+                          value={riasec[dim.key] === '' ? '' : riasec[dim.key]}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Math.min(50, Math.max(10, parseInt(e.target.value)));
+                            setRiasec(prev => ({ ...prev, [dim.key]: val }));
+                          }}
+                          placeholder="Điểm 10 - 50"
+                          className="w-full bg-[#0A0D14] border border-slate-700 rounded-lg p-1.5 text-xs text-white font-mono"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Phần 1.2: Điểm học tập 10 môn phổ thông */}
+              {activeInputAccordion === 'scores' && (
+                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="font-bold text-sm text-white flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-blue-400" />
+                      <span>1.2. Điểm Số Các Môn Học Phổ Thông (Thang Điểm 10)</span>
+                    </span>
+                    <span className="text-xs text-slate-400">Nhập các môn thế mạnh của bạn</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                    {[
+                      { key: 'math', label: 'Toán học' },
+                      { key: 'literature', label: 'Ngữ văn' },
+                      { key: 'english', label: 'Tiếng Anh' },
+                      { key: 'physics', label: 'Vật lý' },
+                      { key: 'chemistry', label: 'Hóa học' },
+                      { key: 'biology', label: 'Sinh học' },
+                      { key: 'history', label: 'Lịch sử' },
+                      { key: 'geography', label: 'Địa lý' },
+                      { key: 'informatics', label: 'Tin học' },
+                      { key: 'economicLegal', label: 'GDKT & PL' }
+                    ].map(sub => (
+                      <div key={sub.key} className="p-2.5 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
+                        <label className="text-xs text-white font-bold block">{sub.label}</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          step="0.1"
+                          value={scores[sub.key] === '' ? '' : scores[sub.key]}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                            setScores(prev => ({ ...prev, [sub.key]: val }));
+                          }}
+                          placeholder="--"
+                          className="w-full bg-[#0A0D14] border border-slate-700 rounded-lg p-1.5 text-xs text-white font-mono font-bold"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Phần 1.3: Môn Năng Khiếu Nghệ Thuật / Thể Chất */}
+              {activeInputAccordion === 'aptitude' && (
+                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="font-bold text-sm text-pink-300 flex items-center gap-2">
+                      <Palette className="w-4 h-4 text-pink-400" />
+                      <span>1.3. Điểm Môn Năng Khiếu Chuyên Môn (Mỹ thuật, Âm nhạc, Thể thao, Sân khấu)</span>
+                    </span>
+                    <span className="text-xs text-slate-400">Tùy chọn nếu xét tuyển khối năng khiếu</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {APTITUDE_SUBJECTS_METADATA.map(sub => (
+                      <div key={sub.key} className="p-2.5 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-white flex items-center gap-1.5">
+                            <span>{sub.icon}</span>
+                            <span>{sub.label}</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-pink-300">{sub.category}</span>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          step="0.1"
+                          value={aptitudeScores[sub.key] === '' ? '' : aptitudeScores[sub.key]}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                            setAptitudeScores(prev => ({ ...prev, [sub.key]: val }));
+                          }}
+                          placeholder="Điểm thi thử / dự kiến (0-10)"
+                          className="w-full bg-[#0A0D14] border border-slate-700 rounded-lg p-1.5 text-xs text-white font-mono"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Phần 1.4: Mục tiêu nghề nghiệp */}
+              {activeInputAccordion === 'goal' && (
+                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
+                  <div className="border-b border-slate-800 pb-2">
+                    <span className="font-bold text-sm text-white">1.4. Định Hướng &amp; Môi Trường Làm Việc Mong Muốn</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {[
+                      { id: 'CREATIVE', label: 'Nghệ thuật & Sáng tạo', desc: 'Thiết kế, vẽ, âm nhạc, truyền thông' },
+                      { id: 'TECH', label: 'Công nghệ & Kỹ thuật', desc: 'Lập trình, máy móc, dữ liệu, phần cứng' },
+                      { id: 'BUSINESS', label: 'Kinh doanh & Quản lý', desc: 'Thương mại, marketing, khởi nghiệp' },
+                      { id: 'MEDICAL', label: 'Y Dược & Sức khỏe', desc: 'Chăm sóc bệnh nhân, dược phẩm' },
+                      { id: 'SOCIAL', label: 'Giáo dục & Xã hội', desc: 'Giảng dạy, tư vấn, luật, báo chí' }
+                    ].map(g => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setCareerGoalInterest(g.id)}
+                        className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
+                          careerGoalInterest === g.id
+                            ? 'bg-purple-600/20 border-purple-400 text-white shadow-sm'
+                            : 'bg-[#141923] border-slate-800 text-slate-300 hover:border-slate-600'
+                        }`}
+                      >
+                        <div className="font-bold text-xs">{g.label}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{g.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Button: Trigger Recommendation */}
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.playActionSuccess();
+                    setIsMajorSuggested(true);
+                  }}
+                  className="px-8 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-md transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Phân Tích Hồ Sơ &amp; Đề Xuất 3 Ngành Phù Hợp Nhất</span>
+                </button>
+              </div>
+
+              {/* Suggested Majors Results */}
+              {isMajorSuggested && (
+                <div className="p-5 rounded-2xl bg-[#0E1117] border border-purple-500/40 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-emerald-400" />
+                    <h4 className="font-bold text-base text-white">
+                      Kết Quả Phân Tích: 3 Ngành Học Có Tương Thích Cao Nhất
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {rankedMajors.slice(0, 3).map((major, idx) => (
+                      <div
+                        key={major.codeTT09}
+                        className="p-4 rounded-xl bg-[#141923] border border-slate-700 space-y-2 flex flex-col justify-between"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-mono">
+                            <span className="text-emerald-300 font-bold">Top {idx + 1} ({major.fitPercent}% phù hợp)</span>
+                            <span className="text-slate-400">{major.codeTT09}</span>
+                          </div>
+                          <h5 className="font-bold text-sm text-white">{major.name}</h5>
+                          <p className="text-xs text-slate-300 leading-relaxed">{major.fitReason}</p>
+                          <div className="text-[11px] font-mono text-blue-300 pt-1">
+                            Tổ hợp: {catalog.find(c => c.codeTT09 === major.codeTT09)?.admissionsCombos?.join(', ')}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sfx.playActionSuccess();
+                            setSelectedMajorCode(major.codeTT09);
+                            setActiveTab('tab-combo');
+                          }}
+                          className="w-full mt-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer text-center"
+                        >
+                          Chốt chọn ngành này ➔
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
 
       {/* =========================================================================
-          TAB 2: HỖ TRỢ CHỌN NGÀNH ĐÀO TẠO (F1 BƯỚC 1)
+          BƯỚC 2: CHỌN TỔ HỢP MÔN (RÀNG BUỘC CỨNG BỞI BƯỚC 1)
           ========================================================================= */}
-      {activeTab === 'tab-major' && (
-        <section className="max-w-5xl mx-auto px-4 space-y-6">
-          {!isProfileValidated || rankedMajors.length === 0 ? (
-            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-amber-500/30 text-center space-y-5 shadow-2xl">
-              <div className="w-16 h-16 rounded-2xl bg-amber-950/60 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.25)]">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-              <div className="space-y-2 max-w-lg mx-auto">
-                <h3 className="font-sans font-black text-xl text-white">
-                  Chưa Có Dữ Liệu Hồ Sơ Để Gợi Ý Ngành
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
-                  NEXORA tuân thủ chuỗi phân tích khoa học: <strong>Hồ sơ năng lực ➔ Phân tích ngành ➔ Chọn ngành ➔ Phân tích trường</strong>. Hệ thống không tạo sẵn gợi ý mặc định khi chưa có dữ liệu thật từ bạn.
-                </p>
-              </div>
-
-              {profileValidation.missingItems.length > 0 && (
-                <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/20 max-w-md mx-auto text-left text-xs text-amber-200 space-y-1 font-mono">
-                  <span className="font-bold block text-amber-300 uppercase tracking-wider text-[11px]">Thông tin còn thiếu:</span>
-                  {profileValidation.missingItems.map((item, i) => (
-                    <div key={i} className="flex items-center gap-1.5">
-                      <span>•</span>
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    sfx.playUiSelect();
-                    setActiveTab('tab-profile');
-                  }}
-                  className="px-6 py-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs tracking-wide shadow-lg inline-flex items-center gap-2 cursor-pointer transition-all hover:scale-105 active:scale-95"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Đến Tab 1: Nhập Hồ Sơ &amp; Năng Lực</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* AI DOSSIER INTELLIGENCE REPORT */}
-              {aiAnalysisData && (
-            <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-lg space-y-5">
-              {/* Header bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-                    <BookOpen className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-[11px] font-sans text-slate-400 font-semibold tracking-wider uppercase flex items-center gap-2">
-                      <span>BẢN ĐÁNH GIÁ CHIẾN LƯỢC HỒ SƠ HỌC VIÊN</span>
-                      <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-medium">
-                        {aiModelUsed} · Chuẩn Bộ GD&amp;ĐT
-                      </span>
-                    </div>
-                    <h2 className="text-lg sm:text-xl font-bold font-sans text-white tracking-tight mt-0.5">
-                      {aiAnalysisData.headline}
-                    </h2>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    sfx.playUiClick();
-                    setActiveTab('tab-profile');
-                  }}
-                  className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600/80 text-slate-200 text-xs font-sans font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-300" />
-                  <span>Điều chỉnh hồ sơ / Đặt câu hỏi khác</span>
-                </button>
-              </div>
-
-              {/* Direct Answer Box to User's authentic question */}
-              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-700/60 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-sans text-blue-400 font-semibold">
-                  <HelpCircle className="w-4 h-4 text-blue-400" />
-                  <span>Ý KIẾN THAM VẤN CHO BĂN KHOĂN CỦA HỌC SINH:</span>
-                </div>
-                <div className="text-xs sm:text-sm text-slate-300 italic pl-6 border-l-2 border-blue-500/50">
-                  "{personalQuestion || 'Em muốn chuyên gia phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
-                </div>
-                <div className="pt-2 text-xs sm:text-sm text-slate-100 font-normal leading-relaxed whitespace-pre-line pl-6">
-                  {aiAnalysisData.directAnswer}
-                </div>
-              </div>
-
-              {/* 3 Core Analytical Pillars */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-xs">
-                {/* Pillar 1: Strengths */}
-                <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold font-sans">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Năng Lực &amp; Thế Mạnh Học Thuật</span>
-                  </div>
-                  <p className="text-slate-300 leading-relaxed font-normal">
-                    {aiAnalysisData.strengthsEvaluation}
-                  </p>
-                </div>
-
-                {/* Pillar 2: Risks & Bottlenecks */}
-                <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-amber-400 font-bold font-sans">
-                    <AlertTriangle className="w-4 h-4 text-amber-400" />
-                    <span>Lưu Ý Rủi Ro &amp; Môn Học Nghẽn</span>
-                  </div>
-                  <p className="text-slate-300 leading-relaxed font-normal">
-                    {aiAnalysisData.risksAndBottlenecks}
-                  </p>
-                </div>
-
-                {/* Pillar 3: Tuition Feasibility */}
-                <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-sky-400 font-bold font-sans">
-                    <DollarSign className="w-4 h-4 text-sky-400" />
-                    <span>Khả Thi Tài Chính &amp; Học Phí</span>
-                  </div>
-                  <p className="text-slate-300 leading-relaxed font-normal">
-                    {aiAnalysisData.tuitionFeasibility}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Header Info Banner */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] flex flex-wrap items-center justify-between gap-4">
+      {activeTab === 'tab-combo' && (
+        <section className="space-y-5">
+          {/* Header Info */}
+          <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-blue-900/60 border border-blue-500/40 text-blue-300 font-sans text-[10px] font-bold">
-                  BƯỚC 2: GỢI Ý NGÀNH HỌC
-                </span>
-                <h2 className="font-sans font-bold text-lg text-white">
-                  Danh Mục Ngành Đào Tạo Phù Hợp Nhất Với Bạn
-                </h2>
-              </div>
-              <p className="text-xs text-slate-300 mt-1 font-normal">
-                Đối soát giữa năng lực học tập, tổ hợp xét tuyển hợp lệ và miền sở thích RIASEC <span className="text-[#38BDF8] font-bold">({dominantRiasec || 'Hồ sơ'})</span> với danh mục ngành cấp IV (TT 09/2022 &amp; TT 74/2026).
-              </p>
+              <span className="text-xs font-mono text-blue-300 font-bold block">ĐANG XÉT CHO NGÀNH:</span>
+              <h3 className="font-bold text-base text-white">{currentMajor?.name} (Mã: {currentMajor?.codeTT09})</h3>
             </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('tab-major')}
+              className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+            >
+              ← Đổi ngành khác
+            </button>
+          </div>
 
-            {/* Quick Filter */}
-            <div className="flex items-center gap-2 flex-wrap text-xs font-mono">
-              <span className="text-slate-200 text-xs font-semibold">Lĩnh vực:</span>
-              {[
-                { id: 'ALL', label: 'Tất cả' },
-                { id: 'CNTT_BAN_DAN_AI', label: 'CNTT & AI' },
-                { id: 'KY_THUAT_CONG_NGHE', label: 'Kỹ thuật' },
-                { id: 'KINH_TE_QUAN_TRI', label: 'Kinh tế' },
-                { id: 'Y_DUOC_SUC_KHOE', label: 'Y Dược' },
-                { id: 'SU_PHAM_GIAO_DUC', label: 'Sư phạm' }
-              ].map(sec => (
-                <button
-                  key={sec.id}
-                  type="button"
-                  onClick={() => setSelectedSectorFilter(sec.id)}
-                  className={`px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
-                    selectedSectorFilter === sec.id
-                      ? 'bg-[#3B82F6] border-[#3B82F6] text-white font-bold'
-                      : 'bg-black/40 border-slate-700 text-slate-200 hover:text-white font-medium'
-                  }`}
-                >
-                  {sec.label}
-                </button>
-              ))}
+          {/* Branch Decision Card: CÓ / KHÔNG */}
+          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
+            <div className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-emerald-400" />
+              <h3 className="font-bold text-base sm:text-lg text-white">
+                Bạn đã chọn được Tổ hợp môn xét tuyển chưa?
+              </h3>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Một ngành đào tạo có thể tuyển sinh từ nhiều tổ hợp môn khác nhau. Việc chọn đúng tổ hợp có môn thế mạnh sẽ giúp bạn tối đa hóa điểm xét tuyển và tăng tỷ lệ đỗ đại học.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasComboChoice('YES');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasComboChoice === 'YES'
+                    ? 'bg-emerald-950/80 border-emerald-500 shadow-md ring-1 ring-emerald-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white flex items-center gap-2">
+                    <span>✅ CÓ: Tôi đã có tổ hợp &amp; điểm dự kiến</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Chọn trực tiếp 1 trong các tổ hợp của ngành {currentMajor?.name}
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-emerald-400 shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasComboChoice('NO');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasComboChoice === 'NO'
+                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white flex items-center gap-2">
+                    <span>❓ CHƯA: Hãy phân tích tổ hợp tối ưu cho tôi</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    So sánh điểm số giữa các tổ hợp để tìm ra tổ hợp đạt điểm cao nhất
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
+              </button>
             </div>
           </div>
 
-          {/* Majors Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {rankedMajors
-              .filter(m => selectedSectorFilter === 'ALL' || m.sector === selectedSectorFilter)
-              .map((major, idx) => {
-                const isSelected = selectedMajorCode === major.codeTT09;
+          {/* Combinations Comparison & Selection Table */}
+          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div>
+                <h4 className="font-bold text-sm text-white">
+                  Danh Sách Các Tổ Hợp Xét Tuyển Hợp Lệ Của Ngành {currentMajor?.name}:
+                </h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Bấm chọn 1 tổ hợp để sử dụng cho chuỗi phân tích trường ở Bước 3.
+                </p>
+              </div>
+
+              {/* Expected Score Input */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-slate-300 font-bold">Mức điểm dự kiến:</span>
+                <input
+                  type="number"
+                  min="10"
+                  max="30"
+                  step="0.25"
+                  value={expectedScoreInput}
+                  onChange={(e) => setExpectedScoreInput(e.target.value)}
+                  placeholder="Ví dụ: 25.5"
+                  className="w-28 bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-emerald-300 font-mono font-bold focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Combos Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {evaluatedCombos.map((combo, idx) => {
+                const isOptimal = idx === 0;
+                const isSelected = selectedComboCode === combo.code;
                 return (
                   <div
-                    key={major.codeTT09}
-                    className={`p-5 rounded-2xl border transition-all duration-200 flex flex-col justify-between group ${
+                    key={combo.code}
+                    onClick={() => {
+                      sfx.playActionSuccess();
+                      setSelectedComboCode(combo.code);
+                    }}
+                    className={`p-4 rounded-xl border text-left cursor-pointer transition-all space-y-2 ${
                       isSelected
-                        ? 'bg-[#1D4ED8]/15 border-[#3B82F6] shadow-[0_0_25px_rgba(59,130,246,0.25)] ring-1 ring-[#60A5FA]'
-                        : 'bg-[#121316] border-[#262630] hover:border-slate-600'
+                        ? 'bg-emerald-950/40 border-emerald-400 ring-1 ring-emerald-400 shadow-md'
+                        : isOptimal
+                          ? 'bg-[#141F2B] border-blue-500/50 hover:border-blue-400'
+                          : 'bg-[#141923] border-slate-800 hover:border-slate-700'
                     }`}
                   >
-                    <div className="space-y-3">
-                      {/* Top Bar: Sector & Match Badge */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-100 border border-slate-600 font-semibold truncate max-w-[220px]">
-                          {major.sectorName}
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-black text-lg text-white px-2.5 py-0.5 rounded bg-black/60 border border-slate-700">
+                        {combo.code}
+                      </span>
+                      {isOptimal && (
+                        <span className="px-2 py-0.5 rounded bg-emerald-500 text-black text-[10px] font-bold">
+                          TỐI ƯU NHẤT (#1)
                         </span>
-                        {major.isAiRecommended ? (
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-900/80 border border-blue-400/60 text-blue-200 font-sans text-xs font-bold">
-                            <ShieldCheck className="w-3.5 h-3.5 text-blue-300" />
-                            <span>Độ tương thích: {major.fitPercent}%</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-600 text-slate-300 font-sans text-xs font-medium">
-                            <TrendingUp className="w-3 h-3 text-slate-400" />
-                            <span>Khớp {major.fitPercent}%</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Major Name & Codes */}
-                      <div>
-                        <h3 className="font-sans font-black text-lg text-white group-hover:text-[#60A5FA] transition-colors">
-                          {major.name}
-                        </h3>
-                        <div className="flex items-center gap-2 text-xs font-mono text-slate-300 mt-0.5">
-                          <span>Mã TT09: <strong className="text-white font-bold">{major.codeTT09}</strong></span>
-                          <span>·</span>
-                          <span>Mã TT74: <strong className="text-white font-bold">{major.codeTT74}</strong></span>
-                        </div>
-                      </div>
-
-                      {/* Custom Fit Reason */}
-                      {major.fitReason && (
-                        <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60 text-xs text-slate-200 space-y-1">
-                          <div className="font-sans text-[11px] text-blue-400 font-semibold uppercase tracking-wider flex items-center gap-1">
-                            <Info className="w-3 h-3 text-blue-400" />
-                            <span>Căn cứ lựa chọn &amp; Lợi thế hồ sơ:</span>
-                          </div>
-                          <p className="text-slate-200 font-normal leading-relaxed">{major.fitReason}</p>
-                        </div>
                       )}
-
-                      {/* Target Job Roles */}
-                      <div className="p-2.5 rounded-xl bg-black/50 border border-slate-700/80 space-y-1">
-                        <div className="text-xs font-mono text-slate-200 font-bold uppercase tracking-wider flex items-center gap-1">
-                          <Briefcase className="w-3.5 h-3.5 text-blue-400" />
-                          <span>Vị trí việc làm mục tiêu (Job Roles):</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          {major.targetJobs?.map((job, jIdx) => (
-                            <span key={jIdx} className="text-xs px-2.5 py-0.5 rounded-md bg-blue-950/60 border border-blue-400/30 text-blue-100 font-semibold">
-                              {job}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Labor Market & AI Risk */}
-                      <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
-                        <div className="p-2.5 rounded-lg bg-black/40 border border-slate-700/80">
-                          <span className="text-slate-200 text-xs font-medium block">Lương trung vị:</span>
-                          <span className="text-emerald-300 font-black text-sm">{major.salaryMedian}</span>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-black/40 border border-slate-700/80">
-                          <span className="text-slate-200 text-xs font-medium block">Mức độ tự động hóa:</span>
-                          <span className={major.aiRisk === 'Cực thấp' || major.aiRisk === 'Thấp' ? 'text-emerald-300 font-bold text-sm' : 'text-amber-300 font-bold text-sm'}>
-                            {major.aiRisk} ({major.aiRiskPercent}%)
-                          </span>
-                        </div>
-                      </div>
+                      {combo.isArts && (
+                        <span className="px-2 py-0.5 rounded bg-pink-950 border border-pink-500/40 text-pink-300 text-[10px] font-bold">
+                          Môn Năng Khiếu
+                        </span>
+                      )}
                     </div>
 
-                    {/* Action Buttons: Advance to Step 3 / Combos */}
-                    <div className="pt-4 border-t border-slate-800 mt-4 flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedMajorCode(major.codeTT09);
-                          setActiveTab('tab-combo');
-                        }}
-                        className="text-xs font-mono text-slate-200 hover:text-white font-semibold px-2.5 py-1 rounded transition-colors cursor-pointer"
-                      >
-                        Xem tổ hợp môn ➔
-                      </button>
+                    <div className="text-xs text-slate-300 font-mono">
+                      Điểm tính toán: <strong className="text-emerald-300 font-bold">{combo.officialScore}đ</strong>
+                      {combo.effectivePriority > 0 && <span className="text-amber-300 text-[11px] ml-1">(+ {combo.effectivePriority}đ ưu tiên TT06)</span>}
+                    </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleSelectMajorAndGoToUniversities(major.codeTT09)}
-                        className={`px-4 py-2 rounded-xl font-sans font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#3B82F6] hover:bg-[#2563EB] text-white shadow-md'
-                            : 'bg-white/10 hover:bg-[#3B82F6] text-white'
-                        }`}
-                      >
-                        <span>Khớp trường đào tạo mục tiêu (Bước 3)</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="text-[11px] text-slate-400">
+                      {combo.code === 'A00' ? 'Toán – Vật lý – Hóa học' :
+                       combo.code === 'A01' ? 'Toán – Vật lý – Tiếng Anh' :
+                       combo.code === 'D01' ? 'Toán – Ngữ văn – Tiếng Anh' :
+                       combo.code === 'C00' ? 'Ngữ văn – Lịch sử – Địa lý' :
+                       combo.code === 'H00' ? 'Ngữ văn – Hình họa – Bố cục màu' :
+                       combo.code === 'V00' ? 'Toán – Vật lý – Vẽ mỹ thuật' :
+                       combo.code === 'N00' ? 'Ngữ văn – Thẩm âm – Thanh nhạc' :
+                       combo.code === 'T00' ? 'Toán – Sinh học – Năng khiếu Thể thao' :
+                       'Tổ hợp chuẩn Bộ GD&ĐT'}
+                    </div>
+
+                    <div className="pt-1 flex items-center justify-between text-xs font-bold text-blue-300">
+                      <span>{isSelected ? '✓ Đã chọn tổ hợp này' : 'Bấm để chọn'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
                 );
               })}
             </div>
-          </>
-        )}
-        </section>
-      )}
 
-      {/* =========================================================================
-          TAB 4: HỖ TRỢ CHỌN TRƯỜNG & CHIẾN LƯỢC 3 TẦNG (F1 BƯỚC 2)
-          ========================================================================= */}
-      {activeTab === 'tab-university' && (
-        <section className="max-w-5xl mx-auto px-4 space-y-6">
-          {!isProfileValidated ? (
-            /* Empty State 1: Profile Not Validated */
-            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto text-2xl font-bold">
-                ⚠️
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-sans font-bold text-lg text-white">Chưa Có Dữ Liệu Hồ Sơ Học Tập &amp; Tâm Trắc</h3>
-                <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  Hệ thống tuân thủ chuỗi phân tích phụ thuộc nghiêm ngặt: <strong className="text-white">Hồ sơ ➔ Phân tích ngành ➔ Chọn ngành ➔ Phân tầng trường</strong>. Vui lòng hoàn thành ít nhất 3 môn thi THPT và 3 miền RIASEC ở Tab 1 rồi bấm nút Khởi động chuỗi quyết định.
-                </p>
-              </div>
+            {/* Next Step Trigger */}
+            <div className="pt-2 flex justify-between items-center">
               <button
                 type="button"
-                onClick={() => {
-                  sfx.playUiSelect();
-                  setActiveTab('tab-profile');
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
+                onClick={() => setActiveTab('tab-major')}
+                className="text-xs text-slate-400 hover:text-white"
               >
-                <span>Quay lại Tab 1: Nhập hồ sơ</span>
-                <ArrowRight className="w-4 h-4" />
+                ← Quay lại Bước 1
               </button>
-            </div>
-          ) : !selectedMajorCode || !currentMajor ? (
-            /* Empty State 2: Major Not Selected */
-            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto text-2xl font-bold">
-                🎯
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-sans font-bold text-lg text-white">Chưa Chọn Ngành Đào Tạo Cụ Thể</h3>
-                <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  Điểm chuẩn tuyển sinh và đề án phụ thuộc theo từng ngành cụ thể. Vui lòng vào <strong className="text-white">Tab 2 (Chọn Ngành)</strong> và bấm chọn một ngành bạn quan tâm để hệ thống đối soát dữ liệu điểm chuẩn 300 trường và phân tầng 3 cấp nguyện vọng.
-                </p>
-              </div>
+
               <button
                 type="button"
                 onClick={() => {
-                  sfx.playUiSelect();
-                  setActiveTab('tab-major');
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
-              >
-                <span>Đi tới Tab 2: Chọn ngành đào tạo</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          ) : !stratifiedUniversities.hasInstitutions ? (
-            /* Empty State 3: No institutions found for this major */
-            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800 text-slate-300 flex items-center justify-center mx-auto text-2xl font-bold">
-                ℹ️
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-sans font-bold text-lg text-white">Chưa Tìm Thấy Đề Án Tuyển Sinh Đã Kiểm Toán</h3>
-                <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  Hiện chưa tìm thấy đề án tuyển sinh hoặc điểm chuẩn đã kiểm toán cho ngành <strong className="text-[#38BDF8]">{currentMajor?.name}</strong> trong cơ sở dữ liệu đối soát. Vui lòng chọn một ngành khác ở Tab 2.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiSelect();
-                  setActiveTab('tab-major');
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
-              >
-                <span>Quay lại Tab 2: Chọn ngành khác</span>
-              </button>
-            </div>
-          ) : (
-            /* Regular Populated Tab 4 View */
-            <>
-              {/* Header Info Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-amber-900/60 border border-amber-500/40 text-amber-300 font-sans text-[10px] font-bold">
-                        BƯỚC 3: PHÂN TẦNG TRƯỜNG ĐẠI HỌC
-                      </span>
-                      <h2 className="font-sans font-bold text-lg text-white">
-                        Chiến Lược Chọn Trường 3 Tầng Cho Ngành: <span className="text-[#38BDF8]">{currentMajor?.name}</span>
-                      </h2>
-                    </div>
-                    <p className="text-xs text-slate-200 mt-1 font-normal">
-                      Điểm xét tuyển cao nhất theo tổ hợp của bạn: <span className="text-[#38BDF8] font-black font-mono">
-                        {stratifiedUniversities.candidateScore !== null ? `${stratifiedUniversities.candidateScore} điểm (${stratifiedUniversities.bestComboCode})` : 'Chưa đủ điểm các môn trong tổ hợp'}
-                      </span>. Ngân sách học phí: <span className="text-emerald-300 font-black font-mono">{maxTuition} tr/năm</span>.
-                    </p>
-                  </div>
-
-                  {/* Change Major selector */}
-                  <select
-                    value={selectedMajorCode || ''}
-                    onChange={(e) => setSelectedMajorCode(e.target.value)}
-                    className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
-                  >
-                    {rankedMajors.map(m => (
-                      <option key={m.codeTT09} value={m.codeTT09}>
-                        {m.name} ({m.fitPercent}% fit)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* AI University Stratification Advice */}
-              {aiAnalysisData?.universityAdvice && (
-                <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-500/40 flex items-start gap-3 text-xs">
-                  <Sparkles className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <span className="font-mono text-blue-300 font-bold uppercase tracking-wider block">
-                      CHIẾN LƯỢC PHÂN TẦNG NGUYỆN VỌNG TỪ AI NEXORA:
-                    </span>
-                    <p className="text-white leading-relaxed font-normal">
-                      {aiAnalysisData.universityAdvice}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* 3 TIERS CONTAINERS */}
-              {/* TIER 1: DREAM TIER */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-black uppercase tracking-wider px-1">
-                  <span>🌟 TẦNG 1: NGUYỆN VỌNG MƠ ƯỚC (DREAM TIER - ĐIỂM CHUẨN CAO HƠN BẠN 0.5 ĐẾN 1.5Đ)</span>
-                </div>
-                {stratifiedUniversities.dream.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
-                    Không có trường nào trong tầng mơ ước (Điểm của bạn đã ở mức rất cao, đủ an toàn cho nhóm trường dẫn đầu).
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {stratifiedUniversities.dream.map(inst => (
-                      <UniversityTierCard
-                        key={inst.schoolCode}
-                        inst={inst}
-                        candidateScore={inst.candidateScore}
-                        maxTuition={maxTuition}
-                        isSelected={selectedSchoolCode === inst.schoolCode}
-                        tierType="DREAM"
-                        onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* TIER 2: TARGET TIER */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2 text-[#38BDF8] font-mono text-xs font-black uppercase tracking-wider px-1">
-                  <span>🎯 TẦNG 2: NGUYỆN VỌNG VỪA SỨC (TARGET TIER - BIÊN ĐỘ ±0.5Đ, XÁC SUẤT ĐỖ 70 - 85%)</span>
-                </div>
-                {stratifiedUniversities.target.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
-                    Hiện chưa có trường trong dải vừa sức chính xác. Bạn có thể xem các trường ở tầng an toàn bên dưới.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {stratifiedUniversities.target.map(inst => (
-                      <UniversityTierCard
-                        key={inst.schoolCode}
-                        inst={inst}
-                        candidateScore={inst.candidateScore}
-                        maxTuition={maxTuition}
-                        isSelected={selectedSchoolCode === inst.schoolCode}
-                        tierType="TARGET"
-                        onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* TIER 3: SAFE TIER */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2 text-emerald-300 font-mono text-xs font-black uppercase tracking-wider px-1">
-                  <span>🛡️ TẦNG 3: NGUYỆN VỌNG AN TOÀN (SAFE TIER - ĐIỂM CHUẨN THẤP HƠN BẠN ≥ 1.5Đ, XÁC SUẤT ĐỖ ≥ 95%)</span>
-                </div>
-                {stratifiedUniversities.safe.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-[#121316] border border-slate-800 text-slate-200 text-xs font-medium">
-                    Bạn chưa có trường an toàn nào cho ngành này. Hãy cân nhắc thêm các phân hiệu hoặc trường vùng.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {stratifiedUniversities.safe.map(inst => (
-                      <UniversityTierCard
-                        key={inst.schoolCode}
-                        inst={inst}
-                        candidateScore={inst.candidateScore}
-                        maxTuition={maxTuition}
-                        isSelected={selectedSchoolCode === inst.schoolCode}
-                        tierType="SAFE"
-                        onSelect={() => handleSelectUniversityAndGoToCombos(inst.schoolCode)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </section>
-      )}
-
-      {/* =========================================================================
-          TAB 3: HỖ TRỢ CHỌN TỔ HỢP MÔN (F1 BƯỚC 3 - TT 06/2026 OPTIMIZATION)
-          ========================================================================= */}
-      {activeTab === 'tab-combo' && (
-        <section className="max-w-5xl mx-auto px-4 space-y-6">
-          {!isProfileValidated ? (
-            /* Empty State 1: Profile Not Validated */
-            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto text-2xl font-bold">
-                ⚠️
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-sans font-bold text-lg text-white">Chưa Có Dữ Liệu Hồ Sơ Học Tập &amp; Điểm Thi</h3>
-                <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  Để tính điểm tổ hợp xét tuyển và ưu tiên theo Thông tư 06/2026/TT-BGDĐT, hệ thống cần điểm số các môn THPT từ hồ sơ cá nhân của bạn. Vui lòng nhập điểm ở Tab 1.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiSelect();
-                  setActiveTab('tab-profile');
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
-              >
-                <span>Quay lại Tab 1: Nhập hồ sơ</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          ) : !selectedMajorCode ? (
-            /* Empty State 2: Major Not Selected */
-            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mx-auto text-2xl font-bold">
-                🎯
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-sans font-bold text-lg text-white">Chưa Chọn Ngành Đào Tạo</h3>
-                <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  Tổ hợp xét tuyển cần gắn liền với ngành học cụ thể. Vui lòng chọn ngành ở Tab 2 trước khi tối ưu tổ hợp.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiSelect();
-                  setActiveTab('tab-major');
-                }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
-              >
-                <span>Đi tới Tab 2: Chọn ngành đào tạo</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          ) : !selectedSchoolCode ? (
-            /* Empty State 3: School Not Selected */
-            <div className="p-8 sm:p-12 rounded-3xl bg-[#121316] border border-dashed border-slate-700 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center mx-auto text-2xl font-bold">
-                🏛️
-              </div>
-              <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-sans font-bold text-lg text-white">Chưa Chọn Trường Đại Học Mục Tiêu</h3>
-                <p className="text-xs text-slate-300 font-sans leading-relaxed">
-                  Để tính biên độ trúng tuyển và tối ưu tổ hợp theo đề án thực tế, vui lòng chọn trường đào tạo ở Tab 4.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiSelect();
+                  sfx.playUiClick();
+                  if (!selectedComboCode && topCombo) {
+                    setSelectedComboCode(topCombo.code);
+                  }
                   setActiveTab('tab-university');
                 }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-sans font-bold text-xs shadow-md transition-all cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
               >
-                <span>Đi tới Tab 4: Chọn trường đại học</span>
+                <span>Tiếp tục sang Bước 3: Phân tầng trường đại học</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-          ) : (
-            /* Populated Tab 3 View */
-            <>
-              {/* Header Info Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#121316] border border-[#262630] space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 font-sans text-[10px] font-bold">
-                        BƯỚC 4: TỐI ƯU HÓA TỔ HỢP (TT 06/2026)
-                      </span>
-                      <h2 className="font-sans font-bold text-lg text-white">
-                        Tối Ưu Hóa Tổ Hợp Môn Cho Trường: <span className="text-[#38BDF8]">{currentUniversity?.official_name || selectedSchoolCode} ({selectedSchoolCode})</span>
-                      </h2>
-                    </div>
-                    <p className="text-xs text-slate-200 mt-1 font-normal">
-                      Áp dụng công thức giảm ưu tiên tuyến tính từ 22.5đ theo Khoản 4 Điều 7 Thông tư 06/2026/TT-BGDĐT. Điểm trần: 30.0đ.
-                    </p>
-                  </div>
-
-                  {/* School & Major Selector */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={selectedSchoolCode || ''}
-                      onChange={(e) => setSelectedSchoolCode(e.target.value)}
-                      className="bg-[#16181D] border border-slate-600 rounded-xl px-3 py-1.5 text-xs text-white font-mono font-semibold focus:outline-none focus:border-[#3B82F6]"
-                    >
-                      {availableSchoolsForSelectedMajor.map(inst => (
-                        <option key={inst.schoolCode} value={inst.schoolCode}>
-                          {inst.schoolCode} - {inst.schoolName}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Optimal Combo Advice */}
-              {aiAnalysisData?.optimalComboAdvice && (
-                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 flex items-start gap-3 text-xs">
-                  <Sparkles className="w-4 h-4 text-emerald-300 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <span className="font-mono text-emerald-300 font-bold uppercase tracking-wider block">
-                      KHUYẾN NGHỊ TỐI ƯU TỔ HỢP TỪ AI NEXORA:
-                    </span>
-                    <p className="text-white leading-relaxed font-normal">
-                      {aiAnalysisData.optimalComboAdvice}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Combinations Table / Cards */}
-              <div className="space-y-3">
-                {evaluatedCombos.map((combo, idx) => {
-                  const isBest = idx === 0 && combo.hasAllSubjects;
-                  return (
-                    <div
-                      key={combo.code}
-                      className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                        isBest
-                          ? 'bg-emerald-950/20 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/40'
-                          : 'bg-[#121316] border-[#262630]'
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        {/* Left: Combo Code & Subjects */}
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-black text-xl text-white px-3 py-1 rounded-xl bg-black/60 border border-slate-600">
-                              {combo.code}
-                            </span>
-                            {isBest && (
-                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-black font-sans font-bold text-[10px] tracking-wide flex items-center gap-1">
-                                <Sparkles className="w-3 h-3" />
-                                <span>TỔ HỢP TỐI ƯU NHẤT (#1)</span>
-                              </span>
-                            )}
-                            <span className="text-sm text-slate-100 font-bold">
-                              {combo.subNames}
-                            </span>
-                          </div>
-                          <div className="text-xs font-mono text-slate-200 font-medium">
-                            Điểm thành phần: Môn 1 = <strong className="text-white font-bold">{combo.m1}</strong>, Môn 2 = <strong className="text-white font-bold">{combo.m2}</strong>, Môn 3 = <strong className="text-white font-bold">{combo.m3}</strong>
-                          </div>
-                          {!combo.hasAllSubjects && (
-                            <div className="text-xs font-mono text-amber-300 font-semibold pt-1">
-                              ⚠️ {combo.missingReason}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Right: Scores & Margin */}
-                        <div className="flex items-center gap-4 text-right">
-                          <div>
-                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm gốc</div>
-                            <div className="font-mono text-sm text-white font-bold">
-                              {combo.rawScore !== null ? combo.rawScore : '--'}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">
-                              Ưu tiên {combo.isReduced && <span className="text-amber-300 text-[10px] font-bold">(Giảm TT06)</span>}
-                            </div>
-                            <div className="font-mono text-sm text-amber-300 font-black">
-                              {combo.effectivePriority !== null ? `+${combo.effectivePriority}` : '--'}
-                            </div>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[95px]">
-                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Điểm xét tuyển</div>
-                            <div className="font-mono text-xl text-[#38BDF8] font-black">
-                              {combo.officialScore !== null ? combo.officialScore : '--'}
-                            </div>
-                          </div>
-                          <div className="p-2.5 rounded-xl bg-black/40 border border-slate-700 min-w-[90px]">
-                            <div className="text-[11px] font-mono text-slate-300 uppercase font-semibold">Biên độ</div>
-                            {combo.margin !== null ? (
-                              <div className={`font-mono text-sm font-black ${combo.margin >= 0 ? 'text-emerald-300' : 'text-red-400'}`}>
-                                {combo.margin >= 0 ? `+${combo.margin}` : combo.margin}
-                              </div>
-                            ) : (
-                              <div className="font-mono text-sm font-semibold text-slate-400">
-                                --
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* TT 06 Linear Reduction Formula Explainer */}
-                      {combo.isReduced && combo.rawScore !== null && (
-                        <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-200">
-                          <div className="flex items-center gap-1.5 text-amber-300 font-medium">
-                            <Info className="w-3.5 h-3.5 shrink-0" />
-                            <span>Khoản 4 Điều 7 TT 06/2026: Điểm gốc {combo.rawScore} ≥ 22.5 ➔ Hệ số giảm = [(30 - {combo.rawScore}) / 7.5] = {((30 - combo.rawScore) / 7.5).toFixed(2)} ➔ ĐƯT thực nhận = {combo.effectivePriority}đ</span>
-                          </div>
-                          <span className="text-slate-200 font-semibold shrink-0">Không vượt trần 30.0đ</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
+          </div>
         </section>
       )}
 
+      {/* =========================================================================
+          BƯỚC 3: CHỌN TRƯỜNG ĐẠI HỌC (KINH PHÍ NĐ 238 + ĐỊA CHỈ + PHÂN TẦNG)
+          ========================================================================= */}
+      {activeTab === 'tab-university' && (
+        <section className="space-y-5">
+          {/* Header Info */}
+          <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-mono text-blue-300 font-bold block">MỤC TIÊU ĐANG XÉT:</span>
+              <h3 className="font-bold text-base text-white">
+                Ngành {currentMajor?.name} · Tổ hợp {selectedComboCode || topCombo?.code} ({topCombo?.officialScore}đ)
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('tab-combo')}
+              className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+            >
+              ← Đổi tổ hợp khác
+            </button>
+          </div>
 
+          {/* Branch Decision Card: CÓ / KHÔNG */}
+          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-amber-400" />
+              <h3 className="font-bold text-base sm:text-lg text-white">
+                Bạn đã chọn được Trường đại học mục tiêu chưa?
+              </h3>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Sau khi có ngành và tổ hợp, để chọn trường chính xác cần đối chiếu <strong>kinh phí học phí (Nghị định 238/2025)</strong>, <strong>vùng miền địa lý</strong> và <strong>điểm chuẩn tham chiếu</strong>.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasSchoolChoice('YES');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasSchoolChoice === 'YES'
+                    ? 'bg-amber-950/80 border-amber-500 shadow-md ring-1 ring-amber-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white flex items-center gap-2">
+                    <span>✅ CÓ: Tôi đã có trường đại học mục tiêu</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Kiểm tra điểm chuẩn 3 năm và học phí của trường bạn nhắm tới
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-amber-400 shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasSchoolChoice('NO');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasSchoolChoice === 'NO'
+                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white flex items-center gap-2">
+                    <span>❓ CHƯA: Hãy phân tầng trường phù hợp cho tôi</span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Thiết lập kinh phí &amp; vùng miền để phân 3 nhóm: Mơ ước, Vừa sức, An toàn
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
+              </button>
+            </div>
+          </div>
+
+          {/* Practical Constraints: Tuition Budget & Region */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 1. Ngân sách học phí (NĐ 238/2025) */}
+            <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                  <span>Kinh Phí Học Phí Gia Đình Tối Đa (NĐ 238/2025):</span>
+                </span>
+                <span className="font-mono font-bold text-emerald-300 text-sm">
+                  {maxTuition} triệu / năm
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={maxTuition}
+                onChange={(e) => setMaxTuition(parseInt(e.target.value))}
+                className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+              />
+              <div className="flex justify-between text-[11px] font-mono text-slate-400">
+                <span>0 VNĐ (Sư phạm NĐ 116 / CA-QĐ)</span>
+                <span>33.7 tr (Bình quân CL)</span>
+                <span>100 tr (Tự chủ / Quốc tế)</span>
+              </div>
+            </div>
+
+            {/* 2. Địa chỉ / Vùng miền mong muốn */}
+            <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
+              <div className="border-b border-slate-800 pb-2">
+                <span className="font-bold text-sm text-white">Địa Chỉ / Vùng Miền Mong Muốn Theo Học:</span>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5 text-xs font-mono">
+                {[
+                  { id: 'ALL', label: 'Toàn quốc' },
+                  { id: 'BAC', label: 'Miền Bắc' },
+                  { id: 'TRUNG', label: 'Miền Trung' },
+                  { id: 'NAM', label: 'Miền Nam' },
+                  { id: 'DBSCL', label: 'ĐBSCL' }
+                ].map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setTargetRegionFilter(r.id as any)}
+                    className={`py-1.5 rounded-lg border text-center transition-colors cursor-pointer ${
+                      targetRegionFilter === r.id
+                        ? 'bg-blue-600 border-blue-500 text-white font-bold'
+                        : 'bg-[#141923] border-slate-700 text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 3-Tier Stratified University Results */}
+          <div className="space-y-4">
+            <h4 className="font-bold text-base text-white flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-blue-400" />
+              <span>Ma Trận Phân Tầng Trường Đại Học Khoa Học:</span>
+            </h4>
+
+            {/* Target Tier (Vừa sức - 75-85%) */}
+            <div className="space-y-2">
+              <div className="text-xs font-mono font-bold text-blue-300 flex items-center gap-1.5">
+                <span>🎯 NHÓM VỪA SỨC (XÁC SUẤT ĐỖ 75% - 85% · BIÊN ĐỘ AN TOÀN):</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                {stratifiedSchools.target.map(school => (
+                  <div
+                    key={school.code}
+                    onClick={() => {
+                      sfx.playActionSuccess();
+                      setSelectedSchoolCode(school.code);
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedSchoolCode === school.code
+                        ? 'bg-blue-600/30 border-blue-400 ring-1 ring-blue-400 shadow-md'
+                        : 'bg-[#141923] border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="font-bold text-white px-2 py-0.5 rounded bg-black/60">{school.code}</span>
+                      <span className="text-slate-400">{school.city}</span>
+                    </div>
+                    <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
+                    <div className="text-[11px] font-mono text-emerald-300 mt-1">
+                      Điểm chuẩn: {school.benchmark}đ (Biên độ: +{school.margin}đ)
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      Học phí: {school.isFreeTuition ? 'Miễn 100%' : `${school.tuitionMln} tr/năm`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Dream Tier (Mơ ước) */}
+            <div className="space-y-2 pt-1">
+              <div className="text-xs font-mono font-bold text-amber-300 flex items-center gap-1.5">
+                <span>🌟 NHÓM MƠ ƯỚC (ĐIỂM CHUẨN CAO HƠN 0.5 - 1.5Đ · CẦN NỖ LỰC TỐI ĐA):</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {stratifiedSchools.dream.map(school => (
+                  <div
+                    key={school.code}
+                    onClick={() => {
+                      sfx.playActionSuccess();
+                      setSelectedSchoolCode(school.code);
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedSchoolCode === school.code
+                        ? 'bg-amber-600/30 border-amber-400 ring-1 ring-amber-400 shadow-md'
+                        : 'bg-[#141923] border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="font-bold text-white px-2 py-0.5 rounded bg-black/60">{school.code}</span>
+                      <span className="text-slate-400">{school.city}</span>
+                    </div>
+                    <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
+                    <div className="text-[11px] font-mono text-amber-300 mt-1">
+                      Điểm chuẩn: {school.benchmark}đ
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Safe Tier (An toàn) */}
+            <div className="space-y-2 pt-1">
+              <div className="text-xs font-mono font-bold text-emerald-300 flex items-center gap-1.5">
+                <span>🛡️ NHÓM AN TOÀN (ĐIỂM CHUẨN THẤP HƠN ≥ 1.5Đ · XÁC SUẤT ĐỖ ≥ 95%):</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {stratifiedSchools.safe.map(school => (
+                  <div
+                    key={school.code}
+                    onClick={() => {
+                      sfx.playActionSuccess();
+                      setSelectedSchoolCode(school.code);
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedSchoolCode === school.code
+                        ? 'bg-emerald-600/30 border-emerald-400 ring-1 ring-emerald-400 shadow-md'
+                        : 'bg-[#141923] border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="font-bold text-white px-2 py-0.5 rounded bg-black/60">{school.code}</span>
+                      <span className="text-slate-400">{school.city}</span>
+                    </div>
+                    <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
+                    <div className="text-[11px] font-mono text-emerald-300 mt-1">
+                      Điểm chuẩn: {school.benchmark}đ (Biên độ an toàn cao)
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Next Step Trigger */}
+            <div className="pt-3 flex justify-between items-center">
+              <button
+                type="button"
+                onClick={() => setActiveTab('tab-combo')}
+                className="text-xs text-slate-400 hover:text-white"
+              >
+                ← Quay lại Bước 2
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setActiveTab('tab-domino');
+                }}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <span>Tiếp tục sang Bước 4: Việc làm &amp; Chuỗi ảnh hưởng</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* =========================================================================
-          AI ANALYZING OVERLAY MODAL
+          BƯỚC 4: ĐỊNH HƯỚNG VIỆC LÀM & CHUỖI ẢNH HƯỞNG (DOMINO EFFECT)
           ========================================================================= */}
-      {isAnalyzingWithAI && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#121316] border border-blue-500/50 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-[0_0_60px_rgba(59,130,246,0.35)] text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(37,99,235,0.6)]">
-              <Sparkles className="w-8 h-8 text-white animate-spin" />
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="font-sans font-black text-xl text-white">
-                NEXORA AI Đang Phân Tích...
+      {activeTab === 'tab-domino' && (
+        <section className="space-y-5">
+          {/* Header Summary */}
+          <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-mono text-purple-300 font-bold block">ĐỐI CHIẾU HỒ SƠ TỔNG HỢP:</span>
+              <h3 className="font-bold text-base text-white">
+                {currentMajor?.name} · {selectedComboCode || topCombo?.code} · {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Trường chưa chọn'}
               </h3>
-              <p className="text-xs sm:text-sm text-blue-300 font-mono">
-                {aiAnalysisStep}
-              </p>
             </div>
-
-            <div className="p-3.5 rounded-2xl bg-black/50 border border-slate-800 text-left space-y-2 text-xs font-mono text-slate-300">
-              <div className="flex items-center gap-2 text-emerald-300">
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                <span>Tiếp nhận 10 môn THPT (GPA {averageGpa}đ)</span>
-              </div>
-              <div className="flex items-center gap-2 text-sky-300">
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                <span>Mã đỉnh RIASEC: {dominantRiasec}</span>
-              </div>
-              <div className="flex items-center gap-2 text-purple-300">
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Băn khoăn: "{personalQuestion ? personalQuestion.slice(0, 32) + '...' : 'Tự động định hướng'}"</span>
-              </div>
-              <div className="flex items-center gap-2 text-amber-300">
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                <span>Ngân sách {maxTuition} triệu/năm (NĐ 238/2025)</span>
-              </div>
-            </div>
-
-            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full w-3/4 animate-pulse"></div>
-            </div>
-
-            <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-              Đang phân tích trực tiếp theo hồ sơ và băn khoăn chân thực của bạn · Không dùng câu trả lời cố định
-            </p>
           </div>
-        </div>
+
+          {/* Branch Decision Card: CÓ / KHÔNG VỀ VIỆC LÀM */}
+          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-purple-400" />
+              <h3 className="font-bold text-base sm:text-lg text-white">
+                Bạn đã xác định vị trí việc làm mong muốn sau khi tốt nghiệp chưa?
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasJobChoice('YES');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasJobChoice === 'YES'
+                    ? 'bg-purple-950/80 border-purple-500 shadow-md ring-1 ring-purple-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white">
+                    ✅ CÓ: Tôi đã có công việc mục tiêu cụ thể
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Nhập vị trí việc làm để đối chiếu với chuẩn đầu ra của ngành
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-purple-400 shrink-0" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasJobChoice('NO');
+                }}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                  hasJobChoice === 'NO'
+                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
+                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm text-white">
+                    ❓ CHƯA: Đề xuất các việc làm thực tế khớp ngành
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    Xem 2-3 vị trí việc làm phổ biến và mức lương thị trường GSO
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
+              </button>
+            </div>
+          </div>
+
+          {/* Suggested Career Roles Grid */}
+          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
+            <h4 className="font-bold text-sm text-white">
+              Vị Trí Việc Làm Thực Tế Khớp Với Ngành {currentMajor?.name}:
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {(currentMajor?.targetJobs || ['Chuyên viên chuyên môn', 'Quản lý dự án', 'Kỹ sư giải pháp']).map((job: string) => (
+                <div
+                  key={job}
+                  onClick={() => {
+                    sfx.playActionSuccess();
+                    setTargetJob(job);
+                  }}
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    targetJob === job
+                      ? 'bg-purple-600/30 border-purple-400 ring-1 ring-purple-400 shadow-md'
+                      : 'bg-[#141923] border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="font-bold text-sm text-white">{job}</div>
+                  <div className="text-[11px] text-slate-400 mt-1">Lương trung vị: 15 - 35 triệu/tháng</div>
+                  <div className="text-[11px] text-purple-300 font-bold mt-2">
+                    {targetJob === job ? '✓ Đã chọn việc làm này' : 'Bấm chọn làm mục tiêu'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 📊 BÁO CÁO TỔNG KẾT ĐỐI CHIẾU CHUỖI ẢNH HƯỞNG (DOMINO EFFECT) */}
+          <div className="p-6 rounded-2xl bg-[#0E1117] border border-emerald-500/50 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+              <span className="text-lg">📊</span>
+              <h4 className="font-bold text-base sm:text-lg text-white font-mono uppercase tracking-wider">
+                BÁO CÁO ĐỐI CHIẾU &amp; PHÂN TÍCH CHUỖI ẢNH HƯỞNG (DOMINO EFFECT)
+              </h4>
+            </div>
+
+            {/* 1. Kiểm tra độ khớp */}
+            <div className="p-4 rounded-xl bg-black/40 border border-slate-800 space-y-2">
+              <div className="font-bold text-xs text-emerald-300 font-mono uppercase">
+                1. KIỂM TRA ĐỘ KHỚP (NGÀNH ⟷ TỔ HỢP ⟷ TRƯỜNG ⟷ VIỆC LÀM):
+              </div>
+              <ul className="text-xs text-slate-200 space-y-1.5 leading-relaxed font-sans">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Ngành &amp; Tổ hợp</strong>: Tổ hợp <strong>{selectedComboCode || topCombo?.code}</strong> được chấp nhận tuyển sinh chính thức cho ngành <strong>{currentMajor?.name}</strong>.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Ngành &amp; Việc làm</strong>: Mục tiêu <strong>"{targetJob || currentMajor?.targetJobs?.[0]}"</strong> hoàn toàn nằm trong khung chuẩn năng lực đầu ra của ngành.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Kinh phí &amp; Trường học</strong>: Ngân sách gia đình {maxTuition} triệu/năm đảm bảo an toàn tài chính theo khung Nghị định 238/2025.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {/* 2. Phân tích What-If */}
+            <div className="p-4 rounded-xl bg-black/40 border border-slate-800 space-y-2">
+              <div className="font-bold text-xs text-blue-300 font-mono uppercase">
+                2. PHÂN TÍCH CHUỖI ẢNH HƯỞNG (WHAT-IF ANALYSIS):
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-200">
+                <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
+                  <span className="font-bold text-white block">[Ngành ➔ Điểm chuẩn]</span>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Mức điểm dự kiến {topCombo?.officialScore}đ đặt bạn vào vùng an toàn cao đối với nhóm trường Top giữa và có cơ hội tranh vé nhóm trường Top đầu.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
+                  <span className="font-bold text-white block">[Tổ hợp ➔ Cạnh tranh]</span>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Tổ hợp {selectedComboCode || topCombo?.code} chiếm tỷ trọng chỉ tiêu lớn, giảm thiểu rủi ro bị áp đảo bởi các phương thức tuyển sinh sớm.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
+                  <span className="font-bold text-white block">[Ngành + Trường ➔ Việc làm]</span>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Tốt nghiệp ngành {currentMajor?.name} mang lại lợi thế ứng tuyển trực tiếp vào vị trí {targetJob || 'chuyên viên'}, mức lương khởi điểm ước tính 12 - 25 triệu/tháng.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleResetAll}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Khởi tạo lại chu trình
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenAIChat?.(`Phân tích chuyên sâu về chuỗi ảnh hưởng: Ngành ${currentMajor?.name}, Tổ hợp ${selectedComboCode || topCombo?.code}, Trường ${selectedSchoolCode || 'Top'}, Việc làm ${targetJob}`);
+                }}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Mở Pop-up Tham Vấn Chuyên Sâu Cùng AI</span>
+              </button>
+            </div>
+          </div>
+        </section>
       )}
-    </div>
-  );
-};
-
-interface UniversityTierCardProps {
-  inst: {
-    schoolCode: string;
-    schoolName: string;
-    city: string;
-    benchmark2024: number;
-    benchmark2025: number;
-    benchmark2026: number;
-    tuitionMlnYear: number;
-    tuitionDisplay: string;
-    combinations: string[];
-    isFreeTuition: boolean;
-    tuitionPolicyNote?: string;
-    candidateScore?: number | null;
-    bestComboCode?: string | null;
-  };
-  candidateScore: number | null;
-  maxTuition: number;
-  isSelected: boolean;
-  tierType: 'DREAM' | 'TARGET' | 'SAFE';
-  onSelect: () => void;
-}
-
-const UniversityTierCard: React.FC<UniversityTierCardProps> = ({
-  inst,
-  candidateScore,
-  maxTuition,
-  isSelected,
-  tierType,
-  onSelect
-}) => {
-  const isBudgetOk = inst.isFreeTuition || inst.tuitionMlnYear <= maxTuition;
-  const cutoff = inst.benchmark2025 || inst.benchmark2024;
-  const effectiveScore = typeof candidateScore === 'number' ? candidateScore : (typeof inst.candidateScore === 'number' ? inst.candidateScore : null);
-  const margin = effectiveScore !== null ? Number((effectiveScore - cutoff).toFixed(2)) : null;
-
-  return (
-    <div
-      onClick={onSelect}
-      className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between group ${
-        isSelected
-          ? 'bg-[#1D4ED8]/15 border-[#3B82F6] shadow-md ring-1 ring-[#60A5FA]'
-          : 'bg-[#121316] border-[#262630] hover:border-slate-600'
-      }`}
-    >
-      <div className="space-y-2">
-        {/* Header: Code & Location */}
-        <div className="flex items-center justify-between text-xs font-mono">
-          <span className="font-black text-white px-2.5 py-0.5 rounded bg-black/60 border border-slate-600">
-            {inst.schoolCode}
-          </span>
-          <span className="text-slate-200 text-xs font-medium">{inst.city}</span>
-        </div>
-
-        {/* School Name */}
-        <h4 className="font-sans font-bold text-base text-white group-hover:text-[#60A5FA] transition-colors line-clamp-1">
-          {inst.schoolName}
-        </h4>
-
-        {/* Combinations info */}
-        <div className="text-[11px] font-mono text-slate-300">
-          Tổ hợp xét tuyển: <span className="text-white font-bold">{inst.combinations.join(', ')}</span>
-          {inst.bestComboCode && (
-            <span className="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-300 font-bold text-[10px]">
-              Tối ưu: {inst.bestComboCode} {effectiveScore !== null ? `(${effectiveScore}đ)` : ''}
-            </span>
-          )}
-        </div>
-
-        {/* Benchmarks 3 years */}
-        <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-black/50 border border-slate-700/80 text-xs font-mono text-center">
-          <div>
-            <span className="text-[10px] text-slate-200 font-semibold block">2024</span>
-            <span className="text-slate-200 font-bold text-sm">{inst.benchmark2024}</span>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-200 font-semibold block">2025</span>
-            <span className="text-white font-black text-sm">{inst.benchmark2025}</span>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-200 font-semibold block">2026 (Est)</span>
-            <span className="text-[#38BDF8] font-black text-sm">{inst.benchmark2026}</span>
-          </div>
-        </div>
-
-        {/* Tuition & Financial Feasibility */}
-        <div className="flex items-center justify-between text-xs font-mono pt-1">
-          <span className="text-slate-200 text-xs font-medium">Học phí:</span>
-          <div className="flex items-center gap-1.5">
-            <span className={inst.isFreeTuition ? 'text-emerald-300 font-black' : isBudgetOk ? 'text-white font-bold' : 'text-amber-300 font-bold'}>
-              {inst.tuitionDisplay}
-            </span>
-            {inst.isFreeTuition ? (
-              <span className="px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-500/50 text-[10px] text-emerald-300 font-bold">
-                Miễn 100%
-              </span>
-            ) : isBudgetOk ? (
-              <span className="px-1.5 py-0.2 rounded bg-blue-950 border border-blue-500/50 text-[10px] text-blue-200 font-bold">
-                Hợp ngân sách
-              </span>
-            ) : (
-              <span className="px-1.5 py-0.2 rounded bg-amber-950 border border-amber-500/50 text-[10px] text-amber-200 font-bold">
-                Vượt ngân sách
-              </span>
-            )}
-          </div>
-        </div>
-
-        {inst.tuitionPolicyNote && (
-          <p className="text-xs text-emerald-300 leading-tight bg-emerald-950/40 p-2 rounded-lg border border-emerald-500/30 font-medium">
-            {inst.tuitionPolicyNote}
-          </p>
-        )}
-      </div>
-
-      {/* Action Button */}
-      <div className="pt-3 border-t border-slate-800 mt-3 flex items-center justify-between text-xs">
-        {margin !== null ? (
-          <span className={`font-mono font-black text-sm ${margin >= 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
-            Biên độ: {margin >= 0 ? `+${margin}` : margin}đ
-          </span>
-        ) : (
-          <span className="font-mono text-xs text-amber-300 font-semibold">
-            Chưa đủ môn xét tuyển
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect();
-          }}
-          className="text-xs font-sans font-bold text-[#38BDF8] hover:text-white flex items-center gap-1 cursor-pointer"
-        >
-          <span>Tối ưu tổ hợp môn (Tab 3)</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
     </div>
   );
 };

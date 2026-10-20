@@ -622,7 +622,17 @@ export const COMBINATION_SUBJECTS_MAP = {
   D14: ['literature', 'history', 'english'],
   D15: ['literature', 'geography', 'english'],
   H00: ['literature'],
+  H01: ['math', 'literature'],
   V00: ['math', 'physics'],
+  V01: ['math', 'literature'],
+  N00: ['literature'],
+  N01: ['literature'],
+  M00: ['math', 'literature'],
+  M01: ['literature', 'history'],
+  T00: ['math', 'biology'],
+  T01: ['math', 'chemistry'],
+  R00: ['literature', 'history'],
+  S00: ['literature'],
   X06: ['math', 'informatics', 'english']
 };
 

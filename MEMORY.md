@@ -1,5 +1,5 @@
 # Project Memory & Persistent State
-Last Updated: 2026-10-19T14:38:00+07:00
+Last Updated: 2026-10-20T07:46:00+07:00
 
 ## 1. Project Overview & Context
 - **Name**: UNIROOT Platform / Career Guidance Platform (Website Hướng Nghiệp)
@@ -10,6 +10,22 @@ Last Updated: 2026-10-19T14:38:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **4-Step Sequential Decision Wizard & Arts/Sports Expansion (2026-10-20)**:
+  - Addressed user directives:
+    1. *"thêm cái câu hỏi là Bạn đã chọn được nghành chưa, bạn đã chọn được tổ hợp chưa, bạn đã chọn được trường chưa."*: Explicit `Có / Chưa (Yes/No)` branching at each step.
+    2. *"Một nghành sẽ có thể đậu từ nhiều tổ hợp khác nhau, nên là sẽ cần phân tích, rồi sau khi chọn được nghành và tổ hợp thì cần chọn trường, chọn trường thì cần kinh phí, cần địa chỉ, cần những yếu tố trước."*: Strict dependency cascade:
+       - **Bước 1 (Xác định Ngành)**: Có/Chưa ➔ Nếu có: chọn trực tiếp từ danh mục chuẩn Bộ GD&ĐT; nếu chưa: phân tích 4 khối gọn gàng (RIASEC, 10 môn văn hóa, Môn năng khiếu, Mục tiêu) ➔ Đề xuất & chốt 1 ngành.
+       - **Bước 2 (Chọn Tổ hợp môn)**: Có/Chưa ➔ Tự động đối chiếu toàn bộ các tổ hợp được chấp nhận của ngành đã chốt, tính điểm thực tế & xếp hạng tối ưu.
+       - **Bước 3 (Chọn Trường Đại học)**: Có/Chưa ➔ Bắt buộc thu thập 2 yếu tố thực tế: **Kinh phí / Khung trần học phí NĐ 238/2025** và **Địa chỉ / Vùng miền học tập** ➔ Phân tầng 3 nhóm trường: Mơ ước (+1 đến +2 điểm), Vừa sức (±0.75 điểm), An toàn (-1 đến -3 điểm).
+       - **Bước 4 (Việc làm & Chuỗi ảnh hưởng Domino Effect)**: Có/Chưa ➔ Báo cáo toàn diện kiểm tra độ khớp (Ngành ⟷ Tổ hợp ⟷ Trường ⟷ Việc làm) và What-If Analysis khi điểm số biến động.
+    3. *"Hiện tại đơn giản là bạn chỉ show hết mọi thứ ra... chia từng phần ra. đừng show hết ra nhu vậy rất rối mắt"*: Chia nhỏ toàn bộ form nhập liệu thành các sub-step / accordion có thể thu gọn/mở rộng, không dồn dập toàn bộ câu hỏi lên 1 trang.
+    4. *"Nhớ suggest cả những nghành nghệ thuật, thể chất, và đừng bỏ quên tổ hợp có môn về nghệ thuật và thể chất."*:
+       - Bổ sung 31 mã ngành cấp IV & 12 trường đại học trọng điểm nghệ thuật/thể thao: Kiến trúc (`7580101`), Thiết kế thời trang (`7210404`), Thanh nhạc (`7210205`), Sư phạm TDTT (`7140220` - Miễn 100% học phí NĐ 116), Quản lý TDTT (`7810301`), Giáo dục Mầm non (`7140201`), Diễn viên Sân khấu Điện ảnh (`7210208`).
+       - Bổ sung đầy đủ tổ hợp năng khiếu: `V00, V01, H00, H01` (Kiến trúc & Mỹ thuật), `N00, N01` (Âm nhạc), `M00, M01` (Mầm non), `T00, T01` (Thể thao), `R00, S00` (Báo chí & Sân khấu).
+    5. *"dự án này rất quan trọng với tôi, tôi tin bạn, làm nó ít AI nhất có thể... pop up phân tích và suggest, ít chữ, cơ bản tôn trọng, cổ điển"*: Giao diện hàn lâm giáo dục trang nhã, không màu mè neon lòe loẹt, thẻ tóm tắt hồ sơ đính ghim cố định ở đầu trang.
+  - **Verification**:
+    - Vite production build hoàn tất sạch sẽ 100% trong 24.03s.
+    - Script kiểm thử `test_major_linking_engine.mjs` đạt 100% PASS cho cả khối Xã hội/Nghệ thuật và khối Tự nhiên/Kỹ thuật.
 - **4-Step Sequential Career & Admissions Consultation Pop-up Rewrite (2026-10-19)**:
   - Addressed user directives: *"cái prompt đó là để viết lại code cho cái web của tao ấy"*, *"nhớ là pop up phân tích và suggest, ít chữ, cơ bản tôn trọng, cổ điển"*, *"dự án này rất quan trọng với tôi, tôi tin bạn, làm nó ít AI nhất có thể"* & Flowchart decision tree:
     * **4-Step Flowchart State Machine Implementation (`AICareerCopilot.tsx`)**:
