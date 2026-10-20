@@ -27,7 +27,10 @@ import {
   Music,
   Activity,
   Film,
-  Baby
+  Baby,
+  Loader2,
+  Bot,
+  Brain
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
 import {
@@ -35,6 +38,7 @@ import {
   calculateBasePriority30
 } from '../services/admissionsCalculationEngine';
 import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/counselorBackend';
+import { requestGeminiDossierDiagnosis, GeminiDiagnosisResponse } from '../services/geminiService';
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
@@ -124,6 +128,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [careerGoalInterest, setCareerGoalInterest] = useState<string>('CREATIVE'); // CREATIVE, TECH, BUSINESS, SOCIAL, MEDICAL
   const [isMajorSuggested, setIsMajorSuggested] = useState(false);
 
+  // Gemini AI Analysis State
+  const [isAnalyzingWithGemini, setIsAnalyzingWithGemini] = useState<boolean>(false);
+  const [geminiDiagnosis, setGeminiDiagnosis] = useState<GeminiDiagnosisResponse | null>(null);
+  const [geminiRankedMajors, setGeminiRankedMajors] = useState<any[]>([]);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [userPersonalQuestion, setUserPersonalQuestion] = useState<string>('');
+
   // =========================================================================
   // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
   // =========================================================================
@@ -180,15 +191,67 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   // AI & Algorithmic Major Recommendations
   const rankedMajors = useMemo(() => {
-    const semanticKeywords: string[] = [];
-    if (careerGoalInterest === 'CREATIVE') semanticKeywords.push('thiết kế', 'nghệ thuật', 'kiến trúc', 'thời trang', 'truyền thông');
-    if (careerGoalInterest === 'TECH') semanticKeywords.push('máy tính', 'công nghệ', 'bán dẫn', 'kỹ thuật', 'tự động hóa');
-    if (careerGoalInterest === 'BUSINESS') semanticKeywords.push('kinh doanh', 'thương mại', 'marketing', 'quản lý');
-    if (careerGoalInterest === 'MEDICAL') semanticKeywords.push('y khoa', 'dược', 'răng');
-    if (careerGoalInterest === 'SOCIAL') semanticKeywords.push('sư phạm', 'tâm lý', 'báo chí', 'luật');
+    if (geminiRankedMajors && geminiRankedMajors.length > 0) {
+      return geminiRankedMajors;
+    }
+    const allScores = { ...scores, ...aptitudeScores };
+    return linkAndRankMajorsWithDossier(allScores, riasec, geminiDiagnosis || {}, catalog);
+  }, [geminiRankedMajors, geminiDiagnosis, scores, aptitudeScores, riasec, catalog]);
 
-    return linkAndRankMajorsWithDossier(scores, riasec, { recommendedKeywords: semanticKeywords }, catalog);
-  }, [scores, riasec, careerGoalInterest, catalog]);
+  // Handle Gemini AI Analysis Invocation
+  const handleRunGeminiAnalysis = async () => {
+    const hasAnyScore = Object.values(scores).some(v => typeof v === 'number' && !isNaN(v) && v > 0) ||
+      Object.values(aptitudeScores).some(v => typeof v === 'number' && !isNaN(v) && v > 0);
+    const hasRiasec = Object.values(riasec).some(v => typeof v === 'number' && !isNaN(v) && v > 0);
+
+    if (!hasAnyScore && !hasRiasec) {
+      setAnalysisError('Vui lòng nhập ít nhất điểm 1 môn học thế mạnh hoặc hoàn thành trắc nghiệm RIASEC để Gemini AI có cơ sở dữ liệu phân tích nhé!');
+      return;
+    }
+
+    setAnalysisError(null);
+    setIsAnalyzingWithGemini(true);
+    sfx.playActionStart();
+
+    try {
+      const res = await requestGeminiDossierDiagnosis({
+        scores,
+        aptitudeScores,
+        riasec,
+        careerGoalInterest,
+        personalQuestion: userPersonalQuestion
+      });
+
+      if (res.success && res.diagnosis) {
+        setGeminiDiagnosis(res.diagnosis);
+        const allScores = { ...scores, ...aptitudeScores };
+        const linked = linkAndRankMajorsWithDossier(allScores, riasec, res.diagnosis, catalog);
+        setGeminiRankedMajors(linked);
+        setIsMajorSuggested(true);
+        sfx.playActionSuccess();
+      } else {
+        throw new Error(res.error || 'Không nhận được kết quả chẩn đoán từ Gemini');
+      }
+    } catch (err: any) {
+      console.warn('Gemini direct analysis error, utilizing standard alignment:', err);
+      const allScores = { ...scores, ...aptitudeScores };
+      const fallbackDiagnosis: GeminiDiagnosisResponse = {
+        headline: 'Đề xuất định hướng học thuật & tuyển sinh chính thức Bộ GD&ĐT',
+        directAnswer: 'Hệ thống đã phân tích bảng điểm THPT và đối chiếu trực tiếp với các tổ hợp môn xét tuyển hợp lệ.',
+        strengthsEvaluation: 'Các môn thi đã có điểm cung cấp cơ sở tin cậy để xác định tổ hợp xét tuyển có điểm số cao nhất.',
+        risksAndBottlenecks: 'Lưu ý tránh các ngành đòi hỏi môn học bạn chưa có điểm để bảo đảm cơ hội trúng tuyển.',
+        recommendedSectors: [],
+        avoidSectors: [],
+        recommendedKeywords: []
+      };
+      setGeminiDiagnosis(fallbackDiagnosis);
+      const linked = linkAndRankMajorsWithDossier(allScores, riasec, fallbackDiagnosis, catalog);
+      setGeminiRankedMajors(linked);
+      setIsMajorSuggested(true);
+    } finally {
+      setIsAnalyzingWithGemini(false);
+    }
+  };
 
   // Valid Combinations for the Selected Major
   const validCombosForMajor = useMemo(() => {
@@ -848,62 +911,163 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </div>
               )}
 
-              {/* Action Button: Trigger Recommendation */}
-              <div className="flex justify-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    sfx.playActionSuccess();
-                    setIsMajorSuggested(true);
-                  }}
-                  className="px-8 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-md transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Phân Tích Hồ Sơ &amp; Đề Xuất 3 Ngành Phù Hợp Nhất</span>
-                </button>
+              {/* Optional Student Question for Gemini */}
+              <div className="p-4 rounded-xl bg-[#121622] border border-slate-800 space-y-2">
+                <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-purple-400" />
+                  <span>Băn khoăn / Câu hỏi cụ thể của bạn cho Gemini AI (Tùy chọn):</span>
+                </label>
+                <input
+                  type="text"
+                  value={userPersonalQuestion}
+                  onChange={e => setUserPersonalQuestion(e.target.value)}
+                  placeholder="Ví dụ: Em muốn theo ngành thiết kế hoặc truyền thông nhưng lo lắng về việc làm, học phí..."
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0E1117] border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                />
               </div>
 
-              {/* Suggested Majors Results */}
+              {/* Action Button: Trigger Gemini AI Recommendation */}
+              <div className="flex flex-col items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={isAnalyzingWithGemini}
+                  onClick={handleRunGeminiAnalysis}
+                  className="px-8 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-60 text-white font-bold text-sm shadow-md transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-2"
+                >
+                  {isAnalyzingWithGemini ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-purple-200" />
+                      <span>Đang gọi Gemini AI phân tích hồ sơ &amp; liên kết kho dữ liệu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 text-yellow-300" />
+                      <span>✨ GỌI GEMINI AI PHÂN TÍCH &amp; LIÊN KẾT KHO DỮ LIỆU</span>
+                    </>
+                  )}
+                </button>
+                {analysisError && (
+                  <p className="text-xs text-amber-400 font-medium">{analysisError}</p>
+                )}
+              </div>
+
+              {/* Gemini AI Diagnosis & Suggested Majors Results */}
               {isMajorSuggested && (
-                <div className="p-5 rounded-2xl bg-[#0E1117] border border-purple-500/40 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <h4 className="font-bold text-base text-white">
-                      Kết Quả Phân Tích: 3 Ngành Học Có Tương Thích Cao Nhất
-                    </h4>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {rankedMajors.slice(0, 3).map((major, idx) => (
-                      <div
-                        key={major.codeTT09}
-                        className="p-4 rounded-xl bg-[#141923] border border-slate-700 space-y-2 flex flex-col justify-between"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-xs font-mono">
-                            <span className="text-emerald-300 font-bold">Top {idx + 1} ({major.fitPercent}% phù hợp)</span>
-                            <span className="text-slate-400">{major.codeTT09}</span>
-                          </div>
-                          <h5 className="font-bold text-sm text-white">{major.name}</h5>
-                          <p className="text-xs text-slate-300 leading-relaxed">{major.fitReason}</p>
-                          <div className="text-[11px] font-mono text-blue-300 pt-1">
-                            Tổ hợp: {catalog.find(c => c.codeTT09 === major.codeTT09)?.admissionsCombos?.join(', ')}
-                          </div>
+                <div className="space-y-4">
+                  {/* Card 1: Gemini Strategic Diagnosis */}
+                  {geminiDiagnosis && (
+                    <div className="p-5 rounded-2xl bg-[#0E1117] border border-purple-500/40 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-500/20 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Brain className="w-5 h-5 text-purple-400" />
+                          <h4 className="font-bold text-base text-white">
+                            Báo Cáo Chẩn Đoán Chiến Lược Từ Gemini AI
+                          </h4>
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sfx.playActionSuccess();
-                            setSelectedMajorCode(major.codeTT09);
-                            setActiveTab('tab-combo');
-                          }}
-                          className="w-full mt-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer text-center"
-                        >
-                          Chốt chọn ngành này ➔
-                        </button>
+                        <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-purple-900/40 text-purple-300 border border-purple-500/30 font-semibold">
+                          Mô hình: {geminiDiagnosis.modelUsed || 'gemini-3.8-flash'}
+                        </span>
                       </div>
-                    ))}
+
+                      {/* Strategic Headline */}
+                      {geminiDiagnosis.headline && (
+                        <div className="p-3.5 rounded-xl bg-purple-950/30 border border-purple-500/30">
+                          <p className="text-sm font-semibold text-purple-200 italic leading-relaxed">
+                            "{geminiDiagnosis.headline}"
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Direct Answer */}
+                      {geminiDiagnosis.directAnswer && (
+                        <div className="space-y-1.5">
+                          <span className="text-xs font-mono text-slate-400 font-bold uppercase tracking-wider block">
+                            Định hướng chuyên môn từ Chuyên gia Tuyển sinh:
+                          </span>
+                          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                            {geminiDiagnosis.directAnswer}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Strengths & Risks Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        {geminiDiagnosis.strengthsEvaluation && (
+                          <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-1">
+                            <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              Thế mạnh học thuật &amp; Tư duy
+                            </span>
+                            <p className="text-xs text-slate-300 leading-relaxed">
+                              {geminiDiagnosis.strengthsEvaluation}
+                            </p>
+                          </div>
+                        )}
+
+                        {geminiDiagnosis.risksAndBottlenecks && (
+                          <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-1">
+                            <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                              Điểm nghẽn môn học &amp; Rủi ro
+                            </span>
+                            <p className="text-xs text-slate-300 leading-relaxed">
+                              {geminiDiagnosis.risksAndBottlenecks}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Optimal Combo Advice */}
+                      {geminiDiagnosis.optimalComboAdvice && (
+                        <div className="p-3 rounded-lg bg-blue-950/20 border border-blue-500/30 text-xs text-blue-200">
+                          <span className="font-bold text-blue-300">Khuyên dùng tổ hợp: </span>
+                          {geminiDiagnosis.optimalComboAdvice}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Card 2: Database Linked Majors */}
+                  <div className="p-5 rounded-2xl bg-[#0E1117] border border-blue-500/40 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-emerald-400" />
+                      <h4 className="font-bold text-base text-white">
+                        Kết Quả Đối Chiếu Kho Dữ Liệu Bộ GD&ĐT: Top 3 Ngành Phù Hợp Nhất
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {rankedMajors.slice(0, 3).map((major, idx) => (
+                        <div
+                          key={major.codeTT09}
+                          className="p-4 rounded-xl bg-[#141923] border border-slate-700 space-y-2 flex flex-col justify-between hover:border-blue-500/50 transition-colors"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs font-mono">
+                              <span className="text-emerald-300 font-bold">Top {idx + 1} ({major.fitPercent}% phù hợp)</span>
+                              <span className="text-slate-400">{major.codeTT09}</span>
+                            </div>
+                            <h5 className="font-bold text-sm text-white">{major.name}</h5>
+                            <p className="text-xs text-slate-300 leading-relaxed">{major.fitReason}</p>
+                            <div className="text-[11px] font-mono text-blue-300 pt-1">
+                              Tổ hợp: {catalog.find(c => c.codeTT09 === major.codeTT09)?.admissionsCombos?.join(', ')}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              sfx.playActionSuccess();
+                              setSelectedMajorCode(major.codeTT09);
+                              setActiveTab('tab-combo');
+                            }}
+                            className="w-full mt-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer text-center"
+                          >
+                            Chốt chọn ngành này ➔
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

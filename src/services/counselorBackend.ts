@@ -652,6 +652,7 @@ export async function handleDossierAnalysisRequest({
   const parsedBody = typeof body === 'string' ? (() => { try { return JSON.parse(body); } catch { return {}; } })() : (body || {});
   const {
     scores = {},
+    aptitudeScores = {},
     hsaScore,
     vactScore,
     tsaScore,
@@ -664,6 +665,8 @@ export async function handleDossierAnalysisRequest({
     targetRegionFilter = 'ALL',
     personalQuestion = ''
   } = parsedBody;
+
+  const allScores = { ...scores, ...aptitudeScores };
 
   const clientIdentifier = (headers['x-forwarded-for'] || 'dossier_client').toString();
   const rateLimit = checkRateLimit(clientIdentifier);
@@ -704,15 +707,24 @@ export async function handleDossierAnalysisRequest({
     history: 'Lịch sử',
     geography: 'Địa lý',
     informatics: 'Tin học',
-    economicLegal: 'GDKT&PL'
+    economicLegal: 'GDKT&PL',
+    apt_veMyThuat: 'Vẽ mỹ thuật (Kiến trúc)',
+    apt_hinhHoa: 'Hình họa (Mỹ thuật/Thời trang)',
+    apt_trangTri: 'Trang trí/Bố cục màu',
+    apt_thamAm: 'Thẩm âm & Tiết tấu (Âm nhạc)',
+    apt_thanhNhac: 'Thanh nhạc/Biểu diễn',
+    apt_nangKhieuTDTT: 'Năng khiếu Thể dục thể thao',
+    apt_nangKhieuMamNon: 'Năng khiếu Mầm non',
+    apt_nangKhieuBaoChi: 'Năng khiếu Báo chí',
+    apt_nangKhieuDienXuat: 'Năng khiếu Diễn xuất'
   };
   const enteredList: string[] = [];
   const missingList: string[] = [];
   for (const [k, lbl] of Object.entries(subjectLabels)) {
-    const val = scores[k as keyof typeof scores];
+    const val = allScores[k as keyof typeof allScores];
     if (typeof val === 'number' && !isNaN(val) && val >= 0 && val <= 10) {
       enteredList.push(`${lbl}: ${val.toFixed(1)}`);
-    } else {
+    } else if (!k.startsWith('apt_')) {
       missingList.push(lbl);
     }
   }
@@ -758,7 +770,7 @@ Hãy phân tích toàn diện và trả về JSON theo đúng định dạng.`;
 
   // 1. Try Gemini
   if (geminiKey) {
-    const geminiModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.8-flash'];
+    const geminiModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
     for (const model of geminiModels) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
       try {
@@ -797,7 +809,7 @@ Hãy phân tích toàn diện và trả về JSON theo đúng định dạng.`;
 
           if (parsed && parsed.headline && parsed.directAnswer) {
             // Algorithmic Database Linking & Prerequisite Subject Filtering
-            const linkedMajors = linkAndRankMajorsWithDossier(scores, riasec, parsed, seedData.majorCatalogLevelIV);
+            const linkedMajors = linkAndRankMajorsWithDossier(allScores, riasec, parsed, seedData.majorCatalogLevelIV);
             parsed.recommendedMajors = linkedMajors;
 
             return {

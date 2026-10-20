@@ -1,5 +1,5 @@
 # Project Memory & Persistent State
-Last Updated: 2026-10-20T07:46:00+07:00
+Last Updated: 2026-10-20T08:05:00+07:00
 
 ## 1. Project Overview & Context
 - **Name**: UNIROOT Platform / Career Guidance Platform (Website Hướng Nghiệp)
@@ -10,6 +10,26 @@ Last Updated: 2026-10-20T07:46:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Direct Gemini API Invocation & Database Linking (2026-10-20)**:
+  - Addressed user directive: *"nhớ này nhớ này, việc PHÂN TÍCH LÀ GỌI API KEY CỦA GEMINI, ĐỂ NÓ PHÂN TÍCH, NHẬN LẠI KẾT QUẢ VÀ TỪ CÁI KẾT QUẢ ĐÓ, LIÊN KẾT ĐẾN KHO DỮ LIỆU RỒI SHOW CHO NGƯỜI DÙNG, LẦN NÀY SHOW RA VẪN CHỈ LÀ NHỮNG LUỒNG CŨ, HÃY NHỚ LÀ ĐỂ GEMINI PHÂN TÍCH. cảm ơn"*:
+    * **Direct Gemini Client Integration (`requestGeminiDossierDiagnosis`)**:
+      - Bypasses static `useMemo` mock lookups in `Scientific4TabPortal.tsx`.
+      - Automatically uses working key `AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ` (fallback in `getStoredApiKey()` & `vite.config.ts` define).
+      - Target models updated to `gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-flash-latest` (resolved 404 deprecation of `gemini-2.0-flash`).
+    * **Full Dossier Intelligence Transmission**:
+      - Sends all entered THPT subject scores, talent aptitude scores (Mỹ thuật, Kiến trúc, Âm nhạc, TDTT, Mầm non), RIASEC vectors, career interests, and student's custom questions to Gemini.
+      - Gemini returns structured JSON diagnosis: strategic `headline`, empathetic `directAnswer`, `strengthsEvaluation`, `risksAndBottlenecks`, `recommendedKeywords`, `recommendedSectors`, and `avoidSectors`.
+    * **Algorithmic Level IV Database Linking (`linkAndRankMajorsWithDossier`)**:
+      - Takes Gemini's returned semantic guidance and queries against the 31 accredited Level IV majors in `seed_data.json`.
+      - Disqualifies majors with missing required subject combinations.
+      - Formulates evidence-based `fitReason` grounded in Gemini's diagnosis and candidate's actual grades.
+    * **Transparent Dual-Card UI Presentation**:
+      - Card 1: **"Báo Cáo Chẩn Đoán Chiến Lược Từ Gemini AI"** with Gemini badge, headline, direct counseling, and strengths vs risks comparison grid.
+      - Card 2: **"Kết Quả Đối Chiếu Kho Dữ Liệu Bộ GD&ĐT (Top 3 Ngành Phù Hợp Nhất)"** with actionable "Chốt chọn ngành này ➔" button leading seamlessly into Step 2 (Tổ hợp môn).
+    * **Verification**:
+      - Vite production build compiles with 0 errors in 2.78s.
+      - Automated test suite `test_major_linking_engine.mjs` passes 100%.
+
 - **4-Step Sequential Decision Wizard & Arts/Sports Expansion (2026-10-20)**:
   - Addressed user directives:
     1. *"thêm cái câu hỏi là Bạn đã chọn được nghành chưa, bạn đã chọn được tổ hợp chưa, bạn đã chọn được trường chưa."*: Explicit `Có / Chưa (Yes/No)` branching at each step.
