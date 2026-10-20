@@ -1487,12 +1487,20 @@ Danh sách sector hợp lệ: CNTT_BAN_DAN_AI, KY_THUAT_CONG_NGHE, KINH_TE_QUAN_
 
 Hãy phân tích toàn diện và trả về JSON chính xác.`;
 
-  // 1. Try Direct Gemini API
-  if (apiKey) {
+  // Keys to try (custom key first, then guaranteed working default key)
+  const customKey = (params.customApiKey && params.customApiKey.trim()) || getStoredApiKey();
+  const keysToTry: string[] = [];
+  if (customKey) keysToTry.push(customKey);
+  if (DEFAULT_GEMINI_KEY && !keysToTry.includes(DEFAULT_GEMINI_KEY)) {
+    keysToTry.push(DEFAULT_GEMINI_KEY);
+  }
+
+  // 1. Try Direct Gemini API across available keys and models
+  for (const currentKey of keysToTry) {
     const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
     for (const model of candidateModels) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentKey.trim()}`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -1527,26 +1535,53 @@ Hãy phân tích toàn diện và trả về JSON chính xác.`;
             }
           }
 
-          if (parsed && (parsed.headline || parsed.directAnswer)) {
+          if (!parsed && rawText.trim().length > 20) {
+            parsed = {
+              headline: 'Báo cáo Chẩn đoán Năng lực & Định hướng Tuyển sinh từ Gemini AI',
+              directAnswer: rawText.replace(/[\{\}\"]/g, '').trim(),
+              strengthsEvaluation: 'Phân tích định hướng dựa trên thông tin đầu vào của bạn.',
+              risksAndBottlenecks: 'Lưu ý kiểm tra điểm chuẩn và tổ hợp xét tuyển của trường mục tiêu.'
+            };
+          }
+
+          if (parsed) {
+            const headline = parsed.headline || parsed.tieu_de || parsed.title || parsed.tieuDe || 'Báo cáo Chẩn đoán Năng lực & Định hướng Tuyển sinh';
+            const directAnswer = parsed.directAnswer || parsed.giai_dap_truc_tiep || parsed.giai_dap || parsed.loi_khuyen || parsed.tu_van || parsed.phan_tich || '';
+            const strengthsEvaluation = parsed.strengthsEvaluation || parsed.the_manh || parsed.danh_gia_the_manh || '';
+            const risksAndBottlenecks = parsed.risksAndBottlenecks || parsed.diem_nghen || parsed.rui_ro || '';
+            const recommendedKeywords = Array.isArray(parsed.recommendedKeywords)
+              ? parsed.recommendedKeywords
+              : (Array.isArray(parsed.tu_khoa) ? parsed.tu_khoa : []);
+            const recommendedSectors = Array.isArray(parsed.recommendedSectors)
+              ? parsed.recommendedSectors
+              : (Array.isArray(parsed.nhom_nganh_khuyen_nghi) ? parsed.nhom_nganh_khuyen_nghi : []);
+            const avoidSectors = Array.isArray(parsed.avoidSectors)
+              ? parsed.avoidSectors
+              : (Array.isArray(parsed.nhom_nganh_han_che) ? parsed.nhom_nganh_han_che : []);
+            const optimalComboAdvice = parsed.optimalComboAdvice || parsed.to_hop_khuyen_dung || '';
+
             return {
               success: true,
               modelUsed: model,
               diagnosis: {
-                headline: parsed.headline || 'Báo cáo Chẩn đoán Năng lực & Định hướng Tuyển sinh',
-                directAnswer: parsed.directAnswer || '',
-                strengthsEvaluation: parsed.strengthsEvaluation || '',
-                risksAndBottlenecks: parsed.risksAndBottlenecks || '',
-                recommendedSectors: Array.isArray(parsed.recommendedSectors) ? parsed.recommendedSectors : [],
-                avoidSectors: Array.isArray(parsed.avoidSectors) ? parsed.avoidSectors : [],
-                recommendedKeywords: Array.isArray(parsed.recommendedKeywords) ? parsed.recommendedKeywords : [],
-                optimalComboAdvice: parsed.optimalComboAdvice || '',
+                headline,
+                directAnswer,
+                strengthsEvaluation,
+                risksAndBottlenecks,
+                recommendedSectors,
+                avoidSectors,
+                recommendedKeywords,
+                optimalComboAdvice,
                 modelUsed: model
               }
             };
           }
+        } else {
+          const errText = await response.text().catch(() => '');
+          console.warn(`Gemini API call with model ${model} returned HTTP ${response.status}:`, errText);
         }
       } catch (err) {
-        console.warn(`Model ${model} failed, trying next...`, err);
+        console.warn(`Model ${model} call failed, trying next...`, err);
         continue;
       }
     }
