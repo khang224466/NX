@@ -62,6 +62,19 @@ const APTITUDE_SUBJECTS_METADATA = [
   { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', icon: '🎭', combos: ['S00'] }
 ];
 
+const SECTOR_DISPLAY_NAMES: Record<string, string> = {
+  KIEN_TRUC_NGHE_THUAT_TDTT: 'Mỹ thuật, Kiến trúc, Âm nhạc & TDTT',
+  CNTT_BAN_DAN_AI: 'Công nghệ thông tin & AI',
+  KINH_TE_QUAN_TRI: 'Kinh tế, Quản trị & Marketing',
+  Y_DUOC_SUC_KHOE: 'Y Dược & Sức khỏe',
+  SU_PHAM_GIAO_DUC: 'Sư phạm & Giáo dục',
+  XA_HOI_NHAN_VAN: 'Báo chí, Truyền thông & Xã hội',
+  LUAT_HANH_CHINH: 'Luật & Pháp lý',
+  NGON_NGU_QUOC_TE: 'Ngoại ngữ & Quan hệ quốc tế',
+  NONG_LAM_NGU_SINH_HOC: 'Nông, lâm, ngư nghiệp & sinh học',
+  NGANH_KHAC: 'Lĩnh vực khác'
+};
+
 const CAREER_GOAL_KEYWORDS: Record<string, string[]> = {
   CREATIVE: ['thiết kế', 'nghệ thuật', 'truyền thông', 'sáng tạo'],
   TECH: ['công nghệ', 'máy tính', 'kỹ thuật', 'dữ liệu', 'phần mềm'],
@@ -84,6 +97,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
   const [majorSearchQuery, setMajorSearchQuery] = useState('');
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
+  const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
 
   // Step 1: Input Profile if user doesn't have major yet
   const [scores, setScores] = useState<Record<string, number | ''>>({
@@ -187,6 +201,23 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   // Catalog majors list
   const catalog = CAREER_CATALOG;
+  const sectorOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    catalog.forEach((major) => counts.set(major.sector, (counts.get(major.sector) || 0) + 1));
+    return [...counts.entries()]
+      .sort(([a], [b]) => (SECTOR_DISPLAY_NAMES[a] || a).localeCompare(SECTOR_DISPLAY_NAMES[b] || b, 'vi'))
+      .map(([id, count]) => ({ id, count, label: SECTOR_DISPLAY_NAMES[id] || id.replace(/_/g, ' ').toLocaleLowerCase('vi') }));
+  }, [catalog]);
+  const filteredCatalog = useMemo(() => {
+    const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
+    return catalog.filter((major) => {
+      if (selectedSectorFilter !== 'ALL' && major.sector !== selectedSectorFilter) return false;
+      if (!query) return true;
+      return major.name.toLocaleLowerCase('vi').includes(query)
+        || major.codeTT09.toLocaleLowerCase('vi').includes(query)
+        || major.admissionsCombos.some((combo) => combo.toLocaleLowerCase('vi').includes(query));
+    });
+  }, [catalog, selectedSectorFilter, majorSearchQuery]);
 
   // Current chosen major object
   const currentMajor = useMemo(() => {
@@ -416,6 +447,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       const institution = institutionsByCode.get(record.institution_code);
       if (!institution) continue;
       if (targetRegionFilter !== 'ALL' && getRegionFromProvinceCity(institution.verified_province_city) !== targetRegionFilter) continue;
+      const schoolQuery = schoolSearchQuery.trim().toLocaleLowerCase('vi');
+      if (schoolQuery) {
+        const searchableSchool = [institution.official_name, institution.institution_code, institution.verified_province_city]
+          .join(' ')
+          .toLocaleLowerCase('vi');
+        if (!searchableSchool.includes(schoolQuery)) continue;
+      }
 
       const cutoff = record.audited_official_scale === 'THANG_30'
         ? Number(record.audited_official_cutoff)
@@ -472,14 +510,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     safe.sort((a: any, b: any) => b.margin - a.margin);
 
     return {
-      dream: dream.slice(0, 6),
-      target: target.slice(0, 12),
-      safe: safe.slice(0, 6),
+      dream,
+      target,
+      safe,
       hasScore,
       totalSchools: groups.size,
       tuitionBenchmark
     };
-  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, maxTuition]);
+  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, schoolSearchQuery, maxTuition]);
 
   // Reset entire session
   const handleResetAll = () => {
@@ -691,19 +729,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <select
                     value={selectedSectorFilter}
                     onChange={(e) => setSelectedSectorFilter(e.target.value)}
-                    className="bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
+                    className="bg-[#141923] border border-slate-700 rounded-lg min-h-11 px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                   >
                     <option value="ALL">Tất cả lĩnh vực ({CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình)</option>
-                    <option value="KIEN_TRUC_NGHE_THUAT_TDTT">Mỹ thuật, Kiến trúc, Âm nhạc &amp; TDTT</option>
-                    <option value="CNTT_BAN_DAN_AI">Công nghệ thông tin &amp; AI</option>
-                    <option value="KINH_TE_QUAN_TRI">Kinh tế, Quản trị &amp; Marketing</option>
-                    <option value="Y_DUOC_SUC_KHOE">Y Dược &amp; Sức khỏe</option>
-                    <option value="SU_PHAM_GIAO_DUC">Sư phạm &amp; Giáo dục</option>
-                    <option value="XA_HOI_NHAN_VAN">Báo chí, Truyền thông &amp; Xã hội</option>
-                    <option value="LUAT_HANH_CHINH">Luật &amp; Pháp lý</option>
-                    <option value="NGON_NGU_QUOC_TE">Ngoại ngữ &amp; Quan hệ quốc tế</option>
-                    <option value="NONG_LAM_NGU_SINH_HOC">Nông, lâm, ngư nghiệp &amp; sinh học</option>
-                    <option value="NGANH_KHAC">Lĩnh vực khác</option>
+                    {sectorOptions.map((sector) => (
+                      <option key={sector.id} value={sector.id}>
+                        {sector.label} ({sector.count})
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -714,22 +747,21 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 value={majorSearchQuery}
                 onChange={(e) => setMajorSearchQuery(e.target.value)}
                 placeholder="Gõ tên ngành hoặc mã ngành (Ví dụ: Kiến trúc, Thiết kế đồ họa, CNTT, Y khoa, Thanh nhạc, Báo chí)..."
-                className="w-full bg-[#141923] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
+                aria-label="Tìm ngành theo tên, mã hoặc tổ hợp"
+                className="w-full min-h-11 bg-[#141923] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
               />
 
-              <p className="text-xs text-slate-400">{CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình duy nhất · {CAREER_CATALOG_COUNTS.admissionRecords.toLocaleString('vi-VN')} bản ghi tuyển sinh theo ngành, trường và phương thức.</p>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <p>{CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình trong danh mục · {CAREER_CATALOG_COUNTS.admissionRecords.toLocaleString('vi-VN')} bản ghi tuyển sinh.</p>
+                <p className="font-bold text-blue-300">Đang hiển thị {filteredCatalog.length} / {CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình</p>
+              </div>
 
               {/* Major Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
-                {catalog
-                  .filter(m => {
-                    if (selectedSectorFilter !== 'ALL' && m.sector !== selectedSectorFilter) return false;
-                    if (majorSearchQuery.trim()) {
-                      const q = majorSearchQuery.toLowerCase();
-                      return m.name.toLowerCase().includes(q) || m.codeTT09.toLowerCase().includes(q);
-                    }
-                    return true;
-                  })
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pr-1">
+                {filteredCatalog.length === 0 && (
+                  <p className="col-span-full py-6 text-center text-sm text-slate-400">Không tìm thấy ngành phù hợp với bộ lọc hiện tại.</p>
+                )}
+                {filteredCatalog
                   .map(m => {
                     const isSelected = selectedMajorCode === m.codeTT09;
                     return (
@@ -1422,7 +1454,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="font-bold text-sm text-white flex items-center gap-1.5">
                   <DollarSign className="w-4 h-4 text-emerald-400" />
-                  <span>Kinh Phí Học Phí Gia Đình Tối Đa (NĐ 238/2025):</span>
+                  <span>Ngân sách học phí tham khảo mỗi năm:</span>
                 </span>
                 <span className="font-mono font-bold text-emerald-300 text-sm">
                   {maxTuition} triệu / năm
@@ -1438,10 +1470,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
               />
               <div className="flex justify-between text-[11px] font-mono text-slate-400">
-                <span>0 VNĐ (Sư phạm NĐ 116 / CA-QĐ)</span>
-                <span>33.7 tr (Bình quân CL)</span>
-                <span>100 tr (Tự chủ / Quốc tế)</span>
+                <span>0 triệu</span>
+                <span>33,7 triệu (bình quân tham khảo)</span>
+                <span>100 triệu</span>
               </div>
+              <p className="text-[11px] text-slate-400">Dữ liệu hiện có chưa chứa học phí riêng của từng trường; mức này so với bình quân ngành, không ẩn trường khỏi danh sách.</p>
             </div>
 
             {/* 2. Địa chỉ / Vùng miền mong muốn */}
@@ -1449,7 +1482,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="border-b border-slate-800 pb-2">
                 <span className="font-bold text-sm text-white">Địa Chỉ / Vùng Miền Mong Muốn Theo Học:</span>
               </div>
-              <div className="grid grid-cols-5 gap-1.5 text-xs font-mono">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-xs font-mono">
                 {[
                   { id: 'ALL', label: 'Toàn quốc' },
                   { id: 'BAC', label: 'Miền Bắc' },
@@ -1460,8 +1493,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <button
                     key={r.id}
                     type="button"
-                    onClick={() => setTargetRegionFilter(r.id as any)}
-                    className={`py-1.5 rounded-lg border text-center transition-colors cursor-pointer ${
+                    onClick={() => {
+                      setTargetRegionFilter(r.id as any);
+                      setSelectedSchoolCode(null);
+                    }}
+                    className={`min-h-11 rounded-lg border text-center transition-colors cursor-pointer ${
                       targetRegionFilter === r.id
                         ? 'bg-blue-600 border-blue-500 text-white font-bold'
                         : 'bg-[#141923] border-slate-700 text-slate-300 hover:text-white'
@@ -1475,6 +1511,44 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           </div>
 
           {/* 3-Tier Stratified University Results */}
+          <div className="p-4 rounded-xl bg-[#0E1117] border border-slate-800 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label htmlFor="school-search" className="font-bold text-sm text-white flex items-center gap-2">
+                <Filter className="w-4 h-4 text-blue-400" />
+                Lọc trong danh sách trường phù hợp
+              </label>
+              <span className="text-xs font-bold text-blue-300">{stratifiedSchools.totalSchools} trường khớp ngành, tổ hợp và khu vực</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                id="school-search"
+                type="search"
+                value={schoolSearchQuery}
+                onChange={(e) => {
+                  setSchoolSearchQuery(e.target.value);
+                  setSelectedSchoolCode(null);
+                }}
+                placeholder="Tìm theo tên trường, mã trường hoặc tỉnh/thành"
+                aria-label="Lọc trường theo tên, mã trường hoặc tỉnh thành"
+                className="min-h-11 flex-1 bg-[#141923] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setSchoolSearchQuery('');
+                  setTargetRegionFilter('ALL');
+                  setMaxTuition(35);
+                }}
+                className="min-h-11 px-4 rounded-xl border border-slate-700 bg-[#141923] text-sm text-slate-200 hover:border-slate-500"
+              >
+                Đặt lại bộ lọc
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">
+              Đang xem {stratifiedSchools.totalSchools} trường có bản ghi xét tuyển chính thức cho ngành {currentMajor?.name} · tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} · {targetRegionFilter === 'ALL' ? 'Toàn quốc' : ({ BAC: 'Miền Bắc', TRUNG: 'Miền Trung', NAM: 'Miền Nam', DBSCL: 'ĐBSCL' }[targetRegionFilter])}.
+            </p>
+          </div>
+
           <div className="space-y-4">
             <h4 className="font-bold text-base text-white flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-blue-400" />
