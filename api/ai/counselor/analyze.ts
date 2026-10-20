@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { handleDossierAnalysisRequest } from '../../../src/services/counselorBackend';
+import { handleDossierAnalysisRequest } from '../../../scripts/counselor_backend.mjs';
 
 export const maxDuration = 60;
 

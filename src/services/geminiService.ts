@@ -97,7 +97,7 @@ export const getStoredSelectedModel = (): string => {
     const saved = localStorage.getItem(LOCAL_SELECTED_MODEL_STORAGE);
     if (saved && saved.trim()) return saved.trim();
   } catch {}
-  return 'gemini-2.0-flash';
+  return 'gemini-3.1-flash-lite';
 };
 
 export const setStoredSelectedModel = (model: string): void => {
@@ -141,7 +141,7 @@ export const setStoredAiProvider = (p: 'gemini' | 'groq'): void => {
   } catch {}
 };
 
-export async function testGeminiApiKey(apiKey: string, modelName: string = 'gemini-2.0-flash'): Promise<{ success: boolean; message: string }> {
+export async function testGeminiApiKey(apiKey: string, modelName: string = 'gemini-3.1-flash-lite'): Promise<{ success: boolean; message: string }> {
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`, {
       method: 'POST',
@@ -1119,22 +1119,27 @@ export async function callDirectGeminiAPI(
     },
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 4096
+      maxOutputTokens: 4096,
+      thinkingConfig: { thinkingBudget: 0 }
     }
   };
 
-  const candidateModels = [modelName, 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+  const candidateModels = [modelName, 'gemini-3.1-flash-lite', 'gemini-3.5-flash'].filter(Boolean);
   const uniqueModels = Array.from(new Set(candidateModels));
 
   let lastError: any = null;
   for (const m of uniqueModels) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey.trim()}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -1502,7 +1507,7 @@ Hãy phân tích toàn diện và trả về JSON chính xác.`;
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${currentKey.trim()}`;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
         const response = await fetch(url, {
           method: 'POST',

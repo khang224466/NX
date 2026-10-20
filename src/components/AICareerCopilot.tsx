@@ -77,7 +77,7 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
   const [customKey, setCustomKey] = useState('');
   const [customGroqKey, setCustomGroqKey] = useState('');
   const [aiProvider, setAiProvider] = useState<'gemini' | 'groq'>('gemini');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-flash-lite');
   const [testKeyStatus, setTestKeyStatus] = useState<{ testing: boolean; message: string; success?: boolean } | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);

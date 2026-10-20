@@ -206,7 +206,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 18000)
+        setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 8000)
       );
 
       const res = await Promise.race([

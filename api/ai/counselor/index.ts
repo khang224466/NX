@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { handleCounselorChatRequest, handleCounselorStatusRequest } from '../../../src/services/counselorBackend';
+import { handleCounselorChatRequest, handleCounselorStatusRequest } from '../../../scripts/counselor_backend.mjs';
 
 export const maxDuration = 60;
 
