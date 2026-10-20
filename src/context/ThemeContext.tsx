@@ -13,7 +13,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: 'light',
+  theme: 'dark',
   toggleTheme: () => {},
   setTheme: () => {},
   zoomLevel: 1.0,
@@ -28,7 +28,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem('nexora_theme_mode');
       if (saved === 'light' || saved === 'dark') return saved;
     } catch {}
-    return 'light';
+    return 'dark';
   });
 
   const [zoomLevel, setZoomState] = useState<number>(() => {

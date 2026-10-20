@@ -7,6 +7,7 @@ import { getStoredApiKey, getStoredGroqKey, checkServerAIStatus } from './servic
 import { UserJourneyProvider } from './context/UserJourneyContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { SmoothScroll } from './components/SmoothScroll';
+import { ContourTerrainCanvas } from './components/ContourTerrainCanvas';
 import { RealtimeBrowserTestRunner } from './components/RealtimeBrowserTestRunner';
 
 export default function App() {
@@ -35,7 +36,13 @@ export default function App() {
     <ThemeProvider>
       <UserJourneyProvider>
         <SmoothScroll>
-          <div className="nexora-app min-h-screen bg-[#111827] text-slate-100 flex flex-col relative selection:bg-blue-200 selection:text-slate-900">
+          <div className="min-h-screen bg-[#07080B] text-[#EAEAE3] flex flex-col relative selection:bg-[#C6F135] selection:text-[#0C0D0E]">
+            {/* Hardware-accelerated GPU Backdrop Layer (Pier Gorelli Dot & Linear Grid) - Live HMR Active */}
+            <div className="blueprint-fixed-backdrop" aria-hidden="true" />
+
+            {/* Authentic Pier Gorelli Topographic Contour Elevation Canvas (Full Page Fixed Background) */}
+            <ContourTerrainCanvas isFullPage={true} />
+
             {/* Pier Gorelli Compile Intro Preloader */}
             <CompileIntroPreloader 
               forceShow={forceShowIntro} 

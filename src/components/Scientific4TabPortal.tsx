@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  FileText,
   Briefcase,
+  Sparkles,
   Layers,
   GraduationCap,
   ArrowRight,
@@ -20,7 +20,8 @@ import {
   ChevronRight,
   BookOpen,
   Sliders,
-  HelpCircle,
+  Bot,
+  Brain,
   Palette,
   Music,
   Activity,
@@ -745,14 +746,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                         }`}
                       >
                         <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
-                          <span className="font-bold text-blue-700">{m.isOfficialCode ? 'Mã ' + m.codeTT09 : m.admissionRecordCount + ' bản ghi'}</span>
+                          <span className="font-bold text-blue-300">{m.isOfficialCode ? 'Mã ' + m.codeTT09 : m.admissionRecordCount + ' bản ghi'}</span>
                           <span className="truncate max-w-[120px]">{m.sector.replace(/_/g, ' ')}</span>
                         </div>
                         <div className="font-bold text-sm text-white group-hover:text-blue-300 transition-colors">
                           {m.name}
                         </div>
                         <div className="text-[11px] text-slate-300 font-mono mt-1">
-                          Tổ hợp: <span className="text-blue-700 font-bold">{m.admissionsCombos?.length ? m.admissionsCombos.join(', ') : 'Chưa có dữ liệu'}</span>
+                          Tổ hợp: <span className="text-emerald-300 font-bold">{m.admissionsCombos?.length ? m.admissionsCombos.join(', ') : 'Chưa có dữ liệu'}</span>
                         </div>
                       </div>
                     );
@@ -810,7 +811,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                     <span className="font-bold text-sm text-white flex items-center gap-2">
-                      <HelpCircle className="w-4 h-4 text-blue-500" />
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
                       <span>1.1. Đánh giá 6 Miền Sở Thích Nghề Nghiệp (RIASEC O*NET)</span>
                     </span>
                     <span className="text-xs font-mono text-emerald-300 font-bold">
@@ -967,8 +968,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               {/* Optional Student Question for Gemini */}
               <div className="p-4 rounded-xl bg-[#121622] border border-slate-800 space-y-2">
                 <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4 text-slate-500" />
-                  <span>Băn khoăn / Câu hỏi cụ thể của bạn (Tùy chọn):</span>
+                  <Bot className="w-4 h-4 text-purple-400" />
+                  <span>Băn khoăn / Câu hỏi cụ thể của bạn cho Gemini AI (Tùy chọn):</span>
                 </label>
                 <input
                   type="text"
@@ -990,12 +991,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   {isAnalyzingWithGemini ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-purple-200" />
-                      <span>Đang phân tích hồ sơ và đối chiếu danh mục...</span>
+                      <span>Đang gọi Gemini AI phân tích hồ sơ &amp; liên kết kho dữ liệu...</span>
                     </>
                   ) : (
                     <>
-                      <Search className="w-4 h-4 text-blue-500" />
-                      <span>PHÂN TÍCH HỒ SƠ VÀ ĐỐI CHIẾU NGÀNH</span>
+                      <Sparkles className="w-4 h-4 text-yellow-300" />
+                      <span>✨ GỌI GEMINI AI PHÂN TÍCH &amp; LIÊN KẾT KHO DỮ LIỆU</span>
                     </>
                   )}
                 </button>
@@ -1012,12 +1013,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     <div className="p-5 rounded-2xl bg-[#0E1117] border border-purple-500/40 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-500/20 pb-3">
                         <div className="flex items-center gap-2">
-                          <FileText className="w-5 h-5 text-blue-500" />
+                          <Brain className="w-5 h-5 text-purple-400" />
                           <h4 className="font-bold text-base text-white">
-                            Nhận định từ hồ sơ
+                            Báo Cáo Chẩn Đoán Chiến Lược Từ Gemini AI
                           </h4>
                         </div>
-
+                        <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-purple-900/40 text-purple-300 border border-purple-500/30 font-semibold">
+                          Mô hình: {geminiDiagnosis.modelUsed || 'gemini-3.1-flash-lite'}
+                        </span>
                       </div>
 
                       {/* Strategic Headline */}
@@ -1788,8 +1791,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 }}
                 className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Xem tư vấn chi tiết</span>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Mở Pop-up Tham Vấn Chuyên Sâu Cùng AI</span>
               </button>
             </div>
           </div>

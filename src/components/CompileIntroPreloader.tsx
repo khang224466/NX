@@ -98,8 +98,8 @@ export const CompileIntroPreloader: React.FC<CompileIntroPreloaderProps> = ({
     >
       {/* Top Meta Header Note */}
       <div className="preloader__meta note">
-        <span>nexora.vn · Hướng nghiệp</span>
-        <span>TƯ VẤN HƯỚNG NGHIỆP</span>
+        <span>Plotting nexora.vn / admission-navigator</span>
+        <span>rev. 2026.NXR</span>
       </div>
 
       {/* Center Authentic Monogram SVG Logo: N X R */}
@@ -139,16 +139,16 @@ export const CompileIntroPreloader: React.FC<CompileIntroPreloaderProps> = ({
 
         {/* Technical subtitle */}
         <div className="text-xs font-mono font-bold tracking-widest text-[#C6F135] uppercase mt-4">
-          NEXORA &middot; HƯỚNG NGHIỆP
+          NEXORA &middot; NXR ENGINE
         </div>
         <div className="text-[10px] font-mono tracking-widest text-[#777777] uppercase mt-1">
-          NGÀNH HỌC &middot; TỔ HỢP &middot; TRƯỜNG
+          ADMISSIONS AUDIT &middot; 300 UNIVERSITIES &middot; TT 06/2026
         </div>
       </div>
 
       {/* Bottom Meta Footer Note & Counter */}
       <div className="preloader__meta note flex items-center justify-between">
-        <span className="text-[#555555]">Cùng bạn chọn hướng đi phù hợp</span>
+        <span className="text-[#555555]">Human + machine</span>
         <span className="preloader__count text-base font-bold text-[#0C0D0E]">
           {percent}%
         </span>

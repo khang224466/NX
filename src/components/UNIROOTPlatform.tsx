@@ -61,6 +61,7 @@ import {
   VerifiedCombination,
   VERIFIED_PROGRAMS_DATABASE
 } from '../data/verifiedAdmissionDatabase';
+import { ContourTerrainCanvas } from './ContourTerrainCanvas';
 import { BlueprintHeaderRuler } from './BlueprintHeaderRuler';
 import { BlueprintGridOverlay } from './BlueprintGridOverlay';
 import { BlueprintCursor } from './BlueprintCursor';
@@ -241,6 +242,7 @@ export const UNIROOTPlatform: React.FC<UNIROOTPlatformProps> = ({
 
   return (
     <div className="min-h-screen bg-transparent text-[#EAEAE3] flex flex-col relative font-sans selection:bg-[#3B82F6] selection:text-white">
+      {/* 1. Technical Blueprint Coordinate Cursor (Handled by ContourTerrainCanvas) */}
       <BlueprintCursor />
 
       {/* Pier Gorelli View Transition Shutter */}

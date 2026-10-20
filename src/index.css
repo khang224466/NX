@@ -1,10 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,600;0,700;0,800;1,600;1,700;1,800&family=Roboto:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-heading: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-condensed: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-menu: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-heading: 'Roboto Condensed', sans-serif;
+  --font-condensed: 'Roboto Condensed', sans-serif;
+  --font-menu: 'Roboto Condensed', sans-serif;
 }
 
 html {
@@ -15,82 +16,79 @@ html {
   :root,
   html.dark {
     zoom: var(--nx-ui-zoom, 1.5);
-    /* Neutral surfaces and muted accents for a readable guidance interface. */
-    --bg-primary: #191C20;
-    --bg-secondary: #24282D;
-    --bg-elevated: #2C3138;
-    --text-primary: #E8E9E7;
-    --text-secondary: #ADB4B9;
-    --accent-primary: #5277A6;
-    --accent-primary-text: #FFFFFF;
-    --accent-secondary: #7594B3;
-    --accent-cyan: #8AB1BC;
-    --accent-tag-bg: rgba(82, 119, 166, 0.16);
-    --accent-tag-text: #A8BDD2;
-    --border-color: #3A4047;
+    /* =========================================================================
+       BẢNG MÀU TỐI: OBSIDIAN BLUE & HIGH TECH
+       ========================================================================= */
+    --bg-primary: #07080B;                     /* Đen Obsidian sâu */
+    --bg-secondary: #0F1017;                   /* Xám đen sâu / Kính mờ */
+    --bg-elevated: #161722;                    /* Xám đen phân cấp */
+    --text-primary: #F3F4F6;                   /* Trắng tinh gọn chống nhòe sáng */
+    --text-secondary: #8E929F;                 /* Xám bạc thanh lịch */
+    --accent-primary: #2563EB;                 /* Xanh dương chuẩn / Royal Blue */
+    --accent-primary-text: #FFFFFF;            /* Chữ trắng tinh khiết trên nền Xanh */
+    --accent-secondary: #3B82F6;               /* Xanh dương tươi */
+    --accent-cyan: #60A5FA;                    /* Xanh chuẩn */
+    --accent-tag-bg: rgba(37, 99, 235, 0.16);
+    --accent-tag-text: #60A5FA;
+    --border-color: #262630;                   /* Viền tối mảnh 1px */
     --border-subtle: rgba(255, 255, 255, 0.08);
-    --glass-bg: rgba(36, 40, 45, 0.96);
-    --glass-elevated: rgba(44, 49, 56, 0.98);
-    --dot-grid-bg: #191C20;
-    --dot-grid-dots: transparent;
-    --glow-primary: rgba(82, 119, 166, 0.08);
-    --glow-secondary: rgba(117, 148, 179, 0.06);
-    --header-bg: #202429;
-    --dock-bg: #202429;
-    --card-surface: #24282D;
-    --card-border: #3A4047;
-    --card-inner-box: #202429;
-    --accent: #A6BDB1;
-    --accent-glow: rgba(166, 189, 177, 0.08);
-    --selection-bg: #5277A6;
-    --selection-text: #FFFFFF;
+    --glass-bg: rgba(22, 22, 29, 0.85);
+    --glass-elevated: rgba(31, 31, 40, 0.92);
+    --dot-grid-bg: #0B0B0E;
+    --dot-grid-dots: rgba(255, 255, 255, 0.08);
+    --glow-primary: rgba(37, 99, 235, 0.22);
+    --glow-secondary: rgba(59, 130, 246, 0.16);
+    --header-bg: rgba(11, 11, 14, 0.90);
+    --dock-bg: rgba(11, 11, 14, 0.92);
+    --card-surface: #16161D;
+    --card-border: #262630;
+    --card-inner-box: #0E0E14;
+    --accent: #C6F135;                         /* Neon lime Pier Gorelli */
+    --accent-glow: rgba(198, 241, 53, 0.25);
+    --selection-bg: var(--accent);
+    --selection-text: #0C0D0E;
   }
 
   /* Universal Full-Page Inverted / Contrast Light Mode */
   html.light {
     zoom: var(--nx-ui-zoom, 1.5);
-    filter: none;
-    background-color: #F4F5F2 !important;
-    --bg-primary: #F4F5F2;
-    --bg-secondary: #FFFFFF;
-    --bg-elevated: #FFFFFF;
-    --text-primary: #26313B;
-    --text-secondary: #64748B;
-    --accent-primary: #5277A6;
-    --accent-primary-text: #FFFFFF;
-    --accent-secondary: #456C91;
-    --accent-cyan: #527F89;
-    --accent-tag-bg: #E9EFF4;
-    --accent-tag-text: #456C91;
-    --border-color: #D9DEE2;
-    --border-subtle: rgba(38, 49, 59, 0.1);
-    --glass-bg: rgba(255, 255, 255, 0.96);
-    --glass-elevated: #FFFFFF;
-    --dot-grid-bg: #F4F5F2;
-    --dot-grid-dots: transparent;
-    --glow-primary: transparent;
-    --glow-secondary: transparent;
-    --header-bg: #FFFFFF;
-    --dock-bg: #FFFFFF;
-    --card-surface: #FFFFFF;
-    --card-border: #D9DEE2;
-    --card-inner-box: #F4F5F2;
-    --accent: #527F70;
-    --accent-glow: transparent;
-    --selection-bg: #5277A6;
-    --selection-text: #FFFFFF;
+    filter: invert(1) hue-rotate(180deg) contrast(1.04);
+    background-color: #07080B !important;
+  }
+
+  html.light img,
+  html.light video,
+  html.light picture,
+  html.light iframe,
+  html.light [data-no-invert] {
+    filter: invert(1) hue-rotate(180deg);
   }
 
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     font-weight: 400;
     overflow-x: hidden;
     transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .blueprint-fixed-backdrop { display: none !important; }
+  .blueprint-fixed-backdrop {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-color: var(--bg-primary);
+    background-image:
+      radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.09) 0%, transparent 45%),
+      radial-gradient(circle at 15% 75%, rgba(59, 130, 246, 0.05) 0%, transparent 35%),
+      radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 24px 24px, 96px 96px, 96px 96px;
+    will-change: transform;
+    transform: translateZ(0);
+  }
 
   /* Lenis smooth scroll standard styling */
   html.lenis, html.lenis body {
@@ -141,17 +139,92 @@ html {
 }
 
 
-/* Clean typography and interactions */
-.nexora-app h1,
-.nexora-app h2,
-.nexora-app h3,
-.nexora-app h4,
-.nexora-app h5,
-.nexora-app h6,
-.nexora-app button,
-.nexora-app nav {
+/* =========================================================================
+   STRICT ANTI-AI RULES
+   ========================================================================= */
+
+/* 1. CẤM dùng chữ chuyển sắc (gradient text) trên tiêu đề */
+h1, h2, h3, h4, h5, h6, .hero-title, .vibrant-blend-text {
+  -webkit-text-fill-color: initial !important;
+  color: var(--text-primary) !important;
+  background: none !important;
+  font-family: 'Roboto Condensed', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* =========================================================================
+   TYPOGRAPHY RULES THEO YÊU CẦU:
+   - Tiêu đề: Roboto Condensed, trọng lượng 700–800.
+   - Nội dung: Roboto, trọng lượng 400–500.
+   - Nút bấm / menu: Roboto Condensed, trọng lượng 600–700.
+   ========================================================================= */
+
+/* 1. TIÊU ĐỀ: Roboto Condensed, trọng lượng 700–800 */
+h1 {
+  font-family: 'Roboto Condensed', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.015em;
+}
+
+h2, h3, h4, h5, h6, .hero-title {
+  font-family: 'Roboto Condensed', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+/* 2. NỘI DUNG: Roboto, trọng lượng 400–500 */
+p, li, label, input, textarea, select, blockquote, .font-content {
   font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
-  letter-spacing: normal;
+  font-weight: 400;
+}
+
+p.font-medium, span.font-medium, div.font-medium, .font-medium {
+  font-weight: 500 !important;
+}
+
+/* 3. NÚT BẤM / MENU: Roboto Condensed, trọng lượng 600–700 */
+button,
+[role="button"],
+.btn,
+nav,
+nav a,
+nav button,
+header nav,
+header button,
+.menu-link,
+.menu-item,
+.font-menu,
+.font-btn,
+header a {
+  font-family: 'Roboto Condensed', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+button.font-bold,
+button[class*="font-bold"],
+button[class*="font-black"],
+button[class*="font-semibold"],
+[role="button"][class*="font-bold"],
+nav button[class*="font-bold"],
+nav a[class*="font-bold"] {
+  font-family: 'Roboto Condensed', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-weight: 700 !important;
+}
+
+/* 2. CẤM dùng đổ bóng mờ (box-shadow, shadow-md, shadow-lg, shadow-xl) */
+*, ::before, ::after {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+/* 3. CẤM bo góc nửa vời (rounded-lg, rounded-xl, rounded-2xl, rounded-3xl).
+      Chỉ 2 thái cực: Vuông sắc cạnh 0px cho layout blocks, tròn 9999px cho nút bấm */
+[class*="rounded-xl"]:not([class*="rounded-full"]):not([class*="rounded-none"]),
+[class*="rounded-2xl"]:not([class*="rounded-full"]):not([class*="rounded-none"]),
+[class*="rounded-3xl"]:not([class*="rounded-full"]):not([class*="rounded-none"]),
+[class*="rounded-lg"]:not([class*="rounded-full"]):not([class*="rounded-none"]) {
+  border-radius: 0px !important;
 }
 
 /* =========================================================================
@@ -195,10 +268,10 @@ html {
 
 /* Unified Theme: Border light-up on hover */
 .interactive-theme-card {
-  background-color: #171D27;
-  border: 1px solid #303846;
+  background-color: #16161D;
+  border: 1px solid #262630;
   color: #F3F4F6;
-  border-radius: 0.5rem;
+  border-radius: 0px !important;
   transition: background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
               color 0.6s cubic-bezier(0.16, 1, 0.3, 1),
               border-color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
@@ -484,83 +557,3 @@ html.dark [class*="border-white/"] {
   font-size: 0.75rem;
   color: var(--accent, #C6F135);
 }
-
-
-
-
-/* NEXORA: calm, readable surfaces for a career guidance service. */
-.blueprint-fixed-backdrop { display: none !important; }
-html.dark .nexora-app { background-color: #191C20 !important; color: #E8E9E7 !important; }
-html.dark .nexora-app [class*="bg-[#07080B]"],
-html.dark .nexora-app [class*="bg-[#0E1117]"],
-html.dark .nexora-app [class*="bg-[#0A0D14]"],
-html.dark .nexora-app [class*="bg-[#141923]"],
-html.dark .nexora-app [class*="bg-[#141F2B]"],
-html.dark .nexora-app [class*="bg-[#121316]"],
-html.dark .nexora-app [class*="bg-black/40"],
-html.dark .nexora-app [class*="bg-black/60"] { background-color: #24282D !important; }
-html.dark .nexora-app [class*="bg-purple-950"] { background-color: #2B2930 !important; }
-html.dark .nexora-app [class*="bg-blue-950"] { background-color: #26303B !important; }
-html.dark .nexora-app [class*="bg-emerald-950"] { background-color: #27322D !important; }
-html.dark .nexora-app [class*="bg-amber-950"] { background-color: #332F27 !important; }
-html.dark .nexora-app [class*="border-slate-800"],
-html.dark .nexora-app [class*="border-slate-700"],
-html.dark .nexora-app [class*="border-[#262630]"] { border-color: #3A4047 !important; }
-html.dark .nexora-app [class*="border-blue-500"],
-html.dark .nexora-app [class*="border-purple-500"],
-html.dark .nexora-app [class*="border-emerald-500"],
-html.dark .nexora-app [class*="border-amber-500"] { border-color: #49545F !important; }
-html.dark .nexora-app [class*="bg-gradient"] { background-image: none !important; }
-html.dark .nexora-app [class*="backdrop-blur"] { backdrop-filter: none !important; }
-html.dark .nexora-app header { background-color: #202429 !important; border-color: #3A4047 !important; }
-html.dark .nexora-app [class*="text-[#C6F135]"] { color: #A6BDB1 !important; }
-html.light .nexora-app { background-color: #F4F5F2 !important; color: #26313B !important; }
-html.light .nexora-app [class*="bg-[#07080B]"],
-html.light .nexora-app [class*="bg-[#0E1117]"],
-html.light .nexora-app [class*="bg-[#0A0D14]"],
-html.light .nexora-app [class*="bg-[#141923]"],
-html.light .nexora-app [class*="bg-[#141F2B]"],
-html.light .nexora-app [class*="bg-[#121316]"],
-html.light .nexora-app [class*="bg-black/40"],
-html.light .nexora-app [class*="bg-black/60"],
-html.light .nexora-app [class*="bg-blue-950"],
-html.light .nexora-app [class*="bg-purple-950"],
-html.light .nexora-app [class*="bg-emerald-950"],
-html.light .nexora-app [class*="bg-amber-950"],
-html.light .nexora-app [class*="bg-pink-950"] { background-color: #FFFFFF !important; }
-html.light .nexora-app [class*="text-white"],
-html.light .nexora-app [class*="text-slate-100"],
-html.light .nexora-app [class*="text-slate-200"],
-html.light .nexora-app [class*="text-[#EAEAE3]"],
-html.light .nexora-app [class*="text-[#D1D5DB]"] { color: #26313B !important; }
-html.light .nexora-app [class*="text-slate-300"] { color: #475569 !important; }
-html.light .nexora-app [class*="text-slate-400"] { color: #64748B !important; }
-html.light .nexora-app [class*="border-slate-800"],
-html.light .nexora-app [class*="border-slate-700"],
-html.light .nexora-app [class*="border-[#262630]"],
-html.light .nexora-app [class*="border-blue-500"],
-html.light .nexora-app [class*="border-purple-500"],
-html.light .nexora-app [class*="border-emerald-500"],
-html.light .nexora-app [class*="border-amber-500"] { border-color: #D9DEE2 !important; }
-html.light .nexora-app [class*="bg-blue-600"],
-html.light .nexora-app [class*="bg-emerald-600"],
-html.light .nexora-app [class*="bg-purple-600"],
-html.light .nexora-app [class*="bg-[#3B82F6]"] { color: #FFFFFF !important; }
-html.light .nexora-app header { background-color: #FFFFFF !important; border-color: #D9DEE2 !important; }
-html.light .nexora-app [class*="text-[#60A5FA]"] { color: #456C91 !important; }
-.nexora-app,
-.nexora-app button,
-.nexora-app input,
-.nexora-app select,
-.nexora-app textarea { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important; }
-.nexora-app .font-mono,
-.nexora-app .font-tabular { font-family: inherit !important; letter-spacing: normal !important; }
-.nexora-app .font-heading,
-.nexora-app .font-syne { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important; }
-.nexora-app .awwwards-dot-grid { background-image: none !important; }
-.nexora-app [class*="bg-gradient"] { background-image: none !important; }
-.nexora-app [class*="backdrop-blur"] { backdrop-filter: none !important; }
-.nexora-app .uppercase { text-transform: none !important; }
-.nexora-app [class*="tracking-"] { letter-spacing: normal !important; }
-.nexora-app .rounded-2xl { border-radius: 0.875rem !important; }
-.nexora-app [class*="shadow-[0_0_"] { box-shadow: none !important; }
