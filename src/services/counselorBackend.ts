@@ -786,7 +786,8 @@ Hãy phân tích toàn diện và trả về JSON theo đúng định dạng.`;
             generationConfig: {
               temperature: 0.6,
               maxOutputTokens: 2500,
-              responseMimeType: 'application/json'
+              responseMimeType: 'application/json',
+              thinkingConfig: { thinkingBudget: 0 }
             }
           }),
           signal: controller.signal

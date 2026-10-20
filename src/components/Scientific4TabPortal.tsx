@@ -200,22 +200,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   // Handle Gemini AI Analysis Invocation
   const handleRunGeminiAnalysis = async () => {
-    const hasAnyScore = Object.values(scores).some(v => typeof v === 'number' && !isNaN(v) && v > 0) ||
-      Object.values(aptitudeScores).some(v => typeof v === 'number' && !isNaN(v) && v > 0);
-    const hasRiasec = Object.values(riasec).some(v => typeof v === 'number' && !isNaN(v) && v > 0);
-
-    if (!hasAnyScore && !hasRiasec) {
-      setAnalysisError('Vui lòng nhập ít nhất điểm 1 môn học thế mạnh hoặc hoàn thành trắc nghiệm RIASEC để Gemini AI có cơ sở dữ liệu phân tích nhé!');
-      return;
-    }
-
     setAnalysisError(null);
     setIsAnalyzingWithGemini(true);
     sfx.playActionStart();
 
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 12000)
+        setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 18000)
       );
 
       const res = await Promise.race([
@@ -236,6 +227,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         setGeminiRankedMajors(linked);
         setIsMajorSuggested(true);
         sfx.playActionSuccess();
+        setTimeout(() => {
+          const el = document.getElementById('gemini-results-anchor');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 200);
       } else {
         throw new Error(res.error || 'Không nhận được kết quả chẩn đoán từ Gemini');
       }
@@ -255,6 +250,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       const linked = linkAndRankMajorsWithDossier(allScores, riasec, fallbackDiagnosis, catalog);
       setGeminiRankedMajors(linked);
       setIsMajorSuggested(true);
+      setTimeout(() => {
+        const el = document.getElementById('gemini-results-anchor');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
     } finally {
       setIsAnalyzingWithGemini(false);
     }
@@ -960,7 +959,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
               {/* Gemini AI Diagnosis & Suggested Majors Results */}
               {isMajorSuggested && (
-                <div className="space-y-4">
+                <div id="gemini-results-anchor" className="space-y-4 pt-2">
                   {/* Card 1: Gemini Strategic Diagnosis */}
                   {geminiDiagnosis && (
                     <div className="p-5 rounded-2xl bg-[#0E1117] border border-purple-500/40 space-y-4">

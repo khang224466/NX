@@ -1505,7 +1505,8 @@ Hãy phân tích toàn diện và trả về JSON chính xác.`;
             generationConfig: {
               temperature: 0.5,
               maxOutputTokens: 2500,
-              responseMimeType: 'application/json'
+              responseMimeType: 'application/json',
+              thinkingConfig: { thinkingBudget: 0 }
             }
           }),
           signal: controller.signal
