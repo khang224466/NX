@@ -1,5 +1,5 @@
 # Project Memory & Persistent State
-Last Updated: 2026-10-20T08:05:00+07:00
+Last Updated: 2026-10-20T08:28:00+07:00
 
 ## 1. Project Overview & Context
 - **Name**: UNIROOT Platform / Career Guidance Platform (Website Hướng Nghiệp)
@@ -10,6 +10,14 @@ Last Updated: 2026-10-20T08:05:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Gemini Sub-3s Latency Optimization & ThinkingBudget Fix (2026-10-20)**:
+  - Addressed user report: *"kiểm tra thứ xem có gọi API thành công k, nó thế này 2p r"*, *"vẫn chưa được."*:
+    * **Root Cause**: Gemini 3 series models (`gemini-3.1-flash-lite`, `gemini-3.5-flash`, `gemini-3.8-flash`) have internal thought generation enabled by default in Google AI Studio, spending 25-30+ seconds thinking before returning tokens.
+    * **Latency Fix**: Added `thinkingConfig: { thinkingBudget: 0 }` to `generationConfig`. Response time dropped from 29,000ms down to **1,272ms - 2,655ms** (sub-3 seconds for complete JSON output).
+    * **Removed Blocking Score Pre-checks**: If student clicks analysis with only career interests and personal questions, Gemini immediately gives qualitative guidance and subject roadmap rather than failing silently.
+    * **Smooth Auto-Scroll (`gemini-results-anchor`)**: When diagnosis is received, viewport automatically scrolls down to the Gemini Diagnosis and Top 3 Major cards so the user instantly sees the result.
+    * **Pushed & Deployed**: Pushed cleanly to `main` (`5cf3f98`).
+
 - **Direct Gemini API Invocation & Database Linking (2026-10-20)**:
   - Addressed user directive: *"nhớ này nhớ này, việc PHÂN TÍCH LÀ GỌI API KEY CỦA GEMINI, ĐỂ NÓ PHÂN TÍCH, NHẬN LẠI KẾT QUẢ VÀ TỪ CÁI KẾT QUẢ ĐÓ, LIÊN KẾT ĐẾN KHO DỮ LIỆU RỒI SHOW CHO NGƯỜI DÙNG, LẦN NÀY SHOW RA VẪN CHỈ LÀ NHỮNG LUỒNG CŨ, HÃY NHỚ LÀ ĐỂ GEMINI PHÂN TÍCH. cảm ơn"*:
     * **Direct Gemini Client Integration (`requestGeminiDossierDiagnosis`)**:
