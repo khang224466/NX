@@ -1,5 +1,5 @@
 # Project Memory & Persistent State
-Last Updated: 2026-10-20T08:28:00+07:00
+Last Updated: 2026-10-20T08:56:00+07:00
 
 ## 1. Project Overview & Context
 - **Name**: UNIROOT Platform / Career Guidance Platform (Website Hướng Nghiệp)
@@ -10,6 +10,13 @@ Last Updated: 2026-10-20T08:28:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Vercel Serverless Function Resolution & HTML Cache Prevention (2026-10-20)**:
+  - Addressed persistent loading report on live site:
+    * **Serverless Resolution Fix**: `api/ai/counselor/analyze.ts` & `chat.ts` had broken relative module imports missing extension, causing Vercel function build to fail. Fixed to import cleanly from `../../../scripts/counselor_backend.mjs`.
+    * **Browser Cache Bypass**: Configured `vercel.json` with `Cache-Control: no-cache, no-store, must-revalidate` for `index.html` to prevent browsers from executing stale JavaScript bundles.
+    * **Strict 8s Client Timeout**: Enforced 8-second hard ceiling with `Promise.race` and 6-second timeout per model in `geminiService.ts`, preventing any possible freeze.
+    * **Clean Build**: Pushed cleanly to `main` (`cb146f9`).
+
 - **Gemini Sub-3s Latency Optimization & ThinkingBudget Fix (2026-10-20)**:
   - Addressed user report: *"kiểm tra thứ xem có gọi API thành công k, nó thế này 2p r"*, *"vẫn chưa được."*:
     * **Root Cause**: Gemini 3 series models (`gemini-3.1-flash-lite`, `gemini-3.5-flash`, `gemini-3.8-flash`) have internal thought generation enabled by default in Google AI Studio, spending 25-30+ seconds thinking before returning tokens.
