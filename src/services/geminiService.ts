@@ -1489,12 +1489,12 @@ Hãy phân tích toàn diện và trả về JSON chính xác.`;
 
   // 1. Try Direct Gemini API
   if (apiKey) {
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
     for (const model of candidateModels) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch(url, {
           method: 'POST',
@@ -1551,8 +1551,10 @@ Hãy phân tích toàn diện và trả về JSON chính xác.`;
     }
   }
 
-  // 2. Try Serverless endpoint proxy (/api/ai/counselor/analyze)
+  // 2. Try Serverless endpoint proxy (/api/ai/counselor/analyze) with strict 8s timeout
   try {
+    const proxyController = new AbortController();
+    const proxyTimeout = setTimeout(() => proxyController.abort(), 8000);
     const res = await fetch('/api/ai/counselor/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1561,8 +1563,10 @@ Hãy phân tích toàn diện và trả về JSON chính xác.`;
         riasec: params.riasec,
         personalQuestion: params.personalQuestion,
         careerGoalInterest: params.careerGoalInterest
-      })
+      }),
+      signal: proxyController.signal
     });
+    clearTimeout(proxyTimeout);
     if (res.ok) {
       const data = await res.json();
       if (data.analysis) {

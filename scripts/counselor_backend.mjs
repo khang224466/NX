@@ -872,12 +872,12 @@ Hãy phân tích toàn diện và trả về JSON theo đúng định dạng.`;
 
   // 1. Try Gemini
   if (geminiKey) {
-    const geminiModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const geminiModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
     for (const model of geminiModels) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 18000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch(endpoint, {
           method: 'POST',

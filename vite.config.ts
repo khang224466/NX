@@ -470,6 +470,31 @@ function careerAiBackendPlugin(): Plugin {
           return;
         }
 
+        // 1.5 Counselor Analyze
+        if (url === '/api/ai/counselor/analyze' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const { handleDossierAnalysisRequest } = await import('./src/services/counselorBackend.ts');
+              const result = await handleDossierAnalysisRequest({
+                body: parsed,
+                headers: req.headers,
+                env: process.env
+              });
+              res.statusCode = result.status;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify(result.data));
+            } catch (err) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({ success: false, error: err.message || 'Lỗi server' }));
+            }
+          });
+          return;
+        }
+
         // 2. Career Query
         if (url === '/api/ai/career-query' && req.method === 'POST') {
           let body = '';

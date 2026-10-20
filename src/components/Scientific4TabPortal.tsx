@@ -214,13 +214,20 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     sfx.playActionStart();
 
     try {
-      const res = await requestGeminiDossierDiagnosis({
-        scores,
-        aptitudeScores,
-        riasec,
-        careerGoalInterest,
-        personalQuestion: userPersonalQuestion
-      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 12000)
+      );
+
+      const res = await Promise.race([
+        requestGeminiDossierDiagnosis({
+          scores,
+          aptitudeScores,
+          riasec,
+          careerGoalInterest,
+          personalQuestion: userPersonalQuestion
+        }),
+        timeoutPromise
+      ]);
 
       if (res.success && res.diagnosis) {
         setGeminiDiagnosis(res.diagnosis);
@@ -965,7 +972,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                           </h4>
                         </div>
                         <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-purple-900/40 text-purple-300 border border-purple-500/30 font-semibold">
-                          Mô hình: {geminiDiagnosis.modelUsed || 'gemini-3.8-flash'}
+                          Mô hình: {geminiDiagnosis.modelUsed || 'gemini-3.1-flash-lite'}
                         </span>
                       </div>
 
