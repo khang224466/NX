@@ -529,7 +529,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   if (hasMajorChoice === null) {
     return (
-      <div className="career-flow w-full min-h-[calc(100vh-4rem)] px-4 flex items-center justify-center text-slate-100">
+      <div className="career-flow fixed inset-x-0 bottom-0 top-16 sm:top-24 z-20 flex items-center justify-center overflow-y-auto px-4 py-6 text-slate-100">
         <section
           aria-labelledby="startup-major-question"
           className="w-full max-w-2xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
