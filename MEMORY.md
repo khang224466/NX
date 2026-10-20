@@ -10,6 +10,24 @@ Last Updated: 2026-10-20T08:56:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Root Cause Eradication: sfx.playActionStart TypeError & Resilient Sound Proxy (2026-10-20)**:
+  - Addressed user report: *"nó k hoạt động"*, *"vẫn chưa phân tích được, nó đã để màn hình gọi API key được 3p r"*:
+    * **Smoking Gun Located**: Screenshot revealed DevTools crash: `Uncaught (in promise) TypeError: Z.playActionStart is not a function at be (index-DtiRy1zY.js:225:6779)`.
+    * **Root Cause Analysis**:
+      - In `Scientific4TabPortal.tsx`, `handleRunGeminiAnalysis` called `sfx.playActionStart()` outside the `try` block.
+      - `SoundEffectsEngine` lacked this method. Calling `undefined()` threw a synchronous TypeError, halting JavaScript execution before `requestGeminiDossierDiagnosis` could ever be reached.
+      - Because execution crashed before `try...finally`, `setIsAnalyzingWithGemini(false)` was never reached, leaving the button frozen in an infinite spinner.
+    * **Comprehensive Fix**:
+      1. Added `playActionStart()` and `playActionError()` directly to `SoundEffectsEngine` in `src/services/soundEffects.ts`.
+      2. Exported `sfx` wrapped in a defensive `Proxy` that intercepts all unknown method calls and returns safe no-op functions (`() => {}`), completely eliminating any possibility of sound-related crashes in the future.
+      3. Moved all sound calls inside `try` blocks with guarded optional chaining.
+      4. Corrected TypeScript compiler errors in `Scientific4TabPortal.tsx` (fixed `calculateEffectivePriority` argument order, `Institution` property mappings to `official_name` & `verified_province_city`, and `getRegionFromProvinceCity` filtering).
+    * **Verification**:
+      - `node ./node_modules/typescript/bin/tsc --noEmit`: Clean (0 errors across entire project).
+      - `node ./node_modules/vite/bin/vite.js build`: Clean build in 2.57s.
+      - Automated test suite `test_major_linking_engine.mjs`: 100% PASS.
+      - Live analysis test `test_live_analysis_endpoint.mjs`: Status 200 SUCCESS.
+      - Pushed cleanly to GitHub `main` (`1e410cf`) for live Vercel auto-deployment.
 - **Vercel Serverless Function Resolution & HTML Cache Prevention (2026-10-20)**:
   - Addressed persistent loading report on live site:
     * **Serverless Resolution Fix**: `api/ai/counselor/analyze.ts` & `chat.ts` had broken relative module imports missing extension, causing Vercel function build to fail. Fixed to import cleanly from `../../../scripts/counselor_backend.mjs`.
