@@ -1,65 +1,36 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import {
-  Briefcase,
-  Sparkles,
-  Layers,
-  GraduationCap,
-  ArrowRight,
-  ArrowLeft,
-  RotateCcw,
-  CheckCircle,
-  CheckCircle2,
-  AlertTriangle,
-  ShieldCheck,
-  TrendingUp,
-  DollarSign,
-  Info,
-  Search,
-  Filter,
-  Award,
-  ChevronRight,
-  BookOpen,
-  Sliders,
-  Bot,
-  Brain,
-  Palette,
-  Music,
-  Activity,
-  Film,
-  Baby,
-  Loader2,
-} from 'lucide-react';
 import { sfx } from '../services/soundEffects';
 import {
   calculateEffectivePriority,
   calculateBasePriority30
 } from '../services/admissionsCalculationEngine';
 import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/counselorBackend';
-import { requestGeminiDossierDiagnosis, GeminiDiagnosisResponse } from '../services/geminiService';
+
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
-import { CAREER_CATALOG, CAREER_CATALOG_COUNTS, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
+import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, CAREER_PROGRAM_COUNTS, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
 export interface Scientific4TabPortalProps {
   onSelectSchool?: (schoolCode: string) => void;
-  onOpenAIChat?: (initialQuery?: string) => void;
+
   onNavigateToCombos?: () => void;
+  onOpenAIChat?: (prompt?: string) => void;
 }
 
 // Aptitude subjects list metadata
 const APTITUDE_SUBJECTS_METADATA = [
-  { key: 'apt_hinhHoa', label: 'Hình họa (chì/than)', category: 'Mỹ thuật', icon: '🎨', combos: ['H00', 'H01'] },
-  { key: 'apt_trangTri', label: 'Trang trí / Bố cục màu', category: 'Mỹ thuật', icon: '🖌️', combos: ['H00', 'H02'] },
-  { key: 'apt_veMyThuat', label: 'Vẽ mỹ thuật (tượng/KT)', category: 'Kiến trúc', icon: '📐', combos: ['V00', 'V01'] },
-  { key: 'apt_thamAm', label: 'Thẩm âm và Tiết tấu', category: 'Âm nhạc', icon: '🎵', combos: ['N00'] },
-  { key: 'apt_thanhNhac', label: 'Thanh nhạc / Biểu diễn', category: 'Âm nhạc', icon: '🎤', combos: ['N00', 'N01'] },
-  { key: 'apt_theThao', label: 'Năng khiếu Thể thao (chạy/bật xa)', category: 'Thể chất', icon: '🏃', combos: ['T00', 'T01'] },
-  { key: 'apt_mamNon', label: 'Năng khiếu Mầm non (kể chuyện/hát)', category: 'Sư phạm', icon: '👶', combos: ['M00', 'M01'] },
-  { key: 'apt_baoChi', label: 'Năng khiếu Báo chí / Tự luận', category: 'Báo chí', icon: '📰', combos: ['R00'] },
-  { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', icon: '🎭', combos: ['S00'] }
+  { key: 'apt_hinhHoa', label: 'Hình họa (chì/than)', category: 'Mỹ thuật', combos: ['H00', 'H01'] },
+  { key: 'apt_trangTri', label: 'Trang trí / Bố cục màu', category: 'Mỹ thuật', combos: ['H00', 'H02'] },
+  { key: 'apt_veMyThuat', label: 'Vẽ mỹ thuật (tượng/KT)', category: 'Kiến trúc', combos: ['V00', 'V01'] },
+  { key: 'apt_thamAm', label: 'Thẩm âm và Tiết tấu', category: 'Âm nhạc', combos: ['N00'] },
+  { key: 'apt_thanhNhac', label: 'Thanh nhạc / Biểu diễn', category: 'Âm nhạc', combos: ['N00', 'N01'] },
+  { key: 'apt_theThao', label: 'Năng khiếu Thể thao (chạy/bật xa)', category: 'Thể chất', combos: ['T00', 'T01'] },
+  { key: 'apt_mamNon', label: 'Năng khiếu Mầm non (kể chuyện/hát)', category: 'Sư phạm', combos: ['M00', 'M01'] },
+  { key: 'apt_baoChi', label: 'Năng khiếu Báo chí / Tự luận', category: 'Báo chí', combos: ['R00'] },
+  { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', combos: ['S00'] }
 ];
 
 const SECTOR_DISPLAY_NAMES: Record<string, string> = {
@@ -75,16 +46,9 @@ const SECTOR_DISPLAY_NAMES: Record<string, string> = {
   NGANH_KHAC: 'Lĩnh vực khác'
 };
 
-const CAREER_GOAL_KEYWORDS: Record<string, string[]> = {
-  CREATIVE: ['thiết kế', 'nghệ thuật', 'truyền thông', 'sáng tạo'],
-  TECH: ['công nghệ', 'máy tính', 'kỹ thuật', 'dữ liệu', 'phần mềm'],
-  BUSINESS: ['kinh doanh', 'kinh tế', 'quản trị', 'marketing', 'tài chính'],
-  SOCIAL: ['giáo dục', 'xã hội', 'ngôn ngữ', 'tâm lý', 'luật'],
-  MEDICAL: ['y khoa', 'dược', 'sức khỏe', 'sinh học']
-};
+
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
-  onOpenAIChat,
   onNavigateToCombos
 }) => {
   // Navigation: 4 procedural steps
@@ -95,9 +59,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // =========================================================================
   const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [majorSearchQuery, setMajorSearchQuery] = useState('');
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
   const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
+  const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
 
   // Step 1: Input Profile if user doesn't have major yet
   const [scores, setScores] = useState<Record<string, number | ''>>({
@@ -126,33 +92,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     apt_dienXuat: ''
   });
 
-  // RIASEC 6 Dimensions
-  const [riasec, setRiasec] = useState<{
-    R: number | '';
-    I: number | '';
-    A: number | '';
-    S: number | '';
-    E: number | '';
-    C: number | '';
-  }>({
-    R: '',
-    I: '',
-    A: '',
-    S: '',
-    E: '',
-    C: ''
-  });
-
-  const [activeInputAccordion, setActiveInputAccordion] = useState<'riasec' | 'scores' | 'aptitude' | 'goal'>('riasec');
-  const [careerGoalInterest, setCareerGoalInterest] = useState<string>(''); // Chỉ xếp hạng theo mục tiêu khi người dùng đã chọn
-  const [isMajorSuggested, setIsMajorSuggested] = useState(false);
-
-  // Gemini AI Analysis State
-  const [isAnalyzingWithGemini, setIsAnalyzingWithGemini] = useState<boolean>(false);
-  const [geminiDiagnosis, setGeminiDiagnosis] = useState<GeminiDiagnosisResponse | null>(null);
-  const [analysisProfileKey, setAnalysisProfileKey] = useState<string | null>(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [userPersonalQuestion, setUserPersonalQuestion] = useState<string>('');
+  const [careerInterests, setCareerInterests] = useState('');
+  const [careerStrengths, setCareerStrengths] = useState('');
 
   // =========================================================================
   // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
@@ -179,6 +120,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   const handleSelectMajor = (code: string, nextTab: ScientificTabKey = 'tab-major') => {
     setSelectedMajorCode(code);
+    setSelectedProgramId(null);
     setSelectedComboCode(null);
     setHasComboChoice(null);
     setSelectedSchoolCode(null);
@@ -199,25 +141,32 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     return calculateBasePriority30(priorityRegion, priorityObject, 2026, 2026);
   }, [priorityRegion, priorityObject]);
 
-  // Catalog majors list
+  // The program catalog preserves each school and program ID from the admissions data.
   const catalog = CAREER_CATALOG;
+  const programCatalog = CAREER_PROGRAM_CATALOG;
   const sectorOptions = useMemo(() => {
     const counts = new Map<string, number>();
-    catalog.forEach((major) => counts.set(major.sector, (counts.get(major.sector) || 0) + 1));
+    programCatalog.forEach((program) => counts.set(program.sector, (counts.get(program.sector) || 0) + 1));
     return [...counts.entries()]
       .sort(([a], [b]) => (SECTOR_DISPLAY_NAMES[a] || a).localeCompare(SECTOR_DISPLAY_NAMES[b] || b, 'vi'))
       .map(([id, count]) => ({ id, count, label: SECTOR_DISPLAY_NAMES[id] || id.replace(/_/g, ' ').toLocaleLowerCase('vi') }));
-  }, [catalog]);
+  }, [programCatalog]);
   const filteredCatalog = useMemo(() => {
     const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
-    return catalog.filter((major) => {
-      if (selectedSectorFilter !== 'ALL' && major.sector !== selectedSectorFilter) return false;
+    return programCatalog.filter((program) => {
+      if (selectedSectorFilter !== 'ALL' && program.sector !== selectedSectorFilter) return false;
       if (!query) return true;
-      return major.name.toLocaleLowerCase('vi').includes(query)
-        || major.codeTT09.toLocaleLowerCase('vi').includes(query)
-        || major.admissionsCombos.some((combo) => combo.toLocaleLowerCase('vi').includes(query));
+      const searchable = [
+        program.name,
+        program.majorCode,
+        program.programId,
+        program.institutionCode,
+        program.institutionName,
+        ...program.admissionsCombos
+      ].join(' ').toLocaleLowerCase('vi');
+      return searchable.includes(query);
     });
-  }, [catalog, selectedSectorFilter, majorSearchQuery]);
+  }, [programCatalog, selectedSectorFilter, majorSearchQuery]);
 
   // Current chosen major object
   const currentMajor = useMemo(() => {
@@ -232,102 +181,113 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode)) || null;
   }, [selectedSchoolCode]);
 
-  // Compute Dominant RIASEC Code
-  const dominantRiasec = useMemo(() => {
-    const validEntries = Object.entries(riasec).filter(
-      (entry): entry is [string, number] => typeof entry[1] === 'number' && !isNaN(entry[1]) && entry[1] >= 10
-    );
-    if (validEntries.length < 2) return null;
-    validEntries.sort((a, b) => b[1] - a[1]);
-    return validEntries.slice(0, 3).map(e => e[0]).join('');
-  }, [riasec]);
-
-  const analysisProfileKeyNow = useMemo(() => JSON.stringify({
-    scores,
-    aptitudeScores,
-    riasec,
-    careerGoalInterest,
-    userPersonalQuestion
-  }), [scores, aptitudeScores, riasec, careerGoalInterest, userPersonalQuestion]);
-  const currentDiagnosis = useMemo(
-    () => analysisProfileKey === analysisProfileKeyNow ? geminiDiagnosis : null,
-    [analysisProfileKey, analysisProfileKeyNow, geminiDiagnosis]
-  );
+  const careerProfileText = [careerInterests, careerStrengths].filter(Boolean).join(' ').trim();
   const profileKeywords = useMemo(() => {
-    const questionWords = userPersonalQuestion.toLocaleLowerCase('vi')
+    const stopWords = new Set(['thích', 'muốn', 'mình', 'ngành', 'nghề', 'làm', 'giỏi', 'học', 'em', 'tôi']);
+    return [...new Set(careerProfileText.toLocaleLowerCase('vi')
       .split(/\s+/)
       .map((word) => word.replace(/^[^a-zA-ZÀ-ỹ]+|[^a-zA-ZÀ-ỹ]+$/g, ''))
-      .filter((word) => word.length >= 4);
-    return [...new Set([...(CAREER_GOAL_KEYWORDS[careerGoalInterest] || []), ...questionWords])];
-  }, [careerGoalInterest, userPersonalQuestion]);
-  const profileDiagnosis = useMemo(() => ({
-    ...(currentDiagnosis || {}),
-    recommendedKeywords: [...new Set([...(currentDiagnosis?.recommendedKeywords || []), ...profileKeywords])]
-  }), [currentDiagnosis, profileKeywords]);
+      .filter((word) => word.length >= 4 && !stopWords.has(word)))];
+  }, [careerProfileText]);
+  const profileDiagnosis = useMemo(() => ({ recommendedKeywords: profileKeywords }), [profileKeywords]);
+  const hasCareerProfile = careerInterests.trim().length > 0 || careerStrengths.trim().length > 0;
 
-  // Recalculate from current input so changed answers replace old recommendations.
+  // Rank locally against the saved catalog and current school scores.
   const rankedMajors = useMemo(() => {
     const allScores = { ...scores, ...aptitudeScores };
-    return linkAndRankMajorsWithDossier(allScores, riasec, profileDiagnosis, catalog);
-  }, [scores, aptitudeScores, riasec, profileDiagnosis, catalog]);
+    return linkAndRankMajorsWithDossier(allScores, careerProfileText, profileDiagnosis, catalog);
+  }, [scores, aptitudeScores, careerProfileText, profileDiagnosis, catalog]);
 
-  // Handle Gemini AI Analysis Invocation
-  const handleRunGeminiAnalysis = async () => {
-    setAnalysisError(null);
-    setIsAnalyzingWithGemini(true);
-    try {
-      try { sfx.playActionStart(); } catch {}
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 8000)
-      );
+  const majorCatalogPanel = (
+    <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-bold text-white">Danh mục ngành và chương trình</h3>
+          <p className="text-sm text-slate-300 mt-1">Có {CAREER_PROGRAM_COUNTS.programChoices.toLocaleString('vi-VN')} lựa chọn từ 300 trường.</p>
+        </div>
+        <label className="flex flex-col gap-1 text-sm text-slate-300">
+          Lĩnh vực
+          <select
+            value={selectedSectorFilter}
+            onChange={(e) => setSelectedSectorFilter(e.target.value)}
+            className="min-h-11 min-w-56 rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white focus:outline-none focus:border-blue-500"
+          >
+            <option value="ALL">Tất cả lĩnh vực ({CAREER_PROGRAM_COUNTS.programChoices.toLocaleString('vi-VN')})</option>
+            {sectorOptions.map((sector) => (
+              <option key={sector.id} value={sector.id}>
+                {sector.label} ({sector.count.toLocaleString('vi-VN')})
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-      const res = await Promise.race([
-        requestGeminiDossierDiagnosis({
-          scores,
-          aptitudeScores,
-          riasec,
-          careerGoalInterest,
-          personalQuestion: userPersonalQuestion
-        }),
-        timeoutPromise
-      ]);
+      <label htmlFor="major-search" className="sr-only">Tìm ngành, chương trình hoặc trường</label>
+      <input
+        id="major-search"
+        type="search"
+        value={majorSearchQuery}
+        onChange={(e) => setMajorSearchQuery(e.target.value)}
+        placeholder="Tìm ngành, mã chương trình hoặc trường"
+        className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+      />
 
-      if (res.success && res.diagnosis) {
-        setGeminiDiagnosis(res.diagnosis);
-        setAnalysisProfileKey(analysisProfileKeyNow);
-        setIsMajorSuggested(true);
-        sfx.playActionSuccess();
-        setTimeout(() => {
-          const el = document.getElementById('gemini-results-anchor');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 200);
-      } else {
-        throw new Error(res.error || 'Không nhận được kết quả chẩn đoán từ Gemini');
-      }
-    } catch (err: any) {
-      console.warn('Gemini direct analysis error, utilizing standard alignment:', err);
-      const fallbackDiagnosis: GeminiDiagnosisResponse = {
-        headline: 'Đề xuất định hướng học thuật & tuyển sinh chính thức Bộ GD&ĐT',
-        directAnswer: 'Hệ thống đã phân tích bảng điểm THPT và đối chiếu trực tiếp với các tổ hợp môn xét tuyển hợp lệ.',
-        strengthsEvaluation: 'Các môn thi đã có điểm cung cấp cơ sở tin cậy để xác định tổ hợp xét tuyển có điểm số cao nhất.',
-        risksAndBottlenecks: 'Lưu ý tránh các ngành đòi hỏi môn học bạn chưa có điểm để bảo đảm cơ hội trúng tuyển.',
-        recommendedSectors: [],
-        avoidSectors: [],
-        recommendedKeywords: []
-      };
-      setGeminiDiagnosis(fallbackDiagnosis);
-      setAnalysisProfileKey(analysisProfileKeyNow);
-      setIsMajorSuggested(true);
-      setTimeout(() => {
-        const el = document.getElementById('gemini-results-anchor');
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 200);
-    } finally {
-      setIsAnalyzingWithGemini(false);
-    }
-  };
+      <p className="text-sm font-semibold text-blue-300">
+        Đang hiển thị {filteredCatalog.length.toLocaleString('vi-VN')} lựa chọn
+      </p>
 
-  // Mỗi tổ hợp được lấy từ ngành đang chọn trong danh mục và bản ghi tuyển sinh liên quan.
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {filteredCatalog.length === 0 && (
+          <p className="col-span-full py-8 text-center text-base text-slate-300">Không tìm thấy lựa chọn phù hợp.</p>
+        )}
+        {filteredCatalog.map((program) => {
+          const isSelected = selectedProgramId === program.id;
+          return (
+            <button
+              key={program.id}
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => {
+                sfx.playActionSuccess();
+                handleSelectMajor(program.majorCode);
+                setSelectedProgramId(program.id);
+              }}
+              className={isSelected
+                ? 'min-h-28 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
+                : 'min-h-28 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
+            >
+              <span className="block text-base font-bold text-white">{program.name}</span>
+              <span className="mt-1 block text-sm text-slate-300">
+                {program.institutionName ? program.institutionName : 'Ngành chuẩn'}{program.institutionCode ? ' · ' + program.institutionCode : ''}
+              </span>
+              <span className="mt-1 block text-sm text-blue-300">
+                {SECTOR_DISPLAY_NAMES[program.sector] || program.sector.replace(/_/g, ' ').toLocaleLowerCase('vi')}
+                {program.admissionsCombos.length ? ' · ' + program.admissionsCombos.join(', ') : ''}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedMajorCode && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700 pt-4">
+          <p className="text-base font-semibold text-white">Đã chọn: {currentMajor?.name}</p>
+          <button
+            type="button"
+            onClick={() => {
+              sfx.playUiClick();
+              setActiveTab('tab-combo');
+            }}
+            className="min-h-11 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500"
+          >
+            Tiếp tục: chọn tổ hợp
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Mỗi tổ hợp lấy từ danh mục ngành và dữ liệu tuyển sinh liên quan.
   const validCombosForMajor = useMemo(() => {
     if (!currentMajor) return [];
     const dataCombos = getMajorAdmissionRecords(currentMajor.name)
@@ -433,36 +393,42 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // Top combo recommended
   const topCombo = evaluatedCombos[0] || null;
 
-  // Trường ở Bước 3 phải có bản ghi đúng ngành và tổ hợp; điểm chuẩn lấy từ dữ liệu tuyển sinh.
+  // Keep all 300 schools visible while marking exact ngành/tổ hợp matches.
   const stratifiedSchools = useMemo(() => {
-    if (!currentMajor) return { dream: [], target: [], safe: [], hasScore: false, totalSchools: 0, tuitionBenchmark: null };
-
-    const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
-    const records = getMajorAdmissionRecords(currentMajor.name, chosenCombo)
-      .filter((record) => record.verification_status === 'VERIFIED_OFFICIAL');
     const institutionsByCode = new Map(AUDITED_INSTITUTIONS_300.map((institution) => [institution.institution_code, institution]));
-    const groups = new Map<string, { institution: any; cutoffs: number[]; recordCount: number }>();
-
-    for (const record of records) {
-      const institution = institutionsByCode.get(record.institution_code);
-      if (!institution) continue;
-      if (targetRegionFilter !== 'ALL' && getRegionFromProvinceCity(institution.verified_province_city) !== targetRegionFilter) continue;
-      const schoolQuery = schoolSearchQuery.trim().toLocaleLowerCase('vi');
+    const schoolQuery = schoolSearchQuery.trim().toLocaleLowerCase('vi');
+    const visibleInstitutions = AUDITED_INSTITUTIONS_300.filter((institution) => {
+      if (targetRegionFilter !== 'ALL' && getRegionFromProvinceCity(institution.verified_province_city) !== targetRegionFilter) return false;
       if (schoolQuery) {
         const searchableSchool = [institution.official_name, institution.institution_code, institution.verified_province_city]
           .join(' ')
           .toLocaleLowerCase('vi');
-        if (!searchableSchool.includes(schoolQuery)) continue;
+        if (!searchableSchool.includes(schoolQuery)) return false;
       }
+      return true;
+    });
+
+    if (!currentMajor) {
+      return { dream: [], target: [], safe: [], schools: [], hasScore: false, totalSchools: 0, matchingSchoolCount: 0, tuitionBenchmark: null };
+    }
+
+    const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
+    const visibleSchoolCodes = new Set(visibleInstitutions.map((institution) => institution.institution_code));
+    const records = getMajorAdmissionRecords(currentMajor.name, chosenCombo)
+      .filter((record) => record.verification_status === 'VERIFIED_OFFICIAL' && visibleSchoolCodes.has(record.institution_code));
+    const groups = new Map<string, { institution: any; cutoffs: number[] }>();
+
+    for (const record of records) {
+      const institution = institutionsByCode.get(record.institution_code);
+      if (!institution) continue;
 
       const cutoff = record.audited_official_scale === 'THANG_30'
         ? Number(record.audited_official_cutoff)
         : Number(record.analytical_normalized_100) * 0.3;
       if (!Number.isFinite(cutoff)) continue;
 
-      const group = groups.get(record.institution_code) || { institution, cutoffs: [], recordCount: 0 };
+      const group = groups.get(record.institution_code) || { institution, cutoffs: [] };
       group.cutoffs.push(cutoff);
-      group.recordCount += 1;
       groups.set(record.institution_code, group);
     }
 
@@ -476,7 +442,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     const target: any[] = [];
     const safe: any[] = [];
 
-    for (const { institution, cutoffs, recordCount } of groups.values()) {
+    for (const { institution, cutoffs } of groups.values()) {
       const orderedCutoffs = [...cutoffs].sort((a, b) => a - b);
       const middle = Math.floor(orderedCutoffs.length / 2);
       const benchmark = orderedCutoffs.length % 2
@@ -491,7 +457,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         city: institution.verified_province_city,
         benchmark: Number(benchmark.toFixed(2)),
         margin,
-        recordCount,
         sectorTuition: tuitionBenchmark?.avg2026_2027 ?? null,
         isBudgetOk: tuitionBenchmark?.avg2026_2027 != null
           ? tuitionBenchmark.avg2026_2027 <= maxTuition
@@ -509,15 +474,38 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     target.sort(hasScore ? (a: any, b: any) => Math.abs(a.margin) - Math.abs(b.margin) : byCutoff);
     safe.sort((a: any, b: any) => b.margin - a.margin);
 
+    const matchedByCode = new Map<string, any>();
+    safe.forEach((school) => matchedByCode.set(school.code, { ...school, tier: 'An toàn' }));
+    target.forEach((school) => matchedByCode.set(school.code, { ...school, tier: hasScore ? 'Vừa sức' : '' }));
+    dream.forEach((school) => matchedByCode.set(school.code, { ...school, tier: 'Mơ ước' }));
+
+    const allSchools = visibleInstitutions.map((institution) => {
+      const match = matchedByCode.get(institution.institution_code);
+      return {
+        code: institution.institution_code,
+        name: institution.official_name,
+        city: institution.verified_province_city,
+        hasMajorData: Boolean(match),
+        tier: match?.tier || '',
+        benchmark: match?.benchmark ?? null,
+        margin: match?.margin ?? null
+      };
+    });
+    const schools = allSchools
+      .filter((school) => schoolMatchFilter === 'ALL' || school.hasMajorData)
+      .sort((a, b) => Number(b.hasMajorData) - Number(a.hasMajorData) || a.name.localeCompare(b.name, 'vi'));
+
     return {
       dream,
       target,
       safe,
+      schools,
       hasScore,
-      totalSchools: groups.size,
+      totalSchools: schools.length,
+      matchingSchoolCount: matchedByCode.size,
       tuitionBenchmark
     };
-  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, schoolSearchQuery, maxTuition]);
+  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, schoolSearchQuery, schoolMatchFilter, maxTuition]);
 
   // Reset entire session
   const handleResetAll = () => {
@@ -531,7 +519,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setHasJobChoice(null);
     setTargetJob('');
     setExpectedScoreInput('');
-    setIsMajorSuggested(false);
+    setCareerInterests('');
+    setCareerStrengths('');
+    setSelectedProgramId(null);
+    setSchoolSearchQuery('');
+    setSchoolMatchFilter('ALL');
     setActiveTab('tab-major');
   };
 
@@ -574,608 +566,207 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   return (
     <div className="career-flow w-full max-w-6xl mx-auto px-3 sm:px-6 py-6 font-sans text-slate-100 space-y-6">
-      {/* 📌 [HỒ SƠ ĐÃ LƯU — TRẠNG THÁI HIỆN TẠI] STICKY TOP CARD */}
-      <div className="bg-[#0E1117] border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">📌</span>
-            <h2 className="font-bold text-white text-sm sm:text-base font-mono uppercase tracking-wider">
-              [HỒ SƠ ĐÃ LƯU — TIẾN TRÌNH THAM VẤN 4 BƯỚC]
-            </h2>
-          </div>
+      <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <h2 className="text-xl font-bold text-white">Tiến trình tư vấn</h2>
           <button
             type="button"
             onClick={handleResetAll}
-            className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="min-h-11 rounded-lg border border-slate-700 px-4 text-base font-semibold text-slate-200 hover:border-blue-500"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Đặt lại chu trình</span>
+            Đặt lại
           </button>
         </div>
-
-        {/* 5 Persistent Fields */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-          {/* 1. Ngành học */}
-          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
-            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-              <GraduationCap className="w-3.5 h-3.5 text-blue-400" />
-              <span>1. Ngành học:</span>
-            </div>
-            <div className="font-bold text-xs sm:text-sm text-white truncate" title={currentMajor?.name || 'Chưa xác định'}>
-              {currentMajor ? currentMajor.name : 'Chưa xác định'}
-            </div>
-            {currentMajor && (
-              <span className="text-[10px] font-mono text-blue-300 bg-blue-950/80 px-1.5 py-0.2 rounded border border-blue-500/30">
-                {currentMajor.isOfficialCode ? 'Mã ngành: ' + currentMajor.codeTT09 : currentMajor.admissionRecordCount + ' bản ghi tuyển sinh'}
-              </span>
-            )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
+            <div className="text-sm text-slate-300">Ngành</div>
+            <div className="mt-1 text-base font-bold text-white">{currentMajor?.name || 'Chưa chọn'}</div>
           </div>
-
-          {/* 2. Tổ hợp & Điểm */}
-          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
-            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-emerald-400" />
-              <span>2. Tổ hợp &amp; Điểm:</span>
-            </div>
-            <div className="font-bold text-xs sm:text-sm text-emerald-300 truncate">
-              {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code + ' (' + (topCombo.officialScore ?? '—') + 'đ)' : 'Chưa xác định')}
-            </div>
-            <span className="text-[10px] font-mono text-slate-400">
-              {expectedScoreInput ? `Dự kiến: ${expectedScoreInput}đ` : 'Tính từ hồ sơ'}
-            </span>
+          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
+            <div className="text-sm text-slate-300">Tổ hợp</div>
+            <div className="mt-1 text-base font-bold text-blue-300">{selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn')}</div>
           </div>
-
-          {/* 3. Trường đại học */}
-          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
-            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-              <span>3. Trường đại học:</span>
-            </div>
-            <div className="font-bold text-xs sm:text-sm text-white truncate" title={currentSchool?.name || currentSchool?.schoolName || 'Chưa chọn'}>
-              {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Chưa xác định'}
-            </div>
-            {currentSchool && (
-              <span className="text-[10px] font-mono text-amber-300 bg-amber-950/80 px-1.5 py-0.2 rounded border border-amber-500/30">
-                Mã: {selectedSchoolCode}
-              </span>
-            )}
+          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
+            <div className="text-sm text-slate-300">Trường</div>
+            <div className="mt-1 text-base font-bold text-white">{currentSchool?.official_name || currentSchool?.name || currentSchool?.schoolName || 'Chưa chọn'}</div>
           </div>
-
-          {/* 4. Việc làm mục tiêu */}
-          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
-            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-              <Briefcase className="w-3.5 h-3.5 text-purple-400" />
-              <span>4. Việc làm:</span>
-            </div>
-            <div className="font-bold text-xs sm:text-sm text-white truncate" title={targetJob || 'Chưa xác định'}>
-              {targetJob || 'Chưa xác định'}
-            </div>
-            <span className="text-[10px] font-mono text-purple-300">
-              {currentMajor ? currentMajor.targetJobs?.[0] : '--'}
-            </span>
+          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
+            <div className="text-sm text-slate-300">Việc làm</div>
+            <div className="mt-1 text-base font-bold text-white">{targetJob || 'Chưa chọn'}</div>
           </div>
-
-          {/* 5. Kinh phí & Khu vực */}
-          <div className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1 col-span-2 sm:col-span-1">
-            <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-              <DollarSign className="w-3.5 h-3.5 text-sky-400" />
-              <span>5. Kinh phí / Vùng:</span>
-            </div>
-            <div className="font-bold text-xs sm:text-sm text-sky-300 truncate">
-              {maxTuition} tr/năm
-            </div>
-            <span className="text-[10px] font-mono text-slate-400">
-              {targetRegionFilter === 'ALL' ? 'Toàn quốc' : targetRegionFilter} · NĐ 238
-            </span>
+          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3 col-span-2 sm:col-span-1">
+            <div className="text-sm text-slate-300">Ngân sách</div>
+            <div className="mt-1 text-base font-bold text-blue-300">{maxTuition} triệu/năm</div>
           </div>
         </div>
       </div>
 
-      {/* 4 PROGRESS STEPS TAB BUTTONS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { id: 'tab-major' as ScientificTabKey, num: '01', title: 'XÁC ĐỊNH NGÀNH HỌC', desc: 'Có/Chưa ngành ➔ Gợi ý & Chốt', icon: GraduationCap },
-          { id: 'tab-combo' as ScientificTabKey, num: '02', title: 'CHỌN TỔ HỢP MÔN', desc: 'Phân tích các tổ hợp của ngành', icon: Layers, locked: !selectedMajorCode },
-          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'CHỌN TRƯỜNG ĐẠI HỌC', desc: 'Kinh phí NĐ 238 & Phân tầng', icon: BookOpen, locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) },
-          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'VIỆC LÀM & CHUỖI ẢNH HƯỞNG', desc: 'Đối chiếu Ngành ⟷ Tổ hợp ⟷ Trường', icon: TrendingUp, locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) }
-        ].map(tab => {
+          { id: 'tab-major' as ScientificTabKey, num: '01', title: 'Ngành học', desc: 'Chọn hoặc nhận gợi ý' },
+          { id: 'tab-combo' as ScientificTabKey, num: '02', title: 'Tổ hợp', desc: 'Chọn môn xét tuyển', locked: !selectedMajorCode },
+          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'Trường', desc: 'Tìm trong 300 trường', locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) },
+          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'Việc làm', desc: 'Chọn nghề phù hợp', locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) }
+        ].map((tab) => {
           const isActive = activeTab === tab.id;
-          const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               type="button"
               disabled={tab.locked}
-              onClick={() => {
-                sfx.playUiClick();
-                setActiveTab(tab.id);
-              }}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                tab.locked ? 'opacity-40 cursor-not-allowed bg-[#0A0D14] border-slate-800' :
-                isActive ? 'bg-[#182133] border-blue-500 shadow-md ring-1 ring-blue-500/50' :
-                'bg-[#0E1117] border-slate-800 hover:border-slate-700'
-              }`}
+              aria-current={isActive ? 'step' : undefined}
+              onClick={() => setActiveTab(tab.id)}
+              className={isActive
+                ? 'min-h-24 rounded-xl border border-blue-500 bg-blue-950/60 p-4 text-left'
+                : 'min-h-24 rounded-xl border border-slate-800 bg-[#0E1117] p-4 text-left hover:border-blue-500'}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
-                  isActive ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
-                }`}>
-                  {tab.num}
-                </span>
-                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
-              </div>
-              <div className="font-bold text-xs text-white truncate">{tab.title}</div>
-              <div className="text-[11px] text-slate-400 truncate mt-0.5">{tab.desc}</div>
+              <span className="block text-sm font-bold text-blue-300">{tab.num}</span>
+              <span className="mt-1 block text-lg font-bold text-white">{tab.title}</span>
+              <span className="mt-1 block text-sm text-slate-300">{tab.desc}</span>
             </button>
           );
         })}
       </div>
-
       {/* =========================================================================
           BƯỚC 1: XÁC ĐỊNH NGÀNH HỌC
           ========================================================================= */}
       {activeTab === 'tab-major' && (
         <section className="space-y-5">
-          {/* NHÁNH 1: ĐÃ CÓ NGÀNH (YES) */}
-          {hasMajorChoice === 'YES' && (
-            <div className="p-5 rounded-2xl bg-[#0E1117] border border-blue-500/40 space-y-4 animate-in fade-in duration-200">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                <div className="font-bold text-sm text-white flex items-center gap-2">
-                  <Search className="w-4 h-4 text-blue-400" />
-                  <span>Chọn ngành học hoặc chương trình xét tuyển:</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 font-mono">Lọc lĩnh vực:</span>
-                  <select
-                    value={selectedSectorFilter}
-                    onChange={(e) => setSelectedSectorFilter(e.target.value)}
-                    className="bg-[#141923] border border-slate-700 rounded-lg min-h-11 px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="ALL">Tất cả lĩnh vực ({CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình)</option>
-                    {sectorOptions.map((sector) => (
-                      <option key={sector.id} value={sector.id}>
-                        {sector.label} ({sector.count})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+          {hasMajorChoice === 'YES' && majorCatalogPanel}
 
-              {/* Search Bar */}
-              <input
-                type="text"
-                value={majorSearchQuery}
-                onChange={(e) => setMajorSearchQuery(e.target.value)}
-                placeholder="Gõ tên ngành hoặc mã ngành (Ví dụ: Kiến trúc, Thiết kế đồ họa, CNTT, Y khoa, Thanh nhạc, Báo chí)..."
-                aria-label="Tìm ngành theo tên, mã hoặc tổ hợp"
-                className="w-full min-h-11 bg-[#141923] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
-              />
-
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                <p>{CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình trong danh mục · {CAREER_CATALOG_COUNTS.admissionRecords.toLocaleString('vi-VN')} bản ghi tuyển sinh.</p>
-                <p className="font-bold text-blue-300">Đang hiển thị {filteredCatalog.length} / {CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình</p>
-              </div>
-
-              {/* Major Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pr-1">
-                {filteredCatalog.length === 0 && (
-                  <p className="col-span-full py-6 text-center text-sm text-slate-400">Không tìm thấy ngành phù hợp với bộ lọc hiện tại.</p>
-                )}
-                {filteredCatalog
-                  .map(m => {
-                    const isSelected = selectedMajorCode === m.codeTT09;
-                    return (
-                      <div
-                        key={m.codeTT09}
-                        onClick={() => {
-                          sfx.playActionSuccess();
-                          handleSelectMajor(m.codeTT09);
-                        }}
-                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
-                          isSelected
-                            ? 'bg-blue-600/20 border-blue-400 ring-1 ring-blue-400 shadow-md'
-                            : 'bg-[#141923] border-slate-800 hover:border-slate-600'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
-                          <span className="font-bold text-blue-300">{m.isOfficialCode ? 'Mã ' + m.codeTT09 : m.admissionRecordCount + ' bản ghi'}</span>
-                          <span className="truncate max-w-[120px]">{m.sector.replace(/_/g, ' ')}</span>
-                        </div>
-                        <div className="font-bold text-sm text-white group-hover:text-blue-300 transition-colors">
-                          {m.name}
-                        </div>
-                        <div className="text-[11px] text-slate-300 font-mono mt-1">
-                          Tổ hợp: <span className="text-emerald-300 font-bold">{m.admissionsCombos?.length ? m.admissionsCombos.join(', ') : 'Chưa có dữ liệu'}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-
-              {selectedMajorCode && (
-                <div className="pt-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sfx.playUiClick();
-                      setActiveTab('tab-combo');
-                    }}
-                    className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md transition-transform hover:scale-[1.02]"
-                  >
-                    <span>Tiếp tục sang Bước 2: Chọn Tổ hợp môn ({currentMajor?.name})</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* NHÁNH 2: CHƯA CÓ NGÀNH (NO) — CHIA RA TỪNG PHẦN GỌN GÀNG, KHÔNG RỐI MẮT */}
           {hasMajorChoice === 'NO' && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 flex items-center justify-between">
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
                 <div>
-                  <h4 className="font-bold text-sm text-purple-200">
-                    Thu Thập Dữ Liệu Hồ Sơ Định Hướng (Chia Từng Phần Gọn Gàng)
-                  </h4>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Hệ thống cần tối thiểu sở thích nổi trội và các môn thế mạnh để gợi ý chính xác.
-                  </p>
+                  <h3 className="text-xl font-bold text-white">Sở thích và năng lực</h3>
+                  <p className="mt-1 text-base text-slate-300">Nhập vài điều bạn thích và việc bạn làm tốt. Gợi ý ngành sẽ cập nhật theo nội dung này.</p>
                 </div>
-                <div className="flex items-center gap-1.5 font-mono text-xs">
-                  {['riasec', 'scores', 'aptitude', 'goal'].map((sec) => (
-                    <button
-                      key={sec}
-                      type="button"
-                      onClick={() => setActiveInputAccordion(sec as any)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
-                        activeInputAccordion === sec ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      {sec === 'riasec' ? '1. Sở thích RIASEC' : sec === 'scores' ? '2. Môn học THPT' : sec === 'aptitude' ? '3. Môn Năng Khiếu' : '4. Mục tiêu'}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="space-y-2 text-base font-semibold text-white">
+                    Sở thích
+                    <textarea
+                      value={careerInterests}
+                      onChange={(e) => setCareerInterests(e.target.value)}
+                      rows={4}
+                      placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
+                      className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                    />
+                  </label>
+                  <label className="space-y-2 text-base font-semibold text-white">
+                    Năng lực và thế mạnh
+                    <textarea
+                      value={careerStrengths}
+                      onChange={(e) => setCareerStrengths(e.target.value)}
+                      rows={4}
+                      placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
+                      className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                    />
+                  </label>
                 </div>
-              </div>
 
-              {/* Phần 1.1: Sở thích RIASEC */}
-              {activeInputAccordion === 'riasec' && (
-                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="font-bold text-sm text-white flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <span>1.1. Đánh giá 6 Miền Sở Thích Nghề Nghiệp (RIASEC O*NET)</span>
-                    </span>
-                    <span className="text-xs font-mono text-emerald-300 font-bold">
-                      Mã đỉnh: {dominantRiasec || 'Chưa thiết lập'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {[
-                      { key: 'R' as const, name: 'R - Thực tế (Cơ khí, thiết bị, ngoài trời)', color: 'text-orange-400' },
-                      { key: 'I' as const, name: 'I - Nghiên cứu (Khoa học, logic, dữ liệu)', color: 'text-blue-400' },
-                      { key: 'A' as const, name: 'A - Nghệ thuật (Sáng tác, thiết kế, âm nhạc)', color: 'text-pink-400' },
-                      { key: 'S' as const, name: 'S - Xã hội (Giảng dạy, tư vấn, chăm sóc)', color: 'text-emerald-400' },
-                      { key: 'E' as const, name: 'E - Quản lý (Kinh doanh, lãnh đạo, thuyết phục)', color: 'text-amber-400' },
-                      { key: 'C' as const, name: 'C - Nghiệp vụ (Quy củ, kế toán, dữ liệu chi tiết)', color: 'text-cyan-400' }
-                    ].map(dim => (
-                      <div key={dim.key} className="p-3 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className={dim.color}>{dim.name}</span>
-                          <span className="font-mono text-white text-xs">{riasec[dim.key] !== '' ? `${riasec[dim.key]}đ` : '--'}</span>
-                        </div>
-                        <input
-                          type="number"
-                          min="10"
-                          max="50"
-                          value={riasec[dim.key] === '' ? '' : riasec[dim.key]}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? '' : Math.min(50, Math.max(10, parseInt(e.target.value)));
-                            setRiasec(prev => ({ ...prev, [dim.key]: val }));
-                          }}
-                          placeholder="Điểm 10 - 50"
-                          className="w-full bg-[#0A0D14] border border-slate-700 rounded-lg p-1.5 text-xs text-white font-mono"
-                        />
+                <details className="rounded-xl border border-slate-700 bg-[#141923] p-4">
+                  <summary className="cursor-pointer text-base font-semibold text-white">Điểm học tập và năng khiếu (tùy chọn)</summary>
+                  <div className="mt-4 space-y-5">
+                    <div>
+                      <h4 className="mb-3 text-base font-semibold text-white">Điểm môn học</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                        {[
+                          { key: 'math', label: 'Toán' },
+                          { key: 'literature', label: 'Ngữ văn' },
+                          { key: 'english', label: 'Tiếng Anh' },
+                          { key: 'physics', label: 'Vật lý' },
+                          { key: 'chemistry', label: 'Hóa học' },
+                          { key: 'biology', label: 'Sinh học' },
+                          { key: 'history', label: 'Lịch sử' },
+                          { key: 'geography', label: 'Địa lý' },
+                          { key: 'informatics', label: 'Tin học' },
+                          { key: 'economicLegal', label: 'GDKT & PL' }
+                        ].map((subject) => (
+                          <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
+                            {subject.label}
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              step="0.1"
+                              value={scores[subject.key] === '' ? '' : scores[subject.key]}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                                setScores((previous) => ({ ...previous, [subject.key]: value }));
+                              }}
+                              className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
+                            />
+                          </label>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Phần 1.2: Điểm học tập 10 môn phổ thông */}
-              {activeInputAccordion === 'scores' && (
-                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="font-bold text-sm text-white flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-blue-400" />
-                      <span>1.2. Điểm Số Các Môn Học Phổ Thông (Thang Điểm 10)</span>
-                    </span>
-                    <span className="text-xs text-slate-400">Nhập các môn thế mạnh của bạn</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                    {[
-                      { key: 'math', label: 'Toán học' },
-                      { key: 'literature', label: 'Ngữ văn' },
-                      { key: 'english', label: 'Tiếng Anh' },
-                      { key: 'physics', label: 'Vật lý' },
-                      { key: 'chemistry', label: 'Hóa học' },
-                      { key: 'biology', label: 'Sinh học' },
-                      { key: 'history', label: 'Lịch sử' },
-                      { key: 'geography', label: 'Địa lý' },
-                      { key: 'informatics', label: 'Tin học' },
-                      { key: 'economicLegal', label: 'GDKT & PL' }
-                    ].map(sub => (
-                      <div key={sub.key} className="p-2.5 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
-                        <label className="text-xs text-white font-bold block">{sub.label}</label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="10"
-                          step="0.1"
-                          value={scores[sub.key] === '' ? '' : scores[sub.key]}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
-                            setScores(prev => ({ ...prev, [sub.key]: val }));
-                          }}
-                          placeholder="--"
-                          className="w-full bg-[#0A0D14] border border-slate-700 rounded-lg p-1.5 text-xs text-white font-mono font-bold"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Phần 1.3: Môn Năng Khiếu Nghệ Thuật / Thể Chất */}
-              {activeInputAccordion === 'aptitude' && (
-                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="font-bold text-sm text-pink-300 flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-pink-400" />
-                      <span>1.3. Điểm Môn Năng Khiếu Chuyên Môn (Mỹ thuật, Âm nhạc, Thể thao, Sân khấu)</span>
-                    </span>
-                    <span className="text-xs text-slate-400">Tùy chọn nếu xét tuyển khối năng khiếu</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {APTITUDE_SUBJECTS_METADATA.map(sub => (
-                      <div key={sub.key} className="p-2.5 rounded-xl bg-[#141923] border border-slate-800 space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-white flex items-center gap-1.5">
-                            <span>{sub.icon}</span>
-                            <span>{sub.label}</span>
-                          </span>
-                          <span className="text-[10px] font-mono text-pink-300">{sub.category}</span>
-                        </div>
-                        <input
-                          type="number"
-                          min="0"
-                          max="10"
-                          step="0.1"
-                          value={aptitudeScores[sub.key] === '' ? '' : aptitudeScores[sub.key]}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
-                            setAptitudeScores(prev => ({ ...prev, [sub.key]: val }));
-                          }}
-                          placeholder="Điểm thi thử / dự kiến (0-10)"
-                          className="w-full bg-[#0A0D14] border border-slate-700 rounded-lg p-1.5 text-xs text-white font-mono"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Phần 1.4: Mục tiêu nghề nghiệp */}
-              {activeInputAccordion === 'goal' && (
-                <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
-                  <div className="border-b border-slate-800 pb-2">
-                    <span className="font-bold text-sm text-white">1.4. Định Hướng &amp; Môi Trường Làm Việc Mong Muốn</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {[
-                      { id: 'CREATIVE', label: 'Nghệ thuật & Sáng tạo', desc: 'Thiết kế, vẽ, âm nhạc, truyền thông' },
-                      { id: 'TECH', label: 'Công nghệ & Kỹ thuật', desc: 'Lập trình, máy móc, dữ liệu, phần cứng' },
-                      { id: 'BUSINESS', label: 'Kinh doanh & Quản lý', desc: 'Thương mại, marketing, khởi nghiệp' },
-                      { id: 'MEDICAL', label: 'Y Dược & Sức khỏe', desc: 'Chăm sóc bệnh nhân, dược phẩm' },
-                      { id: 'SOCIAL', label: 'Giáo dục & Xã hội', desc: 'Giảng dạy, tư vấn, luật, báo chí' }
-                    ].map(g => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => setCareerGoalInterest(g.id)}
-                        className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                          careerGoalInterest === g.id
-                            ? 'bg-purple-600/20 border-purple-400 text-white shadow-sm'
-                            : 'bg-[#141923] border-slate-800 text-slate-300 hover:border-slate-600'
-                        }`}
-                      >
-                        <div className="font-bold text-xs">{g.label}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{g.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Optional Student Question for Gemini */}
-              <div className="p-4 rounded-xl bg-[#121622] border border-slate-800 space-y-2">
-                <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-purple-400" />
-                  <span>Băn khoăn / Câu hỏi cụ thể của bạn cho Gemini AI (Tùy chọn):</span>
-                </label>
-                <input
-                  type="text"
-                  value={userPersonalQuestion}
-                  onChange={e => setUserPersonalQuestion(e.target.value)}
-                  placeholder="Ví dụ: Em muốn theo ngành thiết kế hoặc truyền thông nhưng lo lắng về việc làm, học phí..."
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#0E1117] border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
-                />
-              </div>
-
-              {/* Action Button: Trigger Gemini AI Recommendation */}
-              <div className="flex flex-col items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  disabled={isAnalyzingWithGemini}
-                  onClick={handleRunGeminiAnalysis}
-                  className="px-8 py-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-60 text-white font-bold text-sm shadow-md transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-2"
-                >
-                  {isAnalyzingWithGemini ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-purple-200" />
-                      <span>Đang gọi Gemini AI phân tích hồ sơ &amp; liên kết kho dữ liệu...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 text-yellow-300" />
-                      <span>✨ GỌI GEMINI AI PHÂN TÍCH &amp; LIÊN KẾT KHO DỮ LIỆU</span>
-                    </>
-                  )}
-                </button>
-                {analysisError && (
-                  <p className="text-xs text-amber-400 font-medium">{analysisError}</p>
-                )}
-              </div>
-
-              {/* Gemini AI Diagnosis & Suggested Majors Results */}
-              {isMajorSuggested && (
-                <div id="gemini-results-anchor" className="space-y-4 pt-2">
-                  {/* Card 1: Gemini Strategic Diagnosis */}
-                  {geminiDiagnosis && analysisProfileKey === analysisProfileKeyNow && (
-                    <div className="p-5 rounded-2xl bg-[#0E1117] border border-purple-500/40 space-y-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-500/20 pb-3">
-                        <div className="flex items-center gap-2">
-                          <Brain className="w-5 h-5 text-purple-400" />
-                          <h4 className="font-bold text-base text-white">
-                            Báo Cáo Chẩn Đoán Chiến Lược Từ Gemini AI
-                          </h4>
-                        </div>
-                        <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-purple-900/40 text-purple-300 border border-purple-500/30 font-semibold">
-                          Mô hình: {geminiDiagnosis.modelUsed || 'gemini-3.1-flash-lite'}
-                        </span>
-                      </div>
-
-                      {/* Strategic Headline */}
-                      {geminiDiagnosis.headline && (
-                        <div className="p-3.5 rounded-xl bg-purple-950/30 border border-purple-500/30">
-                          <p className="text-sm font-semibold text-purple-200 italic leading-relaxed">
-                            "{geminiDiagnosis.headline}"
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Direct Answer */}
-                      {geminiDiagnosis.directAnswer && (
-                        <div className="space-y-1.5">
-                          <span className="text-xs font-mono text-slate-400 font-bold uppercase tracking-wider block">
-                            Định hướng chuyên môn từ Chuyên gia Tuyển sinh:
-                          </span>
-                          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-                            {geminiDiagnosis.directAnswer}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Strengths & Risks Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        {geminiDiagnosis.strengthsEvaluation && (
-                          <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-1">
-                            <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                              Thế mạnh học thuật &amp; Tư duy
-                            </span>
-                            <p className="text-xs text-slate-300 leading-relaxed">
-                              {geminiDiagnosis.strengthsEvaluation}
-                            </p>
-                          </div>
-                        )}
-
-                        {geminiDiagnosis.risksAndBottlenecks && (
-                          <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-1">
-                            <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                              Điểm nghẽn môn học &amp; Rủi ro
-                            </span>
-                            <p className="text-xs text-slate-300 leading-relaxed">
-                              {geminiDiagnosis.risksAndBottlenecks}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Optimal Combo Advice */}
-                      {geminiDiagnosis.optimalComboAdvice && (
-                        <div className="p-3 rounded-lg bg-blue-950/20 border border-blue-500/30 text-xs text-blue-200">
-                          <span className="font-bold text-blue-300">Khuyên dùng tổ hợp: </span>
-                          {geminiDiagnosis.optimalComboAdvice}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Card 2: Database Linked Majors */}
-                  <div className="p-5 rounded-2xl bg-[#0E1117] border border-blue-500/40 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
-                      <h4 className="font-bold text-base text-white">
-                        Kết Quả Đối Chiếu Kho Dữ Liệu Bộ GD&ĐT: Top 3 Ngành Phù Hợp Nhất
-                      </h4>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {rankedMajors.slice(0, 3).map((major, idx) => (
-                        <div
-                          key={major.codeTT09}
-                          className="p-4 rounded-xl bg-[#141923] border border-slate-700 space-y-2 flex flex-col justify-between hover:border-blue-500/50 transition-colors"
+                    <div>
+                      <h4 className="mb-3 text-base font-semibold text-white">Điểm năng khiếu</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {APTITUDE_SUBJECTS_METADATA.map((subject) => (
+                          <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
+                            {subject.label}
+                            <input
+                              type="number"
+                              min="0"
+                              max="10"
+                              step="0.1"
+                              value={aptitudeScores[subject.key] === '' ? '' : aptitudeScores[subject.key]}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                                setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
+                              }}
+                              className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              </div>
+
+              {hasCareerProfile && (
+                <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
+                  <h3 className="text-lg font-bold text-white">Ngành gợi ý</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {rankedMajors.slice(0, 6).map((major) => (
+                      <div key={major.codeTT09} className="rounded-xl border border-slate-700 bg-[#141923] p-4 space-y-3">
+                        <div>
+                          <h4 className="text-lg font-bold text-white">{major.name}</h4>
+                          <p className="mt-1 text-sm text-slate-300">{major.fitReason}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
+                          className="min-h-11 w-full rounded-lg bg-blue-600 px-4 text-base font-bold text-white hover:bg-blue-500"
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-xs font-mono">
-                              <span className="text-emerald-300 font-bold">Top {idx + 1} ({major.fitPercent}% phù hợp)</span>
-                              <span className="text-slate-400">{major.codeTT09}</span>
-                            </div>
-                            <h5 className="font-bold text-sm text-white">{major.name}</h5>
-                            <p className="text-xs text-slate-300 leading-relaxed">{major.fitReason}</p>
-                            <div className="text-[11px] font-mono text-blue-300 pt-1">
-                              Tổ hợp: {catalog.find(c => c.codeTT09 === major.codeTT09)?.admissionsCombos?.join(', ')}
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              sfx.playActionSuccess();
-                              handleSelectMajor(major.codeTT09, 'tab-combo');
-                            }}
-                            className="w-full mt-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer text-center"
-                          >
-                            Chốt chọn ngành này ➔
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                          Chọn ngành
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
+              {majorCatalogPanel}
             </div>
           )}
         </section>
       )}
-
-      {/* =========================================================================
-          BƯỚC 2: CHỌN TỔ HỢP MÔN (RÀNG BUỘC CỨNG BỞI BƯỚC 1)
-          ========================================================================= */}
       {activeTab === 'tab-combo' && (
         <section className="space-y-5">
           {/* Header Info */}
           <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
-              <span className="text-xs font-mono text-blue-300 font-bold block">ĐANG XÉT CHO NGÀNH:</span>
+              <span className="text-sm font-mono text-blue-300 font-bold block">ĐANG XÉT CHO NGÀNH:</span>
               <h3 className="font-bold text-base text-white">{currentMajor?.name}{currentMajor?.isOfficialCode ? ' · Mã ' + currentMajor.codeTT09 : ''}</h3>
             </div>
             <button
               type="button"
               onClick={() => setActiveTab('tab-major')}
-              className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+              className="text-sm text-slate-400 hover:text-white underline cursor-pointer"
             >
               ← Đổi ngành khác
             </button>
@@ -1184,12 +775,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           {/* Branch Decision Card: CÓ / KHÔNG */}
           <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
             <div className="flex items-center gap-2">
-              <Layers className="w-5 h-5 text-emerald-400" />
               <h3 className="font-bold text-base sm:text-lg text-white">
                 Bạn đã chọn được Tổ hợp môn xét tuyển chưa?
               </h3>
             </div>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm sm:text-sm text-slate-300 leading-relaxed">
               Một ngành đào tạo có thể tuyển sinh từ nhiều tổ hợp môn khác nhau. Việc chọn đúng tổ hợp có môn thế mạnh sẽ giúp bạn tối đa hóa điểm xét tuyển và tăng tỷ lệ đỗ đại học.
             </p>
 
@@ -1202,19 +792,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 }}
                 className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                   hasComboChoice === 'YES'
-                    ? 'bg-emerald-950/80 border-emerald-500 shadow-md ring-1 ring-emerald-500/40 text-white'
+                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
                     : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
                 }`}
               >
                 <div>
                   <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>✅ CÓ: Tôi đã có tổ hợp &amp; điểm dự kiến</span>
+                    <span>CÓ: Tôi đã có tổ hợp &amp; điểm dự kiến</span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-sm text-slate-400 mt-1">
                     Chọn trực tiếp 1 trong các tổ hợp của ngành {currentMajor?.name}
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-emerald-400 shrink-0" />
               </button>
 
               <button
@@ -1231,13 +820,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               >
                 <div>
                   <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>❓ CHƯA: Hãy phân tích tổ hợp tối ưu cho tôi</span>
+                    <span>CHƯA: Hãy phân tích tổ hợp tối ưu cho tôi</span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-sm text-slate-400 mt-1">
                     So sánh điểm số giữa các tổ hợp để tìm ra tổ hợp đạt điểm cao nhất
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
               </button>
             </div>
           </div>
@@ -1249,14 +837,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <h4 className="font-bold text-sm text-white">
                   Danh Sách Các Tổ Hợp Xét Tuyển Hợp Lệ Của Ngành {currentMajor?.name}:
                 </h4>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-sm text-slate-400 mt-0.5">
                   Bấm chọn 1 tổ hợp để sử dụng cho chuỗi phân tích trường ở Bước 3.
                 </p>
               </div>
 
               {/* Expected Score Input */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-slate-300 font-bold">Mức điểm dự kiến:</span>
+                <span className="text-sm font-mono text-slate-300 font-bold">Mức điểm dự kiến:</span>
                 <input
                   type="number"
                   min="10"
@@ -1265,7 +853,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   value={expectedScoreInput}
                   onChange={(e) => { setExpectedScoreInput(e.target.value); setSelectedSchoolCode(null); }}
                   placeholder="Ví dụ: 25.5"
-                  className="w-28 bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-emerald-300 font-mono font-bold focus:outline-none focus:border-emerald-500"
+                  className="w-28 bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
@@ -1286,7 +874,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     }}
                     className={`p-4 rounded-xl border text-left cursor-pointer transition-all space-y-2 ${
                       isSelected
-                        ? 'bg-emerald-950/40 border-emerald-400 ring-1 ring-emerald-400 shadow-md'
+                        ? 'bg-blue-950/40 border-blue-400 ring-1 ring-blue-400 shadow-md'
                         : isOptimal
                           ? 'bg-[#141F2B] border-blue-500/50 hover:border-blue-400'
                           : 'bg-[#141923] border-slate-800 hover:border-slate-700'
@@ -1297,23 +885,23 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                         {combo.code}
                       </span>
                       {isOptimal && (
-                        <span className="px-2 py-0.5 rounded bg-emerald-500 text-black text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded bg-blue-500 text-black text-xs font-bold">
                           TỐI ƯU NHẤT (#1)
                         </span>
                       )}
                       {combo.isArts && (
-                        <span className="px-2 py-0.5 rounded bg-pink-950 border border-pink-500/40 text-pink-300 text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded bg-blue-950 border border-blue-500/40 text-blue-300 text-xs font-bold">
                           Môn Năng Khiếu
                         </span>
                       )}
                     </div>
 
-                    <div className="text-xs text-slate-300 font-mono">
-                      {combo.hasData ? <>Điểm tham khảo: <strong className="text-emerald-300 font-bold">{combo.officialScore}đ</strong></> : <span className="text-slate-400">Nhập điểm để so sánh tổ hợp này</span>}
-                      {combo.effectivePriority > 0 && <span className="text-amber-300 text-[11px] ml-1">(+ {combo.effectivePriority}đ ưu tiên TT06)</span>}
+                    <div className="text-sm text-slate-300 font-mono">
+                      {combo.hasData ? <>Điểm tham khảo: <strong className="text-blue-300 font-bold">{combo.officialScore}đ</strong></> : <span className="text-slate-400">Nhập điểm để so sánh tổ hợp này</span>}
+                      {combo.effectivePriority > 0 && <span className="text-blue-300 text-sm ml-1">(+ {combo.effectivePriority}đ ưu tiên TT06)</span>}
                     </div>
 
-                    <div className="text-[11px] text-slate-400">
+                    <div className="text-sm text-slate-400">
                       {combo.code === 'A00' ? 'Toán – Vật lý – Hóa học' :
                        combo.code === 'A01' ? 'Toán – Vật lý – Tiếng Anh' :
                        combo.code === 'D01' ? 'Toán – Ngữ văn – Tiếng Anh' :
@@ -1325,9 +913,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                        'Tổ hợp chuẩn Bộ GD&ĐT'}
                     </div>
 
-                    <div className="pt-1 flex items-center justify-between text-xs font-bold text-blue-300">
+                    <div className="pt-1 flex items-center justify-between text-sm font-bold text-blue-300">
                       <span>{isSelected ? '✓ Đã chọn tổ hợp này' : 'Bấm để chọn'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
                     </div>
                   </div>
                 );
@@ -1339,7 +926,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('tab-major')}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-sm text-slate-400 hover:text-white"
               >
                 ← Quay lại Bước 1
               </button>
@@ -1357,7 +944,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
               >
                 <span>Tiếp tục sang Bước 3: Phân tầng trường đại học</span>
-                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1372,7 +958,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           {/* Header Info */}
           <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
-              <span className="text-xs font-mono text-blue-300 font-bold block">MỤC TIÊU ĐANG XÉT:</span>
+              <span className="text-sm font-mono text-blue-300 font-bold block">MỤC TIÊU ĐANG XÉT:</span>
               <h3 className="font-bold text-base text-white">
                 Ngành {currentMajor?.name} · Tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}{topCombo?.hasData ? ' · ' + topCombo.officialScore + ' điểm' : ''}
               </h3>
@@ -1380,7 +966,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('tab-combo')}
-              className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+              className="text-sm text-slate-400 hover:text-white underline cursor-pointer"
             >
               ← Đổi tổ hợp khác
             </button>
@@ -1389,12 +975,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           {/* Branch Decision Card: CÓ / KHÔNG */}
           <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-amber-400" />
               <h3 className="font-bold text-base sm:text-lg text-white">
                 Bạn đã chọn được Trường đại học mục tiêu chưa?
               </h3>
             </div>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm sm:text-sm text-slate-300 leading-relaxed">
               Sau khi có ngành và tổ hợp, để chọn trường chính xác cần đối chiếu <strong>kinh phí học phí (Nghị định 238/2025)</strong>, <strong>vùng miền địa lý</strong> và <strong>điểm chuẩn tham chiếu</strong>.
             </p>
 
@@ -1407,19 +992,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 }}
                 className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                   hasSchoolChoice === 'YES'
-                    ? 'bg-amber-950/80 border-amber-500 shadow-md ring-1 ring-amber-500/40 text-white'
+                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
                     : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
                 }`}
               >
                 <div>
                   <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>✅ CÓ: Tôi đã có trường đại học mục tiêu</span>
+                    <span>CÓ: Tôi đã có trường đại học mục tiêu</span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-sm text-slate-400 mt-1">
                     Kiểm tra điểm chuẩn 3 năm và học phí của trường bạn nhắm tới
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-amber-400 shrink-0" />
               </button>
 
               <button
@@ -1436,13 +1020,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               >
                 <div>
                   <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>❓ CHƯA: Hãy phân tầng trường phù hợp cho tôi</span>
+                    <span>CHƯA: Hãy phân tầng trường phù hợp cho tôi</span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-sm text-slate-400 mt-1">
                     Thiết lập kinh phí &amp; vùng miền để phân 3 nhóm: Mơ ước, Vừa sức, An toàn
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
               </button>
             </div>
           </div>
@@ -1453,10 +1036,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <DollarSign className="w-4 h-4 text-emerald-400" />
                   <span>Ngân sách học phí tham khảo mỗi năm:</span>
                 </span>
-                <span className="font-mono font-bold text-emerald-300 text-sm">
+                <span className="font-mono font-bold text-blue-300 text-sm">
                   {maxTuition} triệu / năm
                 </span>
               </div>
@@ -1467,14 +1049,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 step="5"
                 value={maxTuition}
                 onChange={(e) => setMaxTuition(parseInt(e.target.value))}
-                className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+                className="w-full accent-blue-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
               />
-              <div className="flex justify-between text-[11px] font-mono text-slate-400">
+              <div className="flex justify-between text-sm font-mono text-slate-400">
                 <span>0 triệu</span>
                 <span>33,7 triệu (bình quân tham khảo)</span>
                 <span>100 triệu</span>
               </div>
-              <p className="text-[11px] text-slate-400">Dữ liệu hiện có chưa chứa học phí riêng của từng trường; mức này so với bình quân ngành, không ẩn trường khỏi danh sách.</p>
+              <p className="text-sm text-slate-400">Dữ liệu hiện có chưa chứa học phí riêng của từng trường; mức này so với bình quân ngành, không ẩn trường khỏi danh sách.</p>
             </div>
 
             {/* 2. Địa chỉ / Vùng miền mong muốn */}
@@ -1482,7 +1064,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="border-b border-slate-800 pb-2">
                 <span className="font-bold text-sm text-white">Địa Chỉ / Vùng Miền Mong Muốn Theo Học:</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-xs font-mono">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-sm font-mono">
                 {[
                   { id: 'ALL', label: 'Toàn quốc' },
                   { id: 'BAC', label: 'Miền Bắc' },
@@ -1510,157 +1092,93 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </div>
           </div>
 
-          {/* 3-Tier Stratified University Results */}
-          <div className="p-4 rounded-xl bg-[#0E1117] border border-slate-800 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <label htmlFor="school-search" className="font-bold text-sm text-white flex items-center gap-2">
-                <Filter className="w-4 h-4 text-blue-400" />
-                Lọc trong danh sách trường phù hợp
-              </label>
-              <span className="text-xs font-bold text-blue-300">{stratifiedSchools.totalSchools} trường khớp ngành, tổ hợp và khu vực</span>
+          <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-white">Danh sách trường</h3>
+                <p className="mt-1 text-base text-slate-300">
+                  {stratifiedSchools.totalSchools} / {AUDITED_INSTITUTIONS_300.length} trường · {stratifiedSchools.matchingSchoolCount} trường có điểm cho ngành và tổ hợp này
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  aria-pressed={schoolMatchFilter === 'ALL'}
+                  onClick={() => setSchoolMatchFilter('ALL')}
+                  className={schoolMatchFilter === 'ALL'
+                    ? 'min-h-11 rounded-lg bg-blue-600 px-4 text-base font-bold text-white'
+                    : 'min-h-11 rounded-lg border border-slate-700 px-4 text-base text-slate-200'}
+                >
+                  Tất cả
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={schoolMatchFilter === 'MATCHED'}
+                  onClick={() => setSchoolMatchFilter('MATCHED')}
+                  className={schoolMatchFilter === 'MATCHED'
+                    ? 'min-h-11 rounded-lg bg-blue-600 px-4 text-base font-bold text-white'
+                    : 'min-h-11 rounded-lg border border-slate-700 px-4 text-base text-slate-200'}
+                >
+                  Có dữ liệu
+                </button>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                id="school-search"
-                type="search"
-                value={schoolSearchQuery}
-                onChange={(e) => {
-                  setSchoolSearchQuery(e.target.value);
-                  setSelectedSchoolCode(null);
-                }}
-                placeholder="Tìm theo tên trường, mã trường hoặc tỉnh/thành"
-                aria-label="Lọc trường theo tên, mã trường hoặc tỉnh thành"
-                className="min-h-11 flex-1 bg-[#141923] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setSchoolSearchQuery('');
-                  setTargetRegionFilter('ALL');
-                  setMaxTuition(35);
-                }}
-                className="min-h-11 px-4 rounded-xl border border-slate-700 bg-[#141923] text-sm text-slate-200 hover:border-slate-500"
-              >
-                Đặt lại bộ lọc
-              </button>
-            </div>
-            <p className="text-xs text-slate-400">
-              Đang xem {stratifiedSchools.totalSchools} trường có bản ghi xét tuyển chính thức cho ngành {currentMajor?.name} · tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} · {targetRegionFilter === 'ALL' ? 'Toàn quốc' : ({ BAC: 'Miền Bắc', TRUNG: 'Miền Trung', NAM: 'Miền Nam', DBSCL: 'ĐBSCL' }[targetRegionFilter])}.
+
+            <label htmlFor="school-search" className="sr-only">Tìm trường theo tên, mã hoặc tỉnh thành</label>
+            <input
+              id="school-search"
+              type="search"
+              value={schoolSearchQuery}
+              onChange={(e) => {
+                setSchoolSearchQuery(e.target.value);
+                setSelectedSchoolCode(null);
+              }}
+              placeholder="Tìm trường theo tên, mã hoặc tỉnh/thành"
+              className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            />
+
+            <p className="text-sm text-slate-300">
+              {currentMajor?.name} · {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn tổ hợp')} · {targetRegionFilter === 'ALL' ? 'Toàn quốc' : ({ BAC: 'Miền Bắc', TRUNG: 'Miền Trung', NAM: 'Miền Nam', DBSCL: 'ĐBSCL' }[targetRegionFilter])}
             </p>
-          </div>
 
-          <div className="space-y-4">
-            <h4 className="font-bold text-base text-white flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-blue-400" />
-              <span>Trường có dữ liệu xét tuyển cho ngành và tổ hợp đã chọn:</span>
-            </h4>
-
-            {/* Nhóm trường có mốc tuyển sinh gần với điểm hồ sơ */}
-            <div className="space-y-2">
-              <div className="text-xs font-mono font-bold text-blue-300 flex items-center gap-1.5">
-                <span>{stratifiedSchools.hasScore ? 'NHÓM ĐIỂM GẦN MỨC THAM CHIẾU' : 'TRƯỜNG CÓ BẢN GHI NGÀNH / TỔ HỢP'}</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
-                {stratifiedSchools.totalSchools === 0 && <p className="col-span-full text-sm text-slate-400">Kho hiện chưa có bản ghi khớp chính xác ngành {currentMajor?.name}{selectedComboCode ? ' và tổ hợp ' + selectedComboCode : ''} trong khu vực này.</p>}
-                {stratifiedSchools.target.map(school => (
-                  <div
-                    key={school.code}
-                    onClick={() => {
-                      sfx.playActionSuccess();
-                      setSelectedSchoolCode(school.code);
-                    }}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                      selectedSchoolCode === school.code
-                        ? 'bg-blue-600/30 border-blue-400 ring-1 ring-blue-400 shadow-md'
-                        : 'bg-[#141923] border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs font-mono">
-                      <span className="font-bold text-white px-2 py-0.5 rounded bg-black/60">{school.code}</span>
-                      <span className="text-slate-400">{school.city}</span>
-                    </div>
-                    <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
-                    <div className="text-[11px] font-mono text-emerald-300 mt-1">
-                      Mốc tuyển sinh tham chiếu: {school.benchmark}đ{school.margin !== null ? ' · Chênh lệch ' + (school.margin > 0 ? '+' : '') + school.margin + 'đ' : ''} · {school.recordCount} bản ghi
-                    </div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">
-                      Bình quân nhóm ngành: {school.sectorTuition != null ? school.sectorTuition + ' tr/năm' : 'chưa có dữ liệu'} · Ngân sách {maxTuition} tr/năm {school.isBudgetOk === null ? '' : school.isBudgetOk ? '· trong mức tham khảo' : '· vượt bình quân tham khảo'}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {stratifiedSchools.schools.length === 0 && (
+                <p className="col-span-full py-8 text-center text-base text-slate-300">Không có trường phù hợp bộ lọc.</p>
+              )}
+              {stratifiedSchools.schools.map((school) => (
+                <button
+                  key={school.code}
+                  type="button"
+                  aria-pressed={selectedSchoolCode === school.code}
+                  onClick={() => setSelectedSchoolCode(school.code)}
+                  className={selectedSchoolCode === school.code
+                    ? 'min-h-32 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
+                    : 'min-h-32 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
+                >
+                  <span className="flex items-center justify-between text-sm text-slate-300">
+                    <span className="font-bold text-white">{school.code}</span>
+                    <span>{school.city}</span>
+                  </span>
+                  <span className="mt-2 block text-lg font-bold text-white">{school.name}</span>
+                  {school.hasMajorData ? (
+                    <span className="mt-2 block text-sm text-blue-300">
+                      {school.tier ? school.tier + ' · ' : ''}
+                      Mốc tuyển sinh: {school.benchmark}đ
+                      {school.margin !== null ? ' · Chênh ' + (school.margin > 0 ? '+' : '') + school.margin + 'đ' : ''}
+                    </span>
+                  ) : (
+                    <span className="mt-2 block text-sm text-slate-300">Chưa có dữ liệu cho lựa chọn này</span>
+                  )}
+                </button>
+              ))}
             </div>
-
-            {/* Dream Tier (Mơ ước) */}
-            {stratifiedSchools.hasScore && <div className="space-y-2 pt-1">
-              <div className="text-xs font-bold text-amber-700 flex items-center gap-1.5">
-                <span>ĐIỂM HỒ SƠ THẤP HƠN MỐC THAM CHIẾU:</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {stratifiedSchools.dream.map(school => (
-                  <div
-                    key={school.code}
-                    onClick={() => {
-                      sfx.playActionSuccess();
-                      setSelectedSchoolCode(school.code);
-                    }}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                      selectedSchoolCode === school.code
-                        ? 'bg-amber-600/30 border-amber-400 ring-1 ring-amber-400 shadow-md'
-                        : 'bg-[#141923] border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs font-mono">
-                      <span className="font-bold text-white px-2 py-0.5 rounded bg-black/60">{school.code}</span>
-                      <span className="text-slate-400">{school.city}</span>
-                    </div>
-                    <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
-                    <div className="text-[11px] font-mono text-amber-300 mt-1">
-                      Mốc tuyển sinh tham chiếu: {school.benchmark}đ · Chênh lệch {school.margin}đ
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>}
-
-            {/* Nhóm có điểm cao hơn mốc tham chiếu */}
-            {stratifiedSchools.hasScore && <div className="space-y-2 pt-1">
-              <div className="text-xs font-mono font-bold text-emerald-300 flex items-center gap-1.5">
-                <span>ĐIỂM HỒ SƠ CAO HƠN MỐC THAM CHIẾU:</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {stratifiedSchools.safe.map(school => (
-                  <div
-                    key={school.code}
-                    onClick={() => {
-                      sfx.playActionSuccess();
-                      setSelectedSchoolCode(school.code);
-                    }}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                      selectedSchoolCode === school.code
-                        ? 'bg-emerald-600/30 border-emerald-400 ring-1 ring-emerald-400 shadow-md'
-                        : 'bg-[#141923] border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs font-mono">
-                      <span className="font-bold text-white px-2 py-0.5 rounded bg-black/60">{school.code}</span>
-                      <span className="text-slate-400">{school.city}</span>
-                    </div>
-                    <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
-                    <div className="text-[11px] font-mono text-emerald-300 mt-1">
-                      Mốc tuyển sinh tham chiếu: {school.benchmark}đ · Chênh lệch +{school.margin}đ
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>}
-
+          </div>
             {/* Next Step Trigger */}
             <div className="pt-3 flex justify-between items-center">
               <button
                 type="button"
                 onClick={() => setActiveTab('tab-combo')}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-sm text-slate-400 hover:text-white"
               >
                 ← Quay lại Bước 2
               </button>
@@ -1674,10 +1192,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
               >
                 <span>Tiếp tục sang Bước 4: Việc làm &amp; Chuỗi ảnh hưởng</span>
-                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-          </div>
         </section>
       )}
 
@@ -1687,9 +1203,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       {activeTab === 'tab-domino' && (
         <section className="space-y-5">
           {/* Header Summary */}
-          <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
-              <span className="text-xs font-mono text-purple-300 font-bold block">ĐỐI CHIẾU HỒ SƠ TỔNG HỢP:</span>
+              <span className="text-sm font-mono text-blue-300 font-bold block">ĐỐI CHIẾU HỒ SƠ TỔNG HỢP:</span>
               <h3 className="font-bold text-base text-white">
                 {currentMajor?.name} · {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} · {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Trường chưa chọn'}
               </h3>
@@ -1699,7 +1215,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           {/* Branch Decision Card: CÓ / KHÔNG VỀ VIỆC LÀM */}
           <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
             <div className="flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-purple-400" />
               <h3 className="font-bold text-base sm:text-lg text-white">
                 Bạn đã xác định vị trí việc làm mong muốn sau khi tốt nghiệp chưa?
               </h3>
@@ -1714,19 +1229,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 }}
                 className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                   hasJobChoice === 'YES'
-                    ? 'bg-purple-950/80 border-purple-500 shadow-md ring-1 ring-purple-500/40 text-white'
+                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
                     : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
                 }`}
               >
                 <div>
                   <div className="font-bold text-sm text-white">
-                    ✅ CÓ: Tôi đã có công việc mục tiêu cụ thể
+                    CÓ: Tôi đã có công việc mục tiêu cụ thể
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-sm text-slate-400 mt-1">
                     Nhập vị trí việc làm để đối chiếu với chuẩn đầu ra của ngành
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-purple-400 shrink-0" />
               </button>
 
               <button
@@ -1743,13 +1257,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               >
                 <div>
                   <div className="font-bold text-sm text-white">
-                    ❓ CHƯA: Đề xuất các việc làm thực tế khớp ngành
+                    CHƯA: Đề xuất các việc làm thực tế khớp ngành
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-sm text-slate-400 mt-1">
                     Xem các vị trí công việc được liên kết với ngành trong danh mục
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
               </button>
             </div>
           </div>
@@ -1769,12 +1282,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   }}
                   className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                     targetJob === job
-                      ? 'bg-purple-600/30 border-purple-400 ring-1 ring-purple-400 shadow-md'
+                      ? 'bg-blue-600/30 border-blue-400 ring-1 ring-blue-400 shadow-md'
                       : 'bg-[#141923] border-slate-800 hover:border-slate-700'
                   }`}
                 >
                   <div className="font-bold text-sm text-white">{job}</div>
-                  <div className="text-[11px] text-purple-300 font-bold mt-2">
+                  <div className="text-sm text-blue-300 font-bold mt-2">
                     {targetJob === job ? '✓ Đã chọn việc làm này' : 'Bấm chọn làm mục tiêu'}
                   </div>
                 </div>
@@ -1784,9 +1297,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           </div>
 
           {/* Báo cáo liên kết lựa chọn */}
-          <div className="p-6 rounded-2xl bg-[#0E1117] border border-emerald-500/50 shadow-2xl space-y-4">
+          <div className="p-6 rounded-2xl bg-[#0E1117] border border-blue-500/50 shadow-2xl space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-              <span className="text-lg">📊</span>
+              <span className="text-lg"></span>
               <h4 className="font-bold text-base sm:text-lg text-white font-mono uppercase tracking-wider">
                 BÁO CÁO ĐỐI CHIẾU &amp; PHÂN TÍCH CHUỖI ẢNH HƯỞNG (DOMINO EFFECT)
               </h4>
@@ -1794,24 +1307,21 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
             {/* 1. Kiểm tra độ khớp */}
             <div className="p-4 rounded-xl bg-black/40 border border-slate-800 space-y-2">
-              <div className="font-bold text-xs text-emerald-300 font-mono uppercase">
+              <div className="font-bold text-sm text-blue-300 font-mono uppercase">
                 1. KIỂM TRA ĐỘ KHỚP (NGÀNH ⟷ TỔ HỢP ⟷ TRƯỜNG ⟷ VIỆC LÀM):
               </div>
-              <ul className="text-xs text-slate-200 space-y-1.5 leading-relaxed font-sans">
+              <ul className="text-sm text-slate-200 space-y-1.5 leading-relaxed font-sans">
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>
                     <strong>Ngành &amp; Tổ hợp</strong>: <strong>{selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn')}</strong> được liên kết với ngành <strong>{currentMajor?.name}</strong> trong hồ sơ tư vấn.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>
                     <strong>Ngành &amp; Việc làm</strong>: Mục tiêu <strong>{targetJob || currentMajor?.targetJobs?.[0] || 'Chưa chọn'}</strong> được đối chiếu với danh sách nghề liên kết của ngành.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>
                     <strong>Kinh phí &amp; Trường học</strong>: Mức giới hạn {maxTuition} triệu/năm được so với bình quân nhóm ngành {stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? 'chưa có dữ liệu'} triệu/năm; đây không phải học phí riêng của trường.
                   </span>
@@ -1821,27 +1331,27 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
             {/* 2. Phân tích What-If */}
             <div className="p-4 rounded-xl bg-black/40 border border-slate-800 space-y-2">
-              <div className="font-bold text-xs text-blue-300 font-mono uppercase">
+              <div className="font-bold text-sm text-blue-300 font-mono uppercase">
                 2. PHÂN TÍCH CHUỖI ẢNH HƯỞNG (WHAT-IF ANALYSIS):
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-200">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-slate-200">
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Ngành ➔ Điểm chuẩn]</span>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                  <p className="text-sm text-slate-300 leading-relaxed">
                     {topCombo?.hasData ? 'Điểm hồ sơ ' + topCombo.officialScore + 'đ được đối chiếu với mốc tuyển sinh tham chiếu của ' + stratifiedSchools.totalSchools + ' trường có dữ liệu cho lựa chọn này.' : 'Chưa có điểm số để so sánh với mốc tuyển sinh. Hãy nhập điểm dự kiến hoặc điểm từng môn ở Bước 2.'}
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Tổ hợp ➔ Cạnh tranh]</span>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Có {stratifiedSchools.totalSchools} trường trong dữ liệu có bản ghi gắn với tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} cho ngành đang xét.
+                  <p className="text-sm text-slate-300 leading-relaxed">
+                    Có thông tin tuyển sinh tại {stratifiedSchools.matchingSchoolCount} trường cho tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}.
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Ngành ➔ Việc làm]</span>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                  <p className="text-sm text-slate-300 leading-relaxed">
                     {targetJob || currentMajor?.targetJobs?.[0] ? 'Vị trí ' + (targetJob || currentMajor?.targetJobs?.[0]) + ' được liên kết với ngành ' + currentMajor?.name + ' trong danh mục; kho hiện chưa có dữ liệu đầu ra riêng theo trường.' : 'Hãy chọn một vị trí từ danh sách để hoàn tất liên kết nghề nghiệp.'}
                   </p>
                 </div>
@@ -1853,20 +1363,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold transition-colors cursor-pointer"
               >
                 Khởi tạo lại chu trình
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onOpenAIChat?.(`Phân tích chuyên sâu về chuỗi ảnh hưởng: Ngành ${currentMajor?.name}, Tổ hợp ${selectedComboCode || topCombo?.code}, Trường ${selectedSchoolCode || 'Top'}, Việc làm ${targetJob}`);
-                }}
-                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Mở Pop-up Tham Vấn Chuyên Sâu Cùng AI</span>
               </button>
             </div>
           </div>

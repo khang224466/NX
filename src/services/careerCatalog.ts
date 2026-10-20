@@ -18,6 +18,17 @@ export interface CareerCatalogEntry {
   admissionRecordCount: number;
 }
 
+export interface CareerProgramEntry {
+  id: string;
+  majorCode: string;
+  name: string;
+  sector: string;
+  admissionsCombos: string[];
+  institutionCode: string;
+  institutionName: string;
+  programId: string;
+}
+
 interface SeedMajor {
   codeTT09: string;
   codeTT74?: string;
@@ -140,6 +151,66 @@ for (const major of catalogByName.values()) {
 
 export const CAREER_CATALOG: CareerCatalogEntry[] = [...catalogByName.values()]
   .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+
+const majorCatalogByName = new Map(CAREER_CATALOG.map((major) => [normalizeName(major.name), major]));
+const programsByInstitutionAndId = new Map<string, CareerProgramEntry>();
+
+for (const record of AUDITED_MAJOR_METHOD_SCORING_DB) {
+  const id = record.institution_code + ':' + record.program_id;
+  const major = majorCatalogByName.get(normalizeName(record.audited_major_name));
+  const institution = institutionsByCode.get(record.institution_code);
+  const existing = programsByInstitutionAndId.get(id);
+
+  if (existing) {
+    record.subject_combinations?.forEach((combo) => {
+      if (!existing.admissionsCombos.includes(combo)) existing.admissionsCombos.push(combo);
+    });
+    existing.admissionsCombos.sort();
+    continue;
+  }
+
+  programsByInstitutionAndId.set(id, {
+    id,
+    majorCode: major?.codeTT09 || 'DATA-' + slugify(record.audited_major_name),
+    name: record.audited_major_name,
+    sector: major?.sector || institution?.primary_sector || 'NGANH_KHAC',
+    admissionsCombos: [...new Set(record.subject_combinations || [])].sort(),
+    institutionCode: record.institution_code,
+    institutionName: institution?.official_name || record.institution_code,
+    programId: record.program_id
+  });
+}
+
+for (const major of seedMajors) {
+  const hasProgram = [...programsByInstitutionAndId.values()].some(
+    (program) => normalizeName(program.name) === normalizeName(major.name)
+  );
+  if (hasProgram) continue;
+
+  const id = 'SEED:' + major.codeTT09;
+  programsByInstitutionAndId.set(id, {
+    id,
+    majorCode: major.codeTT09,
+    name: major.name,
+    sector: major.sector || 'NGANH_KHAC',
+    admissionsCombos: [...new Set(major.admissionsCombos || [])].sort(),
+    institutionCode: '',
+    institutionName: '',
+    programId: major.codeTT09
+  });
+}
+
+export const CAREER_PROGRAM_CATALOG: CareerProgramEntry[] = [...programsByInstitutionAndId.values()]
+  .sort((a, b) =>
+    a.name.localeCompare(b.name, 'vi') ||
+    a.institutionName.localeCompare(b.institutionName, 'vi') ||
+    a.programId.localeCompare(b.programId, 'vi')
+  );
+
+export const CAREER_PROGRAM_COUNTS = {
+  programChoices: CAREER_PROGRAM_CATALOG.length,
+  uniqueMajorNames: CAREER_CATALOG.length
+};
 
 export const CAREER_CATALOG_COUNTS = {
   uniqueMajors: CAREER_CATALOG.length,
