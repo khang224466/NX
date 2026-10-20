@@ -486,7 +486,7 @@ function careerAiBackendPlugin(): Plugin {
               res.statusCode = result.status;
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.end(JSON.stringify(result.data));
-            } catch (err) {
+            } catch (err: any) {
               res.statusCode = 500;
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.end(JSON.stringify({ success: false, error: err.message || 'Lỗi server' }));

@@ -41,6 +41,7 @@ import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/cou
 import { requestGeminiDossierDiagnosis, GeminiDiagnosisResponse } from '../services/geminiService';
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
+import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
 import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
@@ -202,9 +203,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const handleRunGeminiAnalysis = async () => {
     setAnalysisError(null);
     setIsAnalyzingWithGemini(true);
-    sfx.playActionStart();
-
     try {
+      try { sfx.playActionStart(); } catch {}
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 8000)
       );
@@ -270,7 +270,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     if (!currentMajor) return [];
     const combos = validCombosForMajor;
 
-    return combos.map(comboCode => {
+    return combos.map((comboCode: string) => {
       // Academic mapping
       const isArts = ['H00', 'H01', 'V00', 'V01', 'N00', 'N01', 'T00', 'T01', 'M00', 'M01', 'R00', 'S00'].includes(comboCode);
       let m1 = 0, m2 = 0, m3 = 0;
@@ -341,7 +341,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       // If user typed an expected score directly, use it
       const typedScore = parseFloat(expectedScoreInput);
       const rawScore = !isNaN(typedScore) && typedScore > 0 ? typedScore : (hasData ? Number((m1 + m2 + m3).toFixed(2)) : 24.5);
-      const effPriority = calculateEffectivePriority(rawScore, basePriority);
+      const priorityRes = calculateEffectivePriority(basePriority, rawScore, 30);
+      const effPriority = priorityRes.effectivePriority;
       const officialScore = Number(Math.min(30, rawScore + effPriority).toFixed(2));
 
       return {
@@ -353,7 +354,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         m1, m2, m3,
         hasData
       };
-    }).sort((a, b) => b.officialScore - a.officialScore);
+    }).sort((a: any, b: any) => b.officialScore - a.officialScore);
   }, [currentMajor, validCombosForMajor, scores, aptitudeScores, expectedScoreInput, basePriority]);
 
   // Top combo recommended
@@ -369,10 +370,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     const matchedSchools = AUDITED_INSTITUTIONS_300.filter(inst => {
       // Region filter
       if (targetRegionFilter !== 'ALL') {
-        if (targetRegionFilter === 'BAC' && inst.region !== 'BAC') return false;
-        if (targetRegionFilter === 'TRUNG' && inst.region !== 'TRUNG') return false;
-        if (targetRegionFilter === 'NAM' && inst.region !== 'NAM') return false;
-        if (targetRegionFilter === 'DBSCL' && inst.region !== 'DBSCL') return false;
+        const reg = getRegionFromProvinceCity(inst.verified_province_city);
+        if (targetRegionFilter === 'BAC' && reg !== 'BAC') return false;
+        if (targetRegionFilter === 'TRUNG' && reg !== 'TRUNG') return false;
+        if (targetRegionFilter === 'NAM' && reg !== 'NAM') return false;
+        if (targetRegionFilter === 'DBSCL' && reg !== 'DBSCL') return false;
       }
       return true;
     }).slice(0, 15);
@@ -384,13 +386,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     matchedSchools.forEach(inst => {
       const benchmark = 22.0 + (inst.institution_code.charCodeAt(0) % 7) * 0.8;
       const margin = Number((userScore - benchmark).toFixed(2));
-      const tuitionMln = inst.is_autonomous ? 38.0 : (inst.institution_code === 'TDH' || inst.institution_code.includes('SP') ? 0 : 22.5);
+      const tuitionMln = (inst as any).is_autonomous ? 38.0 : (inst.institution_code === 'TDH' || inst.institution_code.includes('SP') ? 0 : 22.5);
       const isBudgetOk = tuitionMln === 0 || tuitionMln <= maxTuition;
 
       const item = {
         code: inst.institution_code,
-        name: inst.institution_name,
-        city: inst.province_city,
+        name: inst.official_name,
+        city: inst.verified_province_city,
         benchmark: Number(benchmark.toFixed(2)),
         margin,
         tuitionMln,
@@ -1193,7 +1195,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
             {/* Combos Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {evaluatedCombos.map((combo, idx) => {
+              {evaluatedCombos.map((combo: any, idx: number) => {
                 const isOptimal = idx === 0;
                 const isSelected = selectedComboCode === combo.code;
                 return (

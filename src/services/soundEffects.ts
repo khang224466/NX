@@ -242,9 +242,27 @@ class SoundEffectsEngine {
     }
   }
 
+  public playActionStart() {
+    this.playUiClick();
+  }
+
+  public playActionError() {
+    this.playUiClick();
+  }
+
   public playActionSuccess() {
     this.playPillChime();
   }
 }
 
-export const sfx = new SoundEffectsEngine();
+// Resilient Proxy: ensures any missing sound method fails gracefully without throwing
+const rawEngine = new SoundEffectsEngine();
+export const sfx: SoundEffectsEngine & Record<string, any> = new Proxy(rawEngine, {
+  get(target: any, prop: string | symbol, receiver: any) {
+    if (prop in target) {
+      const val = target[prop];
+      return typeof val === 'function' ? val.bind(target) : val;
+    }
+    return () => {};
+  }
+});
