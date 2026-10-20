@@ -19,9 +19,9 @@ interface BlueprintHeaderRulerProps {
 }
 
 /**
- * Technical Blueprint Header Ruler
+ * NEXORA Header
  * - Monogram + Role: "NX. NEXORA / WEBSITE HỖ TRỢ HƯỚNG NGHIỆP"
- * - High-precision tick scroll ruler
+ * - Minimal reading progress
  * - Real Theme toggle (◑)
  * - Interactive Web Audio synthesizer dot
  * - Signature white pill CTA button: "Tham vấn ngay"
@@ -43,9 +43,7 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
   const { theme, toggleTheme, zoomLevel, zoomIn, zoomOut, setZoom } = useTheme();
   const isDarkMode = theme === 'dark';
   const progressFillRef = useRef<HTMLDivElement>(null);
-  const progressBadgeRef = useRef<HTMLDivElement>(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1440);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
 
   useEffect(() => {
     let ticking = false;
@@ -54,13 +52,8 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
       const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
       if (totalScroll > 0) {
         const progress = Math.min(100, Math.max(0, (window.scrollY / totalScroll) * 100));
-        const rounded = Math.round(progress);
         if (progressFillRef.current) {
-          progressFillRef.current.style.width = `${progress}%`;
-        }
-        if (progressBadgeRef.current) {
-          progressBadgeRef.current.style.left = `${Math.max(2, Math.min(98, progress))}%`;
-          progressBadgeRef.current.textContent = `${rounded}%`;
+          progressFillRef.current.style.width = String(progress) + '%';
         }
       }
       ticking = false;
@@ -88,43 +81,10 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
     };
   }, []);
 
-  const handleToggleAudio = () => {
-    const nextState = !isAudioMuted;
-    setIsAudioMuted(nextState);
-    sfx.setMuted(nextState);
-    if (!nextState) {
-      sfx.playUiSelect();
-    }
-  };
-
-
   return (
-    <header className="w-full bg-[#07080B]/90 border-b border-[#262630]/80 backdrop-blur-md sticky top-0 z-50 text-[11px] font-mono select-none">
-      {/* Precision Scroll Tick Ruler Bar */}
-      <div className="relative w-full h-2.5 border-b border-[#1c1d22]/80 overflow-hidden flex items-end">
-        {/* Progress indicator fill */}
-        <div 
-          ref={progressFillRef}
-          className="absolute top-0 left-0 bottom-0 bg-[#3B82F6]/30 border-r border-[#60A5FA] pointer-events-none"
-          style={{ width: '0%' }}
-        />
-        {/* Metric tick lines */}
-        <div className="w-full flex justify-between px-2 items-end h-full opacity-35">
-          {Array.from({ length: 48 }).map((_, i) => (
-            <div 
-              key={i} 
-              className={`w-[1px] bg-[#EAEAE3] ${i % 6 === 0 ? 'h-2 opacity-90' : 'h-1 opacity-25'}`} 
-            />
-          ))}
-        </div>
-        {/* Floating progress badge */}
-        <div 
-          ref={progressBadgeRef}
-          className="absolute top-0 -translate-x-1/2 bg-[#3B82F6] text-white font-bold text-[8px] px-1 py-0.2 rounded-xs shadow-xs pointer-events-none"
-          style={{ left: '2%' }}
-        >
-          0%
-        </div>
+    <header className="w-full bg-[#111827] border-b border-slate-700 sticky top-0 z-50 text-sm select-none">
+      <div className="h-0.5 w-full bg-[#262630]" aria-hidden="true">
+        <div ref={progressFillRef} className="h-full bg-[#3B82F6] transition-[width] duration-150" style={{ width: '0%' }} />
       </div>
 
       {/* Consolidated 1 Single Header Row */}
@@ -167,7 +127,7 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
                 }}
                 className={`px-3 py-1.5 whitespace-nowrap text-xs transition-all duration-200 rounded-full flex items-center gap-1.5 cursor-pointer ${
                   isActive
-                    ? 'bg-[#3B82F6]/20 text-white border border-[#3B82F6] font-semibold shadow-[0_0_12px_rgba(59,130,246,0.25)]'
+                    ? 'bg-blue-900/40 text-white border border-blue-500 font-semibold'
                     : 'bg-transparent text-slate-200 hover:text-white border border-transparent hover:border-[#262630] font-medium'
                 }`}
               >
@@ -240,25 +200,6 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
           >
             {isDarkMode ? '◑' : '◐'}
           </button>
-
-          {/* 2. Interactive Audio Dot */}
-          <button
-            onClick={handleToggleAudio}
-            title={isAudioMuted ? 'Bật âm thanh hiệu ứng' : 'Tắt âm thanh hiệu ứng'}
-            className="w-7 h-7 rounded-full border border-[#262630] hover:border-[#60A5FA] bg-[#121316] flex items-center justify-center transition-colors relative cursor-pointer group"
-          >
-            <span 
-              className={`w-2 h-2 rounded-full transition-transform ${
-                isAudioMuted 
-                  ? 'bg-[#64748B]' 
-                  : 'bg-[#3B82F6] shadow-[0_0_8px_#3B82F6]'
-              }`} 
-            />
-            {!isAudioMuted && (
-              <span className="absolute inset-0 rounded-full border border-[#3B82F6]/40 animate-ping pointer-events-none" />
-            )}
-          </button>
-
 
           {/* 4. Signature White Pill Button */}
           <button

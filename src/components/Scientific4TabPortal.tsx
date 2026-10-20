@@ -4,7 +4,6 @@ import {
   Briefcase,
   Layers,
   GraduationCap,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   RotateCcw,
@@ -22,15 +21,12 @@ import {
   BookOpen,
   Sliders,
   HelpCircle,
-  Compass,
   Palette,
   Music,
   Activity,
   Film,
   Baby,
   Loader2,
-  Bot,
-  Brain
 } from 'lucide-react';
 import { sfx } from '../services/soundEffects';
 import {
@@ -42,7 +38,7 @@ import { requestGeminiDossierDiagnosis, GeminiDiagnosisResponse } from '../servi
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
-import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
+import { CAREER_CATALOG, CAREER_CATALOG_COUNTS, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
@@ -65,6 +61,13 @@ const APTITUDE_SUBJECTS_METADATA = [
   { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', icon: '🎭', combos: ['S00'] }
 ];
 
+const CAREER_GOAL_KEYWORDS: Record<string, string[]> = {
+  CREATIVE: ['thiết kế', 'nghệ thuật', 'truyền thông', 'sáng tạo'],
+  TECH: ['công nghệ', 'máy tính', 'kỹ thuật', 'dữ liệu', 'phần mềm'],
+  BUSINESS: ['kinh doanh', 'kinh tế', 'quản trị', 'marketing', 'tài chính'],
+  SOCIAL: ['giáo dục', 'xã hội', 'ngôn ngữ', 'tâm lý', 'luật'],
+  MEDICAL: ['y khoa', 'dược', 'sức khỏe', 'sinh học']
+};
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
   onOpenAIChat,
@@ -126,13 +129,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   });
 
   const [activeInputAccordion, setActiveInputAccordion] = useState<'riasec' | 'scores' | 'aptitude' | 'goal'>('riasec');
-  const [careerGoalInterest, setCareerGoalInterest] = useState<string>('CREATIVE'); // CREATIVE, TECH, BUSINESS, SOCIAL, MEDICAL
+  const [careerGoalInterest, setCareerGoalInterest] = useState<string>(''); // Chỉ xếp hạng theo mục tiêu khi người dùng đã chọn
   const [isMajorSuggested, setIsMajorSuggested] = useState(false);
 
   // Gemini AI Analysis State
   const [isAnalyzingWithGemini, setIsAnalyzingWithGemini] = useState<boolean>(false);
   const [geminiDiagnosis, setGeminiDiagnosis] = useState<GeminiDiagnosisResponse | null>(null);
-  const [geminiRankedMajors, setGeminiRankedMajors] = useState<any[]>([]);
+  const [analysisProfileKey, setAnalysisProfileKey] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [userPersonalQuestion, setUserPersonalQuestion] = useState<string>('');
 
@@ -159,13 +162,30 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [hasJobChoice, setHasJobChoice] = useState<'YES' | 'NO' | null>(null);
   const [targetJob, setTargetJob] = useState<string>('');
 
+  const handleSelectMajor = (code: string, nextTab: ScientificTabKey = 'tab-major') => {
+    setSelectedMajorCode(code);
+    setSelectedComboCode(null);
+    setHasComboChoice(null);
+    setSelectedSchoolCode(null);
+    setHasSchoolChoice(null);
+    setHasJobChoice(null);
+    setTargetJob('');
+    setExpectedScoreInput('');
+    setActiveTab(nextTab);
+  };
+
+  useEffect(() => {
+    setSelectedSchoolCode(null);
+    setHasSchoolChoice(null);
+  }, [scores, aptitudeScores, expectedScoreInput]);
+
   // Priority score calculation under TT 06/2026
   const basePriority = useMemo(() => {
     return calculateBasePriority30(priorityRegion, priorityObject, 2026, 2026);
   }, [priorityRegion, priorityObject]);
 
   // Catalog majors list
-  const catalog = (seedData.majorCatalogLevelIV || []) as any[];
+  const catalog = CAREER_CATALOG;
 
   // Current chosen major object
   const currentMajor = useMemo(() => {
@@ -190,14 +210,34 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     return validEntries.slice(0, 3).map(e => e[0]).join('');
   }, [riasec]);
 
-  // AI & Algorithmic Major Recommendations
+  const analysisProfileKeyNow = useMemo(() => JSON.stringify({
+    scores,
+    aptitudeScores,
+    riasec,
+    careerGoalInterest,
+    userPersonalQuestion
+  }), [scores, aptitudeScores, riasec, careerGoalInterest, userPersonalQuestion]);
+  const currentDiagnosis = useMemo(
+    () => analysisProfileKey === analysisProfileKeyNow ? geminiDiagnosis : null,
+    [analysisProfileKey, analysisProfileKeyNow, geminiDiagnosis]
+  );
+  const profileKeywords = useMemo(() => {
+    const questionWords = userPersonalQuestion.toLocaleLowerCase('vi')
+      .split(/\s+/)
+      .map((word) => word.replace(/^[^a-zA-ZÀ-ỹ]+|[^a-zA-ZÀ-ỹ]+$/g, ''))
+      .filter((word) => word.length >= 4);
+    return [...new Set([...(CAREER_GOAL_KEYWORDS[careerGoalInterest] || []), ...questionWords])];
+  }, [careerGoalInterest, userPersonalQuestion]);
+  const profileDiagnosis = useMemo(() => ({
+    ...(currentDiagnosis || {}),
+    recommendedKeywords: [...new Set([...(currentDiagnosis?.recommendedKeywords || []), ...profileKeywords])]
+  }), [currentDiagnosis, profileKeywords]);
+
+  // Recalculate from current input so changed answers replace old recommendations.
   const rankedMajors = useMemo(() => {
-    if (geminiRankedMajors && geminiRankedMajors.length > 0) {
-      return geminiRankedMajors;
-    }
     const allScores = { ...scores, ...aptitudeScores };
-    return linkAndRankMajorsWithDossier(allScores, riasec, geminiDiagnosis || {}, catalog);
-  }, [geminiRankedMajors, geminiDiagnosis, scores, aptitudeScores, riasec, catalog]);
+    return linkAndRankMajorsWithDossier(allScores, riasec, profileDiagnosis, catalog);
+  }, [scores, aptitudeScores, riasec, profileDiagnosis, catalog]);
 
   // Handle Gemini AI Analysis Invocation
   const handleRunGeminiAnalysis = async () => {
@@ -222,9 +262,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
       if (res.success && res.diagnosis) {
         setGeminiDiagnosis(res.diagnosis);
-        const allScores = { ...scores, ...aptitudeScores };
-        const linked = linkAndRankMajorsWithDossier(allScores, riasec, res.diagnosis, catalog);
-        setGeminiRankedMajors(linked);
+        setAnalysisProfileKey(analysisProfileKeyNow);
         setIsMajorSuggested(true);
         sfx.playActionSuccess();
         setTimeout(() => {
@@ -236,7 +274,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       }
     } catch (err: any) {
       console.warn('Gemini direct analysis error, utilizing standard alignment:', err);
-      const allScores = { ...scores, ...aptitudeScores };
       const fallbackDiagnosis: GeminiDiagnosisResponse = {
         headline: 'Đề xuất định hướng học thuật & tuyển sinh chính thức Bộ GD&ĐT',
         directAnswer: 'Hệ thống đã phân tích bảng điểm THPT và đối chiếu trực tiếp với các tổ hợp môn xét tuyển hợp lệ.',
@@ -247,8 +284,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         recommendedKeywords: []
       };
       setGeminiDiagnosis(fallbackDiagnosis);
-      const linked = linkAndRankMajorsWithDossier(allScores, riasec, fallbackDiagnosis, catalog);
-      setGeminiRankedMajors(linked);
+      setAnalysisProfileKey(analysisProfileKeyNow);
       setIsMajorSuggested(true);
       setTimeout(() => {
         const el = document.getElementById('gemini-results-anchor');
@@ -259,10 +295,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     }
   };
 
-  // Valid Combinations for the Selected Major
+  // Mỗi tổ hợp được lấy từ ngành đang chọn trong danh mục và bản ghi tuyển sinh liên quan.
   const validCombosForMajor = useMemo(() => {
     if (!currentMajor) return [];
-    return currentMajor.admissionsCombos || ['A00', 'A01', 'D01'];
+    const dataCombos = getMajorAdmissionRecords(currentMajor.name)
+      .flatMap((record) => record.subject_combinations || []);
+    return [...new Set([...(currentMajor.admissionsCombos || []), ...dataCombos])].sort();
   }, [currentMajor]);
 
   // Evaluated Combinations Scores for the Selected Major
@@ -312,38 +350,40 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         m3 = Number(scores.english) || 0;
         hasData = scores.literature !== '' && scores.history !== '' && scores.english !== '';
       } else if (comboCode === 'H00') {
-        m1 = Number(scores.literature) || 8.0;
-        m2 = Number(aptitudeScores.apt_hinhHoa) || 8.0;
-        m3 = Number(aptitudeScores.apt_trangTri) || 8.0;
-        hasData = scores.literature !== '' || aptitudeScores.apt_hinhHoa !== '';
+        m1 = Number(scores.literature) || 0;
+        m2 = Number(aptitudeScores.apt_hinhHoa) || 0;
+        m3 = Number(aptitudeScores.apt_trangTri) || 0;
+        hasData = scores.literature !== '' && aptitudeScores.apt_hinhHoa !== '' && aptitudeScores.apt_trangTri !== '';
       } else if (comboCode === 'V00') {
-        m1 = Number(scores.math) || 8.0;
-        m2 = Number(scores.physics) || 8.0;
-        m3 = Number(aptitudeScores.apt_veMyThuat) || 8.0;
-        hasData = scores.math !== '' || aptitudeScores.apt_veMyThuat !== '';
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.physics) || 0;
+        m3 = Number(aptitudeScores.apt_veMyThuat) || 0;
+        hasData = scores.math !== '' && scores.physics !== '' && aptitudeScores.apt_veMyThuat !== '';
       } else if (comboCode === 'N00') {
-        m1 = Number(scores.literature) || 8.0;
-        m2 = Number(aptitudeScores.apt_thamAm) || 8.0;
-        m3 = Number(aptitudeScores.apt_thanhNhac) || 8.0;
-        hasData = scores.literature !== '' || aptitudeScores.apt_thanhNhac !== '';
+        m1 = Number(scores.literature) || 0;
+        m2 = Number(aptitudeScores.apt_thamAm) || 0;
+        m3 = Number(aptitudeScores.apt_thanhNhac) || 0;
+        hasData = scores.literature !== '' && aptitudeScores.apt_thamAm !== '' && aptitudeScores.apt_thanhNhac !== '';
       } else if (comboCode === 'T00') {
-        m1 = Number(scores.math) || 8.0;
-        m2 = Number(scores.biology) || 8.0;
-        m3 = Number(aptitudeScores.apt_theThao) || 8.0;
-        hasData = scores.math !== '' || aptitudeScores.apt_theThao !== '';
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.biology) || 0;
+        m3 = Number(aptitudeScores.apt_theThao) || 0;
+        hasData = scores.math !== '' && scores.biology !== '' && aptitudeScores.apt_theThao !== '';
       } else {
-        m1 = Number(scores.math) || Number(scores.literature) || 8.0;
-        m2 = 8.0;
-        m3 = 8.0;
-        hasData = true;
+        m1 = 0;
+        m2 = 0;
+        m3 = 0;
+        hasData = false;
       }
 
       // If user typed an expected score directly, use it
-      const typedScore = parseFloat(expectedScoreInput);
-      const rawScore = !isNaN(typedScore) && typedScore > 0 ? typedScore : (hasData ? Number((m1 + m2 + m3).toFixed(2)) : 24.5);
+      const typedScore = Number(expectedScoreInput);
+      const hasTypedScore = expectedScoreInput.trim() !== '' && Number.isFinite(typedScore) && typedScore >= 0 && typedScore <= 30;
+      const hasComparableScore = hasTypedScore || hasData;
+      const rawScore = hasTypedScore ? typedScore : (hasData ? Number((m1 + m2 + m3).toFixed(2)) : 0);
       const priorityRes = calculateEffectivePriority(basePriority, rawScore, 30);
-      const effPriority = priorityRes.effectivePriority;
-      const officialScore = Number(Math.min(30, rawScore + effPriority).toFixed(2));
+      const effPriority = hasComparableScore ? priorityRes.effectivePriority : 0;
+      const officialScore = hasComparableScore ? Number(Math.min(30, rawScore + effPriority).toFixed(2)) : null;
 
       return {
         code: comboCode,
@@ -352,69 +392,93 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         effectivePriority: effPriority,
         officialScore,
         m1, m2, m3,
-        hasData
+        hasData: hasComparableScore,
+        hasSubjectScores: hasData
       };
-    }).sort((a: any, b: any) => b.officialScore - a.officialScore);
+    }).sort((a: any, b: any) => (b.officialScore ?? -1) - (a.officialScore ?? -1));
   }, [currentMajor, validCombosForMajor, scores, aptitudeScores, expectedScoreInput, basePriority]);
 
   // Top combo recommended
   const topCombo = evaluatedCombos[0] || null;
 
-  // Stratified Universities for Step 3
+  // Trường ở Bước 3 phải có bản ghi đúng ngành và tổ hợp; điểm chuẩn lấy từ dữ liệu tuyển sinh.
   const stratifiedSchools = useMemo(() => {
-    if (!currentMajor) return { dream: [], target: [], safe: [] };
+    if (!currentMajor) return { dream: [], target: [], safe: [], hasScore: false, totalSchools: 0, tuitionBenchmark: null };
 
-    // Find institutions with audited programs or matching anchor data
-    const userScore = topCombo ? topCombo.officialScore : (parseFloat(expectedScoreInput) || 25.0);
+    const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
+    const records = getMajorAdmissionRecords(currentMajor.name, chosenCombo)
+      .filter((record) => record.verification_status === 'VERIFIED_OFFICIAL');
+    const institutionsByCode = new Map(AUDITED_INSTITUTIONS_300.map((institution) => [institution.institution_code, institution]));
+    const groups = new Map<string, { institution: any; cutoffs: number[]; recordCount: number }>();
 
-    const matchedSchools = AUDITED_INSTITUTIONS_300.filter(inst => {
-      // Region filter
-      if (targetRegionFilter !== 'ALL') {
-        const reg = getRegionFromProvinceCity(inst.verified_province_city);
-        if (targetRegionFilter === 'BAC' && reg !== 'BAC') return false;
-        if (targetRegionFilter === 'TRUNG' && reg !== 'TRUNG') return false;
-        if (targetRegionFilter === 'NAM' && reg !== 'NAM') return false;
-        if (targetRegionFilter === 'DBSCL' && reg !== 'DBSCL') return false;
-      }
-      return true;
-    }).slice(0, 15);
+    for (const record of records) {
+      const institution = institutionsByCode.get(record.institution_code);
+      if (!institution) continue;
+      if (targetRegionFilter !== 'ALL' && getRegionFromProvinceCity(institution.verified_province_city) !== targetRegionFilter) continue;
 
+      const cutoff = record.audited_official_scale === 'THANG_30'
+        ? Number(record.audited_official_cutoff)
+        : Number(record.analytical_normalized_100) * 0.3;
+      if (!Number.isFinite(cutoff)) continue;
+
+      const group = groups.get(record.institution_code) || { institution, cutoffs: [], recordCount: 0 };
+      group.cutoffs.push(cutoff);
+      group.recordCount += 1;
+      groups.set(record.institution_code, group);
+    }
+
+    const selectedEvaluation = evaluatedCombos.find((combo: any) => combo.code === chosenCombo);
+    const typedScore = Number(expectedScoreInput);
+    const hasTypedScore = expectedScoreInput.trim() !== '' && Number.isFinite(typedScore) && typedScore >= 0 && typedScore <= 30;
+    const hasScore = hasTypedScore || Boolean(selectedEvaluation?.hasData);
+    const userScore = hasTypedScore ? typedScore : selectedEvaluation?.officialScore;
+    const tuitionBenchmark = getSectorTuitionBenchmark(currentMajor.sector);
     const dream: any[] = [];
     const target: any[] = [];
     const safe: any[] = [];
 
-    matchedSchools.forEach(inst => {
-      const benchmark = 22.0 + (inst.institution_code.charCodeAt(0) % 7) * 0.8;
-      const margin = Number((userScore - benchmark).toFixed(2));
-      const tuitionMln = (inst as any).is_autonomous ? 38.0 : (inst.institution_code === 'TDH' || inst.institution_code.includes('SP') ? 0 : 22.5);
-      const isBudgetOk = tuitionMln === 0 || tuitionMln <= maxTuition;
-
+    for (const { institution, cutoffs, recordCount } of groups.values()) {
+      const orderedCutoffs = [...cutoffs].sort((a, b) => a - b);
+      const middle = Math.floor(orderedCutoffs.length / 2);
+      const benchmark = orderedCutoffs.length % 2
+        ? orderedCutoffs[middle]
+        : Number(((orderedCutoffs[middle - 1] + orderedCutoffs[middle]) / 2).toFixed(2));
+      const margin = hasScore && typeof userScore === 'number'
+        ? Number((userScore - benchmark).toFixed(2))
+        : null;
       const item = {
-        code: inst.institution_code,
-        name: inst.official_name,
-        city: inst.verified_province_city,
+        code: institution.institution_code,
+        name: institution.official_name,
+        city: institution.verified_province_city,
         benchmark: Number(benchmark.toFixed(2)),
         margin,
-        tuitionMln,
-        isFreeTuition: tuitionMln === 0,
-        isBudgetOk
+        recordCount,
+        sectorTuition: tuitionBenchmark?.avg2026_2027 ?? null,
+        isBudgetOk: tuitionBenchmark?.avg2026_2027 != null
+          ? tuitionBenchmark.avg2026_2027 <= maxTuition
+          : null
       };
 
-      if (margin >= 1.5) {
-        safe.push(item);
-      } else if (margin >= -0.7) {
-        target.push(item);
-      } else {
-        dream.push(item);
-      }
-    });
+      if (!hasScore) target.push(item);
+      else if (margin !== null && margin >= 1.5) safe.push(item);
+      else if (margin !== null && margin >= -0.7) target.push(item);
+      else dream.push(item);
+    }
+
+    const byCutoff = (a: any, b: any) => a.benchmark - b.benchmark;
+    dream.sort(byCutoff);
+    target.sort(hasScore ? (a: any, b: any) => Math.abs(a.margin) - Math.abs(b.margin) : byCutoff);
+    safe.sort((a: any, b: any) => b.margin - a.margin);
 
     return {
-      dream: dream.slice(0, 3),
-      target: target.slice(0, 4),
-      safe: safe.slice(0, 3)
+      dream: dream.slice(0, 6),
+      target: target.slice(0, 12),
+      safe: safe.slice(0, 6),
+      hasScore,
+      totalSchools: groups.size,
+      tuitionBenchmark
     };
-  }, [currentMajor, topCombo, expectedScoreInput, targetRegionFilter, maxTuition]);
+  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, maxTuition]);
 
   // Reset entire session
   const handleResetAll = () => {
@@ -432,8 +496,45 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setActiveTab('tab-major');
   };
 
+  if (hasMajorChoice === null) {
+    return (
+      <div className="career-flow w-full min-h-[calc(100vh-4rem)] px-4 flex items-center justify-center text-slate-100">
+        <section
+          aria-labelledby="startup-major-question"
+          className="w-full max-w-2xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
+        >
+          <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
+            Bạn đã xác định được ngành chưa?
+          </h1>
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                sfx.playUiClick();
+                setHasMajorChoice('YES');
+              }}
+              className="px-5 py-3 border border-blue-500 bg-blue-950/70 text-white font-bold hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            >
+              Có
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sfx.playUiClick();
+                setHasMajorChoice('NO');
+              }}
+              className="px-5 py-3 border border-slate-700 bg-[#141923] text-slate-200 font-bold hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            >
+              Chưa
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 py-6 font-sans text-slate-100 space-y-6">
+    <div className="career-flow w-full max-w-6xl mx-auto px-3 sm:px-6 py-6 font-sans text-slate-100 space-y-6">
       {/* 📌 [HỒ SƠ ĐÃ LƯU — TRẠNG THÁI HIỆN TẠI] STICKY TOP CARD */}
       <div className="bg-[#0E1117] border border-slate-700/80 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -466,7 +567,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </div>
             {currentMajor && (
               <span className="text-[10px] font-mono text-blue-300 bg-blue-950/80 px-1.5 py-0.2 rounded border border-blue-500/30">
-                Mã: {currentMajor.codeTT09}
+                {currentMajor.isOfficialCode ? 'Mã ngành: ' + currentMajor.codeTT09 : currentMajor.admissionRecordCount + ' bản ghi tuyển sinh'}
               </span>
             )}
           </div>
@@ -478,7 +579,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <span>2. Tổ hợp &amp; Điểm:</span>
             </div>
             <div className="font-bold text-xs sm:text-sm text-emerald-300 truncate">
-              {selectedComboCode || (topCombo ? `${topCombo.code} (${topCombo.officialScore}đ)` : 'Chưa xác định')}
+              {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code + ' (' + (topCombo.officialScore ?? '—') + 'đ)' : 'Chưa xác định')}
             </div>
             <span className="text-[10px] font-mono text-slate-400">
               {expectedScoreInput ? `Dự kiến: ${expectedScoreInput}đ` : 'Tính từ hồ sơ'}
@@ -536,8 +637,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         {[
           { id: 'tab-major' as ScientificTabKey, num: '01', title: 'XÁC ĐỊNH NGÀNH HỌC', desc: 'Có/Chưa ngành ➔ Gợi ý & Chốt', icon: GraduationCap },
           { id: 'tab-combo' as ScientificTabKey, num: '02', title: 'CHỌN TỔ HỢP MÔN', desc: 'Phân tích các tổ hợp của ngành', icon: Layers, locked: !selectedMajorCode },
-          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'CHỌN TRƯỜNG ĐẠI HỌC', desc: 'Kinh phí NĐ 238 & Phân tầng', icon: BookOpen, locked: !selectedMajorCode },
-          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'VIỆC LÀM & CHUỖI ẢNH HƯỞNG', desc: 'Đối chiếu Ngành ⟷ Tổ hợp ⟷ Trường', icon: TrendingUp, locked: !selectedMajorCode }
+          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'CHỌN TRƯỜNG ĐẠI HỌC', desc: 'Kinh phí NĐ 238 & Phân tầng', icon: BookOpen, locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) },
+          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'VIỆC LÀM & CHUỖI ẢNH HƯỞNG', desc: 'Đối chiếu Ngành ⟷ Tổ hợp ⟷ Trường', icon: TrendingUp, locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) }
         ].map(tab => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -572,78 +673,17 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       </div>
 
       {/* =========================================================================
-          BƯỚC 1: XÁC ĐỊNH NGÀNH HỌC (THEO ĐÚNG SƠ ĐỒ ẢNH 3)
+          BƯỚC 1: XÁC ĐỊNH NGÀNH HỌC
           ========================================================================= */}
       {activeTab === 'tab-major' && (
         <section className="space-y-5">
-          {/* Branch Decision Card: CÓ / KHÔNG */}
-          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2">
-              <Compass className="w-5 h-5 text-blue-400" />
-              <h3 className="font-bold text-base sm:text-lg text-white">
-                Bắt đầu: Bạn đã xác định được Ngành học mục tiêu chưa?
-              </h3>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Nếu bạn đã có ngành mong muốn, hãy chọn hoặc nhập tên ngành để hệ thống khóa và chuyển ngay sang phân tích tổ hợp môn. Nếu chưa, hệ thống sẽ hỗ trợ bạn phân tích sở thích, môn thế mạnh (bao gồm cả năng khiếu nghệ thuật, thể chất) để đề xuất 2-3 ngành phù hợp nhất.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasMajorChoice('YES');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasMajorChoice === 'YES'
-                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>✅ CÓ: Tôi đã chọn được ngành cụ thể</span>
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1">
-                    Tìm kiếm hoặc chọn trực tiếp từ danh mục 31 ngành chuẩn cấp IV
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasMajorChoice('NO');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasMajorChoice === 'NO'
-                    ? 'bg-purple-950/80 border-purple-500 shadow-md ring-1 ring-purple-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>❓ CHƯA: Tôi cần gợi ý &amp; phân tích</span>
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1">
-                    Nhập sở thích, môn thế mạnh (hoặc năng khiếu) để AI đề xuất
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-purple-400 shrink-0" />
-              </button>
-            </div>
-          </div>
-
           {/* NHÁNH 1: ĐÃ CÓ NGÀNH (YES) */}
           {hasMajorChoice === 'YES' && (
             <div className="p-5 rounded-2xl bg-[#0E1117] border border-blue-500/40 space-y-4 animate-in fade-in duration-200">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                 <div className="font-bold text-sm text-white flex items-center gap-2">
                   <Search className="w-4 h-4 text-blue-400" />
-                  <span>Chọn Ngành Học Của Bạn Từ Danh Mục Chuẩn Bộ GD&amp;ĐT:</span>
+                  <span>Chọn ngành học hoặc chương trình xét tuyển:</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 font-mono">Lọc lĩnh vực:</span>
@@ -652,7 +692,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     onChange={(e) => setSelectedSectorFilter(e.target.value)}
                     className="bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                   >
-                    <option value="ALL">Tất cả lĩnh vực (31 ngành)</option>
+                    <option value="ALL">Tất cả lĩnh vực ({CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình)</option>
                     <option value="KIEN_TRUC_NGHE_THUAT_TDTT">Mỹ thuật, Kiến trúc, Âm nhạc &amp; TDTT</option>
                     <option value="CNTT_BAN_DAN_AI">Công nghệ thông tin &amp; AI</option>
                     <option value="KINH_TE_QUAN_TRI">Kinh tế, Quản trị &amp; Marketing</option>
@@ -660,6 +700,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     <option value="SU_PHAM_GIAO_DUC">Sư phạm &amp; Giáo dục</option>
                     <option value="XA_HOI_NHAN_VAN">Báo chí, Truyền thông &amp; Xã hội</option>
                     <option value="LUAT_HANH_CHINH">Luật &amp; Pháp lý</option>
+                    <option value="NGON_NGU_QUOC_TE">Ngoại ngữ &amp; Quan hệ quốc tế</option>
+                    <option value="NONG_LAM_NGU_SINH_HOC">Nông, lâm, ngư nghiệp &amp; sinh học</option>
+                    <option value="NGANH_KHAC">Lĩnh vực khác</option>
                   </select>
                 </div>
               </div>
@@ -673,6 +716,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 className="w-full bg-[#141923] border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none"
               />
 
+              <p className="text-xs text-slate-400">{CAREER_CATALOG_COUNTS.uniqueMajors} ngành/chương trình duy nhất · {CAREER_CATALOG_COUNTS.admissionRecords.toLocaleString('vi-VN')} bản ghi tuyển sinh theo ngành, trường và phương thức.</p>
+
               {/* Major Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
                 {catalog
@@ -680,7 +725,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     if (selectedSectorFilter !== 'ALL' && m.sector !== selectedSectorFilter) return false;
                     if (majorSearchQuery.trim()) {
                       const q = majorSearchQuery.toLowerCase();
-                      return m.name.toLowerCase().includes(q) || m.codeTT09.includes(q);
+                      return m.name.toLowerCase().includes(q) || m.codeTT09.toLowerCase().includes(q);
                     }
                     return true;
                   })
@@ -691,7 +736,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                         key={m.codeTT09}
                         onClick={() => {
                           sfx.playActionSuccess();
-                          setSelectedMajorCode(m.codeTT09);
+                          handleSelectMajor(m.codeTT09);
                         }}
                         className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                           isSelected
@@ -700,14 +745,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                         }`}
                       >
                         <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
-                          <span className="font-bold text-blue-300">{m.codeTT09}</span>
-                          <span className="truncate max-w-[120px]">{m.sector}</span>
+                          <span className="font-bold text-blue-700">{m.isOfficialCode ? 'Mã ' + m.codeTT09 : m.admissionRecordCount + ' bản ghi'}</span>
+                          <span className="truncate max-w-[120px]">{m.sector.replace(/_/g, ' ')}</span>
                         </div>
                         <div className="font-bold text-sm text-white group-hover:text-blue-300 transition-colors">
                           {m.name}
                         </div>
                         <div className="text-[11px] text-slate-300 font-mono mt-1">
-                          Tổ hợp: <span className="text-emerald-300 font-bold">{m.admissionsCombos?.join(', ')}</span>
+                          Tổ hợp: <span className="text-blue-700 font-bold">{m.admissionsCombos?.length ? m.admissionsCombos.join(', ') : 'Chưa có dữ liệu'}</span>
                         </div>
                       </div>
                     );
@@ -765,7 +810,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                     <span className="font-bold text-sm text-white flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <HelpCircle className="w-4 h-4 text-blue-500" />
                       <span>1.1. Đánh giá 6 Miền Sở Thích Nghề Nghiệp (RIASEC O*NET)</span>
                     </span>
                     <span className="text-xs font-mono text-emerald-300 font-bold">
@@ -922,8 +967,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               {/* Optional Student Question for Gemini */}
               <div className="p-4 rounded-xl bg-[#121622] border border-slate-800 space-y-2">
                 <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-purple-400" />
-                  <span>Băn khoăn / Câu hỏi cụ thể của bạn cho Gemini AI (Tùy chọn):</span>
+                  <HelpCircle className="w-4 h-4 text-slate-500" />
+                  <span>Băn khoăn / Câu hỏi cụ thể của bạn (Tùy chọn):</span>
                 </label>
                 <input
                   type="text"
@@ -945,12 +990,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   {isAnalyzingWithGemini ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin text-purple-200" />
-                      <span>Đang gọi Gemini AI phân tích hồ sơ &amp; liên kết kho dữ liệu...</span>
+                      <span>Đang phân tích hồ sơ và đối chiếu danh mục...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4 text-yellow-300" />
-                      <span>✨ GỌI GEMINI AI PHÂN TÍCH &amp; LIÊN KẾT KHO DỮ LIỆU</span>
+                      <Search className="w-4 h-4 text-blue-500" />
+                      <span>PHÂN TÍCH HỒ SƠ VÀ ĐỐI CHIẾU NGÀNH</span>
                     </>
                   )}
                 </button>
@@ -963,18 +1008,16 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               {isMajorSuggested && (
                 <div id="gemini-results-anchor" className="space-y-4 pt-2">
                   {/* Card 1: Gemini Strategic Diagnosis */}
-                  {geminiDiagnosis && (
+                  {geminiDiagnosis && analysisProfileKey === analysisProfileKeyNow && (
                     <div className="p-5 rounded-2xl bg-[#0E1117] border border-purple-500/40 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-500/20 pb-3">
                         <div className="flex items-center gap-2">
-                          <Brain className="w-5 h-5 text-purple-400" />
+                          <FileText className="w-5 h-5 text-blue-500" />
                           <h4 className="font-bold text-base text-white">
-                            Báo Cáo Chẩn Đoán Chiến Lược Từ Gemini AI
+                            Nhận định từ hồ sơ
                           </h4>
                         </div>
-                        <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-purple-900/40 text-purple-300 border border-purple-500/30 font-semibold">
-                          Mô hình: {geminiDiagnosis.modelUsed || 'gemini-3.1-flash-lite'}
-                        </span>
+
                       </div>
 
                       {/* Strategic Headline */}
@@ -1066,8 +1109,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                             type="button"
                             onClick={() => {
                               sfx.playActionSuccess();
-                              setSelectedMajorCode(major.codeTT09);
-                              setActiveTab('tab-combo');
+                              handleSelectMajor(major.codeTT09, 'tab-combo');
                             }}
                             className="w-full mt-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer text-center"
                           >
@@ -1093,7 +1135,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
               <span className="text-xs font-mono text-blue-300 font-bold block">ĐANG XÉT CHO NGÀNH:</span>
-              <h3 className="font-bold text-base text-white">{currentMajor?.name} (Mã: {currentMajor?.codeTT09})</h3>
+              <h3 className="font-bold text-base text-white">{currentMajor?.name}{currentMajor?.isOfficialCode ? ' · Mã ' + currentMajor.codeTT09 : ''}</h3>
             </div>
             <button
               type="button"
@@ -1186,7 +1228,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   max="30"
                   step="0.25"
                   value={expectedScoreInput}
-                  onChange={(e) => setExpectedScoreInput(e.target.value)}
+                  onChange={(e) => { setExpectedScoreInput(e.target.value); setSelectedSchoolCode(null); }}
                   placeholder="Ví dụ: 25.5"
                   className="w-28 bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-emerald-300 font-mono font-bold focus:outline-none focus:border-emerald-500"
                 />
@@ -1196,7 +1238,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             {/* Combos Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {evaluatedCombos.map((combo: any, idx: number) => {
-                const isOptimal = idx === 0;
+                const isOptimal = combo.hasSubjectScores && idx === 0;
                 const isSelected = selectedComboCode === combo.code;
                 return (
                   <div
@@ -1204,6 +1246,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     onClick={() => {
                       sfx.playActionSuccess();
                       setSelectedComboCode(combo.code);
+                      setSelectedSchoolCode(null);
+                      setHasSchoolChoice(null);
                     }}
                     className={`p-4 rounded-xl border text-left cursor-pointer transition-all space-y-2 ${
                       isSelected
@@ -1230,7 +1274,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     </div>
 
                     <div className="text-xs text-slate-300 font-mono">
-                      Điểm tính toán: <strong className="text-emerald-300 font-bold">{combo.officialScore}đ</strong>
+                      {combo.hasData ? <>Điểm tham khảo: <strong className="text-emerald-300 font-bold">{combo.officialScore}đ</strong></> : <span className="text-slate-400">Nhập điểm để so sánh tổ hợp này</span>}
                       {combo.effectivePriority > 0 && <span className="text-amber-300 text-[11px] ml-1">(+ {combo.effectivePriority}đ ưu tiên TT06)</span>}
                     </div>
 
@@ -1267,14 +1311,15 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
               <button
                 type="button"
+                disabled={!selectedComboCode && !topCombo?.hasSubjectScores}
                 onClick={() => {
                   sfx.playUiClick();
-                  if (!selectedComboCode && topCombo) {
+                  if (!selectedComboCode && topCombo?.hasSubjectScores) {
                     setSelectedComboCode(topCombo.code);
                   }
                   setActiveTab('tab-university');
                 }}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
               >
                 <span>Tiếp tục sang Bước 3: Phân tầng trường đại học</span>
                 <ArrowRight className="w-4 h-4" />
@@ -1294,7 +1339,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <div>
               <span className="text-xs font-mono text-blue-300 font-bold block">MỤC TIÊU ĐANG XÉT:</span>
               <h3 className="font-bold text-base text-white">
-                Ngành {currentMajor?.name} · Tổ hợp {selectedComboCode || topCombo?.code} ({topCombo?.officialScore}đ)
+                Ngành {currentMajor?.name} · Tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}{topCombo?.hasData ? ' · ' + topCombo.officialScore + ' điểm' : ''}
               </h3>
             </div>
             <button
@@ -1430,15 +1475,16 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           <div className="space-y-4">
             <h4 className="font-bold text-base text-white flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-blue-400" />
-              <span>Ma Trận Phân Tầng Trường Đại Học Khoa Học:</span>
+              <span>Trường có dữ liệu xét tuyển cho ngành và tổ hợp đã chọn:</span>
             </h4>
 
-            {/* Target Tier (Vừa sức - 75-85%) */}
+            {/* Nhóm trường có mốc tuyển sinh gần với điểm hồ sơ */}
             <div className="space-y-2">
               <div className="text-xs font-mono font-bold text-blue-300 flex items-center gap-1.5">
-                <span>🎯 NHÓM VỪA SỨC (XÁC SUẤT ĐỖ 75% - 85% · BIÊN ĐỘ AN TOÀN):</span>
+                <span>{stratifiedSchools.hasScore ? 'NHÓM ĐIỂM GẦN MỨC THAM CHIẾU' : 'TRƯỜNG CÓ BẢN GHI NGÀNH / TỔ HỢP'}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                {stratifiedSchools.totalSchools === 0 && <p className="col-span-full text-sm text-slate-400">Kho hiện chưa có bản ghi khớp chính xác ngành {currentMajor?.name}{selectedComboCode ? ' và tổ hợp ' + selectedComboCode : ''} trong khu vực này.</p>}
                 {stratifiedSchools.target.map(school => (
                   <div
                     key={school.code}
@@ -1458,10 +1504,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     </div>
                     <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
                     <div className="text-[11px] font-mono text-emerald-300 mt-1">
-                      Điểm chuẩn: {school.benchmark}đ (Biên độ: +{school.margin}đ)
+                      Mốc tuyển sinh tham chiếu: {school.benchmark}đ{school.margin !== null ? ' · Chênh lệch ' + (school.margin > 0 ? '+' : '') + school.margin + 'đ' : ''} · {school.recordCount} bản ghi
                     </div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
-                      Học phí: {school.isFreeTuition ? 'Miễn 100%' : `${school.tuitionMln} tr/năm`}
+                      Bình quân nhóm ngành: {school.sectorTuition != null ? school.sectorTuition + ' tr/năm' : 'chưa có dữ liệu'} · Ngân sách {maxTuition} tr/năm {school.isBudgetOk === null ? '' : school.isBudgetOk ? '· trong mức tham khảo' : '· vượt bình quân tham khảo'}
                     </div>
                   </div>
                 ))}
@@ -1469,9 +1515,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </div>
 
             {/* Dream Tier (Mơ ước) */}
-            <div className="space-y-2 pt-1">
-              <div className="text-xs font-mono font-bold text-amber-300 flex items-center gap-1.5">
-                <span>🌟 NHÓM MƠ ƯỚC (ĐIỂM CHUẨN CAO HƠN 0.5 - 1.5Đ · CẦN NỖ LỰC TỐI ĐA):</span>
+            {stratifiedSchools.hasScore && <div className="space-y-2 pt-1">
+              <div className="text-xs font-bold text-amber-700 flex items-center gap-1.5">
+                <span>ĐIỂM HỒ SƠ THẤP HƠN MỐC THAM CHIẾU:</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {stratifiedSchools.dream.map(school => (
@@ -1493,17 +1539,17 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     </div>
                     <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
                     <div className="text-[11px] font-mono text-amber-300 mt-1">
-                      Điểm chuẩn: {school.benchmark}đ
+                      Mốc tuyển sinh tham chiếu: {school.benchmark}đ · Chênh lệch {school.margin}đ
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
-            {/* Safe Tier (An toàn) */}
-            <div className="space-y-2 pt-1">
+            {/* Nhóm có điểm cao hơn mốc tham chiếu */}
+            {stratifiedSchools.hasScore && <div className="space-y-2 pt-1">
               <div className="text-xs font-mono font-bold text-emerald-300 flex items-center gap-1.5">
-                <span>🛡️ NHÓM AN TOÀN (ĐIỂM CHUẨN THẤP HƠN ≥ 1.5Đ · XÁC SUẤT ĐỖ ≥ 95%):</span>
+                <span>ĐIỂM HỒ SƠ CAO HƠN MỐC THAM CHIẾU:</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {stratifiedSchools.safe.map(school => (
@@ -1525,12 +1571,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     </div>
                     <div className="font-bold text-xs text-white mt-1 line-clamp-1">{school.name}</div>
                     <div className="text-[11px] font-mono text-emerald-300 mt-1">
-                      Điểm chuẩn: {school.benchmark}đ (Biên độ an toàn cao)
+                      Mốc tuyển sinh tham chiếu: {school.benchmark}đ · Chênh lệch +{school.margin}đ
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Next Step Trigger */}
             <div className="pt-3 flex justify-between items-center">
@@ -1568,7 +1614,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <div>
               <span className="text-xs font-mono text-purple-300 font-bold block">ĐỐI CHIẾU HỒ SƠ TỔNG HỢP:</span>
               <h3 className="font-bold text-base text-white">
-                {currentMajor?.name} · {selectedComboCode || topCombo?.code} · {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Trường chưa chọn'}
+                {currentMajor?.name} · {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} · {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Trường chưa chọn'}
               </h3>
             </div>
           </div>
@@ -1623,7 +1669,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     ❓ CHƯA: Đề xuất các việc làm thực tế khớp ngành
                   </div>
                   <div className="text-xs text-slate-400 mt-1">
-                    Xem 2-3 vị trí việc làm phổ biến và mức lương thị trường GSO
+                    Xem các vị trí công việc được liên kết với ngành trong danh mục
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-blue-400 shrink-0" />
@@ -1637,7 +1683,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               Vị Trí Việc Làm Thực Tế Khớp Với Ngành {currentMajor?.name}:
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {(currentMajor?.targetJobs || ['Chuyên viên chuyên môn', 'Quản lý dự án', 'Kỹ sư giải pháp']).map((job: string) => (
+              {(currentMajor?.targetJobs || []).map((job: string) => (
                 <div
                   key={job}
                   onClick={() => {
@@ -1651,16 +1697,16 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   }`}
                 >
                   <div className="font-bold text-sm text-white">{job}</div>
-                  <div className="text-[11px] text-slate-400 mt-1">Lương trung vị: 15 - 35 triệu/tháng</div>
                   <div className="text-[11px] text-purple-300 font-bold mt-2">
                     {targetJob === job ? '✓ Đã chọn việc làm này' : 'Bấm chọn làm mục tiêu'}
                   </div>
                 </div>
               ))}
+              {!currentMajor?.targetJobs?.length && <p className="text-sm text-slate-400">Danh mục hiện chưa có dữ liệu nghề cụ thể cho ngành này. Vui lòng chọn nghề mục tiêu để lưu vào hồ sơ.</p>}
             </div>
           </div>
 
-          {/* 📊 BÁO CÁO TỔNG KẾT ĐỐI CHIẾU CHUỖI ẢNH HƯỞNG (DOMINO EFFECT) */}
+          {/* Báo cáo liên kết lựa chọn */}
           <div className="p-6 rounded-2xl bg-[#0E1117] border border-emerald-500/50 shadow-2xl space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
               <span className="text-lg">📊</span>
@@ -1678,19 +1724,19 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>
-                    <strong>Ngành &amp; Tổ hợp</strong>: Tổ hợp <strong>{selectedComboCode || topCombo?.code}</strong> được chấp nhận tuyển sinh chính thức cho ngành <strong>{currentMajor?.name}</strong>.
+                    <strong>Ngành &amp; Tổ hợp</strong>: <strong>{selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn')}</strong> được liên kết với ngành <strong>{currentMajor?.name}</strong> trong hồ sơ tư vấn.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>
-                    <strong>Ngành &amp; Việc làm</strong>: Mục tiêu <strong>"{targetJob || currentMajor?.targetJobs?.[0]}"</strong> hoàn toàn nằm trong khung chuẩn năng lực đầu ra của ngành.
+                    <strong>Ngành &amp; Việc làm</strong>: Mục tiêu <strong>{targetJob || currentMajor?.targetJobs?.[0] || 'Chưa chọn'}</strong> được đối chiếu với danh sách nghề liên kết của ngành.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>
-                    <strong>Kinh phí &amp; Trường học</strong>: Ngân sách gia đình {maxTuition} triệu/năm đảm bảo an toàn tài chính theo khung Nghị định 238/2025.
+                    <strong>Kinh phí &amp; Trường học</strong>: Mức giới hạn {maxTuition} triệu/năm được so với bình quân nhóm ngành {stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? 'chưa có dữ liệu'} triệu/năm; đây không phải học phí riêng của trường.
                   </span>
                 </li>
               </ul>
@@ -1705,21 +1751,21 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Ngành ➔ Điểm chuẩn]</span>
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Mức điểm dự kiến {topCombo?.officialScore}đ đặt bạn vào vùng an toàn cao đối với nhóm trường Top giữa và có cơ hội tranh vé nhóm trường Top đầu.
+                    {topCombo?.hasData ? 'Điểm hồ sơ ' + topCombo.officialScore + 'đ được đối chiếu với mốc tuyển sinh tham chiếu của ' + stratifiedSchools.totalSchools + ' trường có dữ liệu cho lựa chọn này.' : 'Chưa có điểm số để so sánh với mốc tuyển sinh. Hãy nhập điểm dự kiến hoặc điểm từng môn ở Bước 2.'}
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Tổ hợp ➔ Cạnh tranh]</span>
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Tổ hợp {selectedComboCode || topCombo?.code} chiếm tỷ trọng chỉ tiêu lớn, giảm thiểu rủi ro bị áp đảo bởi các phương thức tuyển sinh sớm.
+                    Có {stratifiedSchools.totalSchools} trường trong dữ liệu có bản ghi gắn với tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} cho ngành đang xét.
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
-                  <span className="font-bold text-white block">[Ngành + Trường ➔ Việc làm]</span>
+                  <span className="font-bold text-white block">[Ngành ➔ Việc làm]</span>
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Tốt nghiệp ngành {currentMajor?.name} mang lại lợi thế ứng tuyển trực tiếp vào vị trí {targetJob || 'chuyên viên'}, mức lương khởi điểm ước tính 12 - 25 triệu/tháng.
+                    {targetJob || currentMajor?.targetJobs?.[0] ? 'Vị trí ' + (targetJob || currentMajor?.targetJobs?.[0]) + ' được liên kết với ngành ' + currentMajor?.name + ' trong danh mục; kho hiện chưa có dữ liệu đầu ra riêng theo trường.' : 'Hãy chọn một vị trí từ danh sách để hoàn tất liên kết nghề nghiệp.'}
                   </p>
                 </div>
               </div>
@@ -1742,8 +1788,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 }}
                 className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Mở Pop-up Tham Vấn Chuyên Sâu Cùng AI</span>
+                <FileText className="w-3.5 h-3.5" />
+                <span>Xem tư vấn chi tiết</span>
               </button>
             </div>
           </div>
