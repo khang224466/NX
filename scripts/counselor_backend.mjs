@@ -1115,20 +1115,34 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 22000);
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-          generationConfig: {
-            temperature: 0.25,
-            maxOutputTokens: 5000,
-            responseMimeType: 'application/json'
-          }
-        }),
-        signal: controller.signal
+      const requestBody = JSON.stringify({
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature: 0.25,
+          maxOutputTokens: 5000,
+          responseMimeType: 'application/json'
+        }
       });
+      let response;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+          signal: controller.signal
+        });
+        if (attempt === 0 && (response.status === 429 || response.status === 503)) {
+          rememberError({ status: response.status, message: response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_BUSY' });
+          const retryAfterSeconds = Number(response.headers.get('retry-after'));
+          const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+            ? Math.min(2000, Math.max(500, retryAfterSeconds * 1000))
+            : 1000;
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+        break;
+      }
       clearTimeout(timeoutId);
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
