@@ -880,7 +880,7 @@ export async function handleDossierAnalysisRequest({
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' +
       model + ':generateContent?key=' + encodeURIComponent(geminiKey);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
