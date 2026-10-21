@@ -232,7 +232,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="flex flex-col gap-2">
         {filteredMajors.length === 0 && (
           <p className="col-span-full py-8 text-center text-base text-slate-300">Không tìm thấy ngành phù hợp.</p>
         )}
@@ -248,8 +248,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 handleSelectMajor(major.code);
               }}
               className={isSelected
-                ? 'min-h-20 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
-                : 'min-h-20 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
+                ? 'flex min-h-14 w-full items-center rounded-lg border border-blue-400 bg-blue-950/70 px-4 py-3 text-left ring-1 ring-blue-400'
+                : 'flex min-h-14 w-full items-center rounded-lg border border-slate-700 bg-[#141923] px-4 py-3 text-left hover:border-blue-500'}
             >
               <span className="block text-lg font-bold text-white">{major.name}</span>
             </button>
