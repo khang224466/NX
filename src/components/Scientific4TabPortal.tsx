@@ -172,6 +172,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   const [careerInterests, setCareerInterests] = useState('');
   const [careerStrengths, setCareerStrengths] = useState('');
+  const [hasRequestedSuggestions, setHasRequestedSuggestions] = useState(false);
 
   // =========================================================================
   // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
@@ -286,15 +287,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     recommendedKeywords: profileKeywords
   }), [profileSignals, profileKeywords]);
   const hasCareerProfile = careerInterests.trim().length > 0 || careerStrengths.trim().length > 0;
-  const hasProfileEvidence = profileSignals.matches.length > 0 || catalog.some((major) =>
+  const hasEnteredScore = [...Object.values(scores), ...Object.values(aptitudeScores)].some((value) => value !== '');
+  const hasRecommendationInput = hasCareerProfile || hasEnteredScore;
+  const hasProfileEvidence = hasEnteredScore || profileSignals.matches.length > 0 || catalog.some((major) =>
     profileKeywords.some((keyword) => normalizeCareerText(major.name).split(' ').includes(normalizeCareerText(keyword)))
   );
 
-  // Rank locally using detected profile signals and saved admission data.
+  // Keep the catalog static, but run recommendation ranking only on explicit user request.
   const rankedMajors = useMemo(() => {
+    if (!hasRequestedSuggestions || !hasRecommendationInput) return [];
     const allScores = { ...scores, ...aptitudeScores };
     return linkAndRankMajorsWithDossier(allScores, profileSignals.riasec, profileDiagnosis, catalog);
-  }, [scores, aptitudeScores, profileSignals, profileDiagnosis, catalog]);
+  }, [hasRequestedSuggestions, hasRecommendationInput, scores, aptitudeScores, profileSignals, profileDiagnosis, catalog]);
 
   const explainMajorFit = (major: (typeof rankedMajors)[number]) => {
     const nameWords = new Set(normalizeCareerText(major.name).split(' '));
@@ -602,6 +606,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setExpectedScoreInput('');
     setCareerInterests('');
     setCareerStrengths('');
+    setHasRequestedSuggestions(false);
+    setScores({ math: '', literature: '', english: '', physics: '', chemistry: '', biology: '', history: '', geography: '', informatics: '', economicLegal: '' });
+    setAptitudeScores({ apt_hinhHoa: '', apt_trangTri: '', apt_veMyThuat: '', apt_thamAm: '', apt_thanhNhac: '', apt_theThao: '', apt_mamNon: '', apt_baoChi: '', apt_dienXuat: '' });
     setSelectedProgramId(null);
     setSchoolSearchQuery('');
     setSchoolMatchFilter('ALL');
@@ -634,6 +641,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               onClick={() => {
                 sfx.playUiClick();
                 setHasMajorChoice('NO');
+                setHasRequestedSuggestions(false);
               }}
               className="px-5 py-3 border border-slate-700 bg-[#141923] text-slate-200 font-bold hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
@@ -660,14 +668,17 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-white">Sở thích và năng lực</h3>
-                  <p className="mt-1 text-base text-slate-300">Nhập vài điều bạn thích và việc bạn làm tốt. Gợi ý ngành sẽ cập nhật theo nội dung này.</p>
+                  <p className="mt-1 text-base text-slate-300">Nhập sở thích, năng lực hoặc điểm số, rồi bấm “Gợi ý ngành” để xem kết quả.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="space-y-2 text-base font-semibold text-white">
                     Sở thích
                     <textarea
                       value={careerInterests}
-                      onChange={(e) => setCareerInterests(e.target.value)}
+                      onChange={(e) => {
+                        setCareerInterests(e.target.value);
+                        setHasRequestedSuggestions(false);
+                      }}
                       rows={4}
                       placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
                       className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
@@ -677,7 +688,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     Năng lực và thế mạnh
                     <textarea
                       value={careerStrengths}
-                      onChange={(e) => setCareerStrengths(e.target.value)}
+                      onChange={(e) => {
+                        setCareerStrengths(e.target.value);
+                        setHasRequestedSuggestions(false);
+                      }}
                       rows={4}
                       placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
                       className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
@@ -714,6 +728,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               onChange={(e) => {
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setScores((previous) => ({ ...previous, [subject.key]: value }));
+                                setHasRequestedSuggestions(false);
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -737,6 +752,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               onChange={(e) => {
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
+                                setHasRequestedSuggestions(false);
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -748,7 +764,26 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </details>
               </div>
 
-              {hasCareerProfile && (
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.playUiClick();
+                    setHasRequestedSuggestions(true);
+                  }}
+                  className="min-h-11 rounded-lg bg-blue-600 px-6 py-3 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                >
+                  Gợi ý ngành
+                </button>
+              </div>
+
+              {hasRequestedSuggestions && !hasRecommendationInput && (
+                <p role="status" className="rounded-xl border border-slate-700 bg-[#0E1117] p-4 text-base text-slate-300">
+                  Hãy nhập sở thích, năng lực hoặc điểm học tập trước khi gợi ý ngành.
+                </p>
+              )}
+
+              {hasRequestedSuggestions && hasRecommendationInput && (
                 <section aria-labelledby="recommended-majors-title" className="rounded-xl border border-slate-700 bg-[#0E1117] p-5 space-y-4">
                   <div>
                     <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Gợi ý từ thông tin bạn nhập</h3>
