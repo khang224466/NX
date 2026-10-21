@@ -540,7 +540,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               onClick={() => {
                 sfx.playUiClick();
                 setHasMajorChoice('NO');
-                setHasRequestedSuggestions(false);
+                clearCareerAnalysis();
               }}
               className="px-5 py-3 border border-slate-700 bg-[#141923] text-slate-200 font-bold hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
@@ -576,7 +576,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       value={careerInterests}
                       onChange={(e) => {
                         setCareerInterests(e.target.value);
-                        setHasRequestedSuggestions(false);
+                        clearCareerAnalysis();
                       }}
                       rows={4}
                       placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
@@ -589,7 +589,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       value={careerStrengths}
                       onChange={(e) => {
                         setCareerStrengths(e.target.value);
-                        setHasRequestedSuggestions(false);
+                        clearCareerAnalysis();
                       }}
                       rows={4}
                       placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
@@ -627,7 +627,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               onChange={(e) => {
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setScores((previous) => ({ ...previous, [subject.key]: value }));
-                                setHasRequestedSuggestions(false);
+                                clearCareerAnalysis();
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -651,7 +651,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               onChange={(e) => {
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
-                                setHasRequestedSuggestions(false);
+                                clearCareerAnalysis();
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -667,9 +667,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => void requestMajorSuggestions()}
-                  className="min-h-11 rounded-lg bg-blue-600 px-6 py-3 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                  disabled={isAnalyzingWithGemini}
+                  className="min-h-11 rounded-lg bg-blue-600 px-6 py-3 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                 >
-                  Gợi ý ngành
+                  {isAnalyzingWithGemini ? 'Đang phân tích…' : 'Gợi ý ngành'}
                 </button>
               </div>
 
