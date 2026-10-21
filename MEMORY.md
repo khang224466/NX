@@ -653,3 +653,13 @@ Last Updated: 2026-10-20T08:56:00+07:00
 - `scripts/counselor_backend.mjs` now asks Gemini to rank only institution codes from that audited candidate list, validates codes, and returns canonical school names, cutoff/margin references, and the sector tuition estimate. Tuition remains unknown when blank; displayed score/priority precision is capped at two decimals.
 - Removed hardcoded provider credentials from the backend; Gemini and chat/status availability now rely on server environment variables (`GEMINI_API_KEY`, and `GROQ_API_KEY` where applicable). Confirm the deployment environment contains the Gemini key.
 - Committed directly to `main`: UI `285ace3`; backend `bbd97b7`. No tests were run in this turn.
+
+
+## 2026-10-21: Career guidance and school analysis corrections
+- The project is React 19 + Vite; use `api/ai/counselor/analyze.ts` as the Vercel function entry and configure generic Vite function duration in `vercel.json`.
+- The school step must not render the 300-school directory. Render only analysis results after the user clicks “Gợi ý trường”; collect annual tuition, region, province/city and free-text aspiration/preferences.
+- Send the full available student profile (interests, strengths, subject scores, aptitude scores, selected major and combination) plus location/budget/preferences to the university analysis request.
+- Program/combination presence and official cutoff presence are distinct. Candidate schools can come from exact major + selected-combination entries in `CAREER_PROGRAM_CATALOG` and admission records; a missing verified cutoff must not block analysis or be invented. Clearly mark candidates without official cutoffs.
+- Combination codes can be context-specific across universities and years. Use the combination catalog for general subjects and an explicit major-context mapping for physical-education T00/T01; verify codes against official admissions sources before changing mappings. T01 for physical education is Toán, Ngữ văn, Năng khiếu TDTT.
+- University analysis should rotate through `GEMINI_API_KEY`, `DAM1`, `DAM2` using a bounded deadline and low-latency generation settings. Keep keys in server headers, never in frontend code or logs.
+- 2026-10-21 changes on main: province and aspiration inputs, hidden school directory, contextual combo subject labels and T01 score calculation, catalog-backed school candidates without cutoff prerequisites, Gemini key rotation and Vercel function duration config.
