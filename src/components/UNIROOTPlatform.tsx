@@ -2178,89 +2178,86 @@ const CombinationDetailView: React.FC<{
 
       {/* Tab 3: Trường sử dụng (Bảng Trường - Ngành Chi Tiết Theo Brief) */}
       {activeTab === 'schools' && (
-        <div className="space-y-4">
-          {/* Sub-filters for schools table */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-[#121316] border border-[#262630] rounded-xl text-xs font-mono">
-            <div className="relative flex-1 w-full">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300" />
+        <section aria-label="Kết quả tra cứu trường theo tổ hợp" className="space-y-4 scroll-mt-28">
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-700 bg-[#0E1117] p-4 sm:flex-row sm:items-end">
+            <label className="flex-1 space-y-1.5 text-base font-semibold text-white">
+              Tìm trường hoặc ngành
               <input
-                type="text"
+                type="search"
                 value={schoolFilter}
                 onChange={(e) => setSchoolFilter(e.target.value)}
-                placeholder="Lọc theo tên trường, mã trường, tên ngành..."
-                className="w-full bg-[#181920] text-white pl-8 pr-3 py-1.5 border border-[#2c2d38] text-xs focus:outline-none rounded-lg"
+                placeholder="Nhập tên trường, mã trường hoặc ngành"
+                className="min-h-12 w-full rounded-lg border border-slate-700 bg-[#141923] px-4 text-base font-sans text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               />
-            </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-slate-200 font-semibold">Tỉnh thành:</span>
+            </label>
+            <label className="space-y-1.5 text-base font-semibold text-white sm:w-64">
+              Tỉnh / thành
               <select
                 value={provinceFilter}
                 onChange={(e) => setProvinceFilter(e.target.value)}
-                className="bg-[#181920] text-white border border-[#2c2d38] px-2 py-1.5 text-xs rounded-lg"
+                className="min-h-12 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base font-sans text-white focus:border-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
               >
                 {provinces.map(p => (
                   <option key={p} value={p}>{p === 'All' ? 'Tất cả tỉnh/thành' : p}</option>
                 ))}
               </select>
-            </div>
+            </label>
           </div>
 
-          {/* Table Container */}
-          <div className="border border-[#262630] rounded-xl overflow-x-auto bg-[#121316]">
-            <table className="w-full text-left text-xs font-mono">
-              <thead className="bg-[#181920] text-slate-100 border-b border-[#262630] uppercase text-xs font-bold">
+          <div className="overflow-x-auto rounded-xl border border-slate-700 bg-[#0E1117]">
+            <table className="min-w-[960px] w-full text-left text-sm">
+              <thead className="border-b border-slate-700 bg-[#141923] text-xs font-bold uppercase tracking-wide text-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3">Mã Trường</th>
-                  <th className="py-2.5 px-3">Tên Ngành &amp; Chương Trình</th>
-                  <th className="py-2.5 px-3">Phương Thức</th>
-                  <th className="py-2.5 px-3">Thang Điểm</th>
-                  <th className="py-2.5 px-3 text-right">Điểm Chuẩn</th>
-                  <th className="py-2.5 px-3">Cơ Sở Đào Tạo</th>
-                  <th className="py-2.5 px-3">Trạng Thái</th>
-                  <th className="py-2.5 px-3 text-right">Thao Tác</th>
+                  <th scope="col" className="min-w-56 px-4 py-3">Trường</th>
+                  <th scope="col" className="min-w-64 px-4 py-3">Ngành</th>
+                  <th scope="col" className="min-w-40 px-4 py-3">Phương thức</th>
+                  <th scope="col" className="min-w-36 px-4 py-3 text-right">Điểm chuẩn 2026</th>
+                  <th scope="col" className="min-w-56 px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1e1f26]">
+              <tbody className="divide-y divide-slate-800">
+                {filteredMatching.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-base text-slate-300">
+                      Không tìm thấy kết quả phù hợp với bộ lọc.
+                    </td>
+                  </tr>
+                )}
                 {filteredMatching.map(rec => {
                   const uni = usingUnis.find(u => u.code === rec.institution_code);
+                  const scale = rec.audited_official_scale === 'THANG_100'
+                    ? 100
+                    : rec.audited_official_scale === 'THANG_40' ? 40 : 30;
                   return (
-                    <tr 
+                    <tr
                       key={rec.record_id}
                       onClick={() => setSelectedRecordForModal(rec)}
-                      className="hover:bg-[#1a1b22] cursor-pointer transition-colors"
+                      className="cursor-pointer transition-colors hover:bg-[#141923]"
                     >
-                      <td className="py-2 px-3 font-bold text-cyan-300">
-                        {rec.institution_code}
+                      <td className="px-4 py-3.5">
+                        <p className="font-bold text-blue-300">{rec.institution_code}</p>
+                        <p className="mt-0.5 text-sm font-medium text-white">
+                          {uni?.official_name || rec.institution_code}
+                        </p>
+                        <p className="mt-0.5 text-sm text-slate-400">
+                          {uni?.verified_province_city || rec.campus_location || 'Chưa rõ địa điểm'}
+                        </p>
                       </td>
-                      <td className="py-2 px-3 text-white font-sans font-medium">
-                        {rec.audited_major_name}
+                      <td className="px-4 py-3.5 font-semibold text-white">{rec.audited_major_name}</td>
+                      <td className="px-4 py-3.5 text-slate-200">{formatAdmissionMethod(rec.method_id)}</td>
+                      <td className="px-4 py-3.5 text-right">
+                        <span className="text-lg font-bold text-blue-300">{rec.audited_official_cutoff}</span>
+                        <span className="text-slate-400"> / {scale}</span>
                       </td>
-                      <td className="py-2 px-3 text-slate-100 font-semibold">
-                        {formatAdmissionMethod(rec.method_id)}
-                      </td>
-                      <td className="py-2 px-3 text-slate-200">
-                        {rec.audited_official_scale === 'THANG_100' ? '100đ' : rec.audited_official_scale === 'THANG_40' ? '40đ' : '30đ'}
-                      </td>
-                      <td className="py-2 px-3 text-right font-bold text-[#C6F135] text-sm font-mono">
-                        {rec.audited_official_cutoff}
-                      </td>
-                      <td className="py-2 px-3 text-slate-200 max-w-xs truncate">
-                        {uni ? uni.verified_province_city : 'Trụ sở chính'}
-                      </td>
-                      <td className="py-2 px-3">
-                        <span className="text-[10px] text-[#C6F135] bg-[#C6F135]/15 px-2 py-0.5 border border-[#C6F135]/40 font-bold rounded">
-                          Chuẩn 2026
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRecordForModal(rec);
                             }}
-                            className="px-2.5 py-1 rounded bg-[#1c2230] text-slate-100 hover:text-white border border-blue-500/40 text-xs font-semibold transition-colors cursor-pointer"
+                            className="min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold text-white transition-colors hover:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                           >
                             Chi tiết
                           </button>
@@ -2270,9 +2267,9 @@ const CombinationDetailView: React.FC<{
                               e.stopPropagation();
                               onSelectSchool(`${rec.institution_code}:${rec.audited_major_name}`);
                             }}
-                            className="px-2.5 py-1 rounded bg-[#C6F135]/15 text-[#C6F135] hover:bg-[#C6F135] hover:text-[#0C0D0E] font-bold text-xs transition-colors cursor-pointer"
+                            className="min-h-11 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                           >
-                            Xem tại trường →
+                            Xem trường
                           </button>
                         </div>
                       </td>
@@ -2282,7 +2279,7 @@ const CombinationDetailView: React.FC<{
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Tab 4: Nguồn dữ liệu & Căn cứ */}
