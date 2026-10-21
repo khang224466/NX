@@ -33,19 +33,6 @@ const APTITUDE_SUBJECTS_METADATA = [
   { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', combos: ['S00'] }
 ];
 
-const SECTOR_DISPLAY_NAMES: Record<string, string> = {
-  KIEN_TRUC_NGHE_THUAT_TDTT: 'Mỹ thuật, Kiến trúc, Âm nhạc & TDTT',
-  CNTT_BAN_DAN_AI: 'Công nghệ thông tin & AI',
-  KINH_TE_QUAN_TRI: 'Kinh tế, Quản trị & Marketing',
-  Y_DUOC_SUC_KHOE: 'Y Dược & Sức khỏe',
-  SU_PHAM_GIAO_DUC: 'Sư phạm & Giáo dục',
-  XA_HOI_NHAN_VAN: 'Báo chí, Truyền thông & Xã hội',
-  LUAT_HANH_CHINH: 'Luật & Pháp lý',
-  NGON_NGU_QUOC_TE: 'Ngoại ngữ & Quan hệ quốc tế',
-  NONG_LAM_NGU_SINH_HOC: 'Nông, lâm, ngư nghiệp & sinh học',
-  NGANH_KHAC: 'Lĩnh vực khác'
-};
-
 type CareerProfileDimension = 'R' | 'I' | 'A' | 'S' | 'E' | 'C';
 
 const normalizeCareerText = (value: string) => value
@@ -139,7 +126,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
   const [majorSearchQuery, setMajorSearchQuery] = useState('');
-  const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
   const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
   const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
 
@@ -220,32 +206,24 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const catalog = CAREER_CATALOG;
   const programCatalog = CAREER_PROGRAM_CATALOG;
   const majorOptions = useMemo(() => {
-    const majorsByCode = new Map<string, { code: string; name: string; sector: string }>();
+    const majorsByCode = new Map<string, { code: string; name: string }>();
     programCatalog.forEach((program) => {
       if (majorsByCode.has(program.majorCode)) return;
       const canonicalMajor = catalog.find((major) => major.codeTT09 === program.majorCode);
       majorsByCode.set(program.majorCode, {
         code: program.majorCode,
-        name: canonicalMajor?.name || program.name,
-        sector: program.sector
+        name: canonicalMajor?.name || program.name
       });
     });
     return [...majorsByCode.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   }, [catalog, programCatalog]);
-  const sectorOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    majorOptions.forEach((major) => counts.set(major.sector, (counts.get(major.sector) || 0) + 1));
-    return [...counts.entries()]
-      .sort(([a], [b]) => (SECTOR_DISPLAY_NAMES[a] || a).localeCompare(SECTOR_DISPLAY_NAMES[b] || b, 'vi'))
-      .map(([id, count]) => ({ id, count, label: SECTOR_DISPLAY_NAMES[id] || id.replace(/_/g, ' ').toLocaleLowerCase('vi') }));
-  }, [majorOptions]);
   const filteredMajors = useMemo(() => {
     const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
-    return majorOptions.filter((major) => {
-      if (selectedSectorFilter !== 'ALL' && major.sector !== selectedSectorFilter) return false;
-      return !query || `${major.name} ${major.code}`.toLocaleLowerCase('vi').includes(query);
-    });
-  }, [majorOptions, selectedSectorFilter, majorSearchQuery]);
+    if (!query) return [];
+    return majorOptions.filter((major) =>
+      `${major.name} ${major.code}`.toLocaleLowerCase('vi').includes(query)
+    );
+  }, [majorOptions, majorSearchQuery]);
 
   // Current chosen major object
   const currentMajor = useMemo(() => {
@@ -315,63 +293,47 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   };
 
   const majorCatalogPanel = (
-    <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-bold text-white">Danh sách ngành học</h3>
-          <p className="text-sm text-slate-300 mt-1">{filteredMajors.length.toLocaleString('vi-VN')} / {majorOptions.length.toLocaleString('vi-VN')} ngành</p>
-        </div>
-        <label className="flex flex-col gap-1 text-sm text-slate-300">
-          Lĩnh vực
-          <select
-            value={selectedSectorFilter}
-            onChange={(e) => setSelectedSectorFilter(e.target.value)}
-            className="min-h-11 min-w-56 rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="ALL">Tất cả lĩnh vực ({majorOptions.length.toLocaleString('vi-VN')})</option>
-            {sectorOptions.map((sector) => (
-              <option key={sector.id} value={sector.id}>
-                {sector.label} ({sector.count.toLocaleString('vi-VN')})
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
+    <div className="space-y-3">
       <label htmlFor="major-search" className="sr-only">Tìm ngành học</label>
       <input
         id="major-search"
         type="search"
         value={majorSearchQuery}
         onChange={(e) => setMajorSearchQuery(e.target.value)}
-        placeholder="Tìm tên hoặc mã ngành"
+        placeholder="Nhập tên hoặc mã ngành"
+        aria-controls="major-search-results"
+        aria-expanded={Boolean(majorSearchQuery.trim())}
         className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
       />
 
-      <div className="flex flex-col gap-2">
-        {filteredMajors.length === 0 && (
-          <p className="col-span-full py-8 text-center text-base text-slate-300">Không tìm thấy ngành phù hợp.</p>
-        )}
-        {filteredMajors.map((major) => {
-          const isSelected = selectedMajorCode === major.code;
-          return (
-            <button
-              key={major.code}
-              type="button"
-              aria-pressed={isSelected}
-              onClick={() => {
-                sfx.playActionSuccess();
-                handleSelectMajor(major.code);
-              }}
-              className={isSelected
-                ? 'flex min-h-14 w-full items-center rounded-lg border border-blue-400 bg-blue-950/70 px-4 py-3 text-left ring-1 ring-blue-400'
-                : 'flex min-h-14 w-full items-center rounded-lg border border-slate-700 bg-[#141923] px-4 py-3 text-left hover:border-blue-500'}
-            >
-              <span className="block text-lg font-bold text-white">{major.name}</span>
-            </button>
-          );
-        })}
-      </div>
+      {majorSearchQuery.trim() && (
+        <div
+          id="major-search-results"
+          role="listbox"
+          aria-label="Kết quả tìm ngành"
+          className="flex max-h-80 flex-col gap-2 overflow-y-auto"
+        >
+          {filteredMajors.length === 0 ? (
+            <p role="status" className="py-4 text-center text-base text-slate-300">Không tìm thấy ngành phù hợp.</p>
+          ) : (
+            filteredMajors.map((major) => (
+              <button
+                key={major.code}
+                type="button"
+                role="option"
+                aria-selected={selectedMajorCode === major.code}
+                onClick={() => {
+                  sfx.playActionSuccess();
+                  handleSelectMajor(major.code);
+                }}
+                className="flex min-h-14 w-full items-center rounded-lg border border-slate-700 bg-[#141923] px-4 py-3 text-left hover:border-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                <span className="block text-lg font-bold text-white">{major.name}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 
