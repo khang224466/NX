@@ -635,3 +635,11 @@ Last Updated: 2026-10-20T08:56:00+07:00
 
 
 
+
+
+## 2026-10-21 — Gemini profile recommendation flow
+- Replaced client-side keyword/RIASEC ranking in `src/components/Scientific4TabPortal.tsx` with an explicit POST to `/api/ai/counselor/analyze` when the user clicks “Gợi ý ngành”.
+- The request includes interests, strengths, every school and aptitude score field, current constraints, and the full major catalog metadata; blank scores stay unknown/null.
+- `scripts/counselor_backend.mjs` now asks Gemini to analyze the submitted profile and choose only catalog codes, then validates and enriches those codes from the catalog before returning results. Groq and heuristic fallback are not used by this endpoint.
+- Results stay hidden until the click, clear on profile edits, and show major names plus Gemini’s rationale without showing schools or admission-combination details.
+- Pushed the implementation directly to `main`. No tests were run in this turn. Follow up by checking the Vercel deployment and exercising the form in the browser.
