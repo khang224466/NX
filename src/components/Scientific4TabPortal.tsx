@@ -10,6 +10,7 @@ import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
 import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
+import { VERIFIED_COMBINATIONS_219 } from '../data/verifiedAdmissionDatabase';
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
@@ -33,6 +34,35 @@ const APTITUDE_SUBJECTS_METADATA = [
   { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', combos: ['S00'] }
 ];
 
+const AUDITED_PROVINCE_OPTIONS = [...new Set(
+  AUDITED_INSTITUTIONS_300.flatMap((institution) =>
+    institution.verified_province_city.split(/\s*&\s*/).map((place) => place.trim()).filter(Boolean)
+  )
+)].sort((a, b) => a.localeCompare(b, 'vi'));
+
+const normalizeMajorCatalogName = (value: string) => value.normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .toLocaleLowerCase('vi')
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
+const getMajorCatalogAliases = (name: string) => {
+  const normalized = normalizeMajorCatalogName(name);
+  const aliases = [name];
+  if (normalized.includes('giao duc the chat') && normalized.startsWith('su pham ')) {
+    aliases.push(name.replace(/^sư phạm\s+/i, ''));
+  }
+  return [...new Set(aliases)];
+};
+
+const isPhysicalEducationMajorName = (name: string) => {
+  const normalized = normalizeMajorCatalogName(name);
+  return normalized.includes('giao duc the chat') ||
+    normalized.includes('quan ly the duc the thao') ||
+    normalized.includes('huan luyen the thao');
+};
+
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
   onNavigateToCombos
@@ -47,8 +77,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
   const [majorSearchQuery, setMajorSearchQuery] = useState('');
-  const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
-  const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
 
   // Step 1: Input Profile if user doesn't have major yet
   const [scores, setScores] = useState<Record<string, number | ''>>({
@@ -118,6 +146,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
   const [maxTuition, setMaxTuition] = useState<number | null>(null);
   const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
+  const [targetProvinceFilter, setTargetProvinceFilter] = useState('');
+  const [aspirationNotes, setAspirationNotes] = useState('');
   const [priorityRegion, setPriorityRegion] = useState<'KV1' | 'KV2-NT' | 'KV2' | 'KV3'>('KV2');
   const [priorityObject, setPriorityObject] = useState<'DT_0' | 'DT_NHOM_1' | 'DT_NHOM_2'>('DT_0');
 
@@ -179,6 +209,21 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   }, [catalog, selectedMajorCode]);
 
   // Current chosen university object
+  const getComboSubjectLabel = (comboCode: string) => {
+    // T00/T01 are school-specific aptitude codes for physical-education majors.
+    if (isPhysicalEducationMajorName(currentMajor?.name || '') && comboCode === 'T00') {
+      return 'Toán – Sinh học – Năng khiếu TDTT';
+    }
+    if (isPhysicalEducationMajorName(currentMajor?.name || '') && comboCode === 'T01') {
+      return 'Toán – Ngữ văn – Năng khiếu TDTT';
+    }
+
+    const verifiedCombo = VERIFIED_COMBINATIONS_219.find((item) => item.code === comboCode);
+    return verifiedCombo
+      ? verifiedCombo.subjects.join(' – ')
+      : 'Chưa có mô tả môn cho tổ hợp này trong danh mục.';
+  };
+
   const currentSchool = useMemo(() => {
     if (!selectedSchoolCode) return null;
     return (AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
@@ -303,7 +348,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
     return combos.map((comboCode: string) => {
       // Academic mapping
-      const isArts = ['H00', 'H01', 'V00', 'V01', 'N00', 'N01', 'T00', 'T01', 'M00', 'M01', 'R00', 'S00'].includes(comboCode);
+      const isArts = ['H00', 'H01', 'V00', 'V01', 'N00', 'N01', 'M00', 'M01', 'R00', 'S00'].includes(comboCode) ||
+        (isPhysicalEducationMajorName(currentMajor.name) && ['T00', 'T01'].includes(comboCode));
       let m1 = 0, m2 = 0, m3 = 0;
       let hasData = false;
 
@@ -362,6 +408,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         m2 = Number(scores.biology) || 0;
         m3 = Number(aptitudeScores.apt_theThao) || 0;
         hasData = scores.math !== '' && scores.biology !== '' && aptitudeScores.apt_theThao !== '';
+      } else if (comboCode === 'T01' && isPhysicalEducationMajorName(currentMajor.name)) {
+        m1 = Number(scores.math) || 0;
+        m2 = Number(scores.literature) || 0;
+        m3 = Number(aptitudeScores.apt_theThao) || 0;
+        hasData = scores.math !== '' && scores.literature !== '' && aptitudeScores.apt_theThao !== '';
       } else {
         m1 = 0;
         m2 = 0;
@@ -397,26 +448,24 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // Keep all 300 schools visible while marking exact ngành/tổ hợp matches.
   const stratifiedSchools = useMemo(() => {
     const institutionsByCode = new Map(AUDITED_INSTITUTIONS_300.map((institution) => [institution.institution_code, institution]));
-    const schoolQuery = schoolSearchQuery.trim().toLocaleLowerCase('vi');
     const visibleInstitutions = AUDITED_INSTITUTIONS_300.filter((institution) => {
       if (targetRegionFilter !== 'ALL' && getRegionFromProvinceCity(institution.verified_province_city) !== targetRegionFilter) return false;
-      if (schoolQuery) {
-        const searchableSchool = [institution.official_name, institution.institution_code, institution.verified_province_city]
-          .join(' ')
-          .toLocaleLowerCase('vi');
-        if (!searchableSchool.includes(schoolQuery)) return false;
-      }
+      if (targetProvinceFilter && !institution.verified_province_city.split(/\s*&\s*/).some((place) => place.trim() === targetProvinceFilter)) return false;
       return true;
     });
 
     if (!currentMajor) {
-      return { dream: [], target: [], safe: [], schools: [], hasScore: false, totalSchools: 0, matchingSchoolCount: 0, tuitionBenchmark: null };
+      return { dream: [], target: [], safe: [], hasScore: false, totalSchools: visibleInstitutions.length, matchingSchoolCount: 0, tuitionBenchmark: null };
     }
 
     const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
     const visibleSchoolCodes = new Set(visibleInstitutions.map((institution) => institution.institution_code));
-    const records = getMajorAdmissionRecords(currentMajor.name, chosenCombo)
-      .filter((record) => record.verification_status === 'VERIFIED_OFFICIAL' && visibleSchoolCodes.has(record.institution_code));
+    const majorNames = getMajorCatalogAliases(currentMajor.name);
+    const records = [...new Map(majorNames
+      .flatMap((name) => getMajorAdmissionRecords(name, chosenCombo))
+      .filter((record) => record.verification_status === 'VERIFIED_OFFICIAL' && visibleSchoolCodes.has(record.institution_code))
+      .map((record) => [record.institution_code + ':' + record.program_id + ':' + record.admission_method_code, record])
+    ).values()];
     const groups = new Map<string, { institution: any; cutoffs: number[] }>();
 
     for (const record of records) {
@@ -475,38 +524,17 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     target.sort(hasScore ? (a: any, b: any) => Math.abs(a.margin) - Math.abs(b.margin) : byCutoff);
     safe.sort((a: any, b: any) => b.margin - a.margin);
 
-    const matchedByCode = new Map<string, any>();
-    safe.forEach((school) => matchedByCode.set(school.code, { ...school, tier: 'An toàn' }));
-    target.forEach((school) => matchedByCode.set(school.code, { ...school, tier: hasScore ? 'Vừa sức' : '' }));
-    dream.forEach((school) => matchedByCode.set(school.code, { ...school, tier: 'Mơ ước' }));
-
-    const allSchools = visibleInstitutions.map((institution) => {
-      const match = matchedByCode.get(institution.institution_code);
-      return {
-        code: institution.institution_code,
-        name: institution.official_name,
-        city: institution.verified_province_city,
-        hasMajorData: Boolean(match),
-        tier: match?.tier || '',
-        benchmark: match?.benchmark ?? null,
-        margin: match?.margin ?? null
-      };
-    });
-    const schools = allSchools
-      .filter((school) => schoolMatchFilter === 'ALL' || school.hasMajorData)
-      .sort((a, b) => Number(b.hasMajorData) - Number(a.hasMajorData) || a.name.localeCompare(b.name, 'vi'));
-
+    const matchingSchoolCount = new Set([...dream, ...target, ...safe].map((school) => school.code)).size;
     return {
       dream,
       target,
       safe,
-      schools,
       hasScore,
-      totalSchools: schools.length,
-      matchingSchoolCount: matchedByCode.size,
+      totalSchools: visibleInstitutions.length,
+      matchingSchoolCount,
       tuitionBenchmark
     };
-  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, schoolSearchQuery, schoolMatchFilter, maxTuition]);
+  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, targetProvinceFilter, maxTuition]);
 
   const requestUniversityAnalysis = async () => {
     sfx.playUiClick();
@@ -520,22 +548,57 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       return;
     }
 
-    const schoolCatalog = [
+    const majorNames = getMajorCatalogAliases(currentMajor.name);
+    const majorKeys = new Set(majorNames.map(normalizeMajorCatalogName));
+    const matchingPrograms = CAREER_PROGRAM_CATALOG.filter((program) =>
+      (program.majorCode === currentMajor.codeTT09 || majorKeys.has(normalizeMajorCatalogName(program.name))) &&
+      program.admissionsCombos.some((combo) => combo.trim().toUpperCase() === chosenCombo.toUpperCase()) &&
+      Boolean(program.institutionCode)
+    );
+    const programSchoolCodes = new Set(matchingPrograms.map((program) => program.institutionCode));
+    // Admission records can establish a program/combo match even when no verified cutoff exists.
+    majorNames.flatMap((name) => getMajorAdmissionRecords(name, chosenCombo)).forEach((record) => {
+      if (record.institution_code) programSchoolCodes.add(record.institution_code);
+    });
+
+    const verifiedSchools = [
       ...stratifiedSchools.safe.map((school: any) => ({ ...school, tier: 'An toàn' })),
       ...stratifiedSchools.target.map((school: any) => ({ ...school, tier: 'Vừa sức' })),
       ...stratifiedSchools.dream.map((school: any) => ({ ...school, tier: 'Mơ ước' }))
-    ].map((school: any) => ({
-        institutionCode: school.code,
-        name: school.name,
-        city: school.city,
-        cutoffBenchmark: school.benchmark,
-        scoreMargin: school.margin,
-        preliminaryTier: school.tier,
-        sectorTuitionAverage: school.sectorTuition,
-        withinBudgetBenchmark: school.isBudgetOk
-      }));
+    ];
+    const verifiedByCode = new Map(verifiedSchools.map((school: any) => [school.code, school]));
+    const tuitionAverage = stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? null;
+    const allowedCodes = new Set([...programSchoolCodes, ...verifiedByCode.keys()]);
+    const schoolCatalog = AUDITED_INSTITUTIONS_300
+      .filter((institution) => allowedCodes.has(institution.institution_code))
+      .filter((institution) => targetRegionFilter === 'ALL' ||
+        getRegionFromProvinceCity(institution.verified_province_city) === targetRegionFilter)
+      .filter((institution) => !targetProvinceFilter ||
+        institution.verified_province_city.split(/\s*&\s*/).some((place) => place.trim() === targetProvinceFilter))
+      .map((institution) => {
+        const verified = verifiedByCode.get(institution.institution_code);
+        return {
+          institutionCode: institution.institution_code,
+          name: institution.official_name,
+          city: institution.verified_province_city,
+          cutoffBenchmark: verified?.benchmark ?? null,
+          scoreMargin: verified?.margin ?? null,
+          preliminaryTier: verified?.tier ?? '',
+          sectorTuitionAverage: tuitionAverage,
+          withinBudgetBenchmark: tuitionAverage != null && maxTuition != null
+            ? tuitionAverage <= maxTuition
+            : null,
+          hasVerifiedCutoff: Boolean(verified)
+        };
+      })
+      .sort((a, b) => Number(b.hasVerifiedCutoff) - Number(a.hasVerifiedCutoff) ||
+        a.name.localeCompare(b.name, 'vi'))
+      .slice(0, 120);
+
     if (schoolCatalog.length === 0) {
-      setUniversityAnalysisError('Kho dữ liệu chưa có mốc tuyển sinh đã đối chiếu cho ngành và tổ hợp này.');
+      setUniversityAnalysisError(targetProvinceFilter
+        ? 'Kho dữ liệu chưa có chương trình phù hợp với ngành, tổ hợp và tỉnh/thành đã chọn. Hãy đổi khu vực hoặc tỉnh/thành.'
+        : 'Kho dữ liệu chưa có chương trình phù hợp với ngành và tổ hợp này. Chưa thể đề xuất trường nếu không có dữ liệu đối chiếu.');
       return;
     }
 
@@ -549,6 +612,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         body: JSON.stringify({
           analysisType: 'universities',
           studentProfile: {
+            interests: careerInterests,
+            strengths: careerStrengths,
             scores,
             aptitudeScores,
             major: {
@@ -563,6 +628,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             officialScoreForComparison: selectedEvaluation?.officialScore ?? null,
             maxAnnualTuitionMillions: maxTuition,
             preferredStudyRegion: targetRegionFilter,
+            preferredProvince: targetProvinceFilter,
+            aspirationNotes,
             priorityRegion,
             priorityObject
           },
@@ -600,10 +667,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setScores({ math: '', literature: '', english: '', physics: '', chemistry: '', biology: '', history: '', geography: '', informatics: '', economicLegal: '' });
     setAptitudeScores({ apt_hinhHoa: '', apt_trangTri: '', apt_veMyThuat: '', apt_thamAm: '', apt_thanhNhac: '', apt_theThao: '', apt_mamNon: '', apt_baoChi: '', apt_dienXuat: '' });
     setSelectedProgramId(null);
-    setSchoolSearchQuery('');
-    setSchoolMatchFilter('ALL');
     setMaxTuition(null);
     setTargetRegionFilter('ALL');
+    setTargetProvinceFilter('');
+    setAspirationNotes('');
     setActiveTab('tab-major');
   };
 
@@ -916,16 +983,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       {combo.effectivePriority > 0 && <span className="text-blue-300 text-sm ml-1">(+ {combo.effectivePriority.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}đ ưu tiên TT06)</span>}
                     </div>
 
-                    <div className="text-sm text-slate-400">
-                      {combo.code === 'A00' ? 'Toán – Vật lý – Hóa học' :
-                       combo.code === 'A01' ? 'Toán – Vật lý – Tiếng Anh' :
-                       combo.code === 'D01' ? 'Toán – Ngữ văn – Tiếng Anh' :
-                       combo.code === 'C00' ? 'Ngữ văn – Lịch sử – Địa lý' :
-                       combo.code === 'H00' ? 'Ngữ văn – Hình họa – Bố cục màu' :
-                       combo.code === 'V00' ? 'Toán – Vật lý – Vẽ mỹ thuật' :
-                       combo.code === 'N00' ? 'Ngữ văn – Thẩm âm – Thanh nhạc' :
-                       combo.code === 'T00' ? 'Toán – Sinh học – Năng khiếu Thể thao' :
-                       'Tổ hợp chuẩn Bộ GD&ĐT'}
+                    <div className="text-sm text-slate-300">
+                      Gồm: {getComboSubjectLabel(combo.code)}
                     </div>
 
                     <div className="pt-1 flex items-center justify-between text-sm font-bold text-blue-300">
@@ -952,6 +1011,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <h3 className="font-bold text-base text-white">
                 Ngành {currentMajor?.name} · Tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}{topCombo?.hasData ? ' · ' + topCombo.officialScore + ' điểm' : ''}
               </h3>
+              {(selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null)) && (
+                <p className="mt-1 text-sm text-slate-300">
+                  Gồm: {getComboSubjectLabel(selectedComboCode || topCombo!.code)}
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -1029,6 +1093,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     type="button"
                     onClick={() => {
                       setTargetRegionFilter(r.id as any);
+                      setTargetProvinceFilter('');
                       setSelectedSchoolCode(null);
                       clearUniversityAnalysis();
                     }}
@@ -1044,6 +1109,38 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               </div>
             </div>
           </div>
+            <label className="block space-y-2 text-sm font-semibold text-white">
+              Tỉnh/thành phố mong muốn
+              <select
+                value={targetProvinceFilter}
+                onChange={(e) => {
+                  setTargetProvinceFilter(e.target.value);
+                  setSelectedSchoolCode(null);
+                  clearUniversityAnalysis();
+                }}
+                className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Tất cả tỉnh/thành trong vùng đã chọn</option>
+                {AUDITED_PROVINCE_OPTIONS.filter((province) => targetRegionFilter === 'ALL' || getRegionFromProvinceCity(province) === targetRegionFilter).map((province) => (
+                  <option key={province} value={province}>{province}</option>
+                ))}
+              </select>
+            </label>
+
+          <label className="block space-y-2 rounded-2xl border border-slate-800 bg-[#0E1117] p-5 text-sm font-semibold text-white">
+            Nguyện vọng / ưu tiên khi chọn trường
+            <input
+              type="text"
+              value={aspirationNotes}
+              onChange={(e) => {
+                setAspirationNotes(e.target.value);
+                clearUniversityAnalysis();
+              }}
+              maxLength={300}
+              placeholder="Ví dụ: NV1, gần nhà, ưu tiên trường công hoặc học phí thấp"
+              className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            />
+          </label>
 
           <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1092,6 +1189,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                                 {school.scoreMargin != null ? ' · Chênh ' + Number(school.scoreMargin).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' điểm' : ''}
                               </p>
                             )}
+                            {school.hasVerifiedCutoff === false && (
+                              <p className="mt-1 text-sm text-amber-300">
+                                Có ngành và tổ hợp trong danh mục; hiện chưa có mốc điểm chuẩn chính thức để đối chiếu.
+                              </p>
+                            )}
                             {school.sectorTuitionAverage != null && (
                               <p className="mt-1 text-sm text-slate-400">
                                 Học phí tham khảo ngành: {Number(school.sectorTuitionAverage).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} triệu/năm · mức bình quân, không phải học phí riêng của trường
@@ -1117,91 +1219,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-bold text-white">Danh sách trường</h3>
-                <p className="mt-1 text-base text-slate-300">
-                  {stratifiedSchools.totalSchools} / {AUDITED_INSTITUTIONS_300.length} trường · {stratifiedSchools.matchingSchoolCount} trường có điểm cho ngành và tổ hợp này
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  aria-pressed={schoolMatchFilter === 'ALL'}
-                  onClick={() => setSchoolMatchFilter('ALL')}
-                  className={schoolMatchFilter === 'ALL'
-                    ? 'min-h-11 rounded-lg bg-blue-600 px-4 text-base font-bold text-white'
-                    : 'min-h-11 rounded-lg border border-slate-700 px-4 text-base text-slate-200'}
-                >
-                  Tất cả
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={schoolMatchFilter === 'MATCHED'}
-                  onClick={() => setSchoolMatchFilter('MATCHED')}
-                  className={schoolMatchFilter === 'MATCHED'
-                    ? 'min-h-11 rounded-lg bg-blue-600 px-4 text-base font-bold text-white'
-                    : 'min-h-11 rounded-lg border border-slate-700 px-4 text-base text-slate-200'}
-                >
-                  Có dữ liệu
-                </button>
-              </div>
-            </div>
 
-            <label htmlFor="school-search" className="sr-only">Tìm trường theo tên, mã hoặc tỉnh thành</label>
-            <input
-              id="school-search"
-              type="search"
-              value={schoolSearchQuery}
-              onChange={(e) => {
-                setSchoolSearchQuery(e.target.value);
-                setSelectedSchoolCode(null);
-                clearUniversityAnalysis();
-              }}
-              placeholder="Tìm trường theo tên, mã hoặc tỉnh/thành"
-              className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-            />
-
-            <p className="text-sm text-slate-300">
-              {currentMajor?.name} · {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn tổ hợp')} · {targetRegionFilter === 'ALL' ? 'Toàn quốc' : ({ BAC: 'Miền Bắc', TRUNG: 'Miền Trung', NAM: 'Miền Nam', DBSCL: 'ĐBSCL' }[targetRegionFilter])}
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {stratifiedSchools.schools.length === 0 && (
-                <p className="col-span-full py-8 text-center text-base text-slate-300">Không có trường phù hợp bộ lọc.</p>
-              )}
-              {stratifiedSchools.schools.map((school) => (
-                <button
-                  key={school.code}
-                  type="button"
-                  aria-pressed={selectedSchoolCode === school.code}
-                  onClick={() => {
-                    setSelectedSchoolCode(school.code);
-                    setActiveTab('tab-domino');
-                  }}
-                  className={selectedSchoolCode === school.code
-                    ? 'min-h-32 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
-                    : 'min-h-32 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
-                >
-                  <span className="flex items-center justify-between text-sm text-slate-300">
-                    <span className="font-bold text-white">{school.code}</span>
-                    <span>{school.city}</span>
-                  </span>
-                  <span className="mt-2 block text-lg font-bold text-white">{school.name}</span>
-                  {school.hasMajorData ? (
-                    <span className="mt-2 block text-sm text-blue-300">
-                      {school.tier ? school.tier + ' · ' : ''}
-                      Mốc tuyển sinh: {school.benchmark}đ
-                      {school.margin !== null ? ' · Chênh ' + (school.margin > 0 ? '+' : '') + school.margin + 'đ' : ''}
-                    </span>
-                  ) : (
-                    <span className="mt-2 block text-sm text-slate-300">Chưa có dữ liệu cho lựa chọn này</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
         </section>
       )}
 
