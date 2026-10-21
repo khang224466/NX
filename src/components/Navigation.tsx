@@ -72,7 +72,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </span>
               </div>
               <p className="text-[10px] font-tabular text-[var(--text-secondary)] tracking-tight hidden sm:block uppercase">
-                Future Index · Vietnam 2026
+                Định hướng ngành học · Tổ hợp xét tuyển · Chọn trường
               </p>
             </div>
           </div>
