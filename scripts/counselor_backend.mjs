@@ -803,7 +803,7 @@ export async function handleDossierAnalysisRequest({
     schoolSubjectScores: cleanScores(scores),
     aptitudeScores: cleanScores(aptitudeScores),
     constraints: {
-      annualTuitionBudgetMillions: Number.isFinite(Number(maxTuition)) ? Number(maxTuition) : null,
+      annualTuitionBudgetMillions: maxTuition == null || maxTuition === '' ? null : (Number.isFinite(Number(maxTuition)) ? Number(maxTuition) : null),
       priorityRegion: textValue(priorityRegion),
       priorityObject: textValue(priorityObject),
       preferredStudyRegion: textValue(targetRegionFilter),
