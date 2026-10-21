@@ -4,7 +4,7 @@ import {
   calculateEffectivePriority,
   calculateBasePriority30
 } from '../services/admissionsCalculationEngine';
-import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/counselorBackend';
+
 
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
@@ -32,85 +32,6 @@ const APTITUDE_SUBJECTS_METADATA = [
   { key: 'apt_baoChi', label: 'Năng khiếu Báo chí / Tự luận', category: 'Báo chí', combos: ['R00'] },
   { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', combos: ['S00'] }
 ];
-
-type CareerProfileDimension = 'R' | 'I' | 'A' | 'S' | 'E' | 'C';
-
-const normalizeCareerText = (value: string) => value
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/đ/g, 'd')
-  .toLocaleLowerCase('vi')
-  .replace(/[^a-z0-9]+/g, ' ')
-  .trim();
-
-const CAREER_PROFILE_SIGNAL_RULES: Array<{
-  sector: string;
-  label: string;
-  dimension: CareerProfileDimension;
-  terms: string[];
-}> = [
-  {
-    sector: 'KIEN_TRUC_NGHE_THUAT_TDTT',
-    label: 'Âm nhạc & nghệ thuật',
-    dimension: 'A',
-    terms: ['thanh nhac', 'nhac ly', 'nhac cu', 'am nhac', 'ca hat', 'choi nhac', 'sang tac', 'viet tho', 'tho ca', 'my thuat', 'thiet ke', 'hoi hoa', 'dien xuat']
-  },
-  {
-    sector: 'XA_HOI_NHAN_VAN',
-    label: 'Ngôn ngữ & viết',
-    dimension: 'S',
-    terms: ['van hoc', 'ngu van', 'viet tho', 'tho ca', 'viet luan', 'viet bao', 'viet', 'van', 'bao chi', 'truyen thong', 'ngon ngu', 'ngoai ngu', 'lich su', 'dia ly', 'tam ly', 'cong dong']
-  },
-  {
-    sector: 'SU_PHAM_GIAO_DUC',
-    label: 'Giảng dạy & giáo dục',
-    dimension: 'S',
-    terms: ['day hoc', 'giang day', 'giao vien', 'su pham', 'day tre', 'tre em']
-  },
-  {
-    sector: 'CNTT_BAN_DAN_AI',
-    label: 'Máy tính & công nghệ',
-    dimension: 'I',
-    terms: ['lap trinh', 'may tinh', 'cntt', 'phan mem', 'du lieu', 'tri tue nhan tao', 'thiet ke web', 'an ninh mang']
-  },
-  {
-    sector: 'KY_THUAT_CONG_NGHE',
-    label: 'Kỹ thuật & chế tạo',
-    dimension: 'R',
-    terms: ['co khi', 'may moc', 'dien tu', 'robot', 'xay dung', 'ky thuat', 'lap rap', 'sua chua']
-  },
-  {
-    sector: 'KINH_TE_QUAN_TRI',
-    label: 'Kinh doanh & quản lý',
-    dimension: 'E',
-    terms: ['kinh doanh', 'kinh te', 'marketing', 'ban hang', 'quan tri', 'tai chinh', 'ke toan', 'khoi nghiep']
-  },
-  {
-    sector: 'Y_DUOC_SUC_KHOE',
-    label: 'Sức khỏe & chăm sóc',
-    dimension: 'S',
-    terms: ['y te', 'bac si', 'duoc', 'dieu duong', 'cham soc', 'suc khoe', 'benh nhan']
-  },
-  {
-    sector: 'LUAT_HANH_CHINH',
-    label: 'Luật & pháp lý',
-    dimension: 'E',
-    terms: ['luat', 'phap ly', 'luat hoc', 'to tung']
-  },
-  {
-    sector: 'NONG_LAM_NGU_SINH_HOC',
-    label: 'Sinh học & môi trường',
-    dimension: 'I',
-    terms: ['sinh hoc', 'dong vat', 'thuc vat', 'nong nghiep', 'lam nghiep', 'thu y', 'moi truong']
-  },
-  {
-    sector: 'CONG_AN_QUAN_DOI',
-    label: 'An ninh & quốc phòng',
-    dimension: 'R',
-    terms: ['an ninh', 'quoc phong', 'quan doi', 'cong an', 'canh sat']
-  }
-];
-
 
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
@@ -159,6 +80,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [careerInterests, setCareerInterests] = useState('');
   const [careerStrengths, setCareerStrengths] = useState('');
   const [hasRequestedSuggestions, setHasRequestedSuggestions] = useState(false);
+  const [isAnalyzingWithGemini, setIsAnalyzingWithGemini] = useState(false);
+  const [geminiAnalysis, setGeminiAnalysis] = useState<any | null>(null);
+  const [analysisError, setAnalysisError] = useState('');
+  const analysisRequestIdRef = useRef(0);
+
+  const clearCareerAnalysis = () => {
+    analysisRequestIdRef.current += 1;
+    setHasRequestedSuggestions(false);
+    setIsAnalyzingWithGemini(false);
+    setGeminiAnalysis(null);
+    setAnalysisError('');
+  };
 
   // =========================================================================
   // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
@@ -238,59 +171,63 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode)) || null;
   }, [selectedSchoolCode]);
 
-  const careerProfileText = [careerInterests, careerStrengths].filter(Boolean).join(' ').trim();
-  const profileKeywords = useMemo(() => {
-    const stopWords = new Set(['thích', 'muốn', 'mình', 'ngành', 'nghề', 'làm', 'giỏi', 'học', 'em', 'tôi']);
-    return [...new Set(careerProfileText.toLocaleLowerCase('vi')
-      .split(/\s+/)
-      .map((word) => word.replace(/^[^a-zA-ZÀ-ỹ]+|[^a-zA-ZÀ-ỹ]+$/g, ''))
-      .filter((word) => word.length >= 4 && !stopWords.has(word)))];
-  }, [careerProfileText]);
-  const profileSignals = useMemo(() => {
-    const normalizedText = ` ${normalizeCareerText(careerProfileText)} `;
-    const matches = CAREER_PROFILE_SIGNAL_RULES.flatMap((rule) => {
-      const terms = rule.terms.filter((term) => normalizedText.includes(` ${term} `));
-      return terms.length ? [{ ...rule, terms }] : [];
-    });
-    const riasec: Record<CareerProfileDimension, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
-    matches.forEach((match) => { riasec[match.dimension] += match.terms.length; });
-    return {
-      riasec,
-      matches,
-      recommendedSectors: [...new Set(matches.map((match) => match.sector))]
-    };
-  }, [careerProfileText]);
-  const profileDiagnosis = useMemo(() => ({
-    recommendedSectors: profileSignals.recommendedSectors,
-    recommendedKeywords: profileKeywords
-  }), [profileSignals, profileKeywords]);
+  const requestMajorSuggestions = async () => {
+    sfx.playUiClick();
+    setHasRequestedSuggestions(true);
+    setGeminiAnalysis(null);
+    setAnalysisError('');
+
+    if (!hasRecommendationInput) {
+      setAnalysisError('Hãy nhập sở thích, năng lực hoặc ít nhất một điểm số trước khi gợi ý ngành.');
+      return;
+    }
+
+    const requestId = ++analysisRequestIdRef.current;
+    setIsAnalyzingWithGemini(true);
+    try {
+      const response = await fetch('/api/ai/counselor/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          careerInterests,
+          careerStrengths,
+          scores,
+          aptitudeScores,
+          maxTuition,
+          priorityRegion,
+          priorityObject,
+          targetRegionFilter,
+          targetJob,
+          majorCatalog: catalog.map((major) => ({
+            codeTT09: major.codeTT09,
+            codeTT74: major.codeTT74,
+            name: major.name,
+            sector: major.sector,
+            admissionsCombos: major.admissionsCombos,
+            targetJobs: major.targetJobs,
+            programCount: major.programCount,
+            admissionRecordCount: major.admissionRecordCount
+          }))
+        })
+      });
+      const payload = await response.json();
+      if (requestId !== analysisRequestIdRef.current) return;
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'gemini' || !payload?.analysis) {
+        throw new Error(payload?.error || 'Chưa nhận được phân tích từ Gemini. Hãy thử lại.');
+      }
+      setGeminiAnalysis(payload.analysis);
+    } catch (error) {
+      if (requestId === analysisRequestIdRef.current) {
+        setAnalysisError(error instanceof Error ? error.message : 'Không thể kết nối Gemini. Hãy thử lại.');
+      }
+    } finally {
+      if (requestId === analysisRequestIdRef.current) setIsAnalyzingWithGemini(false);
+    }
+  };
+
   const hasCareerProfile = careerInterests.trim().length > 0 || careerStrengths.trim().length > 0;
   const hasEnteredScore = [...Object.values(scores), ...Object.values(aptitudeScores)].some((value) => value !== '');
   const hasRecommendationInput = hasCareerProfile || hasEnteredScore;
-  const hasProfileEvidence = hasEnteredScore || profileSignals.matches.length > 0 || catalog.some((major) =>
-    profileKeywords.some((keyword) => normalizeCareerText(major.name).split(' ').includes(normalizeCareerText(keyword)))
-  );
-
-  // Keep the catalog static, but run recommendation ranking only on explicit user request.
-  const rankedMajors = useMemo(() => {
-    if (!hasRequestedSuggestions || !hasRecommendationInput) return [];
-    const allScores = { ...scores, ...aptitudeScores };
-    return linkAndRankMajorsWithDossier(allScores, profileSignals.riasec, profileDiagnosis, catalog);
-  }, [hasRequestedSuggestions, hasRecommendationInput, scores, aptitudeScores, profileSignals, profileDiagnosis, catalog]);
-
-  const explainMajorFit = (major: (typeof rankedMajors)[number]) => {
-    const nameWords = new Set(normalizeCareerText(major.name).split(' '));
-    const directMatches = profileKeywords.filter((keyword) => nameWords.has(normalizeCareerText(keyword)));
-    if (directMatches.length) {
-      return `Tên ngành khớp với thông tin bạn nhập: ${directMatches.slice(0, 3).join(', ')}.`;
-    }
-    const sectorSignals = profileSignals.matches.filter((match) => match.sector === major.sector);
-    if (sectorSignals.length) {
-      const labels = [...new Set(sectorSignals.map((match) => match.label))];
-      return `Thuộc nhóm ${major.sectorName}, khớp với tín hiệu ${labels.join(' và ').toLocaleLowerCase('vi')}.`;
-    }
-    return `Gợi ý theo lĩnh vực ${major.sectorName} trong hồ sơ của bạn.`;
-  };
 
   const majorCatalogPanel = (
     <div className="space-y-3">
@@ -568,7 +505,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setExpectedScoreInput('');
     setCareerInterests('');
     setCareerStrengths('');
-    setHasRequestedSuggestions(false);
+    clearCareerAnalysis();
     setScores({ math: '', literature: '', english: '', physics: '', chemistry: '', biology: '', history: '', geography: '', informatics: '', economicLegal: '' });
     setAptitudeScores({ apt_hinhHoa: '', apt_trangTri: '', apt_veMyThuat: '', apt_thamAm: '', apt_thanhNhac: '', apt_theThao: '', apt_mamNon: '', apt_baoChi: '', apt_dienXuat: '' });
     setSelectedProgramId(null);
@@ -729,55 +666,61 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    sfx.playUiClick();
-                    setHasRequestedSuggestions(true);
-                  }}
+                  onClick={() => void requestMajorSuggestions()}
                   className="min-h-11 rounded-lg bg-blue-600 px-6 py-3 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                 >
                   Gợi ý ngành
                 </button>
               </div>
 
-              {hasRequestedSuggestions && !hasRecommendationInput && (
-                <p role="status" className="rounded-xl border border-slate-700 bg-[#0E1117] p-4 text-base text-slate-300">
-                  Hãy nhập sở thích, năng lực hoặc điểm học tập trước khi gợi ý ngành.
-                </p>
-              )}
-
-              {hasRequestedSuggestions && hasRecommendationInput && (
+              {hasRequestedSuggestions && (
                 <section aria-labelledby="recommended-majors-title" className="rounded-xl border border-slate-700 bg-[#0E1117] p-5 space-y-4">
                   <div>
-                    <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Gợi ý từ thông tin bạn nhập</h3>
-                    {profileSignals.matches.length > 0 && (
-                      <p className="mt-1 text-base text-slate-300">
-                        Đã nhận ra: {[...new Set(profileSignals.matches.map((match) => match.label))].join(' · ')}
-                      </p>
-                    )}
-                  </div>
-                  {!hasProfileEvidence ? (
-                    <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base leading-relaxed text-slate-300">
-                      Chưa đủ thông tin để xếp ngành phù hợp. Hãy thử mô tả cụ thể hoạt động hoặc lĩnh vực bạn thích và làm tốt.
+                    <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Phân tích và gợi ý ngành</h3>
+                    <p className="mt-1 text-sm text-slate-300">
+                      Kết quả được Gemini phân tích từ hồ sơ bạn nhập và đối chiếu với danh mục ngành.
                     </p>
-                  ) : (
-                    <ol className="flex flex-col gap-2" aria-label="Danh sách ngành gợi ý">
-                      {rankedMajors.slice(0, 6).map((major, index) => (
-                        <li key={major.codeTT09} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}</p>
-                            <h4 className="mt-1 text-xl font-bold text-white">{major.name}</h4>
-                            <p className="mt-1 text-base leading-relaxed text-slate-300">{explainMajorFit(major)}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
-                            className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-                          >
-                            Chọn ngành
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
+                  </div>
+
+                  {isAnalyzingWithGemini && (
+                    <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
+                      Gemini đang phân tích toàn bộ hồ sơ và đối chiếu danh mục ngành…
+                    </p>
+                  )}
+                  {analysisError && (
+                    <p role="alert" className="rounded-lg border border-red-900 bg-red-950/30 p-4 text-base text-red-200">
+                      {analysisError}
+                    </p>
+                  )}
+                  {geminiAnalysis && (
+                    <div className="space-y-4">
+                      {geminiAnalysis.headline && <h4 className="text-lg font-bold text-white">{geminiAnalysis.headline}</h4>}
+                      {geminiAnalysis.directAnswer && <p className="text-base leading-relaxed text-slate-200">{geminiAnalysis.directAnswer}</p>}
+                      {geminiAnalysis.strengthsEvaluation && (
+                        <p className="text-sm leading-relaxed text-slate-300">{geminiAnalysis.strengthsEvaluation}</p>
+                      )}
+                      {geminiAnalysis.risksAndBottlenecks && (
+                        <p className="text-sm leading-relaxed text-slate-300">{geminiAnalysis.risksAndBottlenecks}</p>
+                      )}
+                      <ol className="flex flex-col gap-2" aria-label="Danh sách ngành do Gemini gợi ý">
+                        {geminiAnalysis.recommendedMajors.map((major: any, index: number) => (
+                          <li key={major.codeTT09} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}</p>
+                              <h5 className="mt-1 text-lg font-bold text-white">{major.name}</h5>
+                              {major.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{major.whyFit}</p>}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
+                              className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                            >
+                              Chọn ngành
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
                   )}
                 </section>
               )}
