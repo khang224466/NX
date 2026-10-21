@@ -30,5 +30,10 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/ai/counselor/analyze.ts": {
+      "maxDuration": 60
+    }
+  }
 }
