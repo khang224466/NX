@@ -9,7 +9,7 @@ import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/cou
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
-import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, CAREER_PROGRAM_COUNTS, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
+import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
@@ -60,7 +60,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // =========================================================================
   const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
-  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
   const [majorSearchQuery, setMajorSearchQuery] = useState('');
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
   const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
@@ -118,7 +117,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   const handleSelectMajor = (code: string, nextTab: ScientificTabKey = 'tab-combo') => {
     setSelectedMajorCode(code);
-    setSelectedProgramId(null);
     setSelectedComboCode(null);
     setSelectedSchoolCode(null);
     setTargetJob('');
@@ -139,32 +137,36 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     return calculateBasePriority30(priorityRegion, priorityObject, 2026, 2026);
   }, [priorityRegion, priorityObject]);
 
-  // The program catalog preserves each school and program ID from the admissions data.
+  // Display each major once; retain school and combination links only for later analysis.
   const catalog = CAREER_CATALOG;
   const programCatalog = CAREER_PROGRAM_CATALOG;
+  const majorOptions = useMemo(() => {
+    const majorsByCode = new Map<string, { code: string; name: string; sector: string }>();
+    programCatalog.forEach((program) => {
+      if (majorsByCode.has(program.majorCode)) return;
+      const canonicalMajor = catalog.find((major) => major.codeTT09 === program.majorCode);
+      majorsByCode.set(program.majorCode, {
+        code: program.majorCode,
+        name: canonicalMajor?.name || program.name,
+        sector: program.sector
+      });
+    });
+    return [...majorsByCode.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [catalog, programCatalog]);
   const sectorOptions = useMemo(() => {
     const counts = new Map<string, number>();
-    programCatalog.forEach((program) => counts.set(program.sector, (counts.get(program.sector) || 0) + 1));
+    majorOptions.forEach((major) => counts.set(major.sector, (counts.get(major.sector) || 0) + 1));
     return [...counts.entries()]
       .sort(([a], [b]) => (SECTOR_DISPLAY_NAMES[a] || a).localeCompare(SECTOR_DISPLAY_NAMES[b] || b, 'vi'))
       .map(([id, count]) => ({ id, count, label: SECTOR_DISPLAY_NAMES[id] || id.replace(/_/g, ' ').toLocaleLowerCase('vi') }));
-  }, [programCatalog]);
-  const filteredCatalog = useMemo(() => {
+  }, [majorOptions]);
+  const filteredMajors = useMemo(() => {
     const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
-    return programCatalog.filter((program) => {
-      if (selectedSectorFilter !== 'ALL' && program.sector !== selectedSectorFilter) return false;
-      if (!query) return true;
-      const searchable = [
-        program.name,
-        program.majorCode,
-        program.programId,
-        program.institutionCode,
-        program.institutionName,
-        ...program.admissionsCombos
-      ].join(' ').toLocaleLowerCase('vi');
-      return searchable.includes(query);
+    return majorOptions.filter((major) => {
+      if (selectedSectorFilter !== 'ALL' && major.sector !== selectedSectorFilter) return false;
+      return !query || `${major.name} ${major.code}`.toLocaleLowerCase('vi').includes(query);
     });
-  }, [programCatalog, selectedSectorFilter, majorSearchQuery]);
+  }, [majorOptions, selectedSectorFilter, majorSearchQuery]);
 
   // Current chosen major object
   const currentMajor = useMemo(() => {
@@ -200,8 +202,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 className="text-lg font-bold text-white">Danh mục ngành và chương trình</h3>
-          <p className="text-sm text-slate-300 mt-1">Có {CAREER_PROGRAM_COUNTS.programChoices.toLocaleString('vi-VN')} lựa chọn từ 300 trường.</p>
+          <h3 className="text-lg font-bold text-white">Danh sách ngành học</h3>
+          <p className="text-sm text-slate-300 mt-1">{filteredMajors.length.toLocaleString('vi-VN')} / {majorOptions.length.toLocaleString('vi-VN')} ngành</p>
         </div>
         <label className="flex flex-col gap-1 text-sm text-slate-300">
           Lĩnh vực
@@ -210,7 +212,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             onChange={(e) => setSelectedSectorFilter(e.target.value)}
             className="min-h-11 min-w-56 rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white focus:outline-none focus:border-blue-500"
           >
-            <option value="ALL">Tất cả lĩnh vực ({CAREER_PROGRAM_COUNTS.programChoices.toLocaleString('vi-VN')})</option>
+            <option value="ALL">Tất cả lĩnh vực ({majorOptions.length.toLocaleString('vi-VN')})</option>
             {sectorOptions.map((sector) => (
               <option key={sector.id} value={sector.id}>
                 {sector.label} ({sector.count.toLocaleString('vi-VN')})
@@ -220,53 +222,40 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         </label>
       </div>
 
-      <label htmlFor="major-search" className="sr-only">Tìm ngành, chương trình hoặc trường</label>
+      <label htmlFor="major-search" className="sr-only">Tìm ngành học</label>
       <input
         id="major-search"
         type="search"
         value={majorSearchQuery}
         onChange={(e) => setMajorSearchQuery(e.target.value)}
-        placeholder="Tìm ngành, mã chương trình hoặc trường"
+        placeholder="Tìm tên hoặc mã ngành"
         className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
       />
 
-      <p className="text-sm font-semibold text-blue-300">
-        Đang hiển thị {filteredCatalog.length.toLocaleString('vi-VN')} lựa chọn
-      </p>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filteredCatalog.length === 0 && (
-          <p className="col-span-full py-8 text-center text-base text-slate-300">Không tìm thấy lựa chọn phù hợp.</p>
+        {filteredMajors.length === 0 && (
+          <p className="col-span-full py-8 text-center text-base text-slate-300">Không tìm thấy ngành phù hợp.</p>
         )}
-        {filteredCatalog.map((program) => {
-          const isSelected = selectedProgramId === program.id;
+        {filteredMajors.map((major) => {
+          const isSelected = selectedMajorCode === major.code;
           return (
             <button
-              key={program.id}
+              key={major.code}
               type="button"
               aria-pressed={isSelected}
               onClick={() => {
                 sfx.playActionSuccess();
-                handleSelectMajor(program.majorCode);
-                setSelectedProgramId(program.id);
+                handleSelectMajor(major.code);
               }}
               className={isSelected
-                ? 'min-h-28 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
-                : 'min-h-28 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
+                ? 'min-h-20 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
+                : 'min-h-20 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
             >
-              <span className="block text-base font-bold text-white">{program.name}</span>
-              <span className="mt-1 block text-sm text-slate-300">
-                {program.institutionName ? program.institutionName : 'Ngành chuẩn'}{program.institutionCode ? ' · ' + program.institutionCode : ''}
-              </span>
-              <span className="mt-1 block text-sm text-blue-300">
-                {SECTOR_DISPLAY_NAMES[program.sector] || program.sector.replace(/_/g, ' ').toLocaleLowerCase('vi')}
-                {program.admissionsCombos.length ? ' · ' + program.admissionsCombos.join(', ') : ''}
-              </span>
+              <span className="block text-lg font-bold text-white">{major.name}</span>
             </button>
           );
         })}
       </div>
-
     </div>
   );
 
