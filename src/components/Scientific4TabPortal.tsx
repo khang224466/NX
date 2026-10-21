@@ -227,12 +227,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       const payload = await response.json();
       if (requestId !== analysisRequestIdRef.current) return;
       if (!response.ok || payload?.success !== true || payload?.provider !== 'gemini' || !payload?.analysis) {
-        throw new Error(payload?.error || 'Chưa nhận được phân tích từ Gemini. Hãy thử lại.');
+        throw new Error(payload?.error || 'Chưa nhận được kết quả phân tích. Hãy thử lại.');
       }
       setGeminiAnalysis(payload.analysis);
     } catch (error) {
       if (requestId === analysisRequestIdRef.current) {
-        setAnalysisError(error instanceof Error ? error.message : 'Không thể kết nối Gemini. Hãy thử lại.');
+        setAnalysisError(error instanceof Error ? error.message : 'Không kết nối được dịch vụ phân tích. Hãy thử lại.');
       }
     } finally {
       if (requestId === analysisRequestIdRef.current) setIsAnalyzingWithGemini(false);
@@ -572,12 +572,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       const payload = await response.json();
       if (requestId !== universityAnalysisRequestIdRef.current) return;
       if (!response.ok || payload?.success !== true || payload?.provider !== 'gemini' || !payload?.analysis) {
-        throw new Error(payload?.error || 'Chưa nhận được phân tích trường từ Gemini. Hãy thử lại.');
+        throw new Error(payload?.error || 'Chưa nhận được kết quả phân tích trường. Hãy thử lại.');
       }
       setUniversityAnalysis(payload.analysis);
     } catch (error) {
       if (requestId === universityAnalysisRequestIdRef.current) {
-        setUniversityAnalysisError(error instanceof Error ? error.message : 'Không thể kết nối Gemini. Hãy thử lại.');
+        setUniversityAnalysisError(error instanceof Error ? error.message : 'Không kết nối được dịch vụ phân tích. Hãy thử lại.');
       }
     } finally {
       if (requestId === universityAnalysisRequestIdRef.current) setIsAnalyzingUniversities(false);
@@ -774,13 +774,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <div>
                     <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Phân tích và gợi ý ngành</h3>
                     <p className="mt-1 text-sm text-slate-300">
-                      Kết quả được Gemini phân tích từ hồ sơ bạn nhập và đối chiếu với danh mục ngành.
+                      Kết quả dựa trên hồ sơ bạn nhập và được đối chiếu với danh mục ngành.
                     </p>
                   </div>
 
                   {isAnalyzingWithGemini && (
                     <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                      Gemini đang phân tích toàn bộ hồ sơ và đối chiếu danh mục ngành…
+                      Đang phân tích hồ sơ và đối chiếu danh mục ngành…
                     </p>
                   )}
                   {analysisError && (
@@ -798,7 +798,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       {geminiAnalysis.risksAndBottlenecks && (
                         <p className="text-sm leading-relaxed text-slate-300">{geminiAnalysis.risksAndBottlenecks}</p>
                       )}
-                      <ol className="flex flex-col gap-2" aria-label="Danh sách ngành do Gemini gợi ý">
+                      <ol className="flex flex-col gap-2" aria-label="Danh sách ngành được gợi ý">
                         {geminiAnalysis.recommendedMajors.map((major: any, index: number) => (
                           <li key={major.codeTT09} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
@@ -1049,7 +1049,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
-                <p className="mt-1 text-sm text-slate-300">Gemini sẽ đối chiếu điểm, ngành, tổ hợp, khu vực, ngân sách và mốc tuyển sinh trong kho dữ liệu.</p>
+                <p className="mt-1 text-sm text-slate-300">Hệ thống sẽ đối chiếu điểm, ngành, tổ hợp, khu vực, ngân sách và mốc tuyển sinh trong kho dữ liệu.</p>
               </div>
               <button
                 type="button"
@@ -1057,7 +1057,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 disabled={isAnalyzingUniversities}
                 className="min-h-11 rounded-lg bg-blue-600 px-5 py-2 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
               >
-                {isAnalyzingUniversities ? 'Đang phân tích…' : 'Gemini gợi ý trường'}
+                {isAnalyzingUniversities ? 'Đang phân tích…' : 'Gợi ý trường'}
               </button>
             </div>
 
@@ -1065,7 +1065,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="space-y-3">
                 {isAnalyzingUniversities && (
                   <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                    Gemini đang đối chiếu hồ sơ với dữ liệu tuyển sinh của ngành và tổ hợp đã chọn…
+                    Đang đối chiếu hồ sơ với dữ liệu tuyển sinh của ngành và tổ hợp đã chọn…
                   </p>
                 )}
                 {universityAnalysisError && (
@@ -1079,7 +1079,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     {universityAnalysis.summary && <p className="text-base leading-relaxed text-slate-200">{universityAnalysis.summary}</p>}
                     {universityAnalysis.scoreAnalysis && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.scoreAnalysis}</p>}
                     {universityAnalysis.budgetNote && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.budgetNote}</p>}
-                    <ol className="flex flex-col gap-2" aria-label="Trường Gemini đề xuất">
+                    <ol className="flex flex-col gap-2" aria-label="Trường được gợi ý">
                       {universityAnalysis.recommendedSchools.map((school: any, index: number) => (
                         <li key={school.institutionCode} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
