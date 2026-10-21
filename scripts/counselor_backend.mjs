@@ -796,6 +796,7 @@ async function handleUniversityAnalysisRequest({ parsedBody, geminiKeys = [] }) 
     maxAnnualTuitionMillions: numericValue(rawProfile.maxAnnualTuitionMillions, 0, 1000),
     preferredStudyRegion: textValue(rawProfile.preferredStudyRegion, 40),
     preferredProvince: textValue(rawProfile.preferredProvince, 100),
+    aspirationOrder: textValue(rawProfile.aspirationOrder, 20),
     aspirationNotes: textValue(rawProfile.aspirationNotes, 300),
     priorityRegion: textValue(rawProfile.priorityRegion, 40),
     priorityObject: textValue(rawProfile.priorityObject, 40)
@@ -840,7 +841,7 @@ async function handleUniversityAnalysisRequest({ parsedBody, geminiKeys = [] }) 
 
   const systemInstruction = [
     'Bạn là cố vấn tuyển sinh đại học tại Việt Nam. Phân tích hồ sơ người dùng cùng danh sách chương trình/trường đã được liên kết trong kho dữ liệu.',
-    'Dùng tất cả dữ liệu được cung cấp khi có liên quan: điểm từng môn, năng khiếu, sở thích, thế mạnh, điểm dự kiến, ngành, tổ hợp, ngân sách, vùng, tỉnh/thành, nguyện vọng và ưu tiên.',
+    'Dùng tất cả dữ liệu được cung cấp khi có liên quan: điểm từng môn, năng khiếu, sở thích, thế mạnh, điểm dự kiến, ngành, tổ hợp, ngân sách, vùng, tỉnh/thành, thứ tự nguyện vọng và tiêu chí ưu tiên.',
     'Giá trị null là chưa biết; không được xem là 0, điểm thấp, không đủ điều kiện hoặc lý do loại trường.',
     'Chỉ đề xuất institutionCode có chính xác trong danh sách dữ liệu. Không tự thêm trường, ngành, tổ hợp, điểm chuẩn hoặc học phí.',
     'hasVerifiedCutoff=false nghĩa là kho chỉ xác nhận có chương trình/ngành/tổ hợp, chưa có mốc điểm chuẩn chính thức. Không ước lượng khả năng đỗ hoặc tự tạo điểm chuẩn cho trường đó.',
