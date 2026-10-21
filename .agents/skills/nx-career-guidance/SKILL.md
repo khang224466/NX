@@ -16,10 +16,11 @@ description: Use when editing the NX/NEXORA career guidance portal, major and ad
 ## Counseling workflow rules
 
 - Recommendations appear only after the user clicks the corresponding action. Do not render seeded recommendation results or the entire institution directory by default.
-- Send the relevant entered profile together: interests, strengths, subject scores, aptitude scores, selected major, selected combination, expected score, annual tuition budget, region, province/city, selected aspiration order (NV1–NV10), and free-text aspiration/preferences.
+- Send the relevant entered profile together: interests, strengths, subject scores, aptitude scores, selected major, selected combination, expected score, annual tuition budget, region, and province/city. Do not add an aspiration-order selector or free-text aspiration/preferences field.
 - Show the three subjects for every selected combination. Combination codes can be university-, major-, and year-specific. For physical-education majors, T00 is Toán + Sinh học + Năng khiếu TDTT and T01 is Toán + Ngữ văn + Năng khiếu TDTT. Verify other combinations from current official university admission notices; do not assume a code means the same subjects everywhere.
 - Distinguish an audited program/combination match from a verified official cutoff. A matching program may be recommended without a cutoff only when that exact major and combination exist in the catalog. Say that its cutoff is unavailable; never fabricate a cutoff or admission probability.
-- If there is no matching program in the selected location, return a clear no-data message. Missing cutoff data alone is not a reason to skip analysis.
+- Keep official program/combination evidence separate from cutoff data. If nationwide matches exist but none meet the selected region or province, explain that location mismatch and offer the Toàn quốc filter; if no verified match exists anywhere, say so precisely. Missing cutoff data alone is not a reason to skip analysis.
+- Add verified major/combination records only with official admissions evidence. Keep the source URLs and year on the catalog record; do not treat a program match as a verified cutoff.
 - Keep the model constrained to institution codes in the candidate catalog and preserve server-side validation of every recommendation.
 
 ## Gemini and Vercel
@@ -31,5 +32,5 @@ description: Use when editing the NX/NEXORA career guidance portal, major and ad
 ## Review and delivery
 
 - Check that edits preserve the explicit-click flow and do not reintroduce the institution directory or preset recommendations.
-- Validate the UI and API payload together: province and aspiration must affect the candidate filter/prompt, and result copy must disclose missing cutoff values.
+- Validate the UI and API payload together: region, province, tuition, and the selected combination must affect the candidate filter/prompt, and result copy must disclose missing cutoff values. Confirm no aspiration fields remain in the school step.
 - Prefer the project's actual build/deployment checks for verification. Update `MEMORY.md` after meaningful workflow changes.
