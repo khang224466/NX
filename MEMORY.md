@@ -643,3 +643,5 @@ Last Updated: 2026-10-20T08:56:00+07:00
 - `scripts/counselor_backend.mjs` now asks Gemini to analyze the submitted profile and choose only catalog codes, then validates and enriches those codes from the catalog before returning results. Groq and heuristic fallback are not used by this endpoint.
 - Results stay hidden until the click, clear on profile edits, and show major names plus Gemini’s rationale without showing schools or admission-combination details.
 - Pushed the implementation directly to `main`. No tests were run in this turn. Follow up by checking the Vercel deployment and exercising the form in the browser.
+
+- Gemini model attempts are capped at 25 seconds each so the two-model retry path stays within the route's 60-second serverless limit.
