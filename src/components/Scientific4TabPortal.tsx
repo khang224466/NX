@@ -106,7 +106,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // STEP 3 STATE: UNIVERSITY STRATIFICATION (Requires Tuition Budget & Region)
   // =========================================================================
   const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
-  const [maxTuition, setMaxTuition] = useState<number>(35); // Million VND / year
+  const [maxTuition, setMaxTuition] = useState<number | null>(null);
   const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
   const [priorityRegion, setPriorityRegion] = useState<'KV1' | 'KV2-NT' | 'KV2' | 'KV3'>('KV2');
   const [priorityObject, setPriorityObject] = useState<'DT_0' | 'DT_NHOM_1' | 'DT_NHOM_2'>('DT_0');
@@ -441,7 +441,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         benchmark: Number(benchmark.toFixed(2)),
         margin,
         sectorTuition: tuitionBenchmark?.avg2026_2027 ?? null,
-        isBudgetOk: tuitionBenchmark?.avg2026_2027 != null
+        isBudgetOk: tuitionBenchmark?.avg2026_2027 != null && maxTuition != null
           ? tuitionBenchmark.avg2026_2027 <= maxTuition
           : null
       };
@@ -546,67 +546,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   return (
     <div className="career-flow w-full max-w-6xl mx-auto px-3 sm:px-6 py-6 font-sans text-slate-100 space-y-6">
-      <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-          <h2 className="text-xl font-bold text-white">Tiến trình tư vấn</h2>
-          <button
-            type="button"
-            onClick={handleResetAll}
-            className="min-h-11 rounded-lg border border-slate-700 px-4 text-base font-semibold text-slate-200 hover:border-blue-500"
-          >
-            Đặt lại
-          </button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
-            <div className="text-sm text-slate-300">Ngành</div>
-            <div className="mt-1 text-base font-bold text-white">{currentMajor?.name || 'Chưa chọn'}</div>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
-            <div className="text-sm text-slate-300">Tổ hợp</div>
-            <div className="mt-1 text-base font-bold text-blue-300">{selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn')}</div>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
-            <div className="text-sm text-slate-300">Trường</div>
-            <div className="mt-1 text-base font-bold text-white">{currentSchool?.official_name || currentSchool?.name || currentSchool?.schoolName || 'Chưa chọn'}</div>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3">
-            <div className="text-sm text-slate-300">Việc làm</div>
-            <div className="mt-1 text-base font-bold text-white">{targetJob || 'Chưa chọn'}</div>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-[#141923] p-3 col-span-2 sm:col-span-1">
-            <div className="text-sm text-slate-300">Ngân sách</div>
-            <div className="mt-1 text-base font-bold text-blue-300">{maxTuition} triệu/năm</div>
-          </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { id: 'tab-major' as ScientificTabKey, num: '01', title: 'Ngành học', desc: 'Chọn hoặc nhận gợi ý' },
-          { id: 'tab-combo' as ScientificTabKey, num: '02', title: 'Tổ hợp', desc: 'Chọn môn xét tuyển', locked: !selectedMajorCode },
-          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'Trường', desc: 'Tìm trong 300 trường', locked: !selectedMajorCode || !selectedComboCode },
-          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'Việc làm', desc: 'Chọn nghề phù hợp', locked: !selectedMajorCode || !selectedComboCode || !selectedSchoolCode }
-        ].map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              disabled={tab.locked}
-              aria-current={isActive ? 'step' : undefined}
-              onClick={() => setActiveTab(tab.id)}
-              className={isActive
-                ? 'min-h-24 rounded-xl border border-blue-500 bg-blue-950/60 p-4 text-left'
-                : 'min-h-24 rounded-xl border border-slate-800 bg-[#0E1117] p-4 text-left hover:border-blue-500'}
-            >
-              <span className="block text-sm font-bold text-blue-300">{tab.num}</span>
-              <span className="mt-1 block text-lg font-bold text-white">{tab.title}</span>
-              <span className="mt-1 block text-sm text-slate-300">{tab.desc}</span>
-            </button>
-          );
-        })}
-      </div>
       {/* =========================================================================
           BƯỚC 1: XÁC ĐỊNH NGÀNH HỌC
           ========================================================================= */}
@@ -880,7 +820,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <span>Ngân sách học phí tham khảo mỗi năm:</span>
                 </span>
                 <span className="font-mono font-bold text-blue-300 text-sm">
-                  {maxTuition} triệu / năm
+                  {maxTuition == null ? 'Chưa biết' : `${maxTuition} triệu/năm`}
                 </span>
               </div>
               <input
@@ -888,8 +828,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 min="0"
                 max="100"
                 step="5"
-                value={maxTuition}
-                onChange={(e) => setMaxTuition(parseInt(e.target.value))}
+                value={maxTuition ?? 35}
+                aria-label="Ngân sách học phí tối đa mỗi năm, triệu đồng"
+                onChange={(e) => setMaxTuition(parseInt(e.target.value, 10))}
                 className="w-full accent-blue-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
               />
               <div className="flex justify-between text-sm font-mono text-slate-400">
@@ -897,7 +838,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <span>33,7 triệu (bình quân tham khảo)</span>
                 <span>100 triệu</span>
               </div>
-              <p className="text-sm text-slate-400">Dữ liệu hiện có chưa chứa học phí riêng của từng trường; mức này so với bình quân ngành, không ẩn trường khỏi danh sách.</p>
+              <p className="text-sm text-slate-400">Dữ liệu học phí trường chưa đầy đủ. Khi chưa đặt ngân sách, danh sách trường không bị lọc theo mức phí.</p>
             </div>
 
             {/* 2. Địa chỉ / Vùng miền mong muốn */}
@@ -1092,7 +1033,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <span>
-                    <strong>Kinh phí &amp; Trường học</strong>: Mức giới hạn {maxTuition} triệu/năm được so với bình quân nhóm ngành {stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? 'chưa có dữ liệu'} triệu/năm; đây không phải học phí riêng của trường.
+                    <strong>Kinh phí &amp; Trường học</strong>: {maxTuition == null ? 'Ngân sách chưa biết' : `Giới hạn ${maxTuition} triệu/năm`} · bình quân nhóm ngành {stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? 'chưa có dữ liệu'} triệu/năm; đây không phải học phí riêng của trường.
                   </span>
                 </li>
               </ul>
