@@ -1095,6 +1095,20 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
 
     const geminiModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
   let lastError = null;
+  const errorPriority = ({ status, message }) => {
+    if (status === 429) return 100;
+    if (status === 401 || status === 403) return 90;
+    if (status === 504) return 80;
+    if (status === 400) return 75;
+    if (message === 'NO_VALID_CATALOG_MATCH') return 70;
+    if (message === 'INVALID_MODEL_RESPONSE') return 65;
+    if (status === 503) return 55;
+    if (status === 404) return 50;
+    return 40;
+  };
+  const rememberError = error => {
+    if (!lastError || errorPriority(error) > errorPriority(lastError)) lastError = error;
+  };
   for (const model of geminiModels) {
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' +
       model + ':generateContent?key=' + encodeURIComponent(geminiKey);
@@ -1118,7 +1132,7 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
       clearTimeout(timeoutId);
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
-        lastError = { status: response.status, message: errorBody?.error?.message || '' };
+        rememberError({ status: response.status, message: errorBody?.error?.message || '' });
         if (response.status === 429 || response.status === 503 || response.status === 404) continue;
         break;
       }
@@ -1143,7 +1157,7 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
         Array.isArray(analysis?.recommendations) ? analysis.recommendations :
         Array.isArray(analysis?.majors) ? analysis.majors : null;
       if (!analysis || typeof analysis !== 'object' || !suggestions) {
-        lastError = { status: 502, message: 'INVALID_MODEL_RESPONSE' };
+        rememberError({ status: 502, message: 'INVALID_MODEL_RESPONSE' });
         continue;
       }
 
@@ -1169,7 +1183,7 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
         if (linkedMajors.length === 6) break;
       }
       if (!linkedMajors.length) {
-        lastError = { status: 502, message: 'NO_VALID_CATALOG_MATCH' };
+        rememberError({ status: 502, message: 'NO_VALID_CATALOG_MATCH' });
         continue;
       }
 
@@ -1191,9 +1205,9 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
       };
     } catch (error) {
       clearTimeout(timeoutId);
-      lastError = error?.name === 'AbortError'
+      rememberError(error?.name === 'AbortError'
         ? { status: 504, message: 'TIMEOUT' }
-        : { status: 502, message: 'NETWORK_ERROR' };
+        : { status: 502, message: 'NETWORK_ERROR' });
     }
   }
 
@@ -1203,7 +1217,8 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
     lastError?.message === 'NO_VALID_CATALOG_MATCH' ? 'NO_CATALOG_MATCH' :
     lastError?.message === 'INVALID_MODEL_RESPONSE' ? 'INVALID_ANALYSIS_RESPONSE' :
     lastError?.status === 400 ? 'ANALYSIS_REQUEST_REJECTED' :
-    lastError?.status === 404 || lastError?.status === 503 ? 'ANALYSIS_MODEL_UNAVAILABLE' :
+    lastError?.status === 503 ? 'ANALYSIS_SERVICE_BUSY' :
+    lastError?.status === 404 ? 'ANALYSIS_MODEL_UNAVAILABLE' :
     'ANALYSIS_FAILED';
   const error = code === 'ANALYSIS_RATE_LIMIT'
     ? 'Hệ thống đang nhận quá nhiều yêu cầu. Hãy thử lại sau một chút.'
@@ -1218,8 +1233,10 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
             : code === 'ANALYSIS_REQUEST_REJECTED'
               ? 'Yêu cầu phân tích bị dịch vụ từ chối. Hãy kiểm tra cấu hình model và thử lại.'
               : code === 'ANALYSIS_MODEL_UNAVAILABLE'
-                ? 'Các model phân tích hiện chưa khả dụng cho khóa API này.'
-                : 'Dịch vụ phân tích tạm thời gặp lỗi. Hãy thử lại sau.';
+                ? 'Model phân tích không khả dụng. Hãy kiểm tra quyền truy cập của khóa API.'
+                : code === 'ANALYSIS_SERVICE_BUSY'
+                  ? 'Dịch vụ phân tích đang quá tải. Hãy thử lại sau một chút.'
+                  : 'Dịch vụ phân tích tạm thời gặp lỗi. Hãy thử lại sau.';
   return {
     status: lastError?.status >= 400 && lastError.status < 600 ? lastError.status : 502,
     data: { success: false, code, error }
