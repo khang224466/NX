@@ -1093,13 +1093,13 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
     })))
   ].join('\n\n');
 
-    const geminiModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash'];
+    const geminiModels = ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
   let lastError = null;
   for (const model of geminiModels) {
     const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' +
       model + ':generateContent?key=' + encodeURIComponent(geminiKey);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 16000);
+    const timeoutId = setTimeout(() => controller.abort(), 22000);
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
