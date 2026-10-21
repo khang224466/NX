@@ -84,6 +84,19 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [geminiAnalysis, setGeminiAnalysis] = useState<any | null>(null);
   const [analysisError, setAnalysisError] = useState('');
   const analysisRequestIdRef = useRef(0);
+  const [isAnalyzingUniversities, setIsAnalyzingUniversities] = useState(false);
+  const [universityAnalysis, setUniversityAnalysis] = useState<any | null>(null);
+  const [universityAnalysisError, setUniversityAnalysisError] = useState('');
+  const [hasRequestedUniversityAnalysis, setHasRequestedUniversityAnalysis] = useState(false);
+  const universityAnalysisRequestIdRef = useRef(0);
+
+  const clearUniversityAnalysis = () => {
+    universityAnalysisRequestIdRef.current += 1;
+    setIsAnalyzingUniversities(false);
+    setUniversityAnalysis(null);
+    setUniversityAnalysisError('');
+    setHasRequestedUniversityAnalysis(false);
+  };
 
   const clearCareerAnalysis = () => {
     analysisRequestIdRef.current += 1;
@@ -119,6 +132,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setSelectedSchoolCode(null);
     setTargetJob('');
     setExpectedScoreInput('');
+    clearUniversityAnalysis();
     setActiveTab(nextTab);
   };
 
@@ -494,6 +508,82 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     };
   }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, schoolSearchQuery, schoolMatchFilter, maxTuition]);
 
+  const requestUniversityAnalysis = async () => {
+    sfx.playUiClick();
+    setHasRequestedUniversityAnalysis(true);
+    setUniversityAnalysis(null);
+    setUniversityAnalysisError('');
+
+    const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
+    if (!currentMajor || !chosenCombo) {
+      setUniversityAnalysisError('Chọn ngành và tổ hợp trước khi gợi ý trường.');
+      return;
+    }
+
+    const schoolCatalog = [
+      ...stratifiedSchools.safe.map((school: any) => ({ ...school, tier: 'An toàn' })),
+      ...stratifiedSchools.target.map((school: any) => ({ ...school, tier: 'Vừa sức' })),
+      ...stratifiedSchools.dream.map((school: any) => ({ ...school, tier: 'Mơ ước' }))
+    ].map((school: any) => ({
+        institutionCode: school.code,
+        name: school.name,
+        city: school.city,
+        cutoffBenchmark: school.benchmark,
+        scoreMargin: school.margin,
+        preliminaryTier: school.tier,
+        sectorTuitionAverage: school.sectorTuition,
+        withinBudgetBenchmark: school.isBudgetOk
+      }));
+    if (schoolCatalog.length === 0) {
+      setUniversityAnalysisError('Kho dữ liệu chưa có mốc tuyển sinh đã đối chiếu cho ngành và tổ hợp này.');
+      return;
+    }
+
+    const requestId = ++universityAnalysisRequestIdRef.current;
+    setIsAnalyzingUniversities(true);
+    const selectedEvaluation = evaluatedCombos.find((combo: any) => combo.code === chosenCombo);
+    try {
+      const response = await fetch('/api/ai/counselor/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          analysisType: 'universities',
+          studentProfile: {
+            scores,
+            aptitudeScores,
+            major: {
+              codeTT09: currentMajor.codeTT09,
+              name: currentMajor.name,
+              sector: currentMajor.sector
+            },
+            selectedCombination: chosenCombo,
+            userEnteredExpectedScore: expectedScoreInput.trim() === '' ? null : Number(expectedScoreInput),
+            calculatedSubjectScore: selectedEvaluation?.rawScore ?? null,
+            effectivePriority: selectedEvaluation ? Number(selectedEvaluation.effectivePriority.toFixed(2)) : null,
+            officialScoreForComparison: selectedEvaluation?.officialScore ?? null,
+            maxAnnualTuitionMillions: maxTuition,
+            preferredStudyRegion: targetRegionFilter,
+            priorityRegion,
+            priorityObject
+          },
+          schoolCatalog
+        })
+      });
+      const payload = await response.json();
+      if (requestId !== universityAnalysisRequestIdRef.current) return;
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'gemini' || !payload?.analysis) {
+        throw new Error(payload?.error || 'Chưa nhận được phân tích trường từ Gemini. Hãy thử lại.');
+      }
+      setUniversityAnalysis(payload.analysis);
+    } catch (error) {
+      if (requestId === universityAnalysisRequestIdRef.current) {
+        setUniversityAnalysisError(error instanceof Error ? error.message : 'Không thể kết nối Gemini. Hãy thử lại.');
+      }
+    } finally {
+      if (requestId === universityAnalysisRequestIdRef.current) setIsAnalyzingUniversities(false);
+    }
+  };
+
   // Reset entire session
   const handleResetAll = () => {
     sfx.playUiClick();
@@ -506,11 +596,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setCareerInterests('');
     setCareerStrengths('');
     clearCareerAnalysis();
+    clearUniversityAnalysis();
     setScores({ math: '', literature: '', english: '', physics: '', chemistry: '', biology: '', history: '', geography: '', informatics: '', economicLegal: '' });
     setAptitudeScores({ apt_hinhHoa: '', apt_trangTri: '', apt_veMyThuat: '', apt_thamAm: '', apt_thanhNhac: '', apt_theThao: '', apt_mamNon: '', apt_baoChi: '', apt_dienXuat: '' });
     setSelectedProgramId(null);
     setSchoolSearchQuery('');
     setSchoolMatchFilter('ALL');
+    setMaxTuition(null);
+    setTargetRegionFilter('ALL');
     setActiveTab('tab-major');
   };
 
@@ -628,6 +721,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setScores((previous) => ({ ...previous, [subject.key]: value }));
                                 clearCareerAnalysis();
+                                 clearUniversityAnalysis();
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -652,6 +746,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
                                 clearCareerAnalysis();
+                                 clearUniversityAnalysis();
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -770,7 +865,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   max="30"
                   step="0.25"
                   value={expectedScoreInput}
-                  onChange={(e) => { setExpectedScoreInput(e.target.value); setSelectedSchoolCode(null); }}
+                  onChange={(e) => { setExpectedScoreInput(e.target.value); setSelectedSchoolCode(null); clearUniversityAnalysis(); }}
                   placeholder="Ví dụ: 25.5"
                   className="w-28 bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-500"
                 />
@@ -789,6 +884,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       sfx.playActionSuccess();
                       setSelectedComboCode(combo.code);
                       setSelectedSchoolCode(null);
+                      clearUniversityAnalysis();
                       setActiveTab('tab-university');
                     }}
                     className={`p-4 rounded-xl border text-left cursor-pointer transition-all space-y-2 ${
@@ -817,7 +913,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
                     <div className="text-sm text-slate-300 font-mono">
                       {combo.hasData ? <>Điểm tham khảo: <strong className="text-blue-300 font-bold">{combo.officialScore}đ</strong></> : <span className="text-slate-400">Nhập điểm để so sánh tổ hợp này</span>}
-                      {combo.effectivePriority > 0 && <span className="text-blue-300 text-sm ml-1">(+ {combo.effectivePriority}đ ưu tiên TT06)</span>}
+                      {combo.effectivePriority > 0 && <span className="text-blue-300 text-sm ml-1">(+ {combo.effectivePriority.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}đ ưu tiên TT06)</span>}
                     </div>
 
                     <div className="text-sm text-slate-400">
@@ -869,32 +965,50 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
           {/* Practical Constraints: Tuition Budget & Region */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* 1. Ngân sách học phí (NĐ 238/2025) */}
+            {/* Ngân sách: để trống nếu người dùng chưa biết */}
             <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <span>Ngân sách học phí tham khảo mỗi năm:</span>
-                </span>
+              <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
+                <label htmlFor="annual-tuition-budget" className="font-bold text-sm text-white">
+                  Ngân sách học phí tối đa mỗi năm:
+                </label>
                 <span className="font-mono font-bold text-blue-300 text-sm">
-                  {maxTuition == null ? 'Chưa biết' : `${maxTuition} triệu/năm`}
+                  {maxTuition == null ? 'Chưa biết' : String(maxTuition) + ' triệu/năm'}
                 </span>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                value={maxTuition ?? 35}
-                aria-label="Ngân sách học phí tối đa mỗi năm, triệu đồng"
-                onChange={(e) => setMaxTuition(parseInt(e.target.value, 10))}
-                className="w-full accent-blue-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
-              />
-              <div className="flex justify-between text-sm font-mono text-slate-400">
-                <span>0 triệu</span>
-                <span>33,7 triệu (bình quân tham khảo)</span>
-                <span>100 triệu</span>
+              <div className="flex items-center gap-3">
+                <input
+                  id="annual-tuition-budget"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={maxTuition ?? ''}
+                  placeholder="Chưa biết"
+                  aria-label="Ngân sách học phí tối đa mỗi năm, triệu đồng; để trống nếu chưa biết"
+                  onChange={(e) => {
+                    const rawValue = e.target.value;
+                    const nextValue = rawValue === '' ? null : Math.min(100, Math.max(0, Number(rawValue)));
+                    setMaxTuition(nextValue !== null && Number.isFinite(nextValue) ? nextValue : null);
+                    clearUniversityAnalysis();
+                  }}
+                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+                {maxTuition != null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaxTuition(null);
+                      clearUniversityAnalysis();
+                    }}
+                    className="min-h-11 shrink-0 rounded-lg border border-slate-700 px-3 text-sm text-slate-200 hover:border-blue-500"
+                  >
+                    Chưa biết
+                  </button>
+                )}
               </div>
-              <p className="text-sm text-slate-400">Dữ liệu học phí trường chưa đầy đủ. Khi chưa đặt ngân sách, danh sách trường không bị lọc theo mức phí.</p>
+              <p className="text-sm text-slate-400">
+                Đơn vị triệu đồng/năm. Để trống nếu chưa biết; mức bình quân ngành chỉ là tham khảo, không phải học phí riêng của trường.
+              </p>
             </div>
 
             {/* 2. Địa chỉ / Vùng miền mong muốn */}
@@ -916,6 +1030,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     onClick={() => {
                       setTargetRegionFilter(r.id as any);
                       setSelectedSchoolCode(null);
+                      clearUniversityAnalysis();
                     }}
                     className={`min-h-11 rounded-lg border text-center transition-colors cursor-pointer ${
                       targetRegionFilter === r.id
@@ -928,6 +1043,78 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
+                <p className="mt-1 text-sm text-slate-300">Gemini sẽ đối chiếu điểm, ngành, tổ hợp, khu vực, ngân sách và mốc tuyển sinh trong kho dữ liệu.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void requestUniversityAnalysis()}
+                disabled={isAnalyzingUniversities}
+                className="min-h-11 rounded-lg bg-blue-600 px-5 py-2 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+              >
+                {isAnalyzingUniversities ? 'Đang phân tích…' : 'Gemini gợi ý trường'}
+              </button>
+            </div>
+
+            {hasRequestedUniversityAnalysis && (
+              <div className="space-y-3">
+                {isAnalyzingUniversities && (
+                  <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
+                    Gemini đang đối chiếu hồ sơ với dữ liệu tuyển sinh của ngành và tổ hợp đã chọn…
+                  </p>
+                )}
+                {universityAnalysisError && (
+                  <p role="alert" className="rounded-lg border border-red-900 bg-red-950/30 p-4 text-base text-red-200">
+                    {universityAnalysisError}
+                  </p>
+                )}
+                {universityAnalysis && (
+                  <div className="space-y-3">
+                    {universityAnalysis.headline && <h4 className="text-lg font-bold text-white">{universityAnalysis.headline}</h4>}
+                    {universityAnalysis.summary && <p className="text-base leading-relaxed text-slate-200">{universityAnalysis.summary}</p>}
+                    {universityAnalysis.scoreAnalysis && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.scoreAnalysis}</p>}
+                    {universityAnalysis.budgetNote && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.budgetNote}</p>}
+                    <ol className="flex flex-col gap-2" aria-label="Trường Gemini đề xuất">
+                      {universityAnalysis.recommendedSchools.map((school: any, index: number) => (
+                        <li key={school.institutionCode} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}{school.city ? ' · ' + school.city : ''}</p>
+                            <h4 className="mt-1 text-lg font-bold text-white">{school.name}</h4>
+                            {school.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{school.whyFit}</p>}
+                            {school.cutoffBenchmark != null && (
+                              <p className="mt-1 text-sm text-slate-400">
+                                Mốc tham chiếu: {Number(school.cutoffBenchmark).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} điểm
+                                {school.scoreMargin != null ? ' · Chênh ' + Number(school.scoreMargin).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' điểm' : ''}
+                              </p>
+                            )}
+                            {school.sectorTuitionAverage != null && (
+                              <p className="mt-1 text-sm text-slate-400">
+                                Học phí tham khảo ngành: {Number(school.sectorTuitionAverage).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} triệu/năm · mức bình quân, không phải học phí riêng của trường
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSchoolCode(school.institutionCode);
+                              setActiveTab('tab-domino');
+                            }}
+                            className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                          >
+                            Chọn trường
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
@@ -970,6 +1157,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               onChange={(e) => {
                 setSchoolSearchQuery(e.target.value);
                 setSelectedSchoolCode(null);
+                clearUniversityAnalysis();
               }}
               placeholder="Tìm trường theo tên, mã hoặc tỉnh/thành"
               className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
