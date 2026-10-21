@@ -46,6 +46,84 @@ const SECTOR_DISPLAY_NAMES: Record<string, string> = {
   NGANH_KHAC: 'Lĩnh vực khác'
 };
 
+type CareerProfileDimension = 'R' | 'I' | 'A' | 'S' | 'E' | 'C';
+
+const normalizeCareerText = (value: string) => value
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .toLocaleLowerCase('vi')
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
+const CAREER_PROFILE_SIGNAL_RULES: Array<{
+  sector: string;
+  label: string;
+  dimension: CareerProfileDimension;
+  terms: string[];
+}> = [
+  {
+    sector: 'KIEN_TRUC_NGHE_THUAT_TDTT',
+    label: 'Âm nhạc & nghệ thuật',
+    dimension: 'A',
+    terms: ['thanh nhac', 'nhac ly', 'nhac cu', 'am nhac', 'ca hat', 'choi nhac', 'sang tac', 'viet tho', 'tho ca', 'my thuat', 'thiet ke', 'hoi hoa', 'dien xuat']
+  },
+  {
+    sector: 'XA_HOI_NHAN_VAN',
+    label: 'Ngôn ngữ & viết',
+    dimension: 'S',
+    terms: ['van hoc', 'ngu van', 'viet tho', 'tho ca', 'viet luan', 'viet bao', 'viet', 'van', 'bao chi', 'truyen thong', 'ngon ngu', 'ngoai ngu', 'lich su', 'dia ly', 'tam ly', 'cong dong']
+  },
+  {
+    sector: 'SU_PHAM_GIAO_DUC',
+    label: 'Giảng dạy & giáo dục',
+    dimension: 'S',
+    terms: ['day hoc', 'giang day', 'giao vien', 'su pham', 'day tre', 'tre em']
+  },
+  {
+    sector: 'CNTT_BAN_DAN_AI',
+    label: 'Máy tính & công nghệ',
+    dimension: 'I',
+    terms: ['lap trinh', 'may tinh', 'cntt', 'phan mem', 'du lieu', 'tri tue nhan tao', 'thiet ke web', 'an ninh mang']
+  },
+  {
+    sector: 'KY_THUAT_CONG_NGHE',
+    label: 'Kỹ thuật & chế tạo',
+    dimension: 'R',
+    terms: ['co khi', 'may moc', 'dien tu', 'robot', 'xay dung', 'ky thuat', 'lap rap', 'sua chua']
+  },
+  {
+    sector: 'KINH_TE_QUAN_TRI',
+    label: 'Kinh doanh & quản lý',
+    dimension: 'E',
+    terms: ['kinh doanh', 'kinh te', 'marketing', 'ban hang', 'quan tri', 'tai chinh', 'ke toan', 'khoi nghiep']
+  },
+  {
+    sector: 'Y_DUOC_SUC_KHOE',
+    label: 'Sức khỏe & chăm sóc',
+    dimension: 'S',
+    terms: ['y te', 'bac si', 'duoc', 'dieu duong', 'cham soc', 'suc khoe', 'benh nhan']
+  },
+  {
+    sector: 'LUAT_HANH_CHINH',
+    label: 'Luật & pháp lý',
+    dimension: 'E',
+    terms: ['luat', 'phap ly', 'luat hoc', 'to tung']
+  },
+  {
+    sector: 'NONG_LAM_NGU_SINH_HOC',
+    label: 'Sinh học & môi trường',
+    dimension: 'I',
+    terms: ['sinh hoc', 'dong vat', 'thuc vat', 'nong nghiep', 'lam nghiep', 'thu y', 'moi truong']
+  },
+  {
+    sector: 'CONG_AN_QUAN_DOI',
+    label: 'An ninh & quốc phòng',
+    dimension: 'R',
+    terms: ['an ninh', 'quoc phong', 'quan doi', 'cong an', 'canh sat']
+  }
+];
+
 
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
@@ -189,14 +267,48 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       .map((word) => word.replace(/^[^a-zA-ZÀ-ỹ]+|[^a-zA-ZÀ-ỹ]+$/g, ''))
       .filter((word) => word.length >= 4 && !stopWords.has(word)))];
   }, [careerProfileText]);
-  const profileDiagnosis = useMemo(() => ({ recommendedKeywords: profileKeywords }), [profileKeywords]);
+  const profileSignals = useMemo(() => {
+    const normalizedText = ` ${normalizeCareerText(careerProfileText)} `;
+    const matches = CAREER_PROFILE_SIGNAL_RULES.flatMap((rule) => {
+      const terms = rule.terms.filter((term) => normalizedText.includes(` ${term} `));
+      return terms.length ? [{ ...rule, terms }] : [];
+    });
+    const riasec: Record<CareerProfileDimension, number> = { R: 0, I: 0, A: 0, S: 0, E: 0, C: 0 };
+    matches.forEach((match) => { riasec[match.dimension] += match.terms.length; });
+    return {
+      riasec,
+      matches,
+      recommendedSectors: [...new Set(matches.map((match) => match.sector))]
+    };
+  }, [careerProfileText]);
+  const profileDiagnosis = useMemo(() => ({
+    recommendedSectors: profileSignals.recommendedSectors,
+    recommendedKeywords: profileKeywords
+  }), [profileSignals, profileKeywords]);
   const hasCareerProfile = careerInterests.trim().length > 0 || careerStrengths.trim().length > 0;
+  const hasProfileEvidence = profileSignals.matches.length > 0 || catalog.some((major) =>
+    profileKeywords.some((keyword) => normalizeCareerText(major.name).split(' ').includes(normalizeCareerText(keyword)))
+  );
 
-  // Rank locally against the saved catalog and current school scores.
+  // Rank locally using detected profile signals and saved admission data.
   const rankedMajors = useMemo(() => {
     const allScores = { ...scores, ...aptitudeScores };
-    return linkAndRankMajorsWithDossier(allScores, careerProfileText, profileDiagnosis, catalog);
-  }, [scores, aptitudeScores, careerProfileText, profileDiagnosis, catalog]);
+    return linkAndRankMajorsWithDossier(allScores, profileSignals.riasec, profileDiagnosis, catalog);
+  }, [scores, aptitudeScores, profileSignals, profileDiagnosis, catalog]);
+
+  const explainMajorFit = (major: (typeof rankedMajors)[number]) => {
+    const nameWords = new Set(normalizeCareerText(major.name).split(' '));
+    const directMatches = profileKeywords.filter((keyword) => nameWords.has(normalizeCareerText(keyword)));
+    if (directMatches.length) {
+      return `Tên ngành khớp với thông tin bạn nhập: ${directMatches.slice(0, 3).join(', ')}.`;
+    }
+    const sectorSignals = profileSignals.matches.filter((match) => match.sector === major.sector);
+    if (sectorSignals.length) {
+      const labels = [...new Set(sectorSignals.map((match) => match.label))];
+      return `Thuộc nhóm ${major.sectorName}, khớp với tín hiệu ${labels.join(' và ').toLocaleLowerCase('vi')}.`;
+    }
+    return `Gợi ý theo lĩnh vực ${major.sectorName} trong hồ sơ của bạn.`;
+  };
 
   const majorCatalogPanel = (
     <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
@@ -637,26 +749,40 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               </div>
 
               {hasCareerProfile && (
-                <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
-                  <h3 className="text-lg font-bold text-white">Ngành gợi ý</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {rankedMajors.slice(0, 6).map((major) => (
-                      <div key={major.codeTT09} className="rounded-xl border border-slate-700 bg-[#141923] p-4 space-y-3">
-                        <div>
-                          <h4 className="text-lg font-bold text-white">{major.name}</h4>
-                          <p className="mt-1 text-sm text-slate-300">{major.fitReason}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
-                          className="min-h-11 w-full rounded-lg bg-blue-600 px-4 text-base font-bold text-white hover:bg-blue-500"
-                        >
-                          Chọn ngành
-                        </button>
-                      </div>
-                    ))}
+                <section aria-labelledby="recommended-majors-title" className="rounded-xl border border-slate-700 bg-[#0E1117] p-5 space-y-4">
+                  <div>
+                    <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Gợi ý từ thông tin bạn nhập</h3>
+                    {profileSignals.matches.length > 0 && (
+                      <p className="mt-1 text-base text-slate-300">
+                        Đã nhận ra: {[...new Set(profileSignals.matches.map((match) => match.label))].join(' · ')}
+                      </p>
+                    )}
                   </div>
-                </div>
+                  {!hasProfileEvidence ? (
+                    <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base leading-relaxed text-slate-300">
+                      Chưa đủ thông tin để xếp ngành phù hợp. Hãy thử mô tả cụ thể hoạt động hoặc lĩnh vực bạn thích và làm tốt.
+                    </p>
+                  ) : (
+                    <ol className="flex flex-col gap-2" aria-label="Danh sách ngành gợi ý">
+                      {rankedMajors.slice(0, 6).map((major, index) => (
+                        <li key={major.codeTT09} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}</p>
+                            <h4 className="mt-1 text-xl font-bold text-white">{major.name}</h4>
+                            <p className="mt-1 text-base leading-relaxed text-slate-300">{explainMajorFit(major)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
+                            className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                          >
+                            Chọn ngành
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
               )}
 
               {majorCatalogPanel}
