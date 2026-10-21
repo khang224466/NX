@@ -991,16 +991,20 @@ export async function handleDossierAnalysisRequest({
     };
   }
 
-const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.trim() : '';
-  if (!geminiKey) {
+const geminiKeys = [...new Set(
+    ['GEMINI_API_KEY', 'DAM1', 'DAM2']
+      .map(name => typeof env[name] === 'string' ? env[name].trim() : '')
+      .filter(Boolean)
+  )];
+  if (!geminiKeys.length) {
     return {
       status: 503,
-      data: { success: false, code: 'GEMINI_NOT_CONFIGURED', error: 'Gemini chưa được cấu hình trên máy chủ. Vui lòng kiểm tra GEMINI_API_KEY.' }
+      data: { success: false, code: 'GEMINI_NOT_CONFIGURED', error: 'Dịch vụ phân tích chưa được cấu hình trên máy chủ. Hãy kiểm tra các biến API key.' }
     };
   }
 
-    if (parsedBody.analysisType === 'universities') {
-    return handleUniversityAnalysisRequest({ parsedBody, geminiKey });
+  if (parsedBody.analysisType === 'universities') {
+    return handleUniversityAnalysisRequest({ parsedBody, geminiKey: geminiKeys[0] });
   }
 
   const textValue = value => typeof value === 'string' ? value.trim().slice(0, 5000) : '';
@@ -1109,119 +1113,115 @@ const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.tr
   const rememberError = error => {
     if (!lastError || errorPriority(error) > errorPriority(lastError)) lastError = error;
   };
+
+  // Stay within the Vercel route's 60s limit while trying configured backup keys.
+  const deadline = Date.now() + 52000;
+  const requestBody = JSON.stringify({
+    systemInstruction: { parts: [{ text: systemInstruction }] },
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    generationConfig: {
+      temperature: 0.25,
+      maxOutputTokens: 5000,
+      responseMimeType: 'application/json'
+    }
+  });
+
   for (const model of geminiModels) {
-    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-      model + ':generateContent?key=' + encodeURIComponent(geminiKey);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 22000);
-    try {
-      const requestBody = JSON.stringify({
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: 5000,
-          responseMimeType: 'application/json'
-        }
-      });
-      let response;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        response = await fetch(endpoint, {
+    for (const geminiKey of geminiKeys) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs < 1500) break;
+      const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+        model + ':generateContent?key=' + encodeURIComponent(geminiKey);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), Math.min(15000, remainingMs - 500));
+      try {
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
           signal: controller.signal
         });
-        if (attempt === 0 && (response.status === 429 || response.status === 503)) {
-          rememberError({ status: response.status, message: response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_BUSY' });
-          const retryAfterSeconds = Number(response.headers.get('retry-after'));
-          const delayMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
-            ? Math.min(2000, Math.max(500, retryAfterSeconds * 1000))
-            : 1000;
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => ({}));
+          rememberError({ status: response.status, message: errorBody?.error?.message || '' });
+          // Try the next configured credential/model for quota, permission, availability, and transient errors.
+          if (response.status === 400) break;
           continue;
         }
-        break;
-      }
-      clearTimeout(timeoutId);
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        rememberError({ status: response.status, message: errorBody?.error?.message || '' });
-        if (response.status === 429 || response.status === 503 || response.status === 404) continue;
-        break;
-      }
 
-      const responseBody = await response.json();
-      const rawText = responseBody.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || '';
-      const cleaned = rawText
-        .replace(/^\x60{3}json\s*/i, '')
-        .replace(/^\x60{3}\s*/i, '')
-        .replace(/\s*\x60{3}$/i, '')
-        .trim();
-      let analysis;
-      try {
-        analysis = JSON.parse(cleaned);
-      } catch {
-        const match = cleaned.match(/\{[\s\S]*\}/);
-        if (match) {
-          try { analysis = JSON.parse(match[0]); } catch {}
-        }
-      }
-      const suggestions = Array.isArray(analysis?.recommendedMajors) ? analysis.recommendedMajors :
-        Array.isArray(analysis?.recommendations) ? analysis.recommendations :
-        Array.isArray(analysis?.majors) ? analysis.majors : null;
-      if (!analysis || typeof analysis !== 'object' || !suggestions) {
-        rememberError({ status: 502, message: 'INVALID_MODEL_RESPONSE' });
-        continue;
-      }
-
-      const linkedMajors = [];
-      const seenCodes = new Set();
-      for (const rawSuggestion of suggestions) {
-        const suggestion = typeof rawSuggestion === 'string' ? { name: rawSuggestion } : rawSuggestion;
-        const code = textValue(suggestion?.codeTT09 ?? suggestion?.code ?? suggestion?.majorCode).slice(0, 80);
-        const name = textValue(suggestion?.name ?? suggestion?.majorName ?? suggestion?.major).slice(0, 200);
-        const record = catalogByCode.get(code) || catalogByName.get(normalizeMajorName(name));
-        if (!record || seenCodes.has(record.codeTT09)) continue;
-        seenCodes.add(record.codeTT09);
-        linkedMajors.push({
-          codeTT09: record.codeTT09,
-          name: record.name,
-          whyFit: textValue(suggestion?.whyFit ?? suggestion?.reason ?? suggestion?.rationale).slice(0, 1000),
-          sector: record.sector,
-          admissionsCombos: record.admissionsCombos,
-          targetJobs: record.targetJobs,
-          programCount: record.programCount,
-          admissionRecordCount: record.admissionRecordCount
-        });
-        if (linkedMajors.length === 6) break;
-      }
-      if (!linkedMajors.length) {
-        rememberError({ status: 502, message: 'NO_VALID_CATALOG_MATCH' });
-        continue;
-      }
-
-      return {
-        status: 200,
-        data: {
-          success: true,
-          provider: 'gemini',
-          modelUsed: model,
-          dataSource: 'career_catalog',
-          analysis: {
-            headline: textValue(analysis.headline),
-            directAnswer: textValue(analysis.directAnswer),
-            strengthsEvaluation: textValue(analysis.strengthsEvaluation),
-            risksAndBottlenecks: textValue(analysis.risksAndBottlenecks),
-            recommendedMajors: linkedMajors
+        const responseBody = await response.json();
+        const rawText = responseBody.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || '';
+        const cleaned = rawText
+          .replace(/^\x60{3}json\s*/i, '')
+          .replace(/^\x60{3}\s*/i, '')
+          .replace(/\s*\x60{3}$/i, '')
+          .trim();
+        let analysis;
+        try {
+          analysis = JSON.parse(cleaned);
+        } catch {
+          const match = cleaned.match(/\{[\s\S]*\}/);
+          if (match) {
+            try { analysis = JSON.parse(match[0]); } catch {}
           }
         }
-      };
-    } catch (error) {
-      clearTimeout(timeoutId);
-      rememberError(error?.name === 'AbortError'
-        ? { status: 504, message: 'TIMEOUT' }
-        : { status: 502, message: 'NETWORK_ERROR' });
+        const suggestions = Array.isArray(analysis?.recommendedMajors) ? analysis.recommendedMajors :
+          Array.isArray(analysis?.recommendations) ? analysis.recommendations :
+          Array.isArray(analysis?.majors) ? analysis.majors : null;
+        if (!analysis || typeof analysis !== 'object' || !suggestions) {
+          rememberError({ status: 502, message: 'INVALID_MODEL_RESPONSE' });
+          continue;
+        }
+
+        const linkedMajors = [];
+        const seenCodes = new Set();
+        for (const rawSuggestion of suggestions) {
+          const suggestion = typeof rawSuggestion === 'string' ? { name: rawSuggestion } : rawSuggestion;
+          const code = textValue(suggestion?.codeTT09 ?? suggestion?.code ?? suggestion?.majorCode).slice(0, 80);
+          const name = textValue(suggestion?.name ?? suggestion?.majorName ?? suggestion?.major).slice(0, 200);
+          const record = catalogByCode.get(code) || catalogByName.get(normalizeMajorName(name));
+          if (!record || seenCodes.has(record.codeTT09)) continue;
+          seenCodes.add(record.codeTT09);
+          linkedMajors.push({
+            codeTT09: record.codeTT09,
+            name: record.name,
+            whyFit: textValue(suggestion?.whyFit ?? suggestion?.reason ?? suggestion?.rationale).slice(0, 1000),
+            sector: record.sector,
+            admissionsCombos: record.admissionsCombos,
+            targetJobs: record.targetJobs,
+            programCount: record.programCount,
+            admissionRecordCount: record.admissionRecordCount
+          });
+          if (linkedMajors.length === 6) break;
+        }
+        if (!linkedMajors.length) {
+          rememberError({ status: 502, message: 'NO_VALID_CATALOG_MATCH' });
+          continue;
+        }
+
+        return {
+          status: 200,
+          data: {
+            success: true,
+            provider: 'gemini',
+            modelUsed: model,
+            dataSource: 'career_catalog',
+            analysis: {
+              headline: textValue(analysis.headline),
+              directAnswer: textValue(analysis.directAnswer),
+              strengthsEvaluation: textValue(analysis.strengthsEvaluation),
+              risksAndBottlenecks: textValue(analysis.risksAndBottlenecks),
+              recommendedMajors: linkedMajors
+            }
+          }
+        };
+      } catch (error) {
+        clearTimeout(timeoutId);
+        rememberError(error?.name === 'AbortError'
+          ? { status: 504, message: 'TIMEOUT' }
+          : { status: 502, message: 'NETWORK_ERROR' });
+      }
     }
   }
 
