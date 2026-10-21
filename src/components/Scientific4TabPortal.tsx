@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { sfx } from '../services/soundEffects';
 import {
   calculateEffectivePriority,
@@ -53,6 +53,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 }) => {
   // Navigation: 4 procedural steps
   const [activeTab, setActiveTab] = useState<ScientificTabKey>('tab-major');
+  const activeSelectionRef = useRef<HTMLElement | null>(null);
 
   // =========================================================================
   // STEP 1 STATE: MAJOR DETERMINATION
@@ -98,14 +99,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // =========================================================================
   // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
   // =========================================================================
-  const [hasComboChoice, setHasComboChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedComboCode, setSelectedComboCode] = useState<string | null>(null);
   const [expectedScoreInput, setExpectedScoreInput] = useState<string>('');
 
   // =========================================================================
   // STEP 3 STATE: UNIVERSITY STRATIFICATION (Requires Tuition Budget & Region)
   // =========================================================================
-  const [hasSchoolChoice, setHasSchoolChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
   const [maxTuition, setMaxTuition] = useState<number>(35); // Million VND / year
   const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
@@ -115,17 +114,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // =========================================================================
   // STEP 4 STATE: JOB TARGET & DOMINO EFFECT
   // =========================================================================
-  const [hasJobChoice, setHasJobChoice] = useState<'YES' | 'NO' | null>(null);
   const [targetJob, setTargetJob] = useState<string>('');
 
-  const handleSelectMajor = (code: string, nextTab: ScientificTabKey = 'tab-major') => {
+  const handleSelectMajor = (code: string, nextTab: ScientificTabKey = 'tab-combo') => {
     setSelectedMajorCode(code);
     setSelectedProgramId(null);
     setSelectedComboCode(null);
-    setHasComboChoice(null);
     setSelectedSchoolCode(null);
-    setHasSchoolChoice(null);
-    setHasJobChoice(null);
     setTargetJob('');
     setExpectedScoreInput('');
     setActiveTab(nextTab);
@@ -133,8 +128,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   useEffect(() => {
     setSelectedSchoolCode(null);
-    setHasSchoolChoice(null);
   }, [scores, aptitudeScores, expectedScoreInput]);
+
+  useEffect(() => {
+    activeSelectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [activeTab, hasMajorChoice]);
 
   // Priority score calculation under TT 06/2026
   const basePriority = useMemo(() => {
@@ -269,21 +267,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         })}
       </div>
 
-      {selectedMajorCode && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-700 pt-4">
-          <p className="text-base font-semibold text-white">Đã chọn: {currentMajor?.name}</p>
-          <button
-            type="button"
-            onClick={() => {
-              sfx.playUiClick();
-              setActiveTab('tab-combo');
-            }}
-            className="min-h-11 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500"
-          >
-            Tiếp tục: chọn tổ hợp
-          </button>
-        </div>
-      )}
     </div>
   );
 
@@ -512,11 +495,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     sfx.playUiClick();
     setHasMajorChoice(null);
     setSelectedMajorCode(null);
-    setHasComboChoice(null);
     setSelectedComboCode(null);
-    setHasSchoolChoice(null);
     setSelectedSchoolCode(null);
-    setHasJobChoice(null);
     setTargetJob('');
     setExpectedScoreInput('');
     setCareerInterests('');
@@ -605,8 +585,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         {[
           { id: 'tab-major' as ScientificTabKey, num: '01', title: 'Ngành học', desc: 'Chọn hoặc nhận gợi ý' },
           { id: 'tab-combo' as ScientificTabKey, num: '02', title: 'Tổ hợp', desc: 'Chọn môn xét tuyển', locked: !selectedMajorCode },
-          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'Trường', desc: 'Tìm trong 300 trường', locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) },
-          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'Việc làm', desc: 'Chọn nghề phù hợp', locked: !selectedMajorCode || (!selectedComboCode && !topCombo?.hasSubjectScores) }
+          { id: 'tab-university' as ScientificTabKey, num: '03', title: 'Trường', desc: 'Tìm trong 300 trường', locked: !selectedMajorCode || !selectedComboCode },
+          { id: 'tab-domino' as ScientificTabKey, num: '04', title: 'Việc làm', desc: 'Chọn nghề phù hợp', locked: !selectedMajorCode || !selectedComboCode || !selectedSchoolCode }
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -631,7 +611,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           BƯỚC 1: XÁC ĐỊNH NGÀNH HỌC
           ========================================================================= */}
       {activeTab === 'tab-major' && (
-        <section className="space-y-5">
+        <section ref={activeSelectionRef} className="space-y-5 scroll-mt-28">
           {hasMajorChoice === 'YES' && majorCatalogPanel}
 
           {hasMajorChoice === 'NO' && (
@@ -756,7 +736,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         </section>
       )}
       {activeTab === 'tab-combo' && (
-        <section className="space-y-5">
+        <section ref={activeSelectionRef} className="space-y-5 scroll-mt-28">
           {/* Header Info */}
           <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
@@ -772,63 +752,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </button>
           </div>
 
-          {/* Branch Decision Card: CÓ / KHÔNG */}
-          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base sm:text-lg text-white">
-                Bạn đã chọn được Tổ hợp môn xét tuyển chưa?
-              </h3>
-            </div>
-            <p className="text-sm sm:text-sm text-slate-300 leading-relaxed">
-              Một ngành đào tạo có thể tuyển sinh từ nhiều tổ hợp môn khác nhau. Việc chọn đúng tổ hợp có môn thế mạnh sẽ giúp bạn tối đa hóa điểm xét tuyển và tăng tỷ lệ đỗ đại học.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasComboChoice('YES');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasComboChoice === 'YES'
-                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>CÓ: Tôi đã có tổ hợp &amp; điểm dự kiến</span>
-                  </div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Chọn trực tiếp 1 trong các tổ hợp của ngành {currentMajor?.name}
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasComboChoice('NO');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasComboChoice === 'NO'
-                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>CHƯA: Hãy phân tích tổ hợp tối ưu cho tôi</span>
-                  </div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    So sánh điểm số giữa các tổ hợp để tìm ra tổ hợp đạt điểm cao nhất
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
 
           {/* Combinations Comparison & Selection Table */}
           <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
@@ -870,7 +793,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       sfx.playActionSuccess();
                       setSelectedComboCode(combo.code);
                       setSelectedSchoolCode(null);
-                      setHasSchoolChoice(null);
+                      setActiveTab('tab-university');
                     }}
                     className={`p-4 rounded-xl border text-left cursor-pointer transition-all space-y-2 ${
                       isSelected
@@ -921,31 +844,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               })}
             </div>
 
-            {/* Next Step Trigger */}
-            <div className="pt-2 flex justify-between items-center">
-              <button
-                type="button"
-                onClick={() => setActiveTab('tab-major')}
-                className="text-sm text-slate-400 hover:text-white"
-              >
-                ← Quay lại Bước 1
-              </button>
-
-              <button
-                type="button"
-                disabled={!selectedComboCode && !topCombo?.hasSubjectScores}
-                onClick={() => {
-                  sfx.playUiClick();
-                  if (!selectedComboCode && topCombo?.hasSubjectScores) {
-                    setSelectedComboCode(topCombo.code);
-                  }
-                  setActiveTab('tab-university');
-                }}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
-              >
-                <span>Tiếp tục sang Bước 3: Phân tầng trường đại học</span>
-              </button>
-            </div>
           </div>
         </section>
       )}
@@ -954,7 +852,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           BƯỚC 3: CHỌN TRƯỜNG ĐẠI HỌC (KINH PHÍ NĐ 238 + ĐỊA CHỈ + PHÂN TẦNG)
           ========================================================================= */}
       {activeTab === 'tab-university' && (
-        <section className="space-y-5">
+        <section ref={activeSelectionRef} className="space-y-5 scroll-mt-28">
           {/* Header Info */}
           <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
@@ -972,63 +870,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </button>
           </div>
 
-          {/* Branch Decision Card: CÓ / KHÔNG */}
-          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base sm:text-lg text-white">
-                Bạn đã chọn được Trường đại học mục tiêu chưa?
-              </h3>
-            </div>
-            <p className="text-sm sm:text-sm text-slate-300 leading-relaxed">
-              Sau khi có ngành và tổ hợp, để chọn trường chính xác cần đối chiếu <strong>kinh phí học phí (Nghị định 238/2025)</strong>, <strong>vùng miền địa lý</strong> và <strong>điểm chuẩn tham chiếu</strong>.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasSchoolChoice('YES');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasSchoolChoice === 'YES'
-                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>CÓ: Tôi đã có trường đại học mục tiêu</span>
-                  </div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Kiểm tra điểm chuẩn 3 năm và học phí của trường bạn nhắm tới
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasSchoolChoice('NO');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasSchoolChoice === 'NO'
-                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white flex items-center gap-2">
-                    <span>CHƯA: Hãy phân tầng trường phù hợp cho tôi</span>
-                  </div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Thiết lập kinh phí &amp; vùng miền để phân 3 nhóm: Mơ ước, Vừa sức, An toàn
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
 
           {/* Practical Constraints: Tuition Budget & Region */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1150,7 +991,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   key={school.code}
                   type="button"
                   aria-pressed={selectedSchoolCode === school.code}
-                  onClick={() => setSelectedSchoolCode(school.code)}
+                  onClick={() => {
+                    setSelectedSchoolCode(school.code);
+                    setActiveTab('tab-domino');
+                  }}
                   className={selectedSchoolCode === school.code
                     ? 'min-h-32 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
                     : 'min-h-32 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
@@ -1173,27 +1017,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               ))}
             </div>
           </div>
-            {/* Next Step Trigger */}
-            <div className="pt-3 flex justify-between items-center">
-              <button
-                type="button"
-                onClick={() => setActiveTab('tab-combo')}
-                className="text-sm text-slate-400 hover:text-white"
-              >
-                ← Quay lại Bước 2
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setActiveTab('tab-domino');
-                }}
-                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 cursor-pointer shadow-md"
-              >
-                <span>Tiếp tục sang Bước 4: Việc làm &amp; Chuỗi ảnh hưởng</span>
-              </button>
-            </div>
         </section>
       )}
 
@@ -1201,7 +1024,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           BƯỚC 4: ĐỊNH HƯỚNG VIỆC LÀM & CHUỖI ẢNH HƯỞNG (DOMINO EFFECT)
           ========================================================================= */}
       {activeTab === 'tab-domino' && (
-        <section className="space-y-5">
+        <section ref={activeSelectionRef} className="space-y-5 scroll-mt-28">
           {/* Header Summary */}
           <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-500/30 flex items-center justify-between">
             <div>
@@ -1212,60 +1035,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </div>
           </div>
 
-          {/* Branch Decision Card: CÓ / KHÔNG VỀ VIỆC LÀM */}
-          <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base sm:text-lg text-white">
-                Bạn đã xác định vị trí việc làm mong muốn sau khi tốt nghiệp chưa?
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasJobChoice('YES');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasJobChoice === 'YES'
-                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white">
-                    CÓ: Tôi đã có công việc mục tiêu cụ thể
-                  </div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Nhập vị trí việc làm để đối chiếu với chuẩn đầu ra của ngành
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasJobChoice('NO');
-                }}
-                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                  hasJobChoice === 'NO'
-                    ? 'bg-blue-950/80 border-blue-500 shadow-md ring-1 ring-blue-500/40 text-white'
-                    : 'bg-[#141923] border-slate-700/80 hover:border-slate-500 text-slate-200'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-sm text-white">
-                    CHƯA: Đề xuất các việc làm thực tế khớp ngành
-                  </div>
-                  <div className="text-sm text-slate-400 mt-1">
-                    Xem các vị trí công việc được liên kết với ngành trong danh mục
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
 
           {/* Suggested Career Roles Grid */}
           <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
