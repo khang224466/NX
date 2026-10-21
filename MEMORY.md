@@ -47,7 +47,7 @@ Last Updated: 2026-10-20T08:56:00+07:00
   - Addressed user directive: *"nhớ này nhớ này, việc PHÂN TÍCH LÀ GỌI API KEY CỦA GEMINI, ĐỂ NÓ PHÂN TÍCH, NHẬN LẠI KẾT QUẢ VÀ TỪ CÁI KẾT QUẢ ĐÓ, LIÊN KẾT ĐẾN KHO DỮ LIỆU RỒI SHOW CHO NGƯỜI DÙNG, LẦN NÀY SHOW RA VẪN CHỈ LÀ NHỮNG LUỒNG CŨ, HÃY NHỚ LÀ ĐỂ GEMINI PHÂN TÍCH. cảm ơn"*:
     * **Direct Gemini Client Integration (`requestGeminiDossierDiagnosis`)**:
       - Bypasses static `useMemo` mock lookups in `Scientific4TabPortal.tsx`.
-      - Automatically uses working key `AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ` (fallback in `getStoredApiKey()` & `vite.config.ts` define).
+      - Automatically uses working key `[REDACTED CREDENTIAL]` (fallback in `getStoredApiKey()` & `vite.config.ts` define).
       - Target models updated to `gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-flash-latest` (resolved 404 deprecation of `gemini-2.0-flash`).
     * **Full Dossier Intelligence Transmission**:
       - Sends all entered THPT subject scores, talent aptitude scores (Mỹ thuật, Kiến trúc, Âm nhạc, TDTT, Mầm non), RIASEC vectors, career interests, and student's custom questions to Gemini.
@@ -645,3 +645,11 @@ Last Updated: 2026-10-20T08:56:00+07:00
 - Pushed the implementation directly to `main`. No tests were run in this turn. Follow up by checking the Vercel deployment and exercising the form in the browser.
 
 - Gemini model attempts are capped at 25 seconds each so the two-model retry path stays within the route's 60-second serverless limit.
+
+
+## 2026-10-21 — Gemini university recommendations
+- Added an explicit “Gemini gợi ý trường” action in `src/components/Scientific4TabPortal.tsx`; results remain hidden until clicked and clear when relevant inputs change.
+- The request sends all entered THPT/aptitude scores, selected major and combination, expected/calculated admission score, priority data, desired region and tuition budget, alongside candidate institutions linked to verified admission cutoffs.
+- `scripts/counselor_backend.mjs` now asks Gemini to rank only institution codes from that audited candidate list, validates codes, and returns canonical school names, cutoff/margin references, and the sector tuition estimate. Tuition remains unknown when blank; displayed score/priority precision is capped at two decimals.
+- Removed hardcoded provider credentials from the backend; Gemini and chat/status availability now rely on server environment variables (`GEMINI_API_KEY`, and `GROQ_API_KEY` where applicable). Confirm the deployment environment contains the Gemini key.
+- Committed directly to `main`: UI `285ace3`; backend `bbd97b7`. No tests were run in this turn.
