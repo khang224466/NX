@@ -147,8 +147,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [maxTuition, setMaxTuition] = useState<number | null>(null);
   const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
   const [targetProvinceFilter, setTargetProvinceFilter] = useState('');
-  const [aspirationOrder, setAspirationOrder] = useState('');
-  const [aspirationNotes, setAspirationNotes] = useState('');
   const [priorityRegion, setPriorityRegion] = useState<'KV1' | 'KV2-NT' | 'KV2' | 'KV3'>('KV2');
   const [priorityObject, setPriorityObject] = useState<'DT_0' | 'DT_NHOM_1' | 'DT_NHOM_2'>('DT_0');
 
@@ -570,8 +568,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     const verifiedByCode = new Map(verifiedSchools.map((school: any) => [school.code, school]));
     const tuitionAverage = stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? null;
     const allowedCodes = new Set([...programSchoolCodes, ...verifiedByCode.keys()]);
-    const schoolCatalog = AUDITED_INSTITUTIONS_300
-      .filter((institution) => allowedCodes.has(institution.institution_code))
+    const nationwideSchoolCatalog = AUDITED_INSTITUTIONS_300
+      .filter((institution) => allowedCodes.has(institution.institution_code));
+    const schoolCatalog = nationwideSchoolCatalog
       .filter((institution) => targetRegionFilter === 'ALL' ||
         getRegionFromProvinceCity(institution.verified_province_city) === targetRegionFilter)
       .filter((institution) => !targetProvinceFilter ||
@@ -597,9 +596,26 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       .slice(0, 120);
 
     if (schoolCatalog.length === 0) {
-      setUniversityAnalysisError(targetProvinceFilter
-        ? 'Kho dữ liệu chưa có chương trình phù hợp với ngành, tổ hợp và tỉnh/thành đã chọn. Hãy đổi khu vực hoặc tỉnh/thành.'
-        : 'Kho dữ liệu chưa có chương trình phù hợp với ngành và tổ hợp này. Chưa thể đề xuất trường nếu không có dữ liệu đối chiếu.');
+      if (nationwideSchoolCatalog.length === 0) {
+        setUniversityAnalysisError(
+          `Kho dữ liệu chưa xác nhận trường nào xét ngành ${currentMajor.name} bằng tổ hợp ${chosenCombo}.`
+        );
+      } else if (targetProvinceFilter) {
+        setUniversityAnalysisError(
+          `Có ${nationwideSchoolCatalog.length} trường có dữ liệu khớp ngành ${currentMajor.name} + tổ hợp ${chosenCombo}, nhưng chưa có trường nào ở ${targetProvinceFilter}. Hãy chọn tỉnh khác hoặc đổi sang Toàn quốc.`
+        );
+      } else {
+        const regionLabels: Record<string, string> = {
+          BAC: 'Miền Bắc',
+          TRUNG: 'Miền Trung',
+          NAM: 'Miền Nam',
+          DBSCL: 'ĐBSCL'
+        };
+        const selectedRegionLabel = regionLabels[targetRegionFilter] || 'khu vực đã chọn';
+        setUniversityAnalysisError(
+          `Có ${nationwideSchoolCatalog.length} trường có dữ liệu khớp ngành ${currentMajor.name} + tổ hợp ${chosenCombo} trên toàn quốc, nhưng chưa có trường nào trong ${selectedRegionLabel}. Hãy chọn Toàn quốc hoặc vùng khác.`
+        );
+      }
       return;
     }
 
@@ -630,8 +646,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             maxAnnualTuitionMillions: maxTuition,
             preferredStudyRegion: targetRegionFilter,
             preferredProvince: targetProvinceFilter,
-            aspirationOrder,
-            aspirationNotes,
             priorityRegion,
             priorityObject
           },
@@ -1129,39 +1143,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 ))}
               </select>
             </label>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-slate-800 bg-[#0E1117] p-5">
-            <label className="block space-y-2 text-sm font-semibold text-white">
-              Thứ tự nguyện vọng
-              <select
-                value={aspirationOrder}
-                onChange={(e) => {
-                  setAspirationOrder(e.target.value);
-                  clearUniversityAnalysis();
-                }}
-                className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white focus:outline-none focus:border-blue-500"
-              >
-                <option value="">Chưa xếp thứ tự</option>
-                {Array.from({ length: 10 }, (_, index) => index + 1).map((number) => (
-                  <option key={number} value={String(number)}>NV{number}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block space-y-2 text-sm font-semibold text-white">
-              Tiêu chí ưu tiên thêm
-              <input
-                type="text"
-                value={aspirationNotes}
-                onChange={(e) => {
-                  setAspirationNotes(e.target.value);
-                  clearUniversityAnalysis();
-                }}
-                maxLength={300}
-                placeholder="Ví dụ: gần nhà, ưu tiên trường công hoặc học phí thấp"
-                className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-              />
-            </label>
-          </div>
 
           <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
