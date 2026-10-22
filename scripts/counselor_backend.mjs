@@ -1,11 +1,12 @@
 /**
  * NEXORA AI CAREER COUNSELOR BACKEND HANDLER (ES MODULE)
- * Decoupled multi-provider adapter supporting Google Gemini & Groq.
- * Validates EXORA response contract, schema normalization, rate limiting, and timeout safety.
+ * Chat counselor provider adapter (Gemini/Groq). The on-demand major and school analyzer
+ * uses the separate DeepSeek/Groq adapter in deepseek_analysis.mjs.
+ * Validates response contracts, rate limiting, and timeout safety.
  */
 
 import seedData from '../src/data/seed_data.json' with { type: 'json' };
-import { handleAdmissionsLookup } from './admissions_lookup.mjs';
+import { handleDeepSeekAnalysis } from './deepseek_analysis.mjs';
 
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -771,5 +772,5 @@ export async function handleDossierAnalysisRequest({ body, headers = {}, env = p
       data: { success: false, code: 'RATE_LIMIT_EXCEEDED', error: 'Bạn gửi yêu cầu quá nhanh. Vui lòng đợi một chút rồi thử lại.' }
     };
   }
-  return handleAdmissionsLookup({ body: parsedBody, env });
+  return handleDeepSeekAnalysis({ body: parsedBody, env });
 }

@@ -108,8 +108,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [careerInterests, setCareerInterests] = useState('');
   const [careerStrengths, setCareerStrengths] = useState('');
   const [hasRequestedSuggestions, setHasRequestedSuggestions] = useState(false);
-  const [isAnalyzingWithGemini, setIsAnalyzingWithGemini] = useState(false);
-  const [geminiAnalysis, setGeminiAnalysis] = useState<any | null>(null);
+  const [isAnalyzingMajors, setIsAnalyzingMajors] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<any | null>(null);
   const [discoveredMajors, setDiscoveredMajors] = useState<any[]>([]);
   const [analysisError, setAnalysisError] = useState('');
   const analysisRequestIdRef = useRef(0);
@@ -130,8 +130,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const clearCareerAnalysis = () => {
     analysisRequestIdRef.current += 1;
     setHasRequestedSuggestions(false);
-    setIsAnalyzingWithGemini(false);
-    setGeminiAnalysis(null);
+    setIsAnalyzingMajors(false);
+    setAiAnalysis(null);
     setDiscoveredMajors([]);
     setAnalysisError('');
   };
@@ -239,7 +239,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const requestMajorSuggestions = async () => {
     sfx.playUiClick();
     setHasRequestedSuggestions(true);
-    setGeminiAnalysis(null);
+    setAiAnalysis(null);
     setDiscoveredMajors([]);
     setAnalysisError('');
 
@@ -249,7 +249,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     }
 
     const requestId = ++analysisRequestIdRef.current;
-    setIsAnalyzingWithGemini(true);
+    setIsAnalyzingMajors(true);
     const controller = new AbortController();
     const requestTimeout = window.setTimeout(() => controller.abort(), 16_000);
     try {
@@ -273,13 +273,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       });
       const payload = await response.json();
       if (requestId !== analysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'verified-search' || !payload?.analysis) {
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek-groq' || !payload?.analysis) {
         throw new Error(payload?.error || 'Chưa nhận được kết quả phân tích. Hãy thử lại.');
       }
       setDiscoveredMajors(Array.isArray(payload.analysis.recommendedMajors)
-        ? payload.analysis.recommendedMajors.map((major: any) => ({ ...major, isDynamicRecommendation: true }))
+        ? payload.analysis.recommendedMajors.map((major: any) => ({ ...major, isDynamicRecommendation: !major.catalogMatch }))
         : []);
-      setGeminiAnalysis(payload.analysis);
+      setAiAnalysis(payload.analysis);
     } catch (error) {
       if (requestId === analysisRequestIdRef.current) {
         setAnalysisError(error instanceof Error && error.name === 'AbortError'
@@ -288,7 +288,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       }
     } finally {
       window.clearTimeout(requestTimeout);
-      if (requestId === analysisRequestIdRef.current) setIsAnalyzingWithGemini(false);
+      if (requestId === analysisRequestIdRef.current) setIsAnalyzingMajors(false);
     }
   };
 
@@ -505,7 +505,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       });
       const payload = await response.json();
       if (requestId !== universityAnalysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'verified-search' || !payload?.analysis) {
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek-groq' || !payload?.analysis) {
         throw new Error(payload?.error || 'Chưa nhận được kết quả tra cứu trường. Hãy thử lại.');
       }
       setUniversityAnalysis(payload.analysis);
@@ -697,10 +697,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => void requestMajorSuggestions()}
-                  disabled={isAnalyzingWithGemini}
+                  disabled={isAnalyzingMajors}
                   className="min-h-11 rounded-lg bg-blue-600 px-6 py-3 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                 >
-                  {isAnalyzingWithGemini ? 'Đang phân tích…' : 'Gợi ý ngành'}
+                  {isAnalyzingMajors ? 'Đang phân tích…' : 'Gợi ý ngành'}
                 </button>
               </div>
 
@@ -709,13 +709,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <div>
                     <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Phân tích và gợi ý ngành</h3>
                     <p className="mt-1 text-sm text-slate-300">
-                      Thông tin được tra cứu theo hồ sơ và kèm nguồn chính thức khi xác minh được.
+                      DeepSeek phân tích hồ sơ; Groq sắp xếp kết quả. Thông tin tuyển sinh cần đối chiếu với đề án chính thức.
                     </p>
                   </div>
 
-                      {isAnalyzingWithGemini && (
+                      {isAnalyzingMajors && (
                     <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                      Đang phân tích hồ sơ và tra cứu thông tin tuyển sinh chính thức…
+                      DeepSeek đang phân tích hồ sơ; Groq sẽ sắp xếp các gợi ý cho bạn…
                     </p>
                   )}
                   {analysisError && (
@@ -723,29 +723,33 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       {analysisError}
                     </p>
                   )}
-                  {geminiAnalysis && (
+                  {aiAnalysis && (
                     <div className="space-y-4">
-                      {geminiAnalysis.headline && <h4 className="text-lg font-bold text-white">{geminiAnalysis.headline}</h4>}
-                      {geminiAnalysis.directAnswer && <p className="text-base leading-relaxed text-slate-200">{geminiAnalysis.directAnswer}</p>}
-                      {geminiAnalysis.strengthsEvaluation && (
-                        <p className="text-sm leading-relaxed text-slate-300">{geminiAnalysis.strengthsEvaluation}</p>
+                      {aiAnalysis.headline && <h4 className="text-lg font-bold text-white">{aiAnalysis.headline}</h4>}
+                      {aiAnalysis.directAnswer && <p className="text-base leading-relaxed text-slate-200">{aiAnalysis.directAnswer}</p>}
+                      {aiAnalysis.strengthsEvaluation && (
+                        <p className="text-sm leading-relaxed text-slate-300">{aiAnalysis.strengthsEvaluation}</p>
                       )}
-                      {geminiAnalysis.risksAndBottlenecks && (
-                        <p className="text-sm leading-relaxed text-slate-300">{geminiAnalysis.risksAndBottlenecks}</p>
+                      {aiAnalysis.risksAndBottlenecks && (
+                        <p className="text-sm leading-relaxed text-slate-300">{aiAnalysis.risksAndBottlenecks}</p>
                       )}
-                      {geminiAnalysis.warnings?.map((warning: string, index: number) => (
+                      {aiAnalysis.warnings?.map((warning: string, index: number) => (
                         <p key={`major-warning-${index}`} className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">{warning}</p>
                       ))}
                       <ol className="flex flex-col gap-2" aria-label="Danh sách ngành được gợi ý">
-                        {geminiAnalysis.recommendedMajors.map((major: any, index: number) => (
-                          <li key={major.codeTT09} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
+                        {aiAnalysis.recommendedMajors.map((major: any, index: number) => (
+                          <li key={`${major.codeTT09 || major.name}-${index}`} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}</p>
                               <h5 className="mt-1 text-lg font-bold text-white">{major.name}{major.codeTT09 ? ` · ${major.codeTT09}` : ''}</h5>
                               <p className={`mt-1 text-sm ${major.verificationStatus === 'VERIFIED' ? 'text-emerald-300' : 'text-amber-300'}`}>
-                                {major.verificationStatus === 'VERIFIED' ? `Đã xác minh theo nguồn năm ${major.year}` : 'Chưa xác minh đầy đủ nguồn, năm hoặc mã ngành'}
+                                {major.verificationStatus === 'VERIFIED'
+                                  ? `Đã xác minh theo nguồn năm ${major.year}`
+                                  : major.catalogMatch ? 'Tên và mã có trong danh mục NEXORA; cần đối chiếu đề án từng trường.' : 'Gợi ý định hướng từ AI; chưa xác minh mã ngành hoặc tuyển sinh.'}
                               </p>
                               {major.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{major.whyFit}</p>}
+                              {major.evidence && <p className="mt-1 text-sm leading-relaxed text-slate-400"><strong>Điểm khớp hồ sơ:</strong> {major.evidence}</p>}
+                              {major.nextStep && <p className="mt-1 text-sm leading-relaxed text-slate-400"><strong>Bước tìm hiểu tiếp:</strong> {major.nextStep}</p>}
                               {major.source?.url && (
                                 <a href={major.source.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-blue-300 underline underline-offset-2">
                                   Nguồn chính thức: {major.source.title}
@@ -753,7 +757,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               )}
                               {major.admissionsCombos?.length > 0 && (
                                 <div className="mt-1 text-sm text-slate-300">
-                                  <p>Tổ hợp được nguồn xác nhận: {major.admissionsCombos.join(', ')}</p>
+                                  <p>{major.catalogMatch ? 'Tổ hợp trong danh mục tham khảo:' : 'Tổ hợp:'} {major.admissionsCombos.join(', ')}</p>
                                   {major.comboSource?.url && (
                                     <a href={major.comboSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-blue-300 underline underline-offset-2">
                                       Nguồn tổ hợp: {major.comboSource.title}
@@ -765,16 +769,16 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                             <button
                               type="button"
                               onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
-                              disabled={major.verificationStatus !== 'VERIFIED' || !major.codeTT09}
+                              disabled={!major.catalogMatch || !major.codeTT09}
                               className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                             >
-                              {major.verificationStatus === 'VERIFIED' && major.codeTT09 ? 'Chọn ngành' : 'Chưa thể chọn'}
+                              {major.catalogMatch && major.codeTT09 ? 'Chọn ngành để xem tổ hợp' : 'Chưa có trong danh mục'}
                             </button>
                           </li>
                         ))}
                       </ol>
-                      {geminiAnalysis.recommendedMajors.length === 0 && !geminiAnalysis.warnings?.length && (
-                        <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm được ngành có nguồn chính thức phù hợp. Hãy thử mô tả thêm sở thích hoặc thế mạnh.</p>
+                      {aiAnalysis.recommendedMajors.length === 0 && (
+                        <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">DeepSeek chưa trả gợi ý ngành phù hợp. Hãy thử mô tả thêm sở thích hoặc thế mạnh.</p>
                       )}
                     </div>
                   )}
@@ -1024,7 +1028,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
-                <p className="mt-1 text-sm text-slate-300">Tra cứu ngành, tổ hợp, điểm chuẩn và học phí theo yêu cầu; chỉ xác nhận dữ kiện có nguồn chính thức đúng năm.</p>
+                <p className="mt-1 text-sm text-slate-300">DeepSeek phân tích hồ sơ và gợi ý trường; điểm chuẩn, ngành tuyển sinh và học phí chưa được tra cứu trực tiếp trong lượt này.</p>
               </div>
               <button
                 type="button"
@@ -1040,7 +1044,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="space-y-3">
                 {isAnalyzingUniversities && (
                   <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                    Đang tra cứu nguồn chính thức cho ngành, tổ hợp, khu vực và ngân sách bạn đã nhập…
+                    DeepSeek đang phân tích lựa chọn trường theo hồ sơ; Groq sẽ sắp xếp kết quả…
                   </p>
                 )}
                 {universityAnalysisError && (
@@ -1066,7 +1070,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                             <p className={`mt-1 text-sm ${school.programStatus === 'VERIFIED' ? 'text-emerald-300' : 'text-amber-300'}`}>
                               {school.programStatus === 'VERIFIED'
                                 ? `Ngành, tổ hợp và trường đã xác minh năm ${school.programYear}`
-                                : school.programStatus === 'CONFLICT' ? 'Nguồn chính thức mâu thuẫn về ngành hoặc tổ hợp; không xác nhận kết quả này.' : 'Thông tin ngành hoặc tổ hợp chưa xác minh đầy đủ'}
+                                : school.programStatus === 'CONFLICT' ? 'Nguồn chính thức mâu thuẫn về ngành hoặc tổ hợp; không xác nhận kết quả này.' : 'Chưa xác minh trường có tuyển ngành/tổ hợp này trong năm đã chọn.'}
                             </p>
                             {school.programName && <p className="mt-1 text-sm text-slate-300">Ngành: {school.programName}{school.majorCode ? ` · Mã ${school.majorCode}` : ''}{school.combinationCode ? ` · Tổ hợp ${school.combinationCode}` : ''}</p>}
                             {school.programSource?.url && (
@@ -1075,6 +1079,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               </a>
                             )}
                             {school.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{school.whyFit}</p>}
+                            {school.questionsToVerify?.length > 0 && <p className="mt-2 text-sm leading-relaxed text-slate-400"><strong>Cần hỏi trường:</strong> {school.questionsToVerify.join(' · ')}</p>}
                             {school.cutoffBenchmark != null && (
                               <p className="mt-1 text-sm text-slate-400">
                                 Điểm chuẩn năm {school.cutoffYear}: {Number(school.cutoffBenchmark).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} điểm
@@ -1119,7 +1124,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       ))}
                     </ol>
                     {(!universityAnalysis.recommendedSchools || universityAnalysis.recommendedSchools.length === 0) && (
-                      <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm thấy kết quả ngành và tổ hợp có thể xác minh từ nguồn chính thức cho năm này. Không có điểm chuẩn hoặc học phí dựng sẵn được hiển thị.</p>
+                      <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">DeepSeek chưa tìm thấy trường phù hợp trong danh mục NEXORA. Không có điểm chuẩn hoặc học phí tự điền.</p>
                     )}
                   </div>
                 )}
