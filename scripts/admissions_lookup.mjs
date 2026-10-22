@@ -582,12 +582,13 @@ function errorResponse(error, elapsedMs) {
   const retryAfterSeconds = Number.isFinite(error?.retryAfterSeconds) && error.retryAfterSeconds > 0
     ? Math.min(86_400, Math.ceil(error.retryAfterSeconds))
     : null;
+  const attemptedKeyCount = Array.isArray(error?.attemptedKeyAliases) ? error.attemptedKeyAliases.length : 0;
   const message = code === 'INVALID_MODEL_RESPONSE'
     ? 'Dịch vụ tra cứu trả dữ liệu không đúng định dạng; không có dữ kiện nào được hiển thị.'
     : code === 'LOOKUP_AUTH_ERROR'
     ? 'Dịch vụ tra cứu chưa xác thực được. Hãy kiểm tra API key trên máy chủ.'
     : code === 'LOOKUP_RATE_LIMIT'
-      ? `Gemini trả HTTP 429${upstreamCode ? ` (${upstreamCode})` : ''}: đã chạm giới hạn request, token hoặc quota của project. Kiểm tra Usage và Rate limits trong Google AI Studio${retryAfterSeconds ? `; thử lại sau ${retryAfterSeconds} giây` : ''}. Các khóa cùng project không cộng dồn hạn mức.`
+      ? `Gemini trả HTTP 429${upstreamCode ? ` (${upstreamCode})` : ''}: đã chạm giới hạn request, token hoặc quota của project. Kiểm tra Usage và Rate limits trong Google AI Studio${retryAfterSeconds ? `; thử lại sau ${retryAfterSeconds} giây` : ''}. Các khóa cùng project không cộng dồn hạn mức.${attemptedKeyCount ? ` Máy chủ đã thử ${attemptedKeyCount} khóa Gemini.` : ''}`
       : code === 'LOOKUP_SERVICE_BUSY'
         ? 'Dịch vụ tra cứu đang bận. Hãy thử lại sau.'
         : code === 'LOOKUP_TIMEOUT'
