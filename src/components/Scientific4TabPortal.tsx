@@ -712,13 +712,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <div>
                     <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Phân tích và gợi ý ngành</h3>
                     <p className="mt-1 text-sm text-slate-300">
-                      DeepSeek phân tích hồ sơ; hệ thống ánh xạ kết quả vào danh mục ngành. Thông tin tuyển sinh cần đối chiếu với đề án chính thức.
+                      Hệ thống phân tích hồ sơ và đối chiếu kết quả với danh mục ngành. Thông tin tuyển sinh cần kiểm tra theo đề án chính thức.
                     </p>
                   </div>
 
                       {isAnalyzingMajors && (
                     <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                      DeepSeek đang phân tích hồ sơ và tạo các gợi ý ngành…
+                      Đang phân tích hồ sơ và tạo gợi ý ngành…
                     </p>
                   )}
                   {analysisError && (
@@ -781,7 +781,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                         ))}
                       </ol>
                       {aiAnalysis.recommendedMajors.length === 0 && (
-                        <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">DeepSeek chưa trả gợi ý ngành phù hợp. Hãy thử mô tả thêm sở thích hoặc thế mạnh.</p>
+                        <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm thấy gợi ý ngành phù hợp. Hãy thử mô tả thêm sở thích hoặc thế mạnh.</p>
                       )}
                     </div>
                   )}
@@ -1031,7 +1031,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
-                <p className="mt-1 text-sm text-slate-300">DeepSeek phân tích hồ sơ và gợi ý trường; điểm chuẩn, ngành tuyển sinh và học phí chưa được tra cứu trực tiếp trong lượt này.</p>
+                <p className="mt-1 text-sm text-slate-300">Hệ thống phân tích hồ sơ và gợi ý trường; điểm chuẩn, ngành tuyển sinh và học phí chưa được tra cứu trực tiếp trong lượt này.</p>
               </div>
               <button
                 type="button"
@@ -1047,7 +1047,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="space-y-3">
                 {isAnalyzingUniversities && (
                   <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                    DeepSeek đang phân tích trường theo hồ sơ của bạn…
+                    Đang phân tích trường theo hồ sơ của bạn…
                   </p>
                 )}
                 {universityAnalysisError && (
@@ -1073,7 +1073,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                             <p className={`mt-1 text-sm ${school.programStatus === 'VERIFIED' ? 'text-emerald-300' : 'text-amber-300'}`}>
                               {school.programStatus === 'VERIFIED'
                                 ? `Ngành, tổ hợp và trường đã xác minh năm ${school.programYear}`
-                                : school.programStatus === 'CONFLICT' ? 'Nguồn chính thức mâu thuẫn về ngành hoặc tổ hợp; không xác nhận kết quả này.' : 'Chưa xác minh trường có tuyển ngành/tổ hợp này trong năm đã chọn.'}
+                                : school.programStatus === 'CONFLICT' ? 'Nguồn chính thức mâu thuẫn về ngành hoặc tổ hợp; không xác nhận kết quả này.' : 'Có thể chọn trường để tìm hiểu; ngành và tổ hợp chưa được xác minh cho năm đã chọn.'}
                             </p>
                             {school.programName && <p className="mt-1 text-sm text-slate-300">Ngành: {school.programName}{school.majorCode ? ` · Mã ${school.majorCode}` : ''}{school.combinationCode ? ` · Tổ hợp ${school.combinationCode}` : ''}</p>}
                             {school.programSource?.url && (
@@ -1114,20 +1114,20 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                           </div>
                           <button
                             type="button"
-                            disabled={school.programStatus !== 'VERIFIED'}
+                            disabled={!school.institutionCode && !school.name}
                             onClick={() => {
                               setSelectedSchoolCode(school.institutionCode || school.name);
                               setActiveTab('tab-domino');
                             }}
                             className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                           >
-                            {school.programStatus === 'VERIFIED' ? 'Chọn trường' : 'Chưa thể chọn'}
+                            {school.programStatus === 'VERIFIED' ? 'Chọn trường' : 'Chọn để tìm hiểu'}
                           </button>
                         </li>
                       ))}
                     </ol>
                     {(!universityAnalysis.recommendedSchools || universityAnalysis.recommendedSchools.length === 0) && (
-                      <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">DeepSeek chưa tìm thấy trường phù hợp trong danh mục NEXORA. Không có điểm chuẩn hoặc học phí tự điền.</p>
+                      <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm thấy trường phù hợp trong danh mục NEXORA. Không có điểm chuẩn hoặc học phí tự điền.</p>
                     )}
                   </div>
                 )}
@@ -1151,6 +1151,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <h3 className="font-bold text-base text-white">
                 {currentMajor?.name} · {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} · {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Trường chưa chọn'}
               </h3>
+              {currentSchool && currentSchool.programStatus !== 'VERIFIED' && (
+                <p role="status" className="mt-2 text-sm text-amber-300">
+                  Trường đã chọn để tìm hiểu; ngành và tổ hợp chưa được xác minh theo đề án tuyển sinh.
+                </p>
+              )}
             </div>
           </div>
 
