@@ -279,31 +279,48 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
     const attemptsLeft = maxAttempts - attempt + 1;
     const attemptTimeoutMs = Math.max(100, Math.floor(remainingMs / attemptsLeft));
     const retryInstruction = attempt > 1
-      ? '\nLƯU Ý: Đây là lần thử lại. Hoàn thành phân tích ngắn gọn và trả đủ mọi trường theo JSON Schema; không trả lời rỗng.'
+      ? '\nLƯU Ý: Đây là lần thử lại bằng định dạng chat thường. Hoàn thành phân tích ngắn gọn và chỉ trả một object JSON hợp lệ theo các trường đã nêu; không trả lời rỗng.'
       : '';
     const schema = type === 'schools' ? DEEPSEEK_SCHOOL_SCHEMA : DEEPSEEK_MAJOR_SCHEMA;
+    const protocol = attempt === 1 ? 'responses_json_schema' : 'chat_plain_json';
 
     try {
-      const result = await requestJson('https://api.deepseek.com/responses', {
-        apiKey,
-        timeoutMs: attemptTimeoutMs,
-        provider: 'DEEPSEEK',
-        body: {
-          model,
-          instructions: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Hãy phân tích hồ sơ theo yêu cầu và tuân thủ JSON Schema được cung cấp. Không bịa dữ kiện tuyển sinh.',
-          input: `${deepSeekPrompt(type, profile, year)}${retryInstruction}`,
-          reasoning: { effort: 'none' },
-          temperature: 0.25,
-          max_output_tokens: type === 'schools' ? 3000 : 4200,
-          text: {
-            format: {
-              type: 'json_schema',
-              name: type === 'schools' ? 'nexora_school_analysis' : 'nexora_major_analysis',
-              schema
+      const result = protocol === 'responses_json_schema'
+        ? await requestJson('https://api.deepseek.com/responses', {
+          apiKey,
+          timeoutMs: attemptTimeoutMs,
+          provider: 'DEEPSEEK',
+          body: {
+            model,
+            instructions: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Hãy phân tích hồ sơ theo yêu cầu và tuân thủ JSON Schema được cung cấp. Không bịa dữ kiện tuyển sinh.',
+            input: deepSeekPrompt(type, profile, year),
+            reasoning: { effort: 'none' },
+            temperature: 0.25,
+            max_output_tokens: type === 'schools' ? 3000 : 4200,
+            text: {
+              format: {
+                type: 'json_schema',
+                name: type === 'schools' ? 'nexora_school_analysis' : 'nexora_major_analysis',
+                schema
+              }
             }
           }
-        }
-      });
+        })
+        : await requestJson('https://api.deepseek.com/chat/completions', {
+          apiKey,
+          timeoutMs: attemptTimeoutMs,
+          provider: 'DEEPSEEK',
+          body: {
+            model,
+            thinking: { type: 'disabled' },
+            temperature: 0.25,
+            max_tokens: type === 'schools' ? 2800 : 3800,
+            messages: [
+              { role: 'system', content: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Phân tích hồ sơ và chỉ trả về một object JSON hợp lệ theo đúng các trường trong yêu cầu; không bịa dữ kiện tuyển sinh.' },
+              { role: 'user', content: `${deepSeekPrompt(type, profile, year)}${retryInstruction}` }
+            ]
+          }
+        });
       if (result?.status === 'failed') {
         const rawCode = text(result?.error?.code, 80).toUpperCase();
         throw Object.assign(new Error('DEEPSEEK_RESPONSE_FAILED'), {
@@ -313,20 +330,28 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
         });
       }
       const outputItems = Array.isArray(result?.output) ? result.output : [];
-      const content = outputItems
+      const choice = result?.choices?.[0];
+      const responseContent = outputItems
         .filter(item => item?.type === 'message' && (!item.role || item.role === 'assistant'))
         .flatMap(item => Array.isArray(item.content) ? item.content : [])
-        .filter(item => item?.type === 'output_text' && typeof item.text === 'string')
+        .filter(item => typeof item?.text === 'string' && item.type !== 'reasoning_text')
         .map(item => item.text)
-        .join('\n')
-        .trim();
-      const finishReason = text(result?.incomplete_details?.reason || result?.status, 40);
-      if (result?.status === 'incomplete' || finishReason === 'max_output_tokens') {
-        throw Object.assign(new Error('DEEPSEEK_OUTPUT_TRUNCATED'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: content.length });
+        .join('\n');
+      const topLevelOutputText = typeof result?.output_text === 'string' ? result.output_text : '';
+      const content = (protocol === 'responses_json_schema'
+        ? (topLevelOutputText.trim() ? topLevelOutputText : responseContent)
+        : (typeof choice?.message?.content === 'string' ? choice.message.content : '')).trim();
+      const finishReason = text(protocol === 'responses_json_schema'
+        ? (result?.incomplete_details?.reason || result?.status)
+        : choice?.finish_reason, 40);
+      if (result?.status === 'incomplete' || finishReason === 'max_output_tokens' || finishReason === 'length') {
+        throw Object.assign(new Error('DEEPSEEK_OUTPUT_TRUNCATED'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: content.length, protocol });
       }
       if (!content.trim()) {
-        const outputTypes = outputItems.map(item => text(item?.type, 30)).filter(Boolean).slice(0, 8);
-        throw Object.assign(new Error('DEEPSEEK_EMPTY_OUTPUT'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: 0, outputTypes });
+        const outputTypes = protocol === 'responses_json_schema'
+          ? outputItems.map(item => text(item?.type, 30)).filter(Boolean).slice(0, 8)
+          : (Array.isArray(result?.choices) ? ['choices'] : []);
+        throw Object.assign(new Error('DEEPSEEK_EMPTY_OUTPUT'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: 0, outputTypes, protocol });
       }
       let parsed;
       try {
@@ -337,6 +362,7 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
       }
       return { parsed, model };
     } catch (error) {
+      if (error && typeof error === 'object' && !error.protocol) error.protocol = protocol;
       lastError = error;
       const retryableOutputError = ['INVALID_DEEPSEEK_JSON', 'DEEPSEEK_OUTPUT_TRUNCATED', 'DEEPSEEK_EMPTY_OUTPUT'].includes(error?.message);
       if (!retryableOutputError || attempt >= maxAttempts || deadline - Date.now() <= 100) throw error;
@@ -346,6 +372,7 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
         type,
         status: 'invalid_output_retry',
         provider: 'DeepSeek',
+        protocol,
         attempt,
         code: error.message,
         ...(error.finishReason ? { finishReason: error.finishReason } : {}),
@@ -564,7 +591,14 @@ function failure(error, type, elapsedMs) {
                   ? 'Phản hồi DeepSeek bị cắt trước khi hoàn tất. Vui lòng thử lại.'
                   : `${provider} trả kết quả không đúng cấu trúc. Máy chủ đã thử lại; vui lòng thử lại sau.`
               : `${provider} hiện chưa thể hoàn tất phân tích. Hãy thử lại sau.`;
-  console.info(JSON.stringify({ event: 'admissions_lookup', timestamp: new Date().toISOString(), type, status: 'error', code, provider, elapsedMs, ...(error?.upstreamCode ? { upstreamCode: error.upstreamCode } : {}) }));
+  console.info(JSON.stringify({
+    event: 'admissions_lookup', timestamp: new Date().toISOString(), type, status: 'error', code, provider, elapsedMs,
+    ...(error?.protocol ? { protocol: error.protocol } : {}),
+    ...(error?.finishReason ? { finishReason: error.finishReason } : {}),
+    ...(Number.isFinite(Number(error?.outputChars)) ? { outputChars: Number(error.outputChars) } : {}),
+    ...(Array.isArray(error?.outputTypes) ? { outputTypes: error.outputTypes } : {}),
+    ...(error?.upstreamCode ? { upstreamCode: error.upstreamCode } : {})
+  }));
   return { status: [400, 401, 402, 403, 429, 502, 503, 504].includes(status) ? status : 502, data: { success: false, code, error: message } };
 }
 
