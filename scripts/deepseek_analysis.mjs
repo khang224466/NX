@@ -362,11 +362,13 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
 function verifiedCatalogMajor(recommendation) {
   const catalog = getMajorCatalog();
   const exactIndex = Number(recommendation.majorIndex);
-  const matched = exactIndex >= 0 && exactIndex < catalog.length &&
+  const indexedMatch = exactIndex >= 0 && exactIndex < catalog.length &&
     normalizeName(catalog[exactIndex].name) === normalizeName(recommendation.name)
     ? catalog[exactIndex]
     : null;
+  const matched = indexedMatch || catalog.find(major => normalizeName(major.name) === normalizeName(recommendation.name)) || null;
   return {
+    name: matched?.name || recommendation.name,
     codeTT09: matched?.codeTT09 || '',
     sector: matched?.sector || recommendation.category || 'Chưa phân loại',
     admissionsCombos: matched?.admissionsCombos || [],
