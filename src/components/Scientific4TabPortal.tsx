@@ -273,7 +273,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       });
       const payload = await response.json();
       if (requestId !== analysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek-groq' || !payload?.analysis) {
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek' || !payload?.analysis) {
         throw new Error(payload?.error || 'Chưa nhận được kết quả phân tích. Hãy thử lại.');
       }
       setDiscoveredMajors(Array.isArray(payload.analysis.recommendedMajors)
@@ -505,7 +505,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       });
       const payload = await response.json();
       if (requestId !== universityAnalysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek-groq' || !payload?.analysis) {
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek' || !payload?.analysis) {
         throw new Error(payload?.error || 'Chưa nhận được kết quả tra cứu trường. Hãy thử lại.');
       }
       setUniversityAnalysis(payload.analysis);
@@ -709,13 +709,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <div>
                     <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Phân tích và gợi ý ngành</h3>
                     <p className="mt-1 text-sm text-slate-300">
-                      DeepSeek phân tích hồ sơ; Groq sắp xếp kết quả. Thông tin tuyển sinh cần đối chiếu với đề án chính thức.
+                      DeepSeek phân tích hồ sơ; hệ thống ánh xạ kết quả vào danh mục ngành. Thông tin tuyển sinh cần đối chiếu với đề án chính thức.
                     </p>
                   </div>
 
                       {isAnalyzingMajors && (
                     <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                      DeepSeek đang phân tích hồ sơ; Groq sẽ sắp xếp các gợi ý cho bạn…
+                      DeepSeek đang phân tích hồ sơ và tạo các gợi ý ngành…
                     </p>
                   )}
                   {analysisError && (
@@ -1044,7 +1044,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="space-y-3">
                 {isAnalyzingUniversities && (
                   <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                    DeepSeek đang phân tích lựa chọn trường theo hồ sơ; Groq sẽ sắp xếp kết quả…
+                    DeepSeek đang phân tích trường theo hồ sơ của bạn…
                   </p>
                 )}
                 {universityAnalysisError && (

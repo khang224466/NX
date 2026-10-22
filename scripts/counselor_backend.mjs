@@ -1,7 +1,7 @@
 /**
  * NEXORA AI CAREER COUNSELOR BACKEND HANDLER (ES MODULE)
  * Chat counselor provider adapter (Gemini/Groq). The on-demand major and school analyzer
- * uses the separate DeepSeek/Groq adapter in deepseek_analysis.mjs.
+ * uses DeepSeek directly and maps its structured response in deepseek_analysis.mjs.
  * Validates response contracts, rate limiting, and timeout safety.
  */
 
