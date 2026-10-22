@@ -176,7 +176,7 @@ function parseJson(value) {
 
 function parseDeepSeekResult(raw, type, profile = {}) {
   const parsed = parseJson(raw);
-  if (!parsed || typeof parsed !== 'object') throw Object.assign(new Error('INVALID_DEEPSEEK_JSON'), { status: 502 });
+  if (!parsed || typeof parsed !== 'object') throw Object.assign(new Error('INVALID_DEEPSEEK_JSON'), { status: 502, provider: 'DEEPSEEK', outputChars: typeof raw === 'string' ? raw.length : 0 });
   if (type === 'schools') {
     const schoolCount = getSchoolCatalog(profile).length;
     return {
@@ -235,24 +235,72 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
   const apiKey = text(env.DAMINFINITE, 500);
   if (!apiKey) throw Object.assign(new Error('DEEPSEEK_NOT_CONFIGURED'), { status: 503 });
   const model = text(env.DEEPSEEK_ADMISSIONS_MODEL, 100) || 'deepseek-flash';
-  const result = await requestJson('https://api.deepseek.com/chat/completions', {
-    apiKey,
-    timeoutMs,
-    provider: 'DEEPSEEK',
-    body: {
-      model,
-      temperature: 0.25,
-      max_tokens: type === 'schools' ? 1800 : 2400,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Hãy tự phân tích đầy đủ hồ sơ và trả về JSON hợp lệ theo đúng chỉ dẫn; không bịa dữ kiện tuyển sinh.' },
-        { role: 'user', content: deepSeekPrompt(type, profile, year) }
-      ]
+  const deadline = Date.now() + Math.max(1, timeoutMs);
+  const maxAttempts = 2;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 100) break;
+    const attemptsLeft = maxAttempts - attempt + 1;
+    const attemptTimeoutMs = Math.max(100, Math.floor(remainingMs / attemptsLeft));
+    const retryInstruction = attempt > 1
+      ? '\nLƯU Ý BẮT BUỘC: Chỉ trả về một object JSON hợp lệ, không Markdown, không văn bản mở đầu/kết thúc. Mọi chuỗi phải đóng ngoặc kép; không để nội dung trống.'
+      : '';
+
+    try {
+      const result = await requestJson('https://api.deepseek.com/chat/completions', {
+        apiKey,
+        timeoutMs: attemptTimeoutMs,
+        provider: 'DEEPSEEK',
+        body: {
+          model,
+          thinking: { type: 'disabled' },
+          temperature: 0.25,
+          max_tokens: type === 'schools' ? 2800 : 3800,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Hãy tự phân tích đầy đủ hồ sơ và trả về đúng một object JSON hợp lệ theo chỉ dẫn; không bịa dữ kiện tuyển sinh.' },
+            { role: 'user', content: `${deepSeekPrompt(type, profile, year)}${retryInstruction}` }
+          ]
+        }
+      });
+      const choice = result?.choices?.[0];
+      const content = typeof choice?.message?.content === 'string' ? choice.message.content : '';
+      const finishReason = text(choice?.finish_reason, 40);
+      if (finishReason === 'length') {
+        throw Object.assign(new Error('DEEPSEEK_OUTPUT_TRUNCATED'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: content.length });
+      }
+      if (!content.trim()) {
+        throw Object.assign(new Error('DEEPSEEK_EMPTY_OUTPUT'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: 0 });
+      }
+      let parsed;
+      try {
+        parsed = parseDeepSeekResult(content, type, profile);
+      } catch (error) {
+        error.finishReason = finishReason;
+        throw error;
+      }
+      return { parsed, model };
+    } catch (error) {
+      lastError = error;
+      const retryableOutputError = ['INVALID_DEEPSEEK_JSON', 'DEEPSEEK_OUTPUT_TRUNCATED', 'DEEPSEEK_EMPTY_OUTPUT'].includes(error?.message);
+      if (!retryableOutputError || attempt >= maxAttempts || deadline - Date.now() <= 100) throw error;
+      console.info(JSON.stringify({
+        event: 'admissions_lookup',
+        timestamp: new Date().toISOString(),
+        type,
+        status: 'invalid_output_retry',
+        provider: 'DeepSeek',
+        attempt,
+        code: error.message,
+        ...(error.finishReason ? { finishReason: error.finishReason } : {}),
+        outputChars: Number(error.outputChars) || 0
+      }));
     }
-  });
-  const content = result?.choices?.[0]?.message?.content || '';
-  const parsed = parseDeepSeekResult(content, type, profile);
-  return { parsed, model };
+  }
+
+  throw lastError || Object.assign(new Error('DEEPSEEK_TIMEOUT'), { status: 504, provider: 'DEEPSEEK' });
 }
 
 function getGroqKeyCandidates(env) {
@@ -438,7 +486,7 @@ function failure(error, type, elapsedMs) {
   const provider = error?.provider === 'GROQ' || error?.message?.startsWith('GROQ_') || error?.message === 'INVALID_GROQ_JSON' ? 'Groq' : 'DeepSeek';
   const code = error?.message === 'DEEPSEEK_NOT_CONFIGURED' ? 'DEEPSEEK_NOT_CONFIGURED'
     : error?.message === 'GROQ_NOT_CONFIGURED' ? 'GROQ_NOT_CONFIGURED'
-      : error?.message === 'INVALID_DEEPSEEK_JSON' || error?.message === 'INVALID_GROQ_JSON' ? 'INVALID_MODEL_RESPONSE'
+      : ['INVALID_DEEPSEEK_JSON', 'INVALID_GROQ_JSON', 'DEEPSEEK_OUTPUT_TRUNCATED', 'DEEPSEEK_EMPTY_OUTPUT'].includes(error?.message) ? 'INVALID_MODEL_RESPONSE'
         : status === 402 ? 'AI_CREDITS_REQUIRED'
           : status === 429 ? 'AI_RATE_LIMIT' : status === 401 || status === 403 ? 'AI_AUTH_ERROR'
           : status === 504 || error?.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_LOOKUP_FAILED';
@@ -455,7 +503,11 @@ function failure(error, type, elapsedMs) {
           : code === 'AI_TIMEOUT'
             ? `${provider} phản hồi quá thời gian cho phép. Hãy thử lại sau.`
             : code === 'INVALID_MODEL_RESPONSE'
-              ? `${provider} trả kết quả không đúng cấu trúc. Hãy thử lại.`
+              ? error?.message === 'DEEPSEEK_EMPTY_OUTPUT'
+                ? 'DeepSeek chưa trả nội dung phân tích. Máy chủ đã thử lại; vui lòng thử lại sau.'
+                : error?.message === 'DEEPSEEK_OUTPUT_TRUNCATED'
+                  ? 'Phản hồi DeepSeek bị cắt trước khi hoàn tất. Vui lòng thử lại.'
+                  : `${provider} trả kết quả không đúng cấu trúc. Máy chủ đã thử lại; vui lòng thử lại sau.`
               : `${provider} hiện chưa thể hoàn tất phân tích. Hãy thử lại sau.`;
   console.info(JSON.stringify({ event: 'admissions_lookup', timestamp: new Date().toISOString(), type, status: 'error', code, provider, elapsedMs, ...(error?.upstreamCode ? { upstreamCode: error.upstreamCode } : {}) }));
   return { status: [400, 401, 402, 403, 429, 502, 503, 504].includes(status) ? status : 502, data: { success: false, code, error: message } };
