@@ -12,6 +12,12 @@ const GROQ_KEY_ALIAS_NAMES = ['DAM9', 'DAM8', 'DAM7', 'DAM'];
 let preferredGroqAlias = '';
 
 const text = (value, max = 1000) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+const extractTextContent = value => {
+  if (typeof value === 'string') return value.trim();
+  if (!Array.isArray(value)) return '';
+  return value.map(part => typeof part === 'string' ? part : text(part?.text || part?.output_text))
+    .filter(Boolean).join('\n').trim();
+};
 const numberOrNull = (value, min = 0, max = 1000) => {
   if (value === '' || value == null) return null;
   const number = Number(value);
@@ -147,17 +153,41 @@ async function requestJson(url, { apiKey, body, timeoutMs, provider }) {
       body: JSON.stringify(body),
       signal: controller.signal
     });
-    const result = await response.json().catch(() => ({}));
+    const contentType = text(response.headers.get('content-type'), 120);
+    const rawBody = await response.text().catch(() => '');
+    let result = {};
+    let invalidJson = false;
+    if (rawBody.trim()) {
+      try {
+        result = JSON.parse(rawBody);
+      } catch {
+        invalidJson = true;
+      }
+    }
     if (!response.ok) {
       const error = new Error(`${provider}_HTTP_${response.status}`);
       error.status = response.status;
       error.provider = provider;
       const rawCode = text(result?.error?.code || result?.error?.type, 80).toUpperCase();
       error.upstreamCode = /^[A-Z][A-Z0-9_]{1,39}$/.test(rawCode) ? rawCode : '';
+      error.responseContentType = contentType;
+      error.responseChars = rawBody.length;
       const retryAfter = Number(response.headers.get('retry-after'));
       if (Number.isFinite(retryAfter) && retryAfter > 0) error.retryAfterSeconds = Math.ceil(retryAfter);
       throw error;
     }
+    if (invalidJson || !rawBody.trim() || !result || typeof result !== 'object') {
+      const error = new Error(`${provider}_INVALID_JSON_RESPONSE`);
+      error.status = 502;
+      error.provider = provider;
+      error.responseContentType = contentType;
+      error.responseChars = rawBody.length;
+      throw error;
+    }
+    Object.defineProperties(result, {
+      __responseContentType: { value: contentType, enumerable: false },
+      __responseChars: { value: rawBody.length, enumerable: false }
+    });
     return result;
   } catch (error) {
     error.provider = provider;
@@ -318,7 +348,8 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
             messages: [
               { role: 'system', content: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Phân tích hồ sơ và chỉ trả về một object JSON hợp lệ theo đúng các trường trong yêu cầu; không bịa dữ kiện tuyển sinh.' },
               { role: 'user', content: `${deepSeekPrompt(type, profile, year)}${retryInstruction}` }
-            ]
+            ],
+            response_format: { type: 'json_object' }
           }
         });
       if (result?.status === 'failed') {
@@ -338,9 +369,10 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
         .map(item => item.text)
         .join('\n');
       const topLevelOutputText = typeof result?.output_text === 'string' ? result.output_text : '';
+      const chatContent = extractTextContent(choice?.message?.content);
       const content = (protocol === 'responses_json_schema'
         ? (topLevelOutputText.trim() ? topLevelOutputText : responseContent)
-        : (typeof choice?.message?.content === 'string' ? choice.message.content : '')).trim();
+        : (chatContent || topLevelOutputText || responseContent)).trim();
       const finishReason = text(protocol === 'responses_json_schema'
         ? (result?.incomplete_details?.reason || result?.status)
         : choice?.finish_reason, 40);
@@ -351,7 +383,16 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
         const outputTypes = protocol === 'responses_json_schema'
           ? outputItems.map(item => text(item?.type, 30)).filter(Boolean).slice(0, 8)
           : (Array.isArray(result?.choices) ? ['choices'] : []);
-        throw Object.assign(new Error('DEEPSEEK_EMPTY_OUTPUT'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: 0, outputTypes, protocol });
+        const responseKeys = Object.keys(result || {}).filter(key => !key.startsWith('__')).slice(0, 12);
+        const rawErrorCode = text(result?.error?.code || result?.error?.type, 80).toUpperCase();
+        const responseErrorCode = /^[A-Z][A-Z0-9_]{1,39}$/.test(rawErrorCode) ? rawErrorCode : '';
+        throw Object.assign(new Error('DEEPSEEK_EMPTY_OUTPUT'), {
+          status: 502, provider: 'DEEPSEEK', finishReason, outputChars: 0, outputTypes, protocol,
+          responseKeys,
+          ...(responseErrorCode ? { responseErrorCode } : {}),
+          responseContentType: result?.__responseContentType || '',
+          responseChars: Number(result?.__responseChars) || 0
+        });
       }
       let parsed;
       try {
@@ -364,7 +405,7 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
     } catch (error) {
       if (error && typeof error === 'object' && !error.protocol) error.protocol = protocol;
       lastError = error;
-      const retryableOutputError = ['INVALID_DEEPSEEK_JSON', 'DEEPSEEK_OUTPUT_TRUNCATED', 'DEEPSEEK_EMPTY_OUTPUT'].includes(error?.message);
+      const retryableOutputError = ['INVALID_DEEPSEEK_JSON', 'DEEPSEEK_OUTPUT_TRUNCATED', 'DEEPSEEK_EMPTY_OUTPUT', 'DEEPSEEK_INVALID_JSON_RESPONSE'].includes(error?.message);
       if (!retryableOutputError || attempt >= maxAttempts || deadline - Date.now() <= 100) throw error;
       console.info(JSON.stringify({
         event: 'admissions_lookup',
@@ -377,7 +418,11 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
         code: error.message,
         ...(error.finishReason ? { finishReason: error.finishReason } : {}),
         outputChars: Number(error.outputChars) || 0,
-        ...(Array.isArray(error.outputTypes) ? { outputTypes: error.outputTypes } : {})
+        ...(Array.isArray(error.outputTypes) ? { outputTypes: error.outputTypes } : {}),
+        ...(Array.isArray(error.responseKeys) ? { responseKeys: error.responseKeys } : {}),
+        ...(error.responseErrorCode ? { responseErrorCode: error.responseErrorCode } : {}),
+        ...(error.responseContentType ? { responseContentType: error.responseContentType } : {}),
+        ...(Number.isFinite(Number(error.responseChars)) ? { responseChars: Number(error.responseChars) } : {})
       }));
     }
   }
@@ -568,7 +613,7 @@ function failure(error, type, elapsedMs) {
   const provider = error?.provider === 'GROQ' || error?.message?.startsWith('GROQ_') || error?.message === 'INVALID_GROQ_JSON' ? 'Groq' : 'DeepSeek';
   const code = error?.message === 'DEEPSEEK_NOT_CONFIGURED' ? 'DEEPSEEK_NOT_CONFIGURED'
     : error?.message === 'GROQ_NOT_CONFIGURED' ? 'GROQ_NOT_CONFIGURED'
-      : ['INVALID_DEEPSEEK_JSON', 'INVALID_GROQ_JSON', 'DEEPSEEK_OUTPUT_TRUNCATED', 'DEEPSEEK_EMPTY_OUTPUT'].includes(error?.message) ? 'INVALID_MODEL_RESPONSE'
+      : ['INVALID_DEEPSEEK_JSON', 'INVALID_GROQ_JSON', 'DEEPSEEK_OUTPUT_TRUNCATED', 'DEEPSEEK_EMPTY_OUTPUT', 'DEEPSEEK_INVALID_JSON_RESPONSE'].includes(error?.message) ? 'INVALID_MODEL_RESPONSE'
         : status === 402 ? 'AI_CREDITS_REQUIRED'
           : status === 429 ? 'AI_RATE_LIMIT' : status === 401 || status === 403 ? 'AI_AUTH_ERROR'
           : status === 504 || error?.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_LOOKUP_FAILED';
@@ -597,6 +642,10 @@ function failure(error, type, elapsedMs) {
     ...(error?.finishReason ? { finishReason: error.finishReason } : {}),
     ...(Number.isFinite(Number(error?.outputChars)) ? { outputChars: Number(error.outputChars) } : {}),
     ...(Array.isArray(error?.outputTypes) ? { outputTypes: error.outputTypes } : {}),
+    ...(Array.isArray(error?.responseKeys) ? { responseKeys: error.responseKeys } : {}),
+    ...(error?.responseErrorCode ? { responseErrorCode: error.responseErrorCode } : {}),
+    ...(error?.responseContentType ? { responseContentType: error.responseContentType } : {}),
+    ...(Number.isFinite(Number(error?.responseChars)) ? { responseChars: Number(error.responseChars) } : {}),
     ...(error?.upstreamCode ? { upstreamCode: error.upstreamCode } : {})
   }));
   return { status: [400, 401, 402, 403, 429, 502, 503, 504].includes(status) ? status : 502, data: { success: false, code, error: message } };
