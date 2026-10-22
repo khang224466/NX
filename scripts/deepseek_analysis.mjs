@@ -231,6 +231,40 @@ const SCHOOL_GROQ_SCHEMA = {
   required: ['headline', 'summary', 'scoreAnalysis', 'budgetNote', 'recommendations']
 };
 
+const DEEPSEEK_MAJOR_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    headline: { type: 'string' },
+    directAnswer: { type: 'string' },
+    strengthsEvaluation: { type: 'string' },
+    risksAndBottlenecks: { type: 'string' },
+    recommendations: { type: 'array', items: { type: 'object', additionalProperties: false,
+      properties: {
+        majorIndex: { type: 'integer' }, name: { type: 'string' }, category: { type: 'string' },
+        whyFit: { type: 'string' }, evidence: { type: 'string' }, nextStep: { type: 'string' }
+      },
+      required: ['majorIndex', 'name', 'category', 'whyFit', 'evidence', 'nextStep']
+    } }
+  },
+  required: ['headline', 'directAnswer', 'strengthsEvaluation', 'risksAndBottlenecks', 'recommendations']
+};
+
+const DEEPSEEK_SCHOOL_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    headline: { type: 'string' }, summary: { type: 'string' },
+    scoreAnalysis: { type: 'string' }, budgetNote: { type: 'string' },
+    schools: { type: 'array', items: { type: 'object', additionalProperties: false,
+      properties: {
+        schoolIndex: { type: 'integer' }, whyFit: { type: 'string' },
+        questionsToVerify: { type: 'array', items: { type: 'string' } }
+      },
+      required: ['schoolIndex', 'whyFit', 'questionsToVerify']
+    } }
+  },
+  required: ['headline', 'summary', 'scoreAnalysis', 'budgetNote', 'schools']
+};
+
 async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
   const apiKey = text(env.DAMINFINITE, 500);
   if (!apiKey) throw Object.assign(new Error('DEEPSEEK_NOT_CONFIGURED'), { status: 503 });
@@ -245,34 +279,54 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
     const attemptsLeft = maxAttempts - attempt + 1;
     const attemptTimeoutMs = Math.max(100, Math.floor(remainingMs / attemptsLeft));
     const retryInstruction = attempt > 1
-      ? '\nLƯU Ý BẮT BUỘC: Chỉ trả về một object JSON hợp lệ, không Markdown, không văn bản mở đầu/kết thúc. Mọi chuỗi phải đóng ngoặc kép; không để nội dung trống.'
+      ? '\nLƯU Ý: Đây là lần thử lại. Hoàn thành phân tích ngắn gọn và trả đủ mọi trường theo JSON Schema; không trả lời rỗng.'
       : '';
+    const schema = type === 'schools' ? DEEPSEEK_SCHOOL_SCHEMA : DEEPSEEK_MAJOR_SCHEMA;
 
     try {
-      const result = await requestJson('https://api.deepseek.com/chat/completions', {
+      const result = await requestJson('https://api.deepseek.com/responses', {
         apiKey,
         timeoutMs: attemptTimeoutMs,
         provider: 'DEEPSEEK',
         body: {
           model,
-          thinking: { type: 'disabled' },
+          instructions: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Hãy phân tích hồ sơ theo yêu cầu và tuân thủ JSON Schema được cung cấp. Không bịa dữ kiện tuyển sinh.',
+          input: `${deepSeekPrompt(type, profile, year)}${retryInstruction}`,
+          reasoning: { effort: 'none' },
           temperature: 0.25,
-          max_tokens: type === 'schools' ? 2800 : 3800,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: 'Bạn là chuyên gia tư vấn hướng nghiệp tại Việt Nam. Hãy tự phân tích đầy đủ hồ sơ và trả về đúng một object JSON hợp lệ theo chỉ dẫn; không bịa dữ kiện tuyển sinh.' },
-            { role: 'user', content: `${deepSeekPrompt(type, profile, year)}${retryInstruction}` }
-          ]
+          max_output_tokens: type === 'schools' ? 3000 : 4200,
+          text: {
+            format: {
+              type: 'json_schema',
+              name: type === 'schools' ? 'nexora_school_analysis' : 'nexora_major_analysis',
+              schema
+            }
+          }
         }
       });
-      const choice = result?.choices?.[0];
-      const content = typeof choice?.message?.content === 'string' ? choice.message.content : '';
-      const finishReason = text(choice?.finish_reason, 40);
-      if (finishReason === 'length') {
+      if (result?.status === 'failed') {
+        const rawCode = text(result?.error?.code, 80).toUpperCase();
+        throw Object.assign(new Error('DEEPSEEK_RESPONSE_FAILED'), {
+          status: 502,
+          provider: 'DEEPSEEK',
+          upstreamCode: /^[A-Z][A-Z0-9_]{1,39}$/.test(rawCode) ? rawCode : ''
+        });
+      }
+      const outputItems = Array.isArray(result?.output) ? result.output : [];
+      const content = outputItems
+        .filter(item => item?.type === 'message' && (!item.role || item.role === 'assistant'))
+        .flatMap(item => Array.isArray(item.content) ? item.content : [])
+        .filter(item => item?.type === 'output_text' && typeof item.text === 'string')
+        .map(item => item.text)
+        .join('\n')
+        .trim();
+      const finishReason = text(result?.incomplete_details?.reason || result?.status, 40);
+      if (result?.status === 'incomplete' || finishReason === 'max_output_tokens') {
         throw Object.assign(new Error('DEEPSEEK_OUTPUT_TRUNCATED'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: content.length });
       }
       if (!content.trim()) {
-        throw Object.assign(new Error('DEEPSEEK_EMPTY_OUTPUT'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: 0 });
+        const outputTypes = outputItems.map(item => text(item?.type, 30)).filter(Boolean).slice(0, 8);
+        throw Object.assign(new Error('DEEPSEEK_EMPTY_OUTPUT'), { status: 502, provider: 'DEEPSEEK', finishReason, outputChars: 0, outputTypes });
       }
       let parsed;
       try {
@@ -295,7 +349,8 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
         attempt,
         code: error.message,
         ...(error.finishReason ? { finishReason: error.finishReason } : {}),
-        outputChars: Number(error.outputChars) || 0
+        outputChars: Number(error.outputChars) || 0,
+        ...(Array.isArray(error.outputTypes) ? { outputTypes: error.outputTypes } : {})
       }));
     }
   }
