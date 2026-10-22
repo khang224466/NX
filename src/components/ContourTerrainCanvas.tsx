@@ -7,8 +7,8 @@ interface ContourTerrainCanvasProps {
 
 /**
  * Topographic Contour Map Canvas (Pier Gorelli Portfolio Replica) - High Performance Edition
- * - 60+ FPS butter-smooth GPU-friendly execution (< 1.5ms CPU time per frame)
- * - Sub-pixel linear interpolation with STEP=18 maintaining 100% authentic visual curves
+ * - Adaptive frame pacing and a reusable elevation buffer to reduce idle CPU and allocation churn
+ * - Fine adaptive marching-squares sampling with rounded joins for smooth contour curves
  * - Batched canvas stroke paths (4 layer batches vs 28 unbatched flushes)
  * - Selective localized mouse impulse & distance culling
  * - Adaptive idle frame pacing to save battery & CPU
@@ -48,6 +48,7 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
     let width = 0;
     let height = 0;
     let dpr = 1;
+    let step = 10;
 
     const resize = () => {
       if (isFullPage) {
@@ -58,6 +59,8 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
         width = parent?.clientWidth || window.innerWidth;
         height = parent?.clientHeight || window.innerHeight;
       }
+
+      step = Math.max(8, Math.min(12, Math.round(width / 160)));
 
       // Cap DPR at 1.25 for crisp lines without 4K GPU fillrate overhead
       dpr = Math.min(window.devicePixelRatio || 1, 1.25);
@@ -123,14 +126,12 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       levels[i] = minLevel + (i / (numLevels - 1)) * (maxLevel - minLevel);
     }
 
-    // Grid step size: 18px delivers razor-sharp sub-pixel interpolated lines at 60+ FPS
-    const STEP = 18;
+    // Finer adaptive sampling reduces angular contour segments without oversampling wide screens.
     let time = 0;
     let idleCounter = 0;
+    let grid = new Float32Array(0);
 
     const render = () => {
-      time += 0.005;
-
       // Smooth lerp mouse tracking
       const dx = mouseRef.current.targetX - mouseRef.current.x;
       const dy = mouseRef.current.targetY - mouseRef.current.y;
@@ -161,6 +162,8 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
         idleCounter = 0;
       }
 
+      time += 0.005;
+
       ctx.clearRect(0, 0, width, height);
 
       // 1. Subtle ambient radial blue illumination behind main elevation clusters
@@ -184,12 +187,12 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       ctx.fillRect(0, 0, width, height);
 
       // Grid dimensions
-      const cols = Math.ceil(width / STEP) + 1;
-      const rows = Math.ceil(height / STEP) + 1;
+      const cols = Math.ceil(width / step) + 1;
+      const rows = Math.ceil(height / step) + 1;
       const totalCells = cols * rows;
 
       // Compute scalar elevation field
-      const grid = new Float32Array(totalCells);
+      if (grid.length !== totalCells) grid = new Float32Array(totalCells);
 
       // Primary Elevation Peak 1: Upper-left / center
       const peak1BaseX = width * 0.28;
@@ -217,12 +220,12 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       const isMouseHovered = mouseRef.current.isHovered;
 
       for (let r = 0; r < rows; r++) {
-        const y = r * STEP;
+        const y = r * step;
         const v = y / height;
         const rOffset = r * cols;
 
         for (let c = 0; c < cols; c++) {
-          const x = c * STEP;
+          const x = c * step;
           const u = x / width;
 
           // 1. Primary Elevation Peak in Upper-Left
@@ -233,11 +236,10 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
           if (dist1Sq < 6.0) {
             const dist1 = Math.sqrt(dist1Sq);
             const theta1 = Math.atan2(dy1, dx1);
-            const ridge1 = 1.0 + 
-              0.18 * Math.cos(2 * theta1 - 0.3) + 
-              0.12 * Math.sin(3 * theta1 + 0.7) + 
-              0.06 * Math.cos(5 * theta1) +
-              0.02 * Math.sin(theta1 + time);
+            const ridge1 = 1.0 +
+              0.12 * Math.cos(2 * theta1 - 0.3) +
+              0.045 * Math.sin(3 * theta1 + 0.7) +
+              0.012 * Math.sin(theta1 + time * 0.35);
             const effDist1 = dist1 * ridge1;
             p1 = 1.15 / (1.0 + 2.1 * effDist1 * effDist1);
           }
@@ -250,7 +252,7 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
           if (dist2Sq < 5.0) {
             const dist2 = Math.sqrt(dist2Sq);
             const theta2 = Math.atan2(dy2, dx2);
-            const ridge2 = 1.0 + 0.12 * Math.cos(2 * theta2 + 0.5);
+            const ridge2 = 1.0 + 0.075 * Math.cos(2 * theta2 + 0.5);
             const effDist2 = dist2 * ridge2;
             p2 = 0.95 / (1.0 + 3.2 * effDist2 * effDist2);
           }
@@ -262,8 +264,8 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
           const p3 = dist3Sq < 8.0 ? (0.42 / (1.0 + 2.8 * dist3Sq)) : 0;
 
           // 4. Sweeping organic terrain waves passing across the center
-          const wave = 0.08 * Math.sin(u * 4.8 + v * 3.5 + time * 0.25) +
-                       0.05 * Math.cos(u * 8.2 - v * 5.0 + time * 0.2);
+          const wave = 0.055 * Math.sin(u * 3.6 + v * 2.8 + time * 0.2) +
+                       0.022 * Math.cos(u * 5.4 - v * 3.4 + time * 0.16);
 
           // 5. Interactive cursor gravitational indentation (culled outside 160px)
           let mouseImpulse = 0;
@@ -300,12 +302,12 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
         }
 
         for (let r = 0; r < rows - 1; r++) {
-          const y = r * STEP;
+          const y = r * step;
           const rOffset = r * cols;
           const nextROffset = (r + 1) * cols;
 
           for (let c = 0; c < cols - 1; c++) {
-            const x = c * STEP;
+            const x = c * step;
 
             const v0 = grid[rOffset + c];
             const v1 = grid[rOffset + c + 1];
@@ -321,17 +323,17 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
             if (cellCode === 0 || cellCode === 15) continue;
 
             // Linear interpolation of edge crossings
-            const xTop = x + ((L - v0) / (v1 - v0 || 0.0001)) * STEP;
+            const xTop = x + ((L - v0) / (v1 - v0 || 0.0001)) * step;
             const yTop = y;
 
-            const xRight = x + STEP;
-            const yRight = y + ((L - v1) / (v2 - v1 || 0.0001)) * STEP;
+            const xRight = x + step;
+            const yRight = y + ((L - v1) / (v2 - v1 || 0.0001)) * step;
 
-            const xBottom = x + ((L - v3) / (v2 - v3 || 0.0001)) * STEP;
-            const yBottom = y + STEP;
+            const xBottom = x + ((L - v3) / (v2 - v3 || 0.0001)) * step;
+            const yBottom = y + step;
 
             const xLeft = x;
-            const yLeft = y + ((L - v0) / (v3 - v0 || 0.0001)) * STEP;
+            const yLeft = y + ((L - v0) / (v3 - v0 || 0.0001)) * step;
 
             switch (cellCode) {
               case 1:
@@ -354,12 +356,22 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
                 targetPath.moveTo(xRight, yRight);
                 targetPath.lineTo(xBottom, yBottom);
                 break;
-              case 5:
-                targetPath.moveTo(xLeft, yLeft);
-                targetPath.lineTo(xTop, yTop);
-                targetPath.moveTo(xRight, yRight);
-                targetPath.lineTo(xBottom, yBottom);
+              case 5: {
+                // Resolve diagonal saddle cells from their center to avoid abrupt contour flips.
+                const centerInside = (v0 + v1 + v2 + v3) * 0.25 >= L;
+                if (centerInside) {
+                  targetPath.moveTo(xTop, yTop);
+                  targetPath.lineTo(xRight, yRight);
+                  targetPath.moveTo(xLeft, yLeft);
+                  targetPath.lineTo(xBottom, yBottom);
+                } else {
+                  targetPath.moveTo(xLeft, yLeft);
+                  targetPath.lineTo(xTop, yTop);
+                  targetPath.moveTo(xRight, yRight);
+                  targetPath.lineTo(xBottom, yBottom);
+                }
                 break;
+              }
               case 6:
               case 9:
                 targetPath.moveTo(xTop, yTop);
@@ -370,31 +382,42 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
                 targetPath.moveTo(xLeft, yLeft);
                 targetPath.lineTo(xBottom, yBottom);
                 break;
-              case 10:
-                targetPath.moveTo(xTop, yTop);
-                targetPath.lineTo(xRight, yRight);
-                targetPath.moveTo(xLeft, yLeft);
-                targetPath.lineTo(xBottom, yBottom);
+              case 10: {
+                const centerInside = (v0 + v1 + v2 + v3) * 0.25 >= L;
+                if (centerInside) {
+                  targetPath.moveTo(xTop, yTop);
+                  targetPath.lineTo(xLeft, yLeft);
+                  targetPath.moveTo(xRight, yRight);
+                  targetPath.lineTo(xBottom, yBottom);
+                } else {
+                  targetPath.moveTo(xTop, yTop);
+                  targetPath.lineTo(xRight, yRight);
+                  targetPath.moveTo(xLeft, yLeft);
+                  targetPath.lineTo(xBottom, yBottom);
+                }
                 break;
+              }
             }
           }
         }
       }
 
       // Draw batches (4 GPU state switches total)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.11)';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
       ctx.lineWidth = 0.75;
       ctx.stroke(pathBase);
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
       ctx.lineWidth = 0.85;
       ctx.stroke(pathUpperSlope);
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.26)';
       ctx.lineWidth = 1.1;
       ctx.stroke(pathMajorIndex);
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.48)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.36)';
       ctx.lineWidth = 1.35;
       ctx.stroke(pathSummit);
 
@@ -402,7 +425,7 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       // 2. Technical HUD Coordinate Crosshairs (Exact replica of Image reference)
       // =======================================================================
       // Full-bleed horizontal hairline across the entire canvas at curY
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
       ctx.lineWidth = 0.75;
       ctx.beginPath();
       ctx.moveTo(0, curY);
@@ -417,7 +440,7 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
 
       // Subtle tick marks along crosshairs
       const tickSpacing = 96;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.beginPath();
       for (let tx = 0; tx < width; tx += tickSpacing) {
         if (Math.abs(tx - curX) > 12) {
@@ -435,15 +458,15 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
 
       // Small periwinkle/cyan square coordinate marker box "■"
       ctx.fillStyle = '#818CF8';
-      ctx.fillRect(curX - 3.5, curY - 3.5, 7, 7);
+      ctx.fillRect(curX - 3, curY - 3, 6, 6);
 
       // Coordinate Text Label: "X 0526 · Y 0220"
       const xStr = String(Math.max(0, Math.round(curX))).padStart(4, '0');
       const yStr = String(Math.max(0, Math.round(curY))).padStart(4, '0');
       const labelText = `X ${xStr} · Y ${yStr}`;
 
-      ctx.font = '10px "Space Mono", monospace';
-      ctx.fillStyle = 'rgba(228, 228, 231, 0.88)';
+      ctx.font = '9px "Space Mono", monospace';
+      ctx.fillStyle = 'rgba(228, 228, 231, 0.72)';
       ctx.fillText(labelText, curX + 10, curY + 14);
 
       animFrameId.current = requestAnimationFrame(render);
