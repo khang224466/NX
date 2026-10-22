@@ -251,7 +251,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     const requestId = ++analysisRequestIdRef.current;
     setIsAnalyzingMajors(true);
     const controller = new AbortController();
-    const requestTimeout = window.setTimeout(() => controller.abort(), 16_000);
+    const requestTimeout = window.setTimeout(() => controller.abort(), 50_000);
     try {
       const response = await fetch('/api/ai/counselor/analyze', {
         method: 'POST',
@@ -470,7 +470,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setIsAnalyzingUniversities(true);
     const selectedEvaluation = evaluatedCombos.find((combo: any) => combo.code === chosenCombo);
     const controller = new AbortController();
-    const requestTimeout = window.setTimeout(() => controller.abort(), 17_000);
+    const requestTimeout = window.setTimeout(() => controller.abort(), 50_000);
     try {
       const response = await fetch('/api/ai/counselor/analyze', {
         method: 'POST',

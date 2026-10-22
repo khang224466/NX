@@ -1578,10 +1578,10 @@ Hãy phân tích toàn diện và trả về JSON chính xác.`;
     }
   }
 
-  // 2. Try Serverless endpoint proxy (/api/ai/counselor/analyze) with strict 8s timeout
+  // 2. Try the serverless admissions endpoint with enough time for DeepSeek and Groq.
   try {
     const proxyController = new AbortController();
-    const proxyTimeout = setTimeout(() => proxyController.abort(), 8000);
+    const proxyTimeout = setTimeout(() => proxyController.abort(), 50000);
     const res = await fetch('/api/ai/counselor/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
