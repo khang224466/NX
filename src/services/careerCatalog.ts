@@ -1,4 +1,5 @@
 import seedData from '../data/seed_data.json';
+import official2026ProgramEvidenceData from '../data/official2026ProgramEvidence.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { AUDITED_MAJOR_METHOD_SCORING_DB } from '../data/auditedMajorScoringDatabase';
 import type { Institution, MajorMethodScoringRecord } from '../data/admissionsAuditedEngine';
@@ -28,6 +29,9 @@ export interface CareerProgramEntry {
   institutionName: string;
   programId: string;
   verifiedYear?: number;
+  city?: string;
+  region?: string;
+  sourceTitle?: string;
   sourceUrls?: string[];
 }
 
@@ -183,67 +187,7 @@ for (const record of AUDITED_MAJOR_METHOD_SCORING_DB) {
   });
 }
 
-const official2026ProgramEvidence: CareerProgramEntry[] = [
-  {
-    id: 'OFFICIAL-2026:NVH:7210205',
-    majorCode: '7210205',
-    name: 'Thanh nhạc',
-    sector: 'KIEN_TRUC_NGHE_THUAT_TDTT',
-    admissionsCombos: ['N00'],
-    institutionCode: 'NVH',
-    institutionName: 'Học Viện Âm Nhạc Quốc Gia Việt Nam',
-    programId: '7210205',
-    verifiedYear: 2026,
-    sourceUrls: [
-      'https://vnam.edu.vn/NewsDetail.aspx?CatID=9&ItemID=2044&SubID=5&lang=vn',
-      'https://vnam.edu.vn/NewsDetail.aspx?ItemID=2046&lang=',
-      'https://vnam.edu.vn/NewsDetail.aspx?ItemID=1705&lang='
-    ]
-  },
-  {
-    id: 'OFFICIAL-2026:DDT:7210205',
-    majorCode: '7210205',
-    name: 'Thanh nhạc',
-    sector: 'KIEN_TRUC_NGHE_THUAT_TDTT',
-    admissionsCombos: ['N00'],
-    institutionCode: 'DDT',
-    institutionName: 'Đại Học Duy Tân',
-    programId: '7210205',
-    verifiedYear: 2026,
-    sourceUrls: [
-      'https://set.duytan.edu.vn/thong-bao-tuyen-sinh-oa2/thong-tin-tuyen-sinh-dai-hoc-duy-tan-nam-2026',
-      'https://duytan.edu.vn/tuyen-sinh/Page/EducationDetail.aspx?id=389'
-    ]
-  },
-  {
-    id: 'OFFICIAL-2026:DVL:7210205',
-    majorCode: '7210205',
-    name: 'Thanh nhạc',
-    sector: 'KIEN_TRUC_NGHE_THUAT_TDTT',
-    admissionsCombos: ['N00'],
-    institutionCode: 'DVL',
-    institutionName: 'Trường Đại Học Văn Lang',
-    programId: '7210205',
-    verifiedYear: 2026,
-    sourceUrls: [
-      'https://www.vlu.edu.vn/dynamic/nganh-dao-tao'
-    ]
-  },
-  {
-    id: 'OFFICIAL-2026:DVD:7210205',
-    majorCode: '7210205',
-    name: 'Thanh nhạc',
-    sector: 'KIEN_TRUC_NGHE_THUAT_TDTT',
-    admissionsCombos: ['N00'],
-    institutionCode: 'DVD',
-    institutionName: 'Trường Đại Học Văn Hóa, Thể Thao Và Du Lịch Thanh Hóa',
-    programId: '7210205',
-    verifiedYear: 2026,
-    sourceUrls: [
-      'https://tucst.edu.vn/file/download/637714398.html'
-    ]
-  }
-];
+const official2026ProgramEvidence = official2026ProgramEvidenceData as CareerProgramEntry[];
 
 for (const evidence of official2026ProgramEvidence) {
   const existing = [...programsByInstitutionAndId.values()].find((program) =>
@@ -257,6 +201,9 @@ for (const evidence of official2026ProgramEvidence) {
   }
   existing.admissionsCombos = [...new Set([...existing.admissionsCombos, ...evidence.admissionsCombos])].sort();
   existing.verifiedYear = evidence.verifiedYear;
+  existing.city = evidence.city;
+  existing.region = evidence.region;
+  existing.sourceTitle = evidence.sourceTitle;
   existing.sourceUrls = [...new Set([...(existing.sourceUrls || []), ...(evidence.sourceUrls || [])])];
 }
 

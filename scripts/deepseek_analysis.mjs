@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import seedData from '../src/data/seed_data.json' with { type: 'json' };
+import official2026ProgramEvidence from '../src/data/official2026ProgramEvidence.json' with { type: 'json' };
 
 const REQUEST_TIMEOUT_MS = 45_000;
 const DEEPSEEK_TIMEOUT_MS = 40_000;
@@ -83,27 +84,91 @@ function getMajorCatalog() {
   }));
 }
 
-function getSchoolCatalog(profile = {}) {
-  const schools = (Array.isArray(seedData.anchorInstitutions) ? seedData.anchorInstitutions : []).map(school => ({
-    code: text(school.code, 20),
-    name: text(school.name, 180),
-    city: text(school.city, 100),
-    region: text(school.region, 40),
-    topMajors: cleanArray(school.topMajors, 12)
-  }));
-  const requestedRegion = normalizeName(profile.preferredStudyRegion || profile.priorityRegion);
-  const requestedProvince = normalizeName(profile.preferredProvince);
-  const regionCode = requestedRegion.includes('dbscl') || requestedRegion.includes('cuu long') ? 'DBSCL'
-    : requestedRegion.includes('bac') || requestedRegion === 'north' ? 'BAC'
-      : requestedRegion.includes('trung') || requestedRegion === 'central' ? 'TRUNG'
-        : requestedRegion.includes('nam') || requestedRegion === 'south' ? 'NAM' : '';
-  return schools.filter(school => {
+function normalizeRegionCode(value) {
+  const region = normalizeName(value);
+  return region.includes('dbscl') || region.includes('cuu long') ? 'DBSCL'
+    : region.includes('bac') || region === 'north' ? 'BAC'
+      : region.includes('trung') || region === 'central' ? 'TRUNG'
+        : region.includes('nam') || region === 'south' ? 'NAM' : '';
+}
+
+function normalizeLocationPart(value) {
+  let location = normalizeName(value).replace(/^(thanh pho|tp)\s+/, '').trim();
+  if (location === 'hcm' || location === 'tphcm' || location.includes('ho chi minh')) return 'ho chi minh';
+  if (location === 'hn' || location.includes('ha noi')) return 'ha noi';
+  return location;
+}
+
+function locationKeys(value) {
+  return text(value, 250).split(/[,&;/|]+/).map(normalizeLocationPart).filter(Boolean);
+}
+
+function regionForLocation(location) {
+  if (location === 'ho chi minh') return 'NAM';
+  if (location === 'ha noi') return 'BAC';
+  if (location.includes('da nang') || location.includes('hue') || location.includes('thanh hoa')) return 'TRUNG';
+  if (location.includes('can tho')) return 'DBSCL';
+  return '';
+}
+
+function getSchoolCatalog(profile = {}, year = new Date().getFullYear()) {
+  const byCode = new Map();
+  for (const school of Array.isArray(seedData.anchorInstitutions) ? seedData.anchorInstitutions : []) {
+    const code = text(school.code, 20);
+    if (!code) continue;
+    byCode.set(code, {
+      code,
+      name: text(school.name, 180),
+      city: text(school.city, 100),
+      region: text(school.region, 40),
+      topMajors: cleanArray(school.topMajors, 12),
+      matchedProgram: null
+    });
+  }
+
+  const requestedMajorCode = text(profile.major?.codeTT09, 20);
+  const requestedMajorName = normalizeName(profile.major?.name);
+  const requestedCombination = text(profile.selectedCombination, 12).toUpperCase();
+  for (const program of Array.isArray(official2026ProgramEvidence) ? official2026ProgramEvidence : []) {
+    const code = text(program.institutionCode, 20);
+    if (!code) continue;
+    let school = byCode.get(code);
+    if (!school) {
+      school = {
+        code,
+        name: text(program.institutionName, 180),
+        city: text(program.city, 100),
+        region: text(program.region, 40),
+        topMajors: [],
+        matchedProgram: null
+      };
+      byCode.set(code, school);
+    }
+    const majorName = text(program.name, 180);
+    if (majorName && !school.topMajors.some(name => normalizeName(name) === normalizeName(majorName))) {
+      school.topMajors.push(majorName);
+    }
+    const majorMatches = (requestedMajorCode && text(program.majorCode, 20) === requestedMajorCode) ||
+      (requestedMajorName && normalizeName(majorName) === requestedMajorName);
+    const combinationMatches = requestedCombination &&
+      cleanArray(program.admissionsCombos, 20).some(combo => combo.toUpperCase() === requestedCombination);
+    if (majorMatches && combinationMatches && Number(program.verifiedYear) === Number(year)) {
+      school.matchedProgram = program;
+    }
+  }
+
+  const regionCode = normalizeRegionCode(profile.preferredStudyRegion || profile.priorityRegion);
+  const requestedLocations = locationKeys(profile.preferredProvince);
+  return [...byCode.values()].filter(school => {
+    const schoolLocations = locationKeys(school.city);
     const schoolRegion = text(school.region, 40).toUpperCase();
+    const inferredRegions = schoolLocations.map(regionForLocation).filter(Boolean);
     const regionMatches = !regionCode || (regionCode === 'NAM'
-      ? ['NAM', 'DBSCL'].includes(schoolRegion)
-      : schoolRegion === regionCode);
-    const city = normalizeName(school.city);
-    const provinceMatches = !requestedProvince || city.includes(requestedProvince) || requestedProvince.includes(city);
+      ? ['NAM', 'DBSCL'].includes(schoolRegion) || inferredRegions.some(region => ['NAM', 'DBSCL'].includes(region))
+      : schoolRegion === regionCode || inferredRegions.includes(regionCode));
+    const provinceMatches = !requestedLocations.length || requestedLocations.some(requested =>
+      schoolLocations.some(location => location === requested || location.includes(requested) || requested.includes(location))
+    );
     return regionMatches && provinceMatches;
   });
 }
@@ -118,14 +183,17 @@ function deepSeekPrompt(type, profile, year) {
     yearLine
   ];
   if (type === 'schools') {
+    const schoolCatalog = getSchoolCatalog(profile, year);
     return [
       ...common,
       'Gợi ý tối đa 5 trường để người dùng tìm hiểu dựa trên hồ sơ, ngành/tổ hợp, tỉnh/vùng và ngân sách. Chỉ chọn tên trường trong danh mục trường đã cung cấp; nếu không có lựa chọn phù hợp thì trả mảng rỗng.',
+      'Ưu tiên trường có matchedProgram khác null vì đó là bằng chứng ngành, tổ hợp và năm đã được NEXORA đối chiếu từ nguồn chính thức. Chỉ gọi ngành/tổ hợp là đã xác minh khi matchedProgram có dữ liệu; các trường còn lại chỉ là gợi ý cần kiểm tra.',
+      'Với trường có matchedProgram, questionsToVerify chỉ nên hỏi về điểm chuẩn, học phí, lịch thi/năng khiếu và cơ sở học; không hỏi lại trường có tuyển đúng ngành/tổ hợp đã ghi trong matchedProgram hay không.',
       'Đây là phân tích định hướng, không phải tra cứu web trực tiếp. Tuyệt đối không nêu con số điểm chuẩn/học phí, không nói trường có mở đúng ngành/tổ hợp năm này nếu danh mục không xác nhận.',
       'Trả về JSON hợp lệ gồm headline, summary, scoreAnalysis, budgetNote, schools. Mỗi schools item có schoolIndex (chỉ số trong danh mục trường), whyFit (lý do dựa trên hồ sơ), questionsToVerify (các mục người dùng cần hỏi trường).',
       'Ví dụ JSON: {"headline":"Gợi ý trường","summary":"...","scoreAnalysis":"...","budgetNote":"...","schools":[{"schoolIndex":0,"whyFit":"...","questionsToVerify":["... "]}]}',
       `HỒ SƠ: ${JSON.stringify(profile)}`,
-      `DANH MỤC TRƯỜNG THEO VÙNG/TỈNH ĐÃ CHỌN: ${JSON.stringify(getSchoolCatalog(profile))}`
+      `DANH MỤC TRƯỜNG THEO VÙNG/TỈNH ĐÃ CHỌN: ${JSON.stringify(schoolCatalog)}`
     ].join('\n');
   }
   return [
@@ -218,11 +286,11 @@ function parseJson(value) {
   try { return JSON.parse(cleaned); } catch { return null; }
 }
 
-function parseDeepSeekResult(raw, type, profile = {}) {
+function parseDeepSeekResult(raw, type, profile = {}, year = new Date().getFullYear()) {
   const parsed = parseJson(raw);
   if (!parsed || typeof parsed !== 'object') throw Object.assign(new Error('INVALID_DEEPSEEK_JSON'), { status: 502, provider: 'DEEPSEEK', outputChars: typeof raw === 'string' ? raw.length : 0 });
   if (type === 'schools') {
-    const schoolCount = getSchoolCatalog(profile).length;
+    const schoolCount = getSchoolCatalog(profile, year).length;
     return {
       headline: text(parsed.headline, 300) || 'Gợi ý trường để tìm hiểu',
       summary: text(parsed.summary, 1500),
@@ -324,7 +392,7 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
       }
       let parsed;
       try {
-        parsed = parseDeepSeekResult(content, type, profile);
+        parsed = parseDeepSeekResult(content, type, profile, year);
       } catch (error) {
         error.finishReason = finishReason;
         throw error;
@@ -384,20 +452,28 @@ function buildAnalysis(type, deepSeek, year, profile) {
   const disclaimer = 'DeepSeek phân tích hồ sơ và hệ thống ánh xạ kết quả vào danh mục. Lượt này không tra cứu web; thông tin tuyển sinh cần đối chiếu đề án chính thức.';
   if (type === 'schools') {
     const records = deepSeek.recommendations;
+    const schoolCatalog = getSchoolCatalog(profile, year);
     return {
       headline: deepSeek.headline,
       summary: deepSeek.summary,
       scoreAnalysis: deepSeek.scoreAnalysis,
       budgetNote: deepSeek.budgetNote,
       recommendedSchools: records.map(candidate => {
-        const school = getSchoolCatalog(profile)[candidate.schoolIndex];
+        const school = schoolCatalog[candidate.schoolIndex];
+        const matchedProgram = school?.matchedProgram || null;
         return {
           institutionCode: school?.code || '',
           name: school?.name || '',
           city: school?.city || '',
-          programName: '', majorCode: '', combinationCode: '',
-          programYear: null, programStatus: 'UNVERIFIED',
-          programSource: null,
+          programName: matchedProgram?.name || '',
+          majorCode: matchedProgram?.majorCode || '',
+          combinationCode: matchedProgram?.admissionsCombos?.find(combo => combo.toUpperCase() === profile.selectedCombination) || '',
+          programYear: matchedProgram?.verifiedYear || null,
+          programStatus: matchedProgram ? 'VERIFIED' : 'UNVERIFIED',
+          programSource: matchedProgram?.sourceUrls?.[0] ? {
+            url: matchedProgram.sourceUrls[0],
+            title: matchedProgram.sourceTitle || `Nguồn chính thức — ${school?.name || 'trường đại học'}`
+          } : null,
           cutoffBenchmark: null, cutoffYear: null, cutoffStatus: 'UNVERIFIED', cutoffSource: null,
           tuitionAnnualMillions: null, tuitionYear: null, tuitionStatus: 'UNVERIFIED', tuitionSource: null,
           whyFit: candidate.whyFit,

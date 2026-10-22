@@ -549,6 +549,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           aria-labelledby="startup-major-question"
           className="w-full max-w-2xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
         >
+          <p className="mb-4 text-4xl sm:text-6xl font-black tracking-tight text-blue-400">
+            Nexora
+          </p>
           <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
             Bạn đã xác định được ngành chưa?
           </h1>
