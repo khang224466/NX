@@ -261,6 +261,43 @@ test('Gemini 401 và 503 được phân loại thành lỗi cấu hình và dị
   }
 });
 
+test('Gemini hết quota thì chuyển sang biến DAM kế tiếp và ưu tiên khóa vừa chạy thành công', async () => {
+  const primaryKey = 'test-primary-key';
+  const backupKey = 'test-backup-key';
+  const duplicateKey = 'test-primary-key';
+  const usedKeys = [];
+  const capturedLogs = [];
+  const originalInfo = console.info;
+  console.info = message => capturedLogs.push(String(message));
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).includes('generativelanguage.googleapis.com')) {
+      const apiKey = options.headers['x-goog-api-key'];
+      usedKeys.push(apiKey);
+      if (apiKey === primaryKey) {
+        return new Response(JSON.stringify({ error: { status: 'RESOURCE_EXHAUSTED' } }), {
+          status: 429, headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return new Response(JSON.stringify(geminiResponse(majorData())), {
+        status: 200, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    return new Response(JSON.stringify(groqResponse()), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const keyEnv = { GEMINI_API_KEY: primaryKey, DAM11: backupKey, DAM7: duplicateKey, Dam10: 'test-backup-two-key', GROQ_API_KEY: env.GROQ_API_KEY };
+    const first = await handleAdmissionsLookup({ body: majorBody('fail over request one'), env: keyEnv });
+    const second = await handleAdmissionsLookup({ body: majorBody('fail over request two'), env: keyEnv });
+    assert.equal(first.status, 200);
+    assert.equal(second.status, 200);
+    assert.deepEqual(usedKeys, [primaryKey, backupKey, backupKey]);
+    assert.ok(capturedLogs.some(message => message.includes('"fromAlias":"GEMINI_API_KEY"') && message.includes('"toAlias":"DAM11"')));
+    assert.ok(capturedLogs.every(message => !message.includes(primaryKey) && !message.includes(backupKey)));
+  } finally {
+    console.info = originalInfo;
+  }
+});
+
 test('truy vấn lặp dùng cache và không gửi Gemini/Groq lần hai', async () => {
   const stats = mockProviders({ gemini: geminiResponse(majorData()) });
   const first = await handleAdmissionsLookup({ body: majorBody(), env });

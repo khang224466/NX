@@ -5,8 +5,10 @@ const GEMINI_TIMEOUT_MS = 11_500;
 const GROQ_TIMEOUT_MS = 2_800;
 const CACHE_TTL_MS = 5 * 60_000;
 const MAX_CACHE_ITEMS = 100;
+const MAX_GEMINI_KEY_ATTEMPTS = 16;
 const responseCache = new Map();
 const inFlightLookups = new Map();
+let preferredGeminiKeyAlias = '';
 
 function logLookup(fields) {
   console.info(JSON.stringify({ event: 'admissions_lookup', timestamp: new Date().toISOString(), ...fields }));
@@ -112,6 +114,30 @@ const boundedNumber = (value, min, max) => {
   const number = Number(value);
   return Number.isFinite(number) && number >= min && number <= max ? number : null;
 };
+
+function getGeminiKeyCandidates(env) {
+  const aliases = Object.entries(env || {})
+    .filter(([name, value]) => /^DAM\d*$/i.test(name) && typeof value === 'string' && value.trim())
+    .sort(([left], [right]) => {
+      const leftNumber = Number(left.match(/\d+/)?.[0] || 0);
+      const rightNumber = Number(right.match(/\d+/)?.[0] || 0);
+      return rightNumber - leftNumber || left.localeCompare(right);
+    })
+    .map(([alias, value]) => ({ alias, value: cleanText(value, 500) }));
+  const configured = [
+    ...(cleanText(env?.GEMINI_API_KEY, 500) ? [{ alias: 'GEMINI_API_KEY', value: cleanText(env.GEMINI_API_KEY, 500) }] : []),
+    ...aliases
+  ];
+  const seenValues = new Set();
+  const candidates = configured.filter(({ value }) => {
+    if (!value || seenValues.has(value)) return false;
+    seenValues.add(value);
+    return true;
+  }).slice(0, MAX_GEMINI_KEY_ATTEMPTS);
+  const preferredIndex = candidates.findIndex(candidate => candidate.alias === preferredGeminiKeyAlias);
+  if (preferredIndex > 0) return [...candidates.slice(preferredIndex), ...candidates.slice(0, preferredIndex)];
+  return candidates;
+}
 
 function cleanScoreMap(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -573,7 +599,8 @@ function errorResponse(error, elapsedMs) {
     status: 'error', code, elapsedMs,
     ...(status >= 400 ? { upstreamStatus: status } : {}),
     ...(upstreamCode ? { upstreamCode } : {}),
-    ...(retryAfterSeconds ? { retryAfterSeconds } : {})
+    ...(retryAfterSeconds ? { retryAfterSeconds } : {}),
+    ...(Array.isArray(error?.attemptedKeyAliases) ? { attemptedKeyAliases: error.attemptedKeyAliases } : {})
   });
   return { status: status >= 400 && status <= 599 ? status : 502, data: { success: false, code, error: message } };
 }
@@ -581,16 +608,52 @@ function errorResponse(error, elapsedMs) {
 async function executeLookup({ type, profile, year, env }) {
   const startedAt = Date.now();
   if (Date.now() - startedAt >= LOOKUP_TIMEOUT_MS) throw Object.assign(new Error('LOOKUP_TIMEOUT'), { status: 504 });
-  const geminiKey = cleanText(env.GEMINI_API_KEY, 500);
-  if (!geminiKey) throw Object.assign(new Error('GEMINI_NOT_CONFIGURED'), { status: 503 });
-  const gemini = await runGemini({
-    type,
-    profile,
-    year,
-    apiKey: geminiKey,
-    env,
-    timeoutMs: Math.min(GEMINI_TIMEOUT_MS, LOOKUP_TIMEOUT_MS - (Date.now() - startedAt))
-  });
+  const geminiKeys = getGeminiKeyCandidates(env);
+  if (!geminiKeys.length) throw Object.assign(new Error('GEMINI_NOT_CONFIGURED'), { status: 503 });
+  const attemptedKeyAliases = [];
+  const keyErrors = [];
+  let gemini = null;
+  let successfulKeyAlias = '';
+  for (let index = 0; index < geminiKeys.length; index++) {
+    const key = geminiKeys[index];
+    const remainingMs = LOOKUP_TIMEOUT_MS - (Date.now() - startedAt);
+    if (remainingMs <= 100) break;
+    attemptedKeyAliases.push(key.alias);
+    try {
+      gemini = await runGemini({
+        type,
+        profile,
+        year,
+        apiKey: key.value,
+        env,
+        timeoutMs: Math.min(GEMINI_TIMEOUT_MS, remainingMs)
+      });
+      successfulKeyAlias = key.alias;
+      break;
+    } catch (error) {
+      keyErrors.push(error);
+      const canFailOver = [401, 403, 429].includes(Number(error?.status)) && index < geminiKeys.length - 1;
+      if (!canFailOver) break;
+      const nextKey = geminiKeys[index + 1];
+      logLookup({
+        type,
+        status: 'key_failover',
+        fromAlias: key.alias,
+        toAlias: nextKey.alias,
+        upstreamStatus: Number(error.status),
+        ...(error.upstreamCode ? { upstreamCode: error.upstreamCode } : {}),
+        ...(error.retryAfterSeconds ? { retryAfterSeconds: error.retryAfterSeconds } : {}),
+        elapsedMs: Date.now() - startedAt
+      });
+    }
+  }
+  if (!gemini) {
+    const rank = error => Number(error?.status) === 429 ? 3 : [401, 403].includes(Number(error?.status)) ? 2 : 1;
+    const lastError = keyErrors.sort((left, right) => rank(right) - rank(left))[0] || Object.assign(new Error('LOOKUP_TIMEOUT'), { status: 504 });
+    lastError.attemptedKeyAliases = attemptedKeyAliases;
+    throw lastError;
+  }
+  preferredGeminiKeyAlias = successfulKeyAlias;
   const sources = getGroundedOfficialSources(gemini.grounding);
   const findings = type === 'schools'
     ? consolidateSchoolConflicts(normalizeSchoolFindings(gemini.parsed, sources, profile, year, gemini.grounding))
@@ -671,6 +734,8 @@ async function executeLookup({ type, profile, year, env }) {
     type, status: 'ok', year,
     elapsedMs: Date.now() - startedAt,
     cache: 'miss',
+    geminiKeyAlias: successfulKeyAlias,
+    attemptedKeyAliases,
     sourceUrls: sources.map(source => source.url).slice(0, 20)
   });
   return response;
@@ -736,7 +801,7 @@ export async function handleAdmissionsLookup({ body = {}, env = process.env }) {
   } catch (error) {
     if (error?.message === 'GEMINI_NOT_CONFIGURED') {
       logLookup({ type, status: 'error', code: 'GEMINI_NOT_CONFIGURED', year, elapsedMs: Date.now() - startedAt });
-      return { status: 503, data: { success: false, code: 'GEMINI_NOT_CONFIGURED', error: 'Dịch vụ tra cứu chưa được cấu hình trên máy chủ. Hãy kiểm tra GEMINI_API_KEY.' } };
+      return { status: 503, data: { success: false, code: 'GEMINI_NOT_CONFIGURED', error: 'Dịch vụ tra cứu chưa được cấu hình. Hãy kiểm tra GEMINI_API_KEY hoặc các khóa dự phòng DAM* trên máy chủ.' } };
     }
     return errorResponse(error, Date.now() - startedAt);
   }
@@ -745,4 +810,5 @@ export async function handleAdmissionsLookup({ body = {}, env = process.env }) {
 export function clearAdmissionsLookupCacheForTests() {
   responseCache.clear();
   inFlightLookups.clear();
+  preferredGeminiKeyAlias = '';
 }
