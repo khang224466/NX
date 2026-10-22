@@ -545,40 +545,42 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   if (hasMajorChoice === null) {
     return (
       <div className="career-flow fixed inset-x-0 bottom-0 top-16 sm:top-24 z-20 flex items-center justify-center overflow-y-auto px-4 py-6 text-slate-100">
-        <section
-          aria-labelledby="startup-major-question"
-          className="w-full max-w-3xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
-        >
-          <p className="font-wordmark mb-6 text-6xl sm:text-8xl md:text-9xl font-bold uppercase leading-none tracking-tight text-blue-400">
+        <div className="flex w-full max-w-3xl flex-col items-center gap-8 text-center">
+          <p aria-label="NEXORA" className="font-wordmark text-6xl sm:text-8xl md:text-9xl font-bold uppercase leading-none tracking-tight text-blue-400">
             NEXORA
           </p>
-          <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
-            Bạn đã xác định được ngành chưa?
-          </h1>
-          <div className="mt-8 grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                sfx.playUiClick();
-                setHasMajorChoice('YES');
-              }}
-              className="px-5 py-3 border border-blue-500 bg-blue-950/70 text-white font-bold hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-            >
-              Có
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                sfx.playUiClick();
-                setHasMajorChoice('NO');
-                clearCareerAnalysis();
-              }}
-              className="px-5 py-3 border border-slate-700 bg-[#141923] text-slate-200 font-bold hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-            >
-              Chưa
-            </button>
-          </div>
-        </section>
+          <section
+            aria-labelledby="startup-major-question"
+            className="w-full p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
+          >
+            <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
+              Bạn đã xác định được ngành chưa?
+            </h1>
+            <div className="mt-8 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasMajorChoice('YES');
+                }}
+                className="px-5 py-3 border border-blue-500 bg-blue-950/70 text-white font-bold hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              >
+                Có
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.playUiClick();
+                  setHasMajorChoice('NO');
+                  clearCareerAnalysis();
+                }}
+                className="px-5 py-3 border border-slate-700 bg-[#141923] text-slate-200 font-bold hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                Chưa
+              </button>
+            </div>
+          </section>
+        </div>
       </div>
     );
   }
