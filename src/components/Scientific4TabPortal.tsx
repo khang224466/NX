@@ -547,10 +547,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       <div className="career-flow fixed inset-x-0 bottom-0 top-16 sm:top-24 z-20 flex items-center justify-center overflow-y-auto px-4 py-6 text-slate-100">
         <section
           aria-labelledby="startup-major-question"
-          className="w-full max-w-2xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
+          className="w-full max-w-3xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
         >
-          <p className="mb-4 text-4xl sm:text-6xl font-black tracking-tight text-blue-400">
-            Nexora
+          <p className="mb-6 text-6xl sm:text-8xl md:text-9xl font-black uppercase leading-none tracking-tight text-blue-400">
+            NEXORA
           </p>
           <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
             Bạn đã xác định được ngành chưa?
