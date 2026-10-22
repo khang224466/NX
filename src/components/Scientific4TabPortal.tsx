@@ -549,7 +549,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           aria-labelledby="startup-major-question"
           className="w-full max-w-3xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
         >
-          <p className="mb-6 text-6xl sm:text-8xl md:text-9xl font-black uppercase leading-none tracking-tight text-blue-400">
+          <p className="font-wordmark mb-6 text-6xl sm:text-8xl md:text-9xl font-bold uppercase leading-none tracking-tight text-blue-400">
             NEXORA
           </p>
           <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
