@@ -686,3 +686,8 @@ Last Updated: 2026-10-20T08:56:00+07:00
 - Recommendations are limited to supplied local catalogs when attaching a major code or school identity. Major catalog matches remain unverified for a specific year's school admissions; AI-named schools, cutoff scores, and tuition are not presented as source-confirmed. The UI states that the request does not perform live web research and warns users to check official admissions plans.
 - The analyzer has bounded provider deadlines, a five-minute/100-item cache, in-flight deduplication, and structured status logs without profiles or secrets. Missing/invalid provider keys, quota, timeout, and malformed output return localized errors. Groq is required for this path; DeepSeek is not bypassed if unavailable.
 - `.env.example` distinguishes Gemini (separate chat flow) from the `/analyze` pair (`DAMINFINITE` + `GROQ_API_KEY`). Production must be redeployed before the website uses these code changes. No tests or deployment were run.
+
+## 2026-10-22 — Groq environment-key aliases for analysis
+- The user clarified that Vercel variables `DAM7`, `DAM8`, `DAM9`, and `DAM` are Groq keys. `/api/ai/counselor/analyze` now recognizes these exact aliases in addition to `GROQ_API_KEY`, deduplicates identical secret values, and retries the next Groq key on 401/403/429 within the existing formatter deadline. It keeps the last successful alias first for warm instances.
+- Do not use `DAM10`/`DAM11`/`DAM12` as Groq aliases; those were identified earlier as Gemini keys. `DAMINFINITE` remains the DeepSeek key. Logs may contain alias names/status but never secret values.
+- `.env.example` and the missing-key message now document the accepted aliases. Production needs a redeploy to use this change. No tests/deployment performed.

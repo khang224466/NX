@@ -8,6 +8,8 @@ const CACHE_TTL_MS = 5 * 60_000;
 const MAX_CACHE_ITEMS = 100;
 const cache = new Map();
 const inFlight = new Map();
+const GROQ_KEY_ALIAS_NAMES = ['DAM9', 'DAM8', 'DAM7', 'DAM'];
+let preferredGroqAlias = '';
 
 const text = (value, max = 1000) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const numberOrNull = (value, min = 0, max = 1000) => {
@@ -253,42 +255,97 @@ async function askDeepSeek({ type, profile, year, env, timeoutMs }) {
   return { parsed, model };
 }
 
+function getGroqKeyCandidates(env) {
+  const configured = [];
+  const primary = text(env.GROQ_API_KEY, 500);
+  if (primary) configured.push({ alias: 'GROQ_API_KEY', value: primary });
+
+  const envByUpperName = new Map(Object.entries(env || {}).map(([name, value]) => [name.toUpperCase(), value]));
+  for (const alias of GROQ_KEY_ALIAS_NAMES) {
+    const value = text(envByUpperName.get(alias), 500);
+    if (value) configured.push({ alias, value });
+  }
+
+  const seenValues = new Set();
+  const candidates = configured.filter(candidate => {
+    if (seenValues.has(candidate.value)) return false;
+    seenValues.add(candidate.value);
+    return true;
+  });
+  const preferredIndex = candidates.findIndex(candidate => candidate.alias === preferredGroqAlias);
+  if (preferredIndex > 0) candidates.unshift(candidates.splice(preferredIndex, 1)[0]);
+  return candidates;
+}
+
 async function formatWithGroq({ type, deepSeekResult, env, timeoutMs }) {
-  const apiKey = text(env.GROQ_API_KEY, 500);
-  if (!apiKey) throw Object.assign(new Error('GROQ_NOT_CONFIGURED'), { status: 503 });
+  const keys = getGroqKeyCandidates(env);
+  if (!keys.length) throw Object.assign(new Error('GROQ_NOT_CONFIGURED'), { status: 503 });
   const model = text(env.GROQ_ADMISSIONS_MODEL, 100) || 'openai/gpt-oss-20b';
   const schema = type === 'schools' ? SCHOOL_GROQ_SCHEMA : MAJOR_GROQ_SCHEMA;
-  const result = await requestJson('https://api.groq.com/openai/v1/chat/completions', {
-    apiKey,
-    timeoutMs,
-    provider: 'GROQ',
-    body: {
-      model,
-      temperature: 0,
-      max_completion_tokens: 1800,
-      messages: [
-        {
-          role: 'system',
-          content: [
-            'Bạn là bộ biên tập/định dạng của NEXORA. Phân tích chuyên môn đã do DeepSeek thực hiện.',
-            'Chỉ viết gọn, sắp xếp lại các nội dung có sẵn. Không thêm ngành, trường, mã, tổ hợp, điểm, học phí, năm, nguồn hoặc kết luận mới.',
-            'findingIndex phải trỏ chính xác đến một recommendation đầu vào. whyFit chỉ được diễn đạt lại nội dung DeepSeek đã viết.',
-            `Trả JSON đúng schema: ${JSON.stringify(schema)}`
-          ].join('\n')
-        },
-        { role: 'user', content: JSON.stringify({ type, deepSeekResult }) }
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: { name: type === 'schools' ? 'nexora_school_output' : 'nexora_major_output', strict: true, schema }
-      }
+  const body = {
+    model,
+    temperature: 0,
+    max_completion_tokens: 1800,
+    messages: [
+      {
+        role: 'system',
+        content: [
+          'Bạn là bộ biên tập/định dạng của NEXORA. Phân tích chuyên môn đã do DeepSeek thực hiện.',
+          'Chỉ viết gọn, sắp xếp lại các nội dung có sẵn. Không thêm ngành, trường, mã, tổ hợp, điểm, học phí, năm, nguồn hoặc kết luận mới.',
+          'findingIndex phải trỏ chính xác đến một recommendation đầu vào. whyFit chỉ được diễn đạt lại nội dung DeepSeek đã viết.',
+          `Trả JSON đúng schema: ${JSON.stringify(schema)}`
+        ].join('\n')
+      },
+      { role: 'user', content: JSON.stringify({ type, deepSeekResult }) }
+    ],
+    response_format: {
+      type: 'json_schema',
+      json_schema: { name: type === 'schools' ? 'nexora_school_output' : 'nexora_major_output', strict: true, schema }
     }
-  });
-  const parsed = parseJson(result?.choices?.[0]?.message?.content || '');
-  if (!parsed || !Array.isArray(parsed.recommendations)) {
-    throw Object.assign(new Error('INVALID_GROQ_JSON'), { status: 502, provider: 'GROQ' });
+  };
+  const startedAt = Date.now();
+  const deadline = startedAt + Math.max(1, timeoutMs);
+  let lastError = null;
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 100) {
+      if (lastError) throw lastError;
+      throw Object.assign(new Error('GROQ_TIMEOUT'), { status: 504, provider: 'GROQ' });
+    }
+
+    try {
+      const result = await requestJson('https://api.groq.com/openai/v1/chat/completions', {
+        apiKey: key.value,
+        timeoutMs: Math.min(GROQ_TIMEOUT_MS, remainingMs),
+        provider: 'GROQ',
+        body
+      });
+      const parsed = parseJson(result?.choices?.[0]?.message?.content || '');
+      if (!parsed || !Array.isArray(parsed.recommendations)) {
+        throw Object.assign(new Error('INVALID_GROQ_JSON'), { status: 502, provider: 'GROQ' });
+      }
+      preferredGroqAlias = key.alias;
+      return { parsed, model, keyAlias: key.alias };
+    } catch (error) {
+      lastError = error;
+      const canFailOver = [401, 403, 429].includes(Number(error?.status)) && index < keys.length - 1;
+      if (!canFailOver) throw error;
+      const nextKey = keys[index + 1];
+      console.info(JSON.stringify({
+        event: 'admissions_lookup',
+        timestamp: new Date().toISOString(),
+        type,
+        status: 'key_failover',
+        fromAlias: key.alias,
+        toAlias: nextKey.alias,
+        upstreamStatus: Number(error.status),
+        ...(error?.upstreamCode ? { upstreamCode: error.upstreamCode } : {}),
+        elapsedMs: Date.now() - startedAt
+      }));
+    }
   }
-  return { parsed, model };
+  throw lastError || Object.assign(new Error('GROQ_UNAVAILABLE'), { status: 502, provider: 'GROQ' });
 }
 
 function verifiedCatalogMajor(recommendation) {
@@ -388,7 +445,7 @@ function failure(error, type, elapsedMs) {
   const message = code === 'DEEPSEEK_NOT_CONFIGURED'
     ? 'Chưa cấu hình biến DAMINFINITE cho DeepSeek trên máy chủ.'
     : code === 'GROQ_NOT_CONFIGURED'
-      ? 'Chưa cấu hình GROQ_API_KEY để định dạng kết quả trên máy chủ.'
+      ? 'Chưa cấu hình khóa Groq: thêm GROQ_API_KEY hoặc một trong các biến DAM9, DAM8, DAM7, DAM trên máy chủ.'
       : code === 'AI_RATE_LIMIT'
         ? `${provider} đang giới hạn lượt gọi. Hãy chờ rồi thử lại${error?.retryAfterSeconds ? ` sau ${error.retryAfterSeconds} giây` : ''}.`
         : code === 'AI_CREDITS_REQUIRED'
@@ -415,7 +472,7 @@ export async function handleDeepSeekAnalysis({ body = {}, env = process.env }) {
     : Boolean(profile.interests || profile.strengths || Object.keys(profile.scores).length || Object.keys(profile.aptitudeScores).length);
   if (!hasInput) return { status: 400, data: { success: false, code: type === 'schools' ? 'SCHOOL_PROFILE_INCOMPLETE' : 'PROFILE_REQUIRED', error: type === 'schools' ? 'Hãy chọn ngành và tổ hợp trước khi gợi ý trường.' : 'Hãy nhập sở thích, thế mạnh hoặc điểm số trước khi phân tích.' } };
   if (!text(env.DAMINFINITE, 500)) return failure(Object.assign(new Error('DEEPSEEK_NOT_CONFIGURED'), { status: 503 }), type, 0);
-  if (!text(env.GROQ_API_KEY, 500)) return failure(Object.assign(new Error('GROQ_NOT_CONFIGURED'), { status: 503 }), type, 0);
+  if (!getGroqKeyCandidates(env).length) return failure(Object.assign(new Error('GROQ_NOT_CONFIGURED'), { status: 503 }), type, 0);
 
   const key = createHash('sha256').update(JSON.stringify({ type, year, profile })).digest('hex');
   const cached = cache.get(key);
@@ -433,7 +490,7 @@ export async function handleDeepSeekAnalysis({ body = {}, env = process.env }) {
     const groq = await formatWithGroq({ type, deepSeekResult: deepSeek.parsed, env, timeoutMs: Math.min(GROQ_TIMEOUT_MS, remainingMs) });
     const analysis = buildAnalysis(type, deepSeek.parsed, groq.parsed, year, profile);
     const data = { success: true, provider: 'deepseek-groq', analyzer: deepSeek.model, formatter: groq.model, modelUsed: deepSeek.model, fromCache: false, analysis };
-    console.info(JSON.stringify({ event: 'admissions_lookup', timestamp: new Date().toISOString(), type, status: 'ok', elapsedMs: Date.now() - startedAt, cache: 'miss', analyzer: deepSeek.model, formatter: groq.model, recommendations: type === 'schools' ? analysis.recommendedSchools.length : analysis.recommendedMajors.length, verifiedRecommendations: 0, sourceUrls: [] }));
+    console.info(JSON.stringify({ event: 'admissions_lookup', timestamp: new Date().toISOString(), type, status: 'ok', elapsedMs: Date.now() - startedAt, cache: 'miss', analyzer: deepSeek.model, formatter: groq.model, formatterKeyAlias: groq.keyAlias, recommendations: type === 'schools' ? analysis.recommendedSchools.length : analysis.recommendedMajors.length, verifiedRecommendations: 0, sourceUrls: [] }));
     cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
     while (cache.size > MAX_CACHE_ITEMS) cache.delete(cache.keys().next().value);
     return data;
