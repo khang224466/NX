@@ -278,6 +278,10 @@ async function fetchJson(url, { method = 'POST', headers, body, timeoutMs }) {
     if (!response.ok) {
       const error = new Error(`UPSTREAM_${response.status}`);
       error.status = response.status;
+      const upstreamCode = cleanText(result?.error?.status || result?.error?.code, 50).toUpperCase();
+      if (/^[A-Z][A-Z0-9_]{1,39}$/.test(upstreamCode)) error.upstreamCode = upstreamCode;
+      const retryAfter = Number(response.headers.get('retry-after'));
+      if (Number.isFinite(retryAfter) && retryAfter > 0) error.retryAfterSeconds = Math.min(86_400, Math.ceil(retryAfter));
       throw error;
     }
     return result;
@@ -548,12 +552,16 @@ function errorResponse(error, elapsedMs) {
     status === 504 || error?.name === 'AbortError' ? 'LOOKUP_TIMEOUT' :
     status === 404 ? 'LOOKUP_MODEL_UNAVAILABLE' :
     'LOOKUP_FAILED';
+  const upstreamCode = /^[A-Z][A-Z0-9_]{1,39}$/.test(error?.upstreamCode || '') ? error.upstreamCode : '';
+  const retryAfterSeconds = Number.isFinite(error?.retryAfterSeconds) && error.retryAfterSeconds > 0
+    ? Math.min(86_400, Math.ceil(error.retryAfterSeconds))
+    : null;
   const message = code === 'INVALID_MODEL_RESPONSE'
     ? 'Dịch vụ tra cứu trả dữ liệu không đúng định dạng; không có dữ kiện nào được hiển thị.'
     : code === 'LOOKUP_AUTH_ERROR'
     ? 'Dịch vụ tra cứu chưa xác thực được. Hãy kiểm tra API key trên máy chủ.'
     : code === 'LOOKUP_RATE_LIMIT'
-      ? 'Dịch vụ tra cứu đang quá tải. Hãy thử lại sau một chút.'
+      ? `Gemini trả HTTP 429${upstreamCode ? ` (${upstreamCode})` : ''}: đã chạm giới hạn request, token hoặc quota của project. Kiểm tra Usage và Rate limits trong Google AI Studio${retryAfterSeconds ? `; thử lại sau ${retryAfterSeconds} giây` : ''}. Các khóa cùng project không cộng dồn hạn mức.`
       : code === 'LOOKUP_SERVICE_BUSY'
         ? 'Dịch vụ tra cứu đang bận. Hãy thử lại sau.'
         : code === 'LOOKUP_TIMEOUT'
@@ -561,7 +569,12 @@ function errorResponse(error, elapsedMs) {
           : code === 'LOOKUP_MODEL_UNAVAILABLE'
             ? 'Model tra cứu chưa khả dụng với API key hiện tại.'
             : 'Chưa thể hoàn tất tra cứu nguồn chính thức. Hãy thử lại sau.';
-  logLookup({ status: 'error', code, elapsedMs });
+  logLookup({
+    status: 'error', code, elapsedMs,
+    ...(status >= 400 ? { upstreamStatus: status } : {}),
+    ...(upstreamCode ? { upstreamCode } : {}),
+    ...(retryAfterSeconds ? { retryAfterSeconds } : {})
+  });
   return { status: status >= 400 && status <= 599 ? status : 502, data: { success: false, code, error: message } };
 }
 

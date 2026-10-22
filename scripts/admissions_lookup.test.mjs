@@ -297,10 +297,12 @@ test('API key thiếu hoặc provider trả lỗi được báo rõ, không có 
   assert.equal(missingKey.status, 503);
   assert.equal(missingKey.data.code, 'GEMINI_NOT_CONFIGURED');
 
-  mockProviders({ geminiStatus: 429, gemini: { error: { message: 'quota' } } });
+  mockProviders({ geminiStatus: 429, gemini: { error: { status: 'RESOURCE_EXHAUSTED', message: 'quota' } } });
   clearAdmissionsLookupCacheForTests();
   const limited = await handleAdmissionsLookup({ body: majorBody('lần khác'), env });
   assert.equal(limited.status, 429);
   assert.equal(limited.data.code, 'LOOKUP_RATE_LIMIT');
   assert.equal(limited.data.success, false);
+  assert.match(limited.data.error, /HTTP 429 \(RESOURCE_EXHAUSTED\)/);
+  assert.match(limited.data.error, /cùng project không cộng dồn hạn mức/);
 });
