@@ -216,7 +216,7 @@ async function runTests() {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'x-gemini-key': 'AIzaSy_dummy_invalid_test_key_xyz'
+        'x-gemini-key': 'client-provided-test-key-must-be-ignored'
       },
       body: JSON.stringify({
         sessionId: 'test_session_invalid',

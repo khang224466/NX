@@ -68,7 +68,7 @@ export function checkRateLimit(identifier: string = 'global'): { allowed: boolea
 // ============================================================================
 // 2. GOOGLE GEMINI ADAPTER
 // ============================================================================
-const DEFAULT_SERVER_GEMINI_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+const DEFAULT_SERVER_GEMINI_KEY = '';
 
 export class GeminiProviderAdapter implements AIProviderAdapter {
   name = 'gemini';

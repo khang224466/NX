@@ -72,7 +72,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 </span>
               </div>
               <p className="text-[10px] font-tabular text-[var(--text-secondary)] tracking-tight hidden sm:block uppercase">
-                Định hướng ngành học · Tổ hợp xét tuyển · Chọn trường
+                Nền tảng hướng nghiệp · Tra cứu tuyển sinh có nguồn
               </p>
             </div>
           </div>

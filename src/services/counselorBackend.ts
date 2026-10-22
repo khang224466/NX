@@ -764,7 +764,7 @@ Các sector hợp lệ: CNTT_BAN_DAN_AI, KY_THUAT_CONG_NGHE, KINH_TE_QUAN_TRI, Y
 
 Hãy phân tích toàn diện và trả về JSON theo đúng định dạng.`;
 
-  const DEFAULT_SERVER_GEMINI_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+  const DEFAULT_SERVER_GEMINI_KEY = '';
   const geminiKey = (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim()) || DEFAULT_SERVER_GEMINI_KEY;
   const groqKey = env.GROQ_API_KEY && env.GROQ_API_KEY.trim();
 

@@ -1,4 +1,4 @@
-const apiKey = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+const apiKey = '';
 const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=' + apiKey;
 const userPrompt = `HỒ SƠ HỌC SINH CẦN PHÂN TÍCH:
 - Điểm các môn đã có: Ngữ văn: 8.5đ, Lịch sử: 9.0đ, Địa lý: 8.0đ

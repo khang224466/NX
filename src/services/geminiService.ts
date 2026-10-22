@@ -17,27 +17,13 @@ const LOCAL_AI_PROVIDER_STORAGE = 'nexora_ai_provider';
 export const LOCAL_SUPREME_MODE_STORAGE = 'nexora_supreme_mode';
 export const LOCAL_SELECTED_MODEL_STORAGE = 'nexora_selected_model';
 const RECOMMENDED_MODEL = 'gemini-3.8-flash (Chuyên gia Tuyển sinh)';
-export const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+export const DEFAULT_GEMINI_KEY = '';
 
 export const getStoredApiKey = (): string => {
   try {
     const saved = localStorage.getItem(LOCAL_KEY_STORAGE);
     if (saved && saved.trim().length >= 20) {
       return saved.trim();
-    }
-  } catch {}
-
-  try {
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) {
-      const viteKey = String((import.meta as any).env.VITE_GEMINI_API_KEY).trim();
-      if (viteKey.length >= 20) return viteKey;
-    }
-  } catch {}
-
-  try {
-    if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
-      const procKey = String(process.env.GEMINI_API_KEY).trim();
-      if (procKey.length >= 20) return procKey;
     }
   } catch {}
 

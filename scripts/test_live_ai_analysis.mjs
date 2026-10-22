@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-const DEFAULT_KEY = 'AQ.Ab8RN6Iufs8Djj-3UZGfp4PuCUsMF208uGAF_T4L2PmI6zR-RQ';
+const DEFAULT_KEY = '';
 const key = process.env.GEMINI_API_KEY || DEFAULT_KEY;
 const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`;
 

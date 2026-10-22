@@ -9,7 +9,7 @@ import {
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
-import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
+import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, getMajorAdmissionRecords } from '../services/careerCatalog';
 import { VERIFIED_COMBINATIONS_219 } from '../data/verifiedAdmissionDatabase';
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
@@ -110,6 +110,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [hasRequestedSuggestions, setHasRequestedSuggestions] = useState(false);
   const [isAnalyzingWithGemini, setIsAnalyzingWithGemini] = useState(false);
   const [geminiAnalysis, setGeminiAnalysis] = useState<any | null>(null);
+  const [discoveredMajors, setDiscoveredMajors] = useState<any[]>([]);
   const [analysisError, setAnalysisError] = useState('');
   const analysisRequestIdRef = useRef(0);
   const [isAnalyzingUniversities, setIsAnalyzingUniversities] = useState(false);
@@ -131,6 +132,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setHasRequestedSuggestions(false);
     setIsAnalyzingWithGemini(false);
     setGeminiAnalysis(null);
+    setDiscoveredMajors([]);
     setAnalysisError('');
   };
 
@@ -204,8 +206,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // Current chosen major object
   const currentMajor = useMemo(() => {
     if (!selectedMajorCode) return null;
-    return catalog.find(m => m.codeTT09 === selectedMajorCode) || null;
-  }, [catalog, selectedMajorCode]);
+    return discoveredMajors.find(m => m.codeTT09 === selectedMajorCode) ||
+      catalog.find(m => m.codeTT09 === selectedMajorCode) || null;
+  }, [catalog, discoveredMajors, selectedMajorCode]);
 
   // Current chosen university object
   const getComboSubjectLabel = (comboCode: string) => {
@@ -225,14 +228,19 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
   const currentSchool = useMemo(() => {
     if (!selectedSchoolCode) return null;
-    return (AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
-      (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode)) || null;
-  }, [selectedSchoolCode]);
+    return (universityAnalysis?.recommendedSchools?.find((school: any) =>
+      school.institutionCode === selectedSchoolCode || school.name === selectedSchoolCode
+    ) ||
+      AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
+      (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode) ||
+      null) || null;
+  }, [selectedSchoolCode, universityAnalysis]);
 
   const requestMajorSuggestions = async () => {
     sfx.playUiClick();
     setHasRequestedSuggestions(true);
     setGeminiAnalysis(null);
+    setDiscoveredMajors([]);
     setAnalysisError('');
 
     if (!hasRecommendationInput) {
@@ -242,43 +250,44 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
     const requestId = ++analysisRequestIdRef.current;
     setIsAnalyzingWithGemini(true);
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 16_000);
     try {
       const response = await fetch('/api/ai/counselor/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           careerInterests,
           careerStrengths,
           scores,
           aptitudeScores,
+          analysisType: 'majors',
+          academicYear: new Date().getFullYear(),
           maxTuition,
           priorityRegion,
           priorityObject,
           targetRegionFilter,
-          targetJob,
-          majorCatalog: catalog.map((major) => ({
-            codeTT09: major.codeTT09,
-            codeTT74: major.codeTT74,
-            name: major.name,
-            sector: major.sector,
-            admissionsCombos: major.admissionsCombos,
-            targetJobs: major.targetJobs,
-            programCount: major.programCount,
-            admissionRecordCount: major.admissionRecordCount
-          }))
+          targetJob
         })
       });
       const payload = await response.json();
       if (requestId !== analysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'gemini' || !payload?.analysis) {
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'verified-search' || !payload?.analysis) {
         throw new Error(payload?.error || 'Chưa nhận được kết quả phân tích. Hãy thử lại.');
       }
+      setDiscoveredMajors(Array.isArray(payload.analysis.recommendedMajors)
+        ? payload.analysis.recommendedMajors.map((major: any) => ({ ...major, isDynamicRecommendation: true }))
+        : []);
       setGeminiAnalysis(payload.analysis);
     } catch (error) {
       if (requestId === analysisRequestIdRef.current) {
-        setAnalysisError(error instanceof Error ? error.message : 'Không kết nối được dịch vụ phân tích. Hãy thử lại.');
+        setAnalysisError(error instanceof Error && error.name === 'AbortError'
+          ? 'Phân tích quá thời gian cho phép. Hãy thử lại sau.'
+          : error instanceof Error ? error.message : 'Không kết nối được dịch vụ phân tích. Hãy thử lại.');
       }
     } finally {
+      window.clearTimeout(requestTimeout);
       if (requestId === analysisRequestIdRef.current) setIsAnalyzingWithGemini(false);
     }
   };
@@ -335,7 +344,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // Mỗi tổ hợp lấy từ danh mục ngành và dữ liệu tuyển sinh liên quan.
   const validCombosForMajor = useMemo(() => {
     if (!currentMajor) return [];
-    const dataCombos = getMajorAdmissionRecords(currentMajor.name)
+    const dataCombos = currentMajor.isDynamicRecommendation ? [] : getMajorAdmissionRecords(currentMajor.name)
       .flatMap((record) => record.subject_combinations || []);
     return [...new Set([...(currentMajor.admissionsCombos || []), ...dataCombos])].sort();
   }, [currentMajor]);
@@ -445,96 +454,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const topCombo = evaluatedCombos[0] || null;
 
   // Keep all 300 schools visible while marking exact ngành/tổ hợp matches.
-  const stratifiedSchools = useMemo(() => {
-    const institutionsByCode = new Map(AUDITED_INSTITUTIONS_300.map((institution) => [institution.institution_code, institution]));
-    const visibleInstitutions = AUDITED_INSTITUTIONS_300.filter((institution) => {
-      if (targetRegionFilter !== 'ALL' && getRegionFromProvinceCity(institution.verified_province_city) !== targetRegionFilter) return false;
-      if (targetProvinceFilter && !institution.verified_province_city.split(/\s*&\s*/).some((place) => place.trim() === targetProvinceFilter)) return false;
-      return true;
-    });
-
-    if (!currentMajor) {
-      return { dream: [], target: [], safe: [], hasScore: false, totalSchools: visibleInstitutions.length, matchingSchoolCount: 0, tuitionBenchmark: null };
-    }
-
-    const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
-    const visibleSchoolCodes = new Set(visibleInstitutions.map((institution) => institution.institution_code));
-    const majorNames = getMajorCatalogAliases(currentMajor.name);
-    const records = [...new Map(majorNames
-      .flatMap((name) => getMajorAdmissionRecords(name, chosenCombo))
-      .filter((record) => record.verification_status === 'VERIFIED_OFFICIAL' && visibleSchoolCodes.has(record.institution_code))
-      .map((record) => [record.institution_code + ':' + record.program_id + ':' + record.admission_method_code, record])
-    ).values()];
-    const groups = new Map<string, { institution: any; cutoffs: number[] }>();
-
-    for (const record of records) {
-      const institution = institutionsByCode.get(record.institution_code);
-      if (!institution) continue;
-
-      const cutoff = record.audited_official_scale === 'THANG_30'
-        ? Number(record.audited_official_cutoff)
-        : Number(record.analytical_normalized_100) * 0.3;
-      if (!Number.isFinite(cutoff)) continue;
-
-      const group = groups.get(record.institution_code) || { institution, cutoffs: [] };
-      group.cutoffs.push(cutoff);
-      groups.set(record.institution_code, group);
-    }
-
-    const selectedEvaluation = evaluatedCombos.find((combo: any) => combo.code === chosenCombo);
-    const typedScore = Number(expectedScoreInput);
-    const hasTypedScore = expectedScoreInput.trim() !== '' && Number.isFinite(typedScore) && typedScore >= 0 && typedScore <= 30;
-    const hasScore = hasTypedScore || Boolean(selectedEvaluation?.hasData);
-    const userScore = hasTypedScore ? typedScore : selectedEvaluation?.officialScore;
-    const tuitionBenchmark = getSectorTuitionBenchmark(currentMajor.sector);
-    const dream: any[] = [];
-    const target: any[] = [];
-    const safe: any[] = [];
-
-    for (const { institution, cutoffs } of groups.values()) {
-      const orderedCutoffs = [...cutoffs].sort((a, b) => a - b);
-      const middle = Math.floor(orderedCutoffs.length / 2);
-      const benchmark = orderedCutoffs.length % 2
-        ? orderedCutoffs[middle]
-        : Number(((orderedCutoffs[middle - 1] + orderedCutoffs[middle]) / 2).toFixed(2));
-      const margin = hasScore && typeof userScore === 'number'
-        ? Number((userScore - benchmark).toFixed(2))
-        : null;
-      const item = {
-        code: institution.institution_code,
-        name: institution.official_name,
-        city: institution.verified_province_city,
-        benchmark: Number(benchmark.toFixed(2)),
-        margin,
-        sectorTuition: tuitionBenchmark?.avg2026_2027 ?? null,
-        isBudgetOk: tuitionBenchmark?.avg2026_2027 != null && maxTuition != null
-          ? tuitionBenchmark.avg2026_2027 <= maxTuition
-          : null
-      };
-
-      if (!hasScore) target.push(item);
-      else if (margin !== null && margin >= 1.5) safe.push(item);
-      else if (margin !== null && margin >= -0.7) target.push(item);
-      else dream.push(item);
-    }
-
-    const byCutoff = (a: any, b: any) => a.benchmark - b.benchmark;
-    dream.sort(byCutoff);
-    target.sort(hasScore ? (a: any, b: any) => Math.abs(a.margin) - Math.abs(b.margin) : byCutoff);
-    safe.sort((a: any, b: any) => b.margin - a.margin);
-
-    const matchingSchoolCount = new Set([...dream, ...target, ...safe].map((school) => school.code)).size;
-    return {
-      dream,
-      target,
-      safe,
-      hasScore,
-      totalSchools: visibleInstitutions.length,
-      matchingSchoolCount,
-      tuitionBenchmark
-    };
-  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, targetProvinceFilter, maxTuition]);
-
   const requestUniversityAnalysis = async () => {
     sfx.playUiClick();
     setHasRequestedUniversityAnalysis(true);
@@ -543,96 +462,29 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
     const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
     if (!currentMajor || !chosenCombo) {
-      setUniversityAnalysisError('Chọn ngành và tổ hợp trước khi gợi ý trường.');
-      return;
-    }
-
-    const majorNames = getMajorCatalogAliases(currentMajor.name);
-    const majorKeys = new Set(majorNames.map(normalizeMajorCatalogName));
-    const matchingPrograms = CAREER_PROGRAM_CATALOG.filter((program) =>
-      (program.majorCode === currentMajor.codeTT09 || majorKeys.has(normalizeMajorCatalogName(program.name))) &&
-      program.admissionsCombos.some((combo) => combo.trim().toUpperCase() === chosenCombo.toUpperCase()) &&
-      Boolean(program.institutionCode)
-    );
-    const programSchoolCodes = new Set(matchingPrograms.map((program) => program.institutionCode));
-    // Admission records can establish a program/combo match even when no verified cutoff exists.
-    majorNames.flatMap((name) => getMajorAdmissionRecords(name, chosenCombo)).forEach((record) => {
-      if (record.institution_code) programSchoolCodes.add(record.institution_code);
-    });
-
-    const verifiedSchools = [
-      ...stratifiedSchools.safe.map((school: any) => ({ ...school, tier: 'An toàn' })),
-      ...stratifiedSchools.target.map((school: any) => ({ ...school, tier: 'Vừa sức' })),
-      ...stratifiedSchools.dream.map((school: any) => ({ ...school, tier: 'Mơ ước' }))
-    ];
-    const verifiedByCode = new Map(verifiedSchools.map((school: any) => [school.code, school]));
-    const tuitionAverage = stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? null;
-    const allowedCodes = new Set([...programSchoolCodes, ...verifiedByCode.keys()]);
-    const nationwideSchoolCatalog = AUDITED_INSTITUTIONS_300
-      .filter((institution) => allowedCodes.has(institution.institution_code));
-    const schoolCatalog = nationwideSchoolCatalog
-      .filter((institution) => targetRegionFilter === 'ALL' ||
-        getRegionFromProvinceCity(institution.verified_province_city) === targetRegionFilter)
-      .filter((institution) => !targetProvinceFilter ||
-        institution.verified_province_city.split(/\s*&\s*/).some((place) => place.trim() === targetProvinceFilter))
-      .map((institution) => {
-        const verified = verifiedByCode.get(institution.institution_code);
-        return {
-          institutionCode: institution.institution_code,
-          name: institution.official_name,
-          city: institution.verified_province_city,
-          cutoffBenchmark: verified?.benchmark ?? null,
-          scoreMargin: verified?.margin ?? null,
-          preliminaryTier: verified?.tier ?? '',
-          sectorTuitionAverage: tuitionAverage,
-          withinBudgetBenchmark: tuitionAverage != null && maxTuition != null
-            ? tuitionAverage <= maxTuition
-            : null,
-          hasVerifiedCutoff: Boolean(verified)
-        };
-      })
-      .sort((a, b) => Number(b.hasVerifiedCutoff) - Number(a.hasVerifiedCutoff) ||
-        a.name.localeCompare(b.name, 'vi'))
-      .slice(0, 120);
-
-    if (schoolCatalog.length === 0) {
-      if (nationwideSchoolCatalog.length === 0) {
-        setUniversityAnalysisError(
-          `Kho dữ liệu chưa xác nhận trường nào xét ngành ${currentMajor.name} bằng tổ hợp ${chosenCombo}.`
-        );
-      } else if (targetProvinceFilter) {
-        setUniversityAnalysisError(
-          `Có ${nationwideSchoolCatalog.length} trường có dữ liệu khớp ngành ${currentMajor.name} + tổ hợp ${chosenCombo}, nhưng chưa có trường nào ở ${targetProvinceFilter}. Hãy chọn tỉnh khác hoặc đổi sang Toàn quốc.`
-        );
-      } else {
-        const regionLabels: Record<string, string> = {
-          BAC: 'Miền Bắc',
-          TRUNG: 'Miền Trung',
-          NAM: 'Miền Nam',
-          DBSCL: 'ĐBSCL'
-        };
-        const selectedRegionLabel = regionLabels[targetRegionFilter] || 'khu vực đã chọn';
-        setUniversityAnalysisError(
-          `Có ${nationwideSchoolCatalog.length} trường có dữ liệu khớp ngành ${currentMajor.name} + tổ hợp ${chosenCombo} trên toàn quốc, nhưng chưa có trường nào trong ${selectedRegionLabel}. Hãy chọn Toàn quốc hoặc vùng khác.`
-        );
-      }
+      setUniversityAnalysisError('Chọn ngành và tổ hợp trước khi tra cứu trường.');
       return;
     }
 
     const requestId = ++universityAnalysisRequestIdRef.current;
     setIsAnalyzingUniversities(true);
     const selectedEvaluation = evaluatedCombos.find((combo: any) => combo.code === chosenCombo);
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 17_000);
     try {
       const response = await fetch('/api/ai/counselor/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           analysisType: 'universities',
+          academicYear: new Date().getFullYear(),
           studentProfile: {
             interests: careerInterests,
             strengths: careerStrengths,
             scores,
             aptitudeScores,
+            targetJob,
             major: {
               codeTT09: currentMajor.codeTT09,
               name: currentMajor.name,
@@ -648,21 +500,23 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             preferredProvince: targetProvinceFilter,
             priorityRegion,
             priorityObject
-          },
-          schoolCatalog
+          }
         })
       });
       const payload = await response.json();
       if (requestId !== universityAnalysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'gemini' || !payload?.analysis) {
-        throw new Error(payload?.error || 'Chưa nhận được kết quả phân tích trường. Hãy thử lại.');
+      if (!response.ok || payload?.success !== true || payload?.provider !== 'verified-search' || !payload?.analysis) {
+        throw new Error(payload?.error || 'Chưa nhận được kết quả tra cứu trường. Hãy thử lại.');
       }
       setUniversityAnalysis(payload.analysis);
     } catch (error) {
       if (requestId === universityAnalysisRequestIdRef.current) {
-        setUniversityAnalysisError(error instanceof Error ? error.message : 'Không kết nối được dịch vụ phân tích. Hãy thử lại.');
+        setUniversityAnalysisError(error instanceof Error && error.name === 'AbortError'
+          ? 'Tra cứu quá thời gian cho phép. Hãy thử lại sau.'
+          : error instanceof Error ? error.message : 'Không kết nối được dịch vụ tra cứu. Hãy thử lại.');
       }
     } finally {
+      window.clearTimeout(requestTimeout);
       if (requestId === universityAnalysisRequestIdRef.current) setIsAnalyzingUniversities(false);
     }
   };
@@ -682,12 +536,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     clearUniversityAnalysis();
     setScores({ math: '', literature: '', english: '', physics: '', chemistry: '', biology: '', history: '', geography: '', informatics: '', economicLegal: '' });
     setAptitudeScores({ apt_hinhHoa: '', apt_trangTri: '', apt_veMyThuat: '', apt_thamAm: '', apt_thanhNhac: '', apt_theThao: '', apt_mamNon: '', apt_baoChi: '', apt_dienXuat: '' });
-    setSelectedProgramId(null);
     setMaxTuition(null);
     setTargetRegionFilter('ALL');
     setTargetProvinceFilter('');
-    setAspirationOrder('');
-    setAspirationNotes('');
     setActiveTab('tab-major');
   };
 
@@ -858,13 +709,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   <div>
                     <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Phân tích và gợi ý ngành</h3>
                     <p className="mt-1 text-sm text-slate-300">
-                      Kết quả dựa trên hồ sơ bạn nhập và được đối chiếu với danh mục ngành.
+                      Thông tin được tra cứu theo hồ sơ và kèm nguồn chính thức khi xác minh được.
                     </p>
                   </div>
 
-                  {isAnalyzingWithGemini && (
+                      {isAnalyzingWithGemini && (
                     <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                      Đang phân tích hồ sơ và đối chiếu danh mục ngành…
+                      Đang phân tích hồ sơ và tra cứu thông tin tuyển sinh chính thức…
                     </p>
                   )}
                   {analysisError && (
@@ -882,24 +733,49 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       {geminiAnalysis.risksAndBottlenecks && (
                         <p className="text-sm leading-relaxed text-slate-300">{geminiAnalysis.risksAndBottlenecks}</p>
                       )}
+                      {geminiAnalysis.warnings?.map((warning: string, index: number) => (
+                        <p key={`major-warning-${index}`} className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">{warning}</p>
+                      ))}
                       <ol className="flex flex-col gap-2" aria-label="Danh sách ngành được gợi ý">
                         {geminiAnalysis.recommendedMajors.map((major: any, index: number) => (
                           <li key={major.codeTT09} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}</p>
-                              <h5 className="mt-1 text-lg font-bold text-white">{major.name}</h5>
+                              <h5 className="mt-1 text-lg font-bold text-white">{major.name}{major.codeTT09 ? ` · ${major.codeTT09}` : ''}</h5>
+                              <p className={`mt-1 text-sm ${major.verificationStatus === 'VERIFIED' ? 'text-emerald-300' : 'text-amber-300'}`}>
+                                {major.verificationStatus === 'VERIFIED' ? `Đã xác minh theo nguồn năm ${major.year}` : 'Chưa xác minh đầy đủ nguồn, năm hoặc mã ngành'}
+                              </p>
                               {major.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{major.whyFit}</p>}
+                              {major.source?.url && (
+                                <a href={major.source.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-blue-300 underline underline-offset-2">
+                                  Nguồn chính thức: {major.source.title}
+                                </a>
+                              )}
+                              {major.admissionsCombos?.length > 0 && (
+                                <div className="mt-1 text-sm text-slate-300">
+                                  <p>Tổ hợp được nguồn xác nhận: {major.admissionsCombos.join(', ')}</p>
+                                  {major.comboSource?.url && (
+                                    <a href={major.comboSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-blue-300 underline underline-offset-2">
+                                      Nguồn tổ hợp: {major.comboSource.title}
+                                    </a>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <button
                               type="button"
                               onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
-                              className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                              disabled={major.verificationStatus !== 'VERIFIED' || !major.codeTT09}
+                              className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                             >
-                              Chọn ngành
+                              {major.verificationStatus === 'VERIFIED' && major.codeTT09 ? 'Chọn ngành' : 'Chưa thể chọn'}
                             </button>
                           </li>
                         ))}
                       </ol>
+                      {geminiAnalysis.recommendedMajors.length === 0 && !geminiAnalysis.warnings?.length && (
+                        <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm được ngành có nguồn chính thức phù hợp. Hãy thử mô tả thêm sở thích hoặc thế mạnh.</p>
+                      )}
                     </div>
                   )}
                 </section>
@@ -1148,7 +1024,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
-                <p className="mt-1 text-sm text-slate-300">Hệ thống sẽ đối chiếu điểm, ngành, tổ hợp, khu vực, ngân sách và mốc tuyển sinh trong kho dữ liệu.</p>
+                <p className="mt-1 text-sm text-slate-300">Tra cứu ngành, tổ hợp, điểm chuẩn và học phí theo yêu cầu; chỉ xác nhận dữ kiện có nguồn chính thức đúng năm.</p>
               </div>
               <button
                 type="button"
@@ -1164,7 +1040,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <div className="space-y-3">
                 {isAnalyzingUniversities && (
                   <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                    Đang đối chiếu hồ sơ với dữ liệu tuyển sinh của ngành và tổ hợp đã chọn…
+                    Đang tra cứu nguồn chính thức cho ngành, tổ hợp, khu vực và ngân sách bạn đã nhập…
                   </p>
                 )}
                 {universityAnalysisError && (
@@ -1178,43 +1054,73 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     {universityAnalysis.summary && <p className="text-base leading-relaxed text-slate-200">{universityAnalysis.summary}</p>}
                     {universityAnalysis.scoreAnalysis && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.scoreAnalysis}</p>}
                     {universityAnalysis.budgetNote && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.budgetNote}</p>}
+                    {universityAnalysis.warnings?.map((warning: string, index: number) => (
+                      <p key={`school-warning-${index}`} className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">{warning}</p>
+                    ))}
                     <ol className="flex flex-col gap-2" aria-label="Trường được gợi ý">
-                      {universityAnalysis.recommendedSchools.map((school: any, index: number) => (
-                        <li key={school.institutionCode} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
+                      {(universityAnalysis.recommendedSchools || []).map((school: any, index: number) => (
+                        <li key={`${school.institutionCode || school.name}-${index}`} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}{school.city ? ' · ' + school.city : ''}</p>
                             <h4 className="mt-1 text-lg font-bold text-white">{school.name}</h4>
+                            <p className={`mt-1 text-sm ${school.programStatus === 'VERIFIED' ? 'text-emerald-300' : 'text-amber-300'}`}>
+                              {school.programStatus === 'VERIFIED'
+                                ? `Ngành, tổ hợp và trường đã xác minh năm ${school.programYear}`
+                                : school.programStatus === 'CONFLICT' ? 'Nguồn chính thức mâu thuẫn về ngành hoặc tổ hợp; không xác nhận kết quả này.' : 'Thông tin ngành hoặc tổ hợp chưa xác minh đầy đủ'}
+                            </p>
+                            {school.programName && <p className="mt-1 text-sm text-slate-300">Ngành: {school.programName}{school.majorCode ? ` · Mã ${school.majorCode}` : ''}{school.combinationCode ? ` · Tổ hợp ${school.combinationCode}` : ''}</p>}
+                            {school.programSource?.url && (
+                              <a href={school.programSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm text-blue-300 underline underline-offset-2">
+                                Nguồn ngành và tổ hợp: {school.programSource.title}
+                              </a>
+                            )}
                             {school.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{school.whyFit}</p>}
                             {school.cutoffBenchmark != null && (
                               <p className="mt-1 text-sm text-slate-400">
-                                Mốc tham chiếu: {Number(school.cutoffBenchmark).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} điểm
-                                {school.scoreMargin != null ? ' · Chênh ' + Number(school.scoreMargin).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' điểm' : ''}
+                                Điểm chuẩn năm {school.cutoffYear}: {Number(school.cutoffBenchmark).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} điểm
                               </p>
                             )}
-                            {school.hasVerifiedCutoff === false && (
+                            {school.cutoffSource?.url && (
+                              <a href={school.cutoffSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm text-blue-300 underline underline-offset-2">
+                                Nguồn điểm chuẩn: {school.cutoffSource.title}
+                              </a>
+                            )}
+                            {school.cutoffBenchmark == null && (
                               <p className="mt-1 text-sm text-amber-300">
-                                Có ngành và tổ hợp trong danh mục; hiện chưa có mốc điểm chuẩn chính thức để đối chiếu.
+                                {school.cutoffStatus === 'CONFLICT'
+                                  ? `Nguồn chính thức mâu thuẫn về điểm chuẩn năm ${universityAnalysis.academicYear}; hệ thống không chọn một con số.`
+                                  : `Điểm chuẩn năm ${universityAnalysis.academicYear}: chưa xác minh từ nguồn chính thức.`}
                               </p>
                             )}
-                            {school.sectorTuitionAverage != null && (
+                            {school.tuitionAnnualMillions != null && (
                               <p className="mt-1 text-sm text-slate-400">
-                                Học phí tham khảo ngành: {Number(school.sectorTuitionAverage).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} triệu/năm · mức bình quân, không phải học phí riêng của trường
+                                Học phí năm {school.tuitionYear}: {Number(school.tuitionAnnualMillions).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} triệu/năm
                               </p>
                             )}
+                            {school.tuitionSource?.url && (
+                              <a href={school.tuitionSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm text-blue-300 underline underline-offset-2">
+                                Nguồn học phí: {school.tuitionSource.title}
+                              </a>
+                            )}
+                            {school.tuitionAnnualMillions == null && <p className="mt-1 text-sm text-amber-300">{school.tuitionStatus === 'CONFLICT' ? `Nguồn chính thức mâu thuẫn về học phí năm ${universityAnalysis.academicYear}; hệ thống không chọn một con số.` : `Học phí năm ${universityAnalysis.academicYear}: chưa xác minh từ nguồn chính thức.`}</p>}
                           </div>
                           <button
                             type="button"
+                            disabled={school.programStatus !== 'VERIFIED'}
                             onClick={() => {
-                              setSelectedSchoolCode(school.institutionCode);
+                              setSelectedSchoolCode(school.institutionCode || school.name);
                               setActiveTab('tab-domino');
                             }}
-                            className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                            className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
                           >
-                            Chọn trường
+                            {school.programStatus === 'VERIFIED' ? 'Chọn trường' : 'Chưa thể chọn'}
                           </button>
                         </li>
                       ))}
                     </ol>
+                    {(!universityAnalysis.recommendedSchools || universityAnalysis.recommendedSchools.length === 0) && (
+                      <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm thấy kết quả ngành và tổ hợp có thể xác minh từ nguồn chính thức cho năm này. Không có điểm chuẩn hoặc học phí dựng sẵn được hiển thị.</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1297,7 +1203,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <span>
-                    <strong>Kinh phí &amp; Trường học</strong>: {maxTuition == null ? 'Ngân sách chưa biết' : `Giới hạn ${maxTuition} triệu/năm`} · bình quân nhóm ngành {stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? 'chưa có dữ liệu'} triệu/năm; đây không phải học phí riêng của trường.
+                    <strong>Kinh phí &amp; Trường học</strong>: {maxTuition == null ? 'Ngân sách chưa biết' : `Giới hạn ${maxTuition} triệu/năm`} · học phí chỉ được nêu khi có nguồn chính thức cho trường đã chọn.
                   </span>
                 </li>
               </ul>
@@ -1312,14 +1218,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Ngành ➔ Điểm chuẩn]</span>
                   <p className="text-sm text-slate-300 leading-relaxed">
-                    {topCombo?.hasData ? 'Điểm hồ sơ ' + topCombo.officialScore + 'đ được đối chiếu với mốc tuyển sinh tham chiếu của ' + stratifiedSchools.totalSchools + ' trường có dữ liệu cho lựa chọn này.' : 'Chưa có điểm số để so sánh với mốc tuyển sinh. Hãy nhập điểm dự kiến hoặc điểm từng môn ở Bước 2.'}
+                    {topCombo?.hasData ? `Điểm hồ sơ ${topCombo.officialScore}đ đã được gửi cùng ngành và tổ hợp để tra cứu. Kết quả có điểm chuẩn sẽ kèm năm và nguồn chính thức.` : 'Chưa có điểm số để so sánh với mốc tuyển sinh. Hãy nhập điểm dự kiến hoặc điểm từng môn ở Bước 2.'}
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Tổ hợp ➔ Cạnh tranh]</span>
                   <p className="text-sm text-slate-300 leading-relaxed">
-                    Có thông tin tuyển sinh tại {stratifiedSchools.matchingSchoolCount} trường cho tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}.
+                    {universityAnalysis?.recommendedSchools?.length || 0} kết quả đã được tìm cho tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}; dữ kiện thiếu sẽ được ghi là chưa xác minh.
                   </p>
                 </div>
 
