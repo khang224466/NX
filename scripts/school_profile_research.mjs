@@ -55,6 +55,14 @@ function cleanScalarText(value, maxLength) {
   return typeof value === 'number' && Number.isFinite(value) ? String(value) : cleanText(value, maxLength);
 }
 
+function getDeepSeekApiKey(env) {
+  for (const name of ['DEEPSEEK_API_KEY', 'DAMINFINiTE', 'DAMINFINITE']) {
+    const value = env?.[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
 function cleanSearchTerm(value, maxLength = 60) {
   return cleanText(value, maxLength)
     .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
@@ -115,7 +123,7 @@ function getDeepSeekFailure(error) {
     return { status: 504, error: 'DeepSeek tra cứu quá thời gian chờ. Vui lòng thử lại sau.' };
   }
   if (error?.status === 401) {
-    return { status: 503, error: 'Khóa DeepSeek trên máy chủ không hợp lệ. Quản trị viên cần kiểm tra DEEPSEEK_API_KEY.' };
+    return { status: 503, error: 'Khóa DeepSeek trên máy chủ không hợp lệ. Quản trị viên cần kiểm tra secret DAMINFINiTE hoặc DEEPSEEK_API_KEY.' };
   }
   if (error?.status === 402) {
     return { status: 503, error: 'Tài khoản DeepSeek chưa đủ hạn mức để tra cứu. Quản trị viên cần kiểm tra hạn mức API.' };
@@ -359,10 +367,11 @@ export async function researchSchoolProfile({ body = {}, clientKey = 'unknown-cl
       return { status: 200, body: { success: true, cached: true, data: cached.data } };
     }
 
-    if (typeof env.DEEPSEEK_API_KEY !== 'string' || !env.DEEPSEEK_API_KEY.trim()) {
+    const deepSeekApiKey = getDeepSeekApiKey(env);
+    if (!deepSeekApiKey) {
       return {
         status: 503,
-        body: { success: false, error: 'Tra cứu DeepSeek chưa được bật. Quản trị viên cần cấu hình DEEPSEEK_API_KEY trên máy chủ.' }
+        body: { success: false, error: 'Tra cứu DeepSeek chưa được bật. Quản trị viên cần cấu hình secret DAMINFINiTE hoặc DEEPSEEK_API_KEY trên máy chủ.' }
       };
     }
     if (typeof fetchImpl !== 'function') {
@@ -394,7 +403,7 @@ export async function researchSchoolProfile({ body = {}, clientKey = 'unknown-cl
     const queries = makeSearchQueries(searchDomains, year, majorName, comboCode);
     const searchResults = await Promise.allSettled(queries.map(async ({ category, query }) => ({
       category,
-      payload: await requestJson(fetchImpl, SEARCH_ENDPOINT, env.DEEPSEEK_API_KEY, {
+      payload: await requestJson(fetchImpl, SEARCH_ENDPOINT, deepSeekApiKey, {
         query,
         count: 5,
         need_content: true
@@ -436,7 +445,7 @@ export async function researchSchoolProfile({ body = {}, clientKey = 'unknown-cl
     ].join('\n');
     const userPrompt = 'Trường và lựa chọn cần tra cứu (JSON dữ liệu): ' + currentTarget + '\n' +
       'Năm hiện tại: ' + year + '. Tìm điểm trúng tuyển cuối cùng mới nhất của đúng ngành/tổ hợp, mức học phí mới nhất cho đúng chương trình, đề án tuyển sinh mới nhất và học bổng riêng của trường. Nếu năm mới chưa công bố, ghi năm gần nhất được nguồn nêu. Chỉ dùng các đoạn nguồn bên dưới; nếu không có dữ kiện thì trả mảng rỗng.\nSOURCES=' + JSON.stringify(evidenceForModel);
-    const completion = await requestJson(fetchImpl, CHAT_ENDPOINT, env.DEEPSEEK_API_KEY, {
+    const completion = await requestJson(fetchImpl, CHAT_ENDPOINT, deepSeekApiKey, {
       model,
       messages: [
         { role: 'system', content: systemPrompt },

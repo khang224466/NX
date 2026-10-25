@@ -123,7 +123,7 @@ const { calls, mockFetch } = makeMockFetch();
 const result = await researchSchoolProfile({
   body: { institutionCode: 'ABC', majorName: 'Khoa học máy tính', comboCode: 'A00' },
   clientKey: 'deepseek-test-success',
-  env: { DEEPSEEK_API_KEY: 'test-key' },
+  env: { DAMINFINiTE: 'test-key' },
   fetchImpl: mockFetch,
   ...loaders
 });
