@@ -49,9 +49,11 @@ const SECTOR_DISPLAY_NAMES: Record<string, string> = {
 interface LiveSchoolResearchResult {
   institutionCode: string;
   institutionName: string;
+  provider: string;
+  model: string;
   admissionsYear: string;
   admissionsSummary: string;
-  admissionMethods: Array<{ name: string; detail: string }>;
+  admissionMethods: Array<{ name: string; detail: string; sourceUrl?: string }>;
   cutoffFacts: Array<{
     programName: string;
     admissionsYear: string;
@@ -70,7 +72,7 @@ interface LiveSchoolResearchResult {
     note: string;
     sourceUrl?: string;
   }>;
-  scholarships: Array<{ name: string; detail: string; academicYear: string; status: string }>;
+  scholarships: Array<{ name: string; detail: string; academicYear: string; status: string; sourceUrl?: string }>;
   verificationNotes: string[];
   sources: Array<{ title: string; url: string }>;
   checkedAt: string;
@@ -1130,7 +1132,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <div>
                   <h5 className="font-bold text-emerald-200">Thông tin chính thức của trường đã chọn</h5>
                   <p className="mt-1 text-xs leading-relaxed text-slate-300">
-                    Tra cứu theo trường, ngành và tổ hợp; không gửi điểm số, sở thích hoặc thông tin cá nhân.
+                    DeepSeek tìm và phân tích nguồn chính thức theo trường, ngành và tổ hợp; không gửi điểm số, sở thích hoặc thông tin cá nhân.
                   </p>
                 </div>
                 <button
@@ -1160,6 +1162,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               )}
               {!liveSchoolResearchLoading && liveSchoolResearch && (
                 <div className="space-y-3 text-sm text-slate-200">
+                  <p className="text-xs font-semibold text-emerald-300">
+                    Đã phân tích bằng {liveSchoolResearch.provider} · {liveSchoolResearch.model}
+                  </p>
                   <p className="font-semibold text-white">
                     Đề án tuyển sinh gần nhất: {liveSchoolResearch.admissionsYear}. {liveSchoolResearch.admissionsSummary}
                   </p>
@@ -1207,7 +1212,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     {liveSchoolResearch.admissionMethods.length ? (
                       <ul className="mt-1 list-disc space-y-1 pl-5">
                         {liveSchoolResearch.admissionMethods.map((method, index) => (
-                          <li key={`${method.name}-${index}`}><strong>{method.name}:</strong> {method.detail}</li>
+                          <li key={`${method.name}-${index}`}>
+                            <strong>{method.name}:</strong> {method.detail}
+                            {method.sourceUrl && <a href={method.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                          </li>
                         ))}
                       </ul>
                     ) : <p className="mt-1 text-slate-300">Chưa tìm thấy phương thức có nguồn chính thức trong lượt tra cứu này.</p>}
@@ -1225,6 +1233,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               {scholarship.status ? ` · ${scholarship.status}` : ''}
                             </p>
                             <p className="mt-1 text-slate-300">{scholarship.detail}</p>
+                            {scholarship.sourceUrl && <a href={scholarship.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-blue-300 hover:underline">Nguồn chính thức</a>}
                           </div>
                         ))}
                       </div>
