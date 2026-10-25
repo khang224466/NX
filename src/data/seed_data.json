@@ -8,7 +8,7 @@
     "pedagogySupport": "Nghị định 116/2020/NĐ-CP & Nghị định 60/2025/NĐ-CP"
   },
   "riasecQuestionnaire": {
-    "instrument": "O*NET Interest Profiler Short Form (IPSF - 60 Questions)",
+    "instrument": "Bộ câu hỏi RIASEC 60 mục do NEXORA biên soạn, tham khảo cấu trúc O*NET Interest Profiler Short Form; chưa được chuẩn hóa tại Việt Nam",
     "scale": "Likert 5 Levels (1: Rất không thích, 2: Không thích, 3: Phân vân, 4: Thích, 5: Rất thích)",
     "questions": [
       {

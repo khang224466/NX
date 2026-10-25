@@ -28,6 +28,7 @@ import {
   evaluateAdmissionSafety 
 } from '../data/verifiedAdmissionDatabase';
 import { lookupTT74 } from '../data/legalMappingTT74';
+import { getInstitutionPolicyByCode } from '../data/institutionPolicyDirectory.js';
 import { UniversityScoringInspector } from './UniversityScoringInspector';
 import { AuditedAdmissionsSuite } from './AuditedAdmissionsSuite';
 import { sfx } from '../services/soundEffects';
@@ -356,6 +357,26 @@ export const CombinationExplorer: React.FC = () => {
           {matchingUniversities.map((uni) => {
             const isSelected = selectedUniCode === uni.code;
             const progsForUni = matchingPrograms.filter(p => p.universityCode === uni.code);
+            const schoolPolicy = getInstitutionPolicyByCode(uni.code);
+            const hasSchoolPolicy = schoolPolicy?.verificationStatus === 'OFFICIAL_PARTIAL';
+            const admissionMethodSummary = schoolPolicy?.admissionMethods.map(method => method.name).join('; ');
+            const scholarshipSummary = schoolPolicy?.scholarships
+              .map(scholarship => `${scholarship.name}: ${scholarship.description}`)
+              .join(' ');
+            const tuitionSummary = schoolPolicy?.tuition?.length
+              ? (() => {
+                  const annualRates = schoolPolicy.tuition.map(tuition => tuition.annualVnd).filter((value): value is number => Number.isFinite(value));
+                  if (schoolPolicy.tuition.length > 8 && annualRates.length) {
+                    const minimum = Math.min(...annualRates) / 1_000_000;
+                    const maximum = Math.max(...annualRates) / 1_000_000;
+                    return `Bảng học phí chính thức có ${schoolPolicy.tuition.length} mã ngành cho ${schoolPolicy.tuition[0].academicYear}, khoảng ${minimum.toLocaleString('vi-VN')}–${maximum.toLocaleString('vi-VN')} triệu đồng/năm; tra đúng ngành tại nguồn.`;
+                  }
+                  return schoolPolicy.tuition
+                    .slice(0, 5)
+                    .map(tuition => `${tuition.programName} (${tuition.academicYear}): ${tuition.note}`)
+                    .join(' ');
+                })()
+              : '';
 
             return (
               <div
@@ -371,8 +392,12 @@ export const CombinationExplorer: React.FC = () => {
                     <span className="text-[10px] font-tabular font-bold px-2 py-0.5 rounded bg-white/5 text-[#8E9BAE]">
                       {uni.code} • {uni.city}
                     </span>
-                    <span className="text-[10px] font-tabular font-bold px-2 py-0.5 rounded bg-[#48E596]/10 text-[#48E596] border border-[#48E596]/30">
-                      OFFICIAL_VERIFIED
+                    <span className={`text-[10px] font-tabular font-bold px-2 py-0.5 rounded border ${
+                      hasSchoolPolicy
+                        ? 'bg-[#48E596]/10 text-[#48E596] border-[#48E596]/30'
+                        : 'bg-amber-500/10 text-amber-300 border-amber-300/30'
+                    }`}>
+                      {hasSchoolPolicy ? 'CHÍNH SÁCH CÓ NGUỒN 2026' : 'CHÍNH SÁCH CHƯA XÁC MINH'}
                     </span>
                   </div>
 
@@ -387,7 +412,7 @@ export const CombinationExplorer: React.FC = () => {
                       <span className="font-tabular font-bold text-white">{uni.primaryScale}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#8E9BAE]">Học phí chuẩn:</span>
+                      <span className="text-[#8E9BAE]">{uni.tuitionDisplayLabel || 'Học phí chuẩn'}:</span>
                       <span className="font-tabular text-[#C5A880] font-semibold">{uni.tuitionStandardMlnYear} tr/năm</span>
                     </div>
                     {uni.tuitionHighQualityMlnYear && (
@@ -396,8 +421,51 @@ export const CombinationExplorer: React.FC = () => {
                         <span className="font-tabular text-[#C5A880] font-semibold">{uni.tuitionHighQualityMlnYear} tr/năm</span>
                       </div>
                     )}
-                    <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#A1A1AA] leading-snug">
-                      <span className="text-[#48E596] font-medium">Chính sách:</span> {uni.scholarshipPolicies.slice(0, 75)}...
+                    <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#A1A1AA] leading-snug space-y-1.5">
+                      <p>
+                        <span className="text-[#48E596] font-medium">Tuyển sinh 2026:</span>{' '}
+                        {admissionMethodSummary || 'Chưa có phương thức tuyển sinh riêng được xác minh trong kho.'}
+                      </p>
+                      <p>
+                        <span className="text-[#48E596] font-medium">Học bổng:</span>{' '}
+                        {scholarshipSummary || 'Chưa có chính sách học bổng riêng được xác minh trong kho.'}
+                      </p>
+                      {tuitionSummary && (
+                        <p>
+                          <span className="text-[#48E596] font-medium">Học phí có nguồn:</span>{' '}
+                          {tuitionSummary}
+                        </p>
+                      )}
+                      {schoolPolicy?.tuition[0]?.sourceUrl && (
+                        <a
+                          href={schoolPolicy.tuition[0].sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[#8FB9FF] hover:underline mr-3"
+                        >
+                          Nguồn học phí <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      {schoolPolicy?.admissionMethods[0]?.sourceUrl && (
+                        <a
+                          href={schoolPolicy.admissionMethods[0].sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[#8FB9FF] hover:underline mr-3"
+                        >
+                          Nguồn tuyển sinh <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      {schoolPolicy?.scholarships[0]?.sourceUrl && (
+                        <a
+                          href={schoolPolicy.scholarships[0].sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[#8FB9FF] hover:underline"
+                        >
+                          Nguồn học bổng <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

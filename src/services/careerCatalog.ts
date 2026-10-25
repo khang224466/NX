@@ -152,6 +152,39 @@ for (const major of catalogByName.values()) {
 export const CAREER_CATALOG: CareerCatalogEntry[] = [...catalogByName.values()]
   .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 
+/**
+ * Resolve occupation options from the selected major, including direct seed
+ * links by either admission-code version or normalized major name. Keeping
+ * this lookup here avoids silently showing an empty career step when a catalog
+ * entry was created from a differently formatted admissions record.
+ */
+export function getTargetJobsForMajor(major: CareerCatalogEntry | null | undefined): string[] {
+  if (!major) return [];
+
+  const majorCodes = new Set([major.id, major.codeTT09, major.codeTT74].filter(Boolean));
+  const majorName = normalizeName(major.name);
+  const directlyLinkedMajors = seedMajors.filter((candidate) =>
+    majorCodes.has(candidate.codeTT09) ||
+    Boolean(candidate.codeTT74 && majorCodes.has(candidate.codeTT74)) ||
+    normalizeName(candidate.name) === majorName
+  );
+  const relatedPathways = MAJORS_DATA.filter((pathway) => {
+    if (majorCodes.has(pathway.code)) return true;
+    const pathwayName = normalizeName(pathway.name.replace(/\s*\([^)]*\)/g, ' '));
+    return pathwayName.length >= 10 && (
+      pathwayName === majorName ||
+      pathwayName.startsWith(majorName) ||
+      majorName.startsWith(pathwayName)
+    );
+  });
+
+  return [...new Set([
+    ...major.targetJobs,
+    ...directlyLinkedMajors.flatMap((candidate) => candidate.targetJobs || []),
+    ...relatedPathways.flatMap((pathway) => pathway.directlyRelatedJobs || [])
+  ])].filter(Boolean).slice(0, 8);
+}
+
 const majorCatalogByName = new Map(CAREER_CATALOG.map((major) => [normalizeName(major.name), major]));
 const programsByInstitutionAndId = new Map<string, CareerProgramEntry>();
 

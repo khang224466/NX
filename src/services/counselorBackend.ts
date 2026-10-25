@@ -16,6 +16,12 @@ import {
   CounselorProfileUpdates
 } from './ai/counselorSchema.js';
 import seedData from '../data/seed_data.json';
+import { getAdmissionsWorkbookContext } from '../data/admissionsWorkbookSearch.js';
+import {
+  createRiasecProfileFromNormalizedScores,
+  rankMajorsByEvidence
+} from './assessment/recommendationEngine';
+export { SECTOR_RIASEC_VECTORS } from '../data/riasecSectorProfiles';
 
 export interface EvidenceProfileInput {
   interests?: string[];
@@ -43,6 +49,10 @@ export function getTuitionContext(msg: string): string {
   if (!msg || typeof msg !== 'string') return '';
   if (!/(học phí|tiền học|chi phí|tài chính|nghị định 116|miễn học phí|bao nhiêu tiền|học bổng|ngân sách|đắt không|rẻ không)/i.test(msg)) {
     return '';
+  }
+  const sourcedAdmissionsContext = getAdmissionsWorkbookContext(msg, { maxCharacters: 3400 });
+  if (sourcedAdmissionsContext.includes('Học viện Âm nhạc Quốc gia Việt Nam')) {
+    return `Thông tin học phí/học bổng theo nguồn chính thức đã đối chiếu:\n${sourcedAdmissionsContext}`;
   }
   if (/(sư phạm|giáo viên|dạy học)/i.test(msg)) {
     return 'Dữ liệu học phí: Sư phạm miễn 100% học phí + trợ cấp 3.63 tr/tháng (NĐ 116/2020 & NĐ 238/2025). Ngoài SP thu 17.5-21 tr/năm.';
@@ -329,12 +339,14 @@ export interface RecommendedMajorItem {
   name: string;
   sector: string;
   sectorName: string;
-  fitPercent: number;
+  fitPercent: number | null;
+  interestSimilarityIndex: number | null;
+  recommendationBasis: 'RIASEC_PROFILE' | 'TEXT_EXPLORATION' | 'AI_HYPOTHESIS';
   fitReason: string;
   targetJobs: string[];
-  salaryMedian: string;
-  aiRisk: string;
-  aiRiskPercent: number;
+  salaryMedian: string | null;
+  aiRisk: string | null;
+  aiRiskPercent: number | null;
   popularCombos: string[];
   bestCombo?: string;
   bestComboScore?: number | null;
@@ -367,19 +379,6 @@ export interface AIDiagnosisSemanticResult {
   universityAdvice: string;
 }
 
-export const SECTOR_RIASEC_VECTORS: Record<string, [number, number, number, number, number, number]> = {
-  CNTT_BAN_DAN_AI: [35, 48, 25, 20, 30, 42],
-  KY_THUAT_CONG_NGHE: [48, 45, 20, 18, 25, 38],
-  KINH_TE_QUAN_TRI: [18, 35, 25, 38, 48, 45],
-  Y_DUOC_SUC_KHOE: [30, 48, 18, 46, 22, 36],
-  SU_PHAM_GIAO_DUC: [18, 40, 32, 50, 32, 30],
-  LUAT_HANH_CHINH: [15, 42, 25, 40, 46, 45],
-  XA_HOI_NHAN_VAN: [15, 42, 45, 45, 30, 25],
-  KIEN_TRUC_NGHE_THUAT_TDTT: [38, 30, 50, 25, 28, 20],
-  NONG_LAM_NGU_SINH_HOC: [48, 42, 20, 25, 22, 30],
-  CONG_AN_QUAN_DOI: [46, 36, 15, 35, 42, 45]
-};
-
 export const SECTOR_META: Record<string, {
   name: string;
   salaryRange: string;
@@ -387,6 +386,7 @@ export const SECTOR_META: Record<string, {
   aiRisk: string;
   aiRiskPercent: number;
   popularCombos: string[];
+  popularJobs?: string[];
 }> = {
   CNTT_BAN_DAN_AI: {
     name: 'Máy tính, CNTT, Bán dẫn & AI',
@@ -502,64 +502,35 @@ export const COMBINATION_SUBJECTS_MAP: Record<string, string[]> = {
   X06: ['math', 'informatics', 'english']
 };
 
-export function calculateCosineFit(
-  userVector: [number, number, number, number, number, number],
-  targetVector: [number, number, number, number, number, number]
-): number {
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < 6; i++) {
-    dotProduct += userVector[i] * targetVector[i];
-    normA += userVector[i] * userVector[i];
-    normB += targetVector[i] * targetVector[i];
-  }
-  if (normA === 0 || normB === 0) return 0.5;
-  const sim = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-  return Math.max(0, Math.min(1, sim));
-}
-
 /**
- * Links qualitative AI diagnosis with accredited major database,
- * applying hard prerequisite subject filtering and multi-factor ranking.
+ * Matches complete RIASEC profiles independently from admission scores.
+ * Text and AI suggestions remain unscored exploration evidence until a full
+ * interest profile is available.
  */
 export function linkAndRankMajorsWithDossier(
   scores: Record<string, number | '' | undefined>,
-  riasec: { R?: number | ''; I?: number | ''; A?: number | ''; S?: number | ''; E?: number | ''; C?: number | '' },
+  riasecOrInterests?: { R?: number | ''; I?: number | ''; A?: number | ''; S?: number | ''; E?: number | ''; C?: number | '' } | string,
   aiDiagnosis: Partial<AIDiagnosisSemanticResult> = {},
   catalog: any[] = seedData.majorCatalogLevelIV
 ): RecommendedMajorItem[] {
-  const enteredSubjectCount = Object.values(scores).filter(
-    (v): v is number => typeof v === 'number' && !isNaN(v) && v >= 0 && v <= 10
-  ).length;
-
-  const userRiasecVector: [number, number, number, number, number, number] = [
-    typeof riasec.R === 'number' ? riasec.R : 0,
-    typeof riasec.I === 'number' ? riasec.I : 0,
-    typeof riasec.A === 'number' ? riasec.A : 0,
-    typeof riasec.S === 'number' ? riasec.S : 0,
-    typeof riasec.E === 'number' ? riasec.E : 0,
-    typeof riasec.C === 'number' ? riasec.C : 0
+  const riasecProfile = typeof riasecOrInterests === 'object' && riasecOrInterests !== null
+    ? createRiasecProfileFromNormalizedScores(riasecOrInterests)
+    : null;
+  const interestsText = typeof riasecOrInterests === 'string'
+    ? riasecOrInterests
+    : String((aiDiagnosis as any)?.user_profile_summary || '');
+  const directRecs = Array.isArray((aiDiagnosis as any)?.recommendations) ? (aiDiagnosis as any).recommendations : [];
+  const aiSuggestedNames = [
+    ...directRecs.map((item: any) => String(item.name || '')).filter(Boolean),
+    ...(aiDiagnosis.recommendedKeywords || []).map(String)
   ];
+  const ranked = rankMajorsByEvidence(catalog, riasecProfile, interestsText, aiSuggestedNames);
 
-  const sortedRiasec = Object.entries(riasec).sort(
-    (a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)
-  );
-  const dominantCode = sortedRiasec.slice(0, 3).map(e => e[0]).join('');
-
-  const recommendedSectors = Array.isArray(aiDiagnosis.recommendedSectors) ? aiDiagnosis.recommendedSectors : [];
-  const avoidSectors = Array.isArray(aiDiagnosis.avoidSectors) ? aiDiagnosis.avoidSectors : [];
-  const recommendedKeywords = Array.isArray(aiDiagnosis.recommendedKeywords)
-    ? aiDiagnosis.recommendedKeywords.map(k => String(k).toLowerCase())
-    : [];
-
-  return catalog.map(m => {
-    const sectorKey = m.sector || 'CNTT_BAN_DAN_AI';
-    const meta = SECTOR_META[sectorKey] || SECTOR_META.CNTT_BAN_DAN_AI;
-    const targetVector = SECTOR_RIASEC_VECTORS[sectorKey] || [30, 30, 30, 30, 30, 30];
-    const riasecFit = calculateCosineFit(userRiasecVector, targetVector) * 100;
-
-    const combos = m.admissionsCombos && m.admissionsCombos.length > 0 ? m.admissionsCombos : meta.popularCombos;
+  return ranked.map((major) => {
+    const m = major as any;
+    const sectorKey = major.sector || 'NGANH_KHAC';
+    const meta = SECTOR_META[sectorKey];
+    const combos = m.admissionsCombos && m.admissionsCombos.length > 0 ? m.admissionsCombos : (meta?.popularCombos || []);
     const validCombos: Array<{ comboCode: string; score: number }> = [];
 
     for (const comboCode of combos) {
@@ -581,62 +552,41 @@ export function linkAndRankMajorsWithDossier(
       }
     }
 
-    const hasEligibleCombo = validCombos.length > 0;
-    const bestCombo = hasEligibleCombo ? validCombos.sort((a, b) => b.score - a.score)[0] : null;
-
-    let comboFitScore = 0;
-    if (hasEligibleCombo && bestCombo) {
-      comboFitScore = Math.min(100, Math.max(0, (bestCombo.score / 30) * 100));
-    }
-
-    // AI Qualitative Semantic Alignment
-    let aiAlignment = 50;
-    if (recommendedSectors.includes(sectorKey)) aiAlignment += 25;
-    if (avoidSectors.includes(sectorKey)) aiAlignment -= 40;
-    if (recommendedKeywords.some((kw: string) => m.name.toLowerCase().includes(kw))) aiAlignment += 20;
-    aiAlignment = Math.max(0, Math.min(100, aiAlignment));
-
-    let fitPercent = 0;
-    let isDisqualified = false;
-    let fitReason = '';
-
-    if (enteredSubjectCount >= 3 && !hasEligibleCombo) {
-      isDisqualified = true;
-      fitPercent = Math.min(35, Math.round(riasecFit * 0.35));
-      fitReason = `Chưa đủ điều kiện xét tuyển: Hồ sơ chưa có điểm các môn thi trong tổ hợp (${combos.slice(0, 3).join(', ')}).`;
-    } else if (enteredSubjectCount >= 3 && avoidSectors.includes(sectorKey)) {
-      fitPercent = Math.min(42, Math.round(riasecFit * 0.4));
-      fitReason = `Không khuyến nghị: Ngành thuộc nhóm hạn chế do không phù hợp với xu hướng điểm thi và thiên hướng sở thích.`;
-    } else {
-      fitPercent = Math.round(0.40 * comboFitScore + 0.35 * riasecFit + 0.25 * aiAlignment);
-      fitPercent = Math.min(98, Math.max(48, fitPercent));
-      if (bestCombo && bestCombo.score >= 24) {
-        fitReason = `Lợi thế xét tuyển vượt trội tổ hợp ${bestCombo.comboCode} (${bestCombo.score}đ), tương thích cao với miền sở thích ${meta.name} (mã đỉnh ${dominantCode}).`;
-      } else if (bestCombo) {
-        fitReason = `Phù hợp với tổ hợp ${bestCombo.comboCode} (${bestCombo.score}đ) và thiên hướng ${meta.name}.`;
-      } else {
-        fitReason = `Phù hợp với nhóm sở thích ${meta.name} (mã đỉnh ${dominantCode}).`;
-      }
-    }
+    const bestCombo = validCombos.sort((a, b) => b.score - a.score)[0] || null;
+    const recMatch = directRecs.find((r: any) => {
+      const rId = String(r.id || '');
+      const rName = String(r.name || '').toLowerCase();
+      const mName = major.name.toLowerCase();
+      return (
+        rId === major.codeTT09 ||
+        rId.includes(major.codeTT09) ||
+        rName === mName ||
+        (rName.length >= 4 && mName.includes(rName)) ||
+        (mName.length >= 4 && rName.includes(mName))
+      );
+    });
 
     return {
-      codeTT09: m.codeTT09,
-      codeTT74: m.codeTT74,
-      name: m.name,
+      codeTT09: major.codeTT09,
+      codeTT74: major.codeTT74 || '',
+      name: major.name,
       sector: sectorKey,
-      sectorName: meta.name,
-      fitPercent,
-      isAiRecommended: !isDisqualified && fitPercent >= 80,
-      fitReason,
-      targetJobs: m.targetJobs || [],
-      salaryMedian: meta.salaryMedian + '/tháng',
-      aiRisk: meta.aiRisk,
-      aiRiskPercent: meta.aiRiskPercent,
-      popularCombos: combos,
-      bestCombo: bestCombo ? bestCombo.comboCode : combos[0],
-      bestComboScore: bestCombo ? bestCombo.score : null
-    };
-  }).sort((a, b) => b.fitPercent - a.fitPercent);
+      sectorName: meta?.name || 'Lĩnh vực chưa có hồ sơ dữ liệu',
+      fitPercent: major.interestSimilarityIndex,
+      interestSimilarityIndex: major.interestSimilarityIndex,
+      recommendationBasis: major.recommendationBasis,
+      fitReason: major.explanation,
+      targetJobs: major.targetJobs || meta?.popularJobs || [],
+      salaryMedian: m.salaryMedian || meta?.salaryMedian || null,
+      aiRisk: m.aiRisk || meta?.aiRisk || null,
+      aiRiskPercent: typeof meta?.aiRiskPercent === 'number' ? meta.aiRiskPercent : null,
+      popularCombos: meta?.popularCombos || [],
+      bestCombo: bestCombo?.comboCode,
+      bestComboScore: bestCombo?.score ?? null,
+      advantages: recMatch?.advantages || [],
+      considerations: recMatch?.considerations || []
+    } as any;
+  });
 }
 
 /**
@@ -658,7 +608,7 @@ export async function handleDossierAnalysisRequest({
     tsaScore,
     ieltsBand,
     satScore,
-    riasec = { R: 30, I: 30, A: 30, S: 30, E: 30, C: 30 },
+    riasec: rawRiasec = {},
     maxTuition = 35,
     priorityRegion = 'KV2',
     priorityObject = 'DT_0',
@@ -681,11 +631,30 @@ export async function handleDossierAnalysisRequest({
     };
   }
 
-  // Determine Dominant RIASEC code
-  const sortedRiasec = (Object.entries(riasec) as [string, number][]).sort(
-    (a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0)
-  );
-  const dominantCode = sortedRiasec.slice(0, 3).map(e => e[0]).join('');
+  // Never invent a neutral RIASEC profile when the dossier omits one.
+  const riasecCodes = ['R', 'I', 'A', 'S', 'E', 'C'] as const;
+  const riasecSource = rawRiasec && typeof rawRiasec === 'object' && !Array.isArray(rawRiasec)
+    ? rawRiasec as Record<string, unknown>
+    : {};
+  const riasec = Object.fromEntries(
+    riasecCodes
+      .filter((code) => typeof riasecSource[code] === 'number' && Number.isFinite(riasecSource[code]) && Number(riasecSource[code]) >= 0 && Number(riasecSource[code]) <= 100)
+      .map((code) => [code, Number(riasecSource[code])])
+  ) as Partial<Record<typeof riasecCodes[number], number>>;
+  const hasCompleteRiasecProfile = riasecCodes.every((code) => typeof riasec[code] === 'number');
+  const sortedRiasec = hasCompleteRiasecProfile
+    ? (Object.entries(riasec) as [string, number][]).sort((a, b) => b[1] - a[1])
+    : [];
+  const riasecValues = riasecCodes.map((code) => riasec[code] ?? 0);
+  const hasRiasecVariation = hasCompleteRiasecProfile && Math.max(...riasecValues) > Math.min(...riasecValues);
+  const dominantCode = hasRiasecVariation
+    ? sortedRiasec.slice(0, 3).map(([code]) => code).join('')
+    : hasCompleteRiasecProfile
+      ? 'hồ sơ cân bằng'
+      : 'chưa có dữ liệu RIASEC';
+  const riasecSummary = hasCompleteRiasecProfile
+    ? riasecCodes.map((code) => `${code}=${riasec[code]}`).join(', ')
+    : 'Chưa có hồ sơ RIASEC hoàn chỉnh';
 
   // Prepare Exam String
   const exams: string[] = [];
@@ -757,7 +726,7 @@ Các sector hợp lệ: CNTT_BAN_DAN_AI, KY_THUAT_CONG_NGHE, KINH_TE_QUAN_TRI, Y
 - Các môn THPT ĐÃ CÓ ĐIỂM THI: ${enteredList.length > 0 ? enteredList.join(', ') : 'Chưa có môn nào'}.
 - Các môn THPT CHƯA CÓ ĐIỂM / KHÔNG THI: ${missingList.join(', ')}.
 - Bài thi năng lực / Chứng chỉ: ${examSummary}.
-- Điểm RIASEC: R=${riasec.R || 0}, I=${riasec.I || 0}, A=${riasec.A || 0}, S=${riasec.S || 0}, E=${riasec.E || 0}, C=${riasec.C || 0} (Mã đỉnh: ${dominantCode}).
+- Hồ sơ RIASEC: ${riasecSummary}${hasCompleteRiasecProfile ? ` (mã nổi trội: ${dominantCode})` : '. Không tự suy ra mã Holland khi thiếu câu trả lời.'}
 - Ngân sách học phí: ${maxTuition} triệu VNĐ/năm.
 - Khu vực: ${priorityRegion}, Đối tượng: ${priorityObject}, Vùng mong muốn: ${targetRegionFilter}.
 - Câu hỏi / Băn khoăn từ chính học sinh: "${personalQuestion || 'Em muốn chuyên gia phân tích toàn diện tiềm năng học tập và tư vấn định hướng ngành trường phù hợp nhất.'}"
@@ -889,22 +858,25 @@ Hãy phân tích toàn diện và trả về JSON theo đúng định dạng.`;
 
   const isStemOriented = mathVal >= 7.5 && (phyVal >= 7.0 || chemVal >= 7.0);
   const isHumanitiesOriented = litVal >= 7.5 || hisVal >= 7.5 || geoVal >= 7.5;
-  const isArtisticOriented = Number(riasec.A || 0) >= 35;
+  const isArtisticOriented = hasCompleteRiasecProfile && Number(riasec.A) >= 35;
+  const riasecHeadline = hasCompleteRiasecProfile ? ` · RIASEC ${dominantCode}` : '';
 
   const fallbackDiagnosis: AIDiagnosisSemanticResult = {
     headline: isStemOriented
-      ? `Chiến lược Định hướng: Tối ưu Tư duy STEM & Năng lực Phân tích ${dominantCode}`
+      ? `Chiến lược Định hướng: Tối ưu Tư duy STEM & Năng lực Phân tích${riasecHeadline}`
       : isArtisticOriented
-      ? `Chiến lược Định hướng: Khai phóng Sáng tạo Nghệ thuật & Truyền thông Đa phương tiện ${dominantCode}`
+      ? `Chiến lược Định hướng: Khai phóng Sáng tạo Nghệ thuật & Truyền thông Đa phương tiện${riasecHeadline}`
       : isHumanitiesOriented
-      ? `Chiến lược Định hướng: Phát huy Thế mạnh Khoa học Xã hội, Ngôn ngữ & Sư phạm ${dominantCode}`
-      : `Chiến lược Định hướng: Tối ưu Lộ trình Học thuật & Năng lực Thích ứng ${dominantCode}`,
+      ? `Chiến lược Định hướng: Phát huy Thế mạnh Khoa học Xã hội, Ngôn ngữ & Sư phạm${riasecHeadline}`
+      : `Chiến lược Định hướng: Tối ưu Lộ trình Học thuật & Năng lực Thích ứng${riasecHeadline}`,
     directAnswer: personalQuestion
       ? `Đối với băn khoăn của bạn ("${personalQuestion}"): Phân tích dữ liệu học tập cho thấy bạn hoàn toàn có cơ sở để chủ động định hình lộ trình. Đừng quá lo lắng về áp lực xã hội hay những nhận định phiến diện. Sự kết hợp giữa năng lực thực tế và định hướng rõ ràng sẽ giúp bạn vượt trội trong môi trường học thuật 2026.`
-      : `Hồ sơ của bạn sở hữu nền tảng học tập đồng đều và vững vàng. Mã đỉnh ${dominantCode} cho thấy tiềm năng thích ứng linh hoạt trong môi trường đại học hiện đại.`,
+      : hasCompleteRiasecProfile
+        ? `Hồ sơ của bạn sở hữu nền tảng học tập đồng đều và vững vàng. ${dominantCode === 'hồ sơ cân bằng' ? 'Các chiều sở thích hiện khá cân bằng.' : `Mã sở thích ${dominantCode} có thể là một hướng để khám phá thêm.`}`
+        : 'Chưa có kết quả RIASEC nên nhận định này chưa thể kết luận về sở thích nghề nghiệp; hãy hoàn thành khảo sát để có thêm dữ liệu.',
     strengthsEvaluation: `Điểm số phản ánh thái độ học tập nghiêm túc. Thế mạnh môn ${
       isStemOriented ? 'Toán - KHTN' : isHumanitiesOriented ? 'Văn - Sử - Địa' : 'Ngoại ngữ'
-    } kết hợp với miền sở thích ${dominantCode} là đòn bẩy lớn trong các phương thức xét tuyển kết hợp.`,
+    }${hasCompleteRiasecProfile ? ` kết hợp với miền sở thích ${dominantCode} là một tín hiệu tham khảo.` : '; chưa có đủ dữ liệu RIASEC để mô tả miền sở thích.'}`,
     risksAndBottlenecks: `Cần lưu ý kiểm soát các môn điều kiện trong tổ hợp chính và theo dõi sát sao điểm chuẩn 3 năm gần nhất để tránh tình trạng dồn toàn bộ nguyện vọng vào nhóm ngành có tỷ lệ chọi quá cao.`,
     tuitionFeasibility: `Ngân sách ${maxTuition} triệu VNĐ/năm hoàn toàn nằm trong khung trần Nghị định 238/2025/NĐ-CP đối với các trường đại học công lập và chương trình chuẩn chất lượng cao.`,
     recommendedSectors: isStemOriented

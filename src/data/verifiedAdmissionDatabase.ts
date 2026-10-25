@@ -33,6 +33,7 @@ export interface VerifiedUniversity {
   tier: 'Đại học Quốc gia / Trọng điểm' | 'Nhóm 1' | 'Đại học Chuyên ngành Hàng đầu' | 'Vùng Trọng điểm';
   tuitionStandardMlnYear: number;
   tuitionHighQualityMlnYear?: number;
+  tuitionDisplayLabel?: string;
   tuitionDescription: string;
   scholarshipPolicies: string;
   primaryScale: 'Thang 30' | 'Thang 40' | 'Thang 100 Kép';
@@ -62,6 +63,8 @@ export interface VerifiedProgramAdmission {
   primarySubject?: string;     // Môn chính nhân hệ số 2 nếu có
   tieBreakerRule: string;
   tuitionMlnYear: number;
+  tuitionAcademicYear?: string;
+  tuitionFeeType?: 'official_published_estimate';
   quota: number;
   verificationStatus: VerificationStatus;
   notes?: string;
@@ -1270,9 +1273,9 @@ export const CURATED_TOP_UNIVERSITIES: VerifiedUniversity[] = [
     region: 'Nam',
     city: 'TP. Hồ Chí Minh',
     tier: 'Đại học Chuyên ngành Hàng đầu',
-    tuitionStandardMlnYear: 55,
-    tuitionHighQualityMlnYear: 84,
-    tuitionDescription: 'Học phí tự chủ tài chính: Y khoa ~84 triệu/năm; Răng Hàm Mặt ~84 triệu/năm; Dược học ~62 triệu/năm; Điều dưỡng & Y tế công cộng ~45 - 55 triệu/năm.',
+    tuitionStandardMlnYear: 48,
+    tuitionDisplayLabel: 'Mức tham chiếu',
+    tuitionDescription: 'Mức học phí dự kiến năm học 2026–2027 thay đổi theo ngành, khoảng 30–90 triệu/năm theo thông báo tuyển sinh chính thức; 48 triệu là mức tham chiếu phổ biến, cần xem đúng ngành.',
     scholarshipPolicies: 'Dành 8% tổng nguồn thu học phí cấp học bổng khuyến khích và tài trợ cho tân sinh viên hoàn cảnh khó khăn.',
     primaryScale: 'Thang 30',
     officialAdmissionDoc: {
@@ -1681,10 +1684,12 @@ export const VERIFIED_PROGRAMS_DATABASE: VerifiedProgramAdmission[] = [
     benchmark2026Est: 28.05,
     primarySubject: 'Sinh học',
     tieBreakerRule: 'Môn Sinh học cao hơn -> IELTS >= 6.0 -> Thứ tự nguyện vọng 1',
-    tuitionMlnYear: 84,
+    tuitionMlnYear: 88,
+    tuitionAcademicYear: '2026-2027',
+    tuitionFeeType: 'official_published_estimate',
     quota: 400,
     verificationStatus: 'OFFICIAL_VERIFIED',
-    notes: 'Học phí 84 triệu tự chủ tài chính. Đúng chuẩn tiêu chí phụ YDS 2026.'
+    notes: 'Học phí dự kiến 88 triệu/năm theo Thông báo xét tuyển đại học hệ chính quy năm 2026 của YDS; mức học phí thay đổi theo ngành.'
   },
   {
     id: 'prog-yds-rhm',
@@ -1699,9 +1704,12 @@ export const VERIFIED_PROGRAMS_DATABASE: VerifiedProgramAdmission[] = [
     benchmark2026Est: 27.60,
     primarySubject: 'Sinh học',
     tieBreakerRule: 'Môn Sinh học cao hơn -> IELTS >= 6.0 -> Nguyện vọng',
-    tuitionMlnYear: 84,
+    tuitionMlnYear: 90,
+    tuitionAcademicYear: '2026-2027',
+    tuitionFeeType: 'official_published_estimate',
     quota: 130,
-    verificationStatus: 'OFFICIAL_VERIFIED'
+    verificationStatus: 'OFFICIAL_VERIFIED',
+    notes: 'Học phí dự kiến 90 triệu/năm theo Thông báo xét tuyển đại học hệ chính quy năm 2026 của YDS.'
   },
   {
     id: 'prog-yds-duoc',
@@ -1716,9 +1724,12 @@ export const VERIFIED_PROGRAMS_DATABASE: VerifiedProgramAdmission[] = [
     benchmark2026Est: 25.90,
     primarySubject: 'Hóa học',
     tieBreakerRule: 'Môn Hóa cao hơn -> Điểm Toán',
-    tuitionMlnYear: 62,
+    tuitionMlnYear: 63.5,
+    tuitionAcademicYear: '2026-2027',
+    tuitionFeeType: 'official_published_estimate',
     quota: 350,
-    verificationStatus: 'OFFICIAL_VERIFIED'
+    verificationStatus: 'OFFICIAL_VERIFIED',
+    notes: 'Học phí dự kiến 63,5 triệu/năm theo Thông báo xét tuyển đại học hệ chính quy năm 2026 của YDS.'
   },
 
   // ===================== ĐH KINH TẾ QUỐC DÂN (NEU - KHA) =====================

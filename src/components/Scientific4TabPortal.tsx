@@ -46,6 +46,36 @@ const SECTOR_DISPLAY_NAMES: Record<string, string> = {
   NGANH_KHAC: 'Lĩnh vực khác'
 };
 
+interface LiveSchoolResearchResult {
+  institutionCode: string;
+  institutionName: string;
+  admissionsYear: string;
+  admissionsSummary: string;
+  admissionMethods: Array<{ name: string; detail: string }>;
+  cutoffFacts: Array<{
+    programName: string;
+    admissionsYear: string;
+    method: string;
+    combination: string;
+    score: string;
+    scale: string;
+    note: string;
+    sourceUrl?: string;
+  }>;
+  tuitionFacts: Array<{
+    programName: string;
+    academicYear: string;
+    amount: string;
+    unit: string;
+    note: string;
+    sourceUrl?: string;
+  }>;
+  scholarships: Array<{ name: string; detail: string; academicYear: string; status: string }>;
+  verificationNotes: string[];
+  sources: Array<{ title: string; url: string }>;
+  checkedAt: string;
+}
+
 
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
@@ -105,6 +135,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // STEP 3 STATE: UNIVERSITY STRATIFICATION (Requires Tuition Budget & Region)
   // =========================================================================
   const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
+  const [liveSchoolResearch, setLiveSchoolResearch] = useState<LiveSchoolResearchResult | null>(null);
+  const [liveSchoolResearchLoading, setLiveSchoolResearchLoading] = useState(false);
+  const [liveSchoolResearchError, setLiveSchoolResearchError] = useState('');
+  const [liveSchoolResearchRefresh, setLiveSchoolResearchRefresh] = useState(0);
+  const liveSchoolResearchCache = useRef(new Map<string, LiveSchoolResearchResult>());
+  const forceNextSchoolResearchRef = useRef(false);
   const [maxTuition, setMaxTuition] = useState<number | null>(null);
   const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
   const [priorityRegion, setPriorityRegion] = useState<'KV1' | 'KV2-NT' | 'KV2' | 'KV3'>('KV2');
@@ -180,6 +216,68 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     return (AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
       (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode)) || null;
   }, [selectedSchoolCode]);
+
+  useEffect(() => {
+    if (activeTab !== 'tab-domino') return;
+    if (!currentSchool?.institution_code) {
+      setLiveSchoolResearch(null);
+      setLiveSchoolResearchError('');
+      setLiveSchoolResearchLoading(false);
+      return;
+    }
+
+    const institutionCode = currentSchool.institution_code;
+    const majorName = currentMajor?.name || '';
+    const comboCode = selectedComboCode || '';
+    const cacheKey = `${institutionCode}:${majorName.toLocaleLowerCase('vi')}:${comboCode}`;
+    const cached = liveSchoolResearchCache.current.get(cacheKey);
+    if (cached && !forceNextSchoolResearchRef.current) {
+      setLiveSchoolResearch(cached);
+      setLiveSchoolResearchError('');
+      setLiveSchoolResearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const forceRefresh = forceNextSchoolResearchRef.current;
+    forceNextSchoolResearchRef.current = false;
+    setLiveSchoolResearch(null);
+    setLiveSchoolResearchError('');
+    setLiveSchoolResearchLoading(true);
+
+    fetch('/api/admissions/research-school-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ institutionCode, majorName, comboCode, forceRefresh }),
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || !payload?.success || !payload?.data) {
+          throw new Error(payload?.error || 'Chưa lấy được thông tin từ nguồn chính thức.');
+        }
+        return payload.data as LiveSchoolResearchResult;
+      })
+      .then((result) => {
+        liveSchoolResearchCache.current.set(cacheKey, result);
+        setLiveSchoolResearch(result);
+      })
+      .catch((error: any) => {
+        if (error?.name === 'AbortError') return;
+        setLiveSchoolResearchError(error?.message || 'Tra cứu đang gián đoạn. Vui lòng thử lại sau.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLiveSchoolResearchLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [
+    activeTab,
+    currentSchool?.institution_code,
+    currentMajor?.name,
+    selectedComboCode,
+    liveSchoolResearchRefresh
+  ]);
 
   const careerProfileText = [careerInterests, careerStrengths].filter(Boolean).join(' ').trim();
   const profileKeywords = useMemo(() => {
@@ -490,7 +588,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setExpectedScoreInput('');
     setCareerInterests('');
     setCareerStrengths('');
-    setSelectedProgramId(null);
     setSchoolSearchQuery('');
     setSchoolMatchFilter('ALL');
     setActiveTab('tab-major');
@@ -1026,6 +1123,137 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   </span>
                 </li>
               </ul>
+            </div>
+
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4 space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h5 className="font-bold text-emerald-200">Thông tin chính thức của trường đã chọn</h5>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                    Tra cứu theo trường, ngành và tổ hợp; không gửi điểm số, sở thích hoặc thông tin cá nhân.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={!currentSchool || liveSchoolResearchLoading}
+                  onClick={() => {
+                    if (!currentSchool?.institution_code) return;
+                    const comboCode = selectedComboCode || '';
+                    const cacheKey = `${currentSchool.institution_code}:${(currentMajor?.name || '').toLocaleLowerCase('vi')}:${comboCode}`;
+                    liveSchoolResearchCache.current.delete(cacheKey);
+                    forceNextSchoolResearchRef.current = true;
+                    setLiveSchoolResearchRefresh((value) => value + 1);
+                  }}
+                  className="min-h-9 rounded-lg border border-emerald-500/50 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {liveSchoolResearchLoading ? 'Đang tra cứu…' : 'Tra cứu lại'}
+                </button>
+              </div>
+
+              {liveSchoolResearchLoading && (
+                <p role="status" className="text-sm text-slate-300">Đang tìm điểm chuẩn, học phí, phương thức xét tuyển và học bổng trên nguồn chính thức…</p>
+              )}
+              {!liveSchoolResearchLoading && liveSchoolResearchError && (
+                <p role="alert" className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
+                  {liveSchoolResearchError}
+                </p>
+              )}
+              {!liveSchoolResearchLoading && liveSchoolResearch && (
+                <div className="space-y-3 text-sm text-slate-200">
+                  <p className="font-semibold text-white">
+                    Đề án tuyển sinh gần nhất: {liveSchoolResearch.admissionsYear}. {liveSchoolResearch.admissionsSummary}
+                  </p>
+
+                  <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                    <p className="font-bold text-blue-200">Điểm chuẩn gần nhất theo ngành/tổ hợp</p>
+                    {liveSchoolResearch.cutoffFacts.length ? (
+                      <ul className="mt-1 space-y-2">
+                        {liveSchoolResearch.cutoffFacts.map((fact, index) => (
+                          <li key={`${fact.admissionsYear}-${fact.method}-${index}`}>
+                            <strong>{fact.programName}</strong>{fact.admissionsYear ? ` · ${fact.admissionsYear}` : ''}
+                            {fact.method ? ` · ${fact.method}` : ''}
+                            {fact.combination ? ` · ${fact.combination}` : ''}
+                            {`: ${fact.score}${fact.scale ? `/${fact.scale}` : ''}`}
+                            {fact.note && <span className="text-slate-300"> — {fact.note}</span>}
+                            {fact.sourceUrl && <a href={fact.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 text-slate-300">Chưa tìm thấy điểm trúng tuyển cuối cùng có nguồn chính thức cho ngành/tổ hợp này. Không dùng điểm sàn thay cho điểm chuẩn.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                    <p className="font-bold text-blue-200">Học phí được công bố gần nhất</p>
+                    {liveSchoolResearch.tuitionFacts.length ? (
+                      <ul className="mt-1 space-y-2">
+                        {liveSchoolResearch.tuitionFacts.map((fact, index) => (
+                          <li key={`${fact.academicYear}-${fact.programName}-${index}`}>
+                            <strong>{fact.programName}</strong>{fact.academicYear ? ` · ${fact.academicYear}` : ''}
+                            {`: ${fact.amount}${fact.unit ? ` (${fact.unit})` : ''}`}
+                            {fact.note && <span className="text-slate-300"> — {fact.note}</span>}
+                            {fact.sourceUrl && <a href={fact.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 text-slate-300">Chưa tìm thấy học phí có nguồn chính thức phù hợp. Mức theo tín chỉ không được tự quy đổi thành học phí năm.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="font-bold text-blue-200">Phương thức xét tuyển</p>
+                    {liveSchoolResearch.admissionMethods.length ? (
+                      <ul className="mt-1 list-disc space-y-1 pl-5">
+                        {liveSchoolResearch.admissionMethods.map((method, index) => (
+                          <li key={`${method.name}-${index}`}><strong>{method.name}:</strong> {method.detail}</li>
+                        ))}
+                      </ul>
+                    ) : <p className="mt-1 text-slate-300">Chưa tìm thấy phương thức có nguồn chính thức trong lượt tra cứu này.</p>}
+                  </div>
+
+                  <div>
+                    <p className="font-bold text-blue-200">Học bổng và hỗ trợ người học</p>
+                    {liveSchoolResearch.scholarships.length ? (
+                      <div className="mt-1 space-y-2">
+                        {liveSchoolResearch.scholarships.map((scholarship, index) => (
+                          <div key={`${scholarship.name}-${index}`} className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                            <p className="font-semibold text-white">
+                              {scholarship.name}
+                              {scholarship.academicYear ? ` · ${scholarship.academicYear}` : ''}
+                              {scholarship.status ? ` · ${scholarship.status}` : ''}
+                            </p>
+                            <p className="mt-1 text-slate-300">{scholarship.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="mt-1 text-slate-300">Chưa tìm thấy học bổng riêng có nguồn chính thức trong lượt tra cứu này.</p>}
+                  </div>
+
+                  {liveSchoolResearch.verificationNotes.length > 0 && (
+                    <div>
+                      <p className="font-bold text-amber-200">Điểm cần kiểm tra</p>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-300">
+                        {liveSchoolResearch.verificationNotes.map((note, index) => <li key={`${index}-${note}`}>{note}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-blue-200">Nguồn tra cứu</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5">
+                      {liveSchoolResearch.sources.map((source) => (
+                        <li key={source.url}>
+                          <a href={source.url} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">{source.title}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Tra cứu lúc {new Date(liveSchoolResearch.checkedAt).toLocaleString('vi-VN')}. Dữ liệu có thể thay đổi; hãy mở thông báo gốc trước khi đăng ký.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 2. Phân tích What-If */}
