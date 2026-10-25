@@ -86,6 +86,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // Navigation: 4 procedural steps
   const [activeTab, setActiveTab] = useState<ScientificTabKey>('tab-major');
   const activeSelectionRef = useRef<HTMLElement | null>(null);
+  const selectedSchoolDetailsRef = useRef<HTMLDivElement | null>(null);
 
   // =========================================================================
   // STEP 1 STATE: MAJOR DETERMINATION
@@ -96,6 +97,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
   const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
   const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
+  const [showSuggestedSchools, setShowSuggestedSchools] = useState(false);
+  const [showAllSchools, setShowAllSchools] = useState(false);
 
   // Step 1: Input Profile if user doesn't have major yet
   const [scores, setScores] = useState<Record<string, number | ''>>({
@@ -582,6 +585,19 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     };
   }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, schoolSearchQuery, schoolMatchFilter, maxTuition]);
 
+  const suggestedSchoolCandidates = useMemo(
+    () => stratifiedSchools.schools.filter((school) => school.hasMajorData).slice(0, 5),
+    [stratifiedSchools.schools]
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'tab-university' || !selectedSchoolCode) return;
+    const frame = window.requestAnimationFrame(() => {
+      selectedSchoolDetailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, selectedSchoolCode]);
+
   // Reset entire session
   const handleResetAll = () => {
     sfx.playUiClick();
@@ -595,6 +611,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setCareerStrengths('');
     setSchoolSearchQuery('');
     setSchoolMatchFilter('ALL');
+    setShowSuggestedSchools(false);
+    setShowAllSchools(false);
     setActiveTab('tab-major');
   };
 
@@ -965,6 +983,68 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </div>
           </div>
 
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-950/10 p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
+                <p className="mt-1 text-base text-slate-300">
+                  Bấm “Gợi ý trường”, rồi chọn trường muốn tìm hiểu. DeepSeek sẽ tra cứu điểm chuẩn, học phí, phương thức xét tuyển và học bổng từ nguồn chính thức.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSuggestedSchools(true)}
+                className="min-h-12 rounded-lg bg-blue-600 px-5 py-3 text-base font-bold text-white hover:bg-blue-500"
+              >
+                Gợi ý trường
+              </button>
+            </div>
+
+            {showSuggestedSchools && (
+              <div className="space-y-3" aria-live="polite">
+                <h4 className="font-bold text-blue-200">
+                  Trường có dữ liệu đối chiếu cho ngành {currentMajor?.name} và tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'đang chọn')}:
+                </h4>
+                {suggestedSchoolCandidates.length ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {suggestedSchoolCandidates.map((school, index) => (
+                      <article key={`suggested-${school.code}`} className={`rounded-xl border p-4 ${selectedSchoolCode === school.code ? 'border-blue-400 bg-blue-950/40' : 'border-slate-700 bg-[#141923]'}`}>
+                        <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1} · {school.city}</p>
+                        <h5 className="mt-1 font-bold text-white">{school.name}</h5>
+                        <p className="mt-2 text-sm text-slate-300">
+                          Đã có mốc đối chiếu trong danh mục: {school.benchmark} điểm
+                          {school.margin !== null ? ` · chênh ${school.margin > 0 ? '+' : ''}${school.margin} điểm so với hồ sơ` : ''}. Thông tin riêng của trường sẽ được DeepSeek tra cứu sau khi chọn.
+                        </p>
+                        <button
+                          type="button"
+                          aria-pressed={selectedSchoolCode === school.code}
+                          onClick={() => setSelectedSchoolCode(school.code)}
+                          className="mt-3 min-h-10 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500"
+                        >
+                          {liveSchoolResearchLoading && selectedSchoolCode === school.code ? 'DeepSeek đang tra cứu…' : 'Chọn để tìm hiểu'}
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
+                    Danh mục chưa có trường được xác minh khớp đồng thời ngành và tổ hợp này. Bạn có thể chọn trường trong danh sách để DeepSeek tra cứu thông tin riêng.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <button
+              type="button"
+              aria-expanded={showAllSchools}
+              onClick={() => setShowAllSchools((shown) => !shown)}
+              className="text-sm font-semibold text-blue-300 underline hover:text-white"
+            >
+              {showAllSchools ? 'Ẩn danh sách 300 trường' : 'Tìm hoặc chọn thủ công trong danh sách 300 trường'}
+            </button>
+          </div>
+
+          {showAllSchools && (
           <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -1058,9 +1138,11 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+          )}
 
             {selectedSchoolCode && currentSchool && (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4 space-y-3">
+              <div ref={selectedSchoolDetailsRef} className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4 space-y-3 scroll-mt-24">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h4 className="font-bold text-white">Thông tin trường đang chọn: {currentSchool.name || currentSchool.schoolName}</h4>
@@ -1158,7 +1240,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </button>
               </div>
             )}
-          </div>
         </section>
       )}
 
