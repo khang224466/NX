@@ -9,7 +9,7 @@ import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/cou
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
-import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
+import { CAREER_CATALOG, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
@@ -32,19 +32,6 @@ const APTITUDE_SUBJECTS_METADATA = [
   { key: 'apt_baoChi', label: 'Năng khiếu Báo chí / Tự luận', category: 'Báo chí', combos: ['R00'] },
   { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', combos: ['S00'] }
 ];
-
-const SECTOR_DISPLAY_NAMES: Record<string, string> = {
-  KIEN_TRUC_NGHE_THUAT_TDTT: 'Mỹ thuật, Kiến trúc, Âm nhạc & TDTT',
-  CNTT_BAN_DAN_AI: 'Công nghệ thông tin & AI',
-  KINH_TE_QUAN_TRI: 'Kinh tế, Quản trị & Marketing',
-  Y_DUOC_SUC_KHOE: 'Y Dược & Sức khỏe',
-  SU_PHAM_GIAO_DUC: 'Sư phạm & Giáo dục',
-  XA_HOI_NHAN_VAN: 'Báo chí, Truyền thông & Xã hội',
-  LUAT_HANH_CHINH: 'Luật & Pháp lý',
-  NGON_NGU_QUOC_TE: 'Ngoại ngữ & Quan hệ quốc tế',
-  NONG_LAM_NGU_SINH_HOC: 'Nông, lâm, ngư nghiệp & sinh học',
-  NGANH_KHAC: 'Lĩnh vực khác'
-};
 
 interface LiveSchoolResearchResult {
   institutionCode: string;
@@ -93,8 +80,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // =========================================================================
   const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
-  const [majorSearchQuery, setMajorSearchQuery] = useState('');
-  const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>('ALL');
+  const [hasAnalyzedMajor, setHasAnalyzedMajor] = useState(false);
   const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
   const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
   const [showSuggestedSchools, setShowSuggestedSchools] = useState(false);
@@ -178,36 +164,8 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     return calculateBasePriority30(priorityRegion, priorityObject, 2026, 2026);
   }, [priorityRegion, priorityObject]);
 
-  // Display each major once; retain school and combination links only for later analysis.
+  // Keep the catalog for matching and later steps; do not render the full catalog here.
   const catalog = CAREER_CATALOG;
-  const programCatalog = CAREER_PROGRAM_CATALOG;
-  const majorOptions = useMemo(() => {
-    const majorsByCode = new Map<string, { code: string; name: string; sector: string }>();
-    programCatalog.forEach((program) => {
-      if (majorsByCode.has(program.majorCode)) return;
-      const canonicalMajor = catalog.find((major) => major.codeTT09 === program.majorCode);
-      majorsByCode.set(program.majorCode, {
-        code: program.majorCode,
-        name: canonicalMajor?.name || program.name,
-        sector: program.sector
-      });
-    });
-    return [...majorsByCode.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-  }, [catalog, programCatalog]);
-  const sectorOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    majorOptions.forEach((major) => counts.set(major.sector, (counts.get(major.sector) || 0) + 1));
-    return [...counts.entries()]
-      .sort(([a], [b]) => (SECTOR_DISPLAY_NAMES[a] || a).localeCompare(SECTOR_DISPLAY_NAMES[b] || b, 'vi'))
-      .map(([id, count]) => ({ id, count, label: SECTOR_DISPLAY_NAMES[id] || id.replace(/_/g, ' ').toLocaleLowerCase('vi') }));
-  }, [majorOptions]);
-  const filteredMajors = useMemo(() => {
-    const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
-    return majorOptions.filter((major) => {
-      if (selectedSectorFilter !== 'ALL' && major.sector !== selectedSectorFilter) return false;
-      return !query || `${major.name} ${major.code}`.toLocaleLowerCase('vi').includes(query);
-    });
-  }, [majorOptions, selectedSectorFilter, majorSearchQuery]);
 
   // Current chosen major object
   const currentMajor = useMemo(() => {
@@ -296,74 +254,16 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       .filter((word) => word.length >= 4 && !stopWords.has(word)))];
   }, [careerProfileText]);
   const profileDiagnosis = useMemo(() => ({ recommendedKeywords: profileKeywords }), [profileKeywords]);
-  const hasCareerProfile = careerInterests.trim().length > 0 || careerStrengths.trim().length > 0;
+  const hasCareerProfile = careerInterests.trim().length > 0
+    || careerStrengths.trim().length > 0
+    || Object.values(scores).some((score) => score !== '')
+    || Object.values(aptitudeScores).some((score) => score !== '');
 
   // Rank locally against the saved catalog and current school scores.
   const rankedMajors = useMemo(() => {
     const allScores = { ...scores, ...aptitudeScores };
     return linkAndRankMajorsWithDossier(allScores, careerProfileText, profileDiagnosis, catalog);
   }, [scores, aptitudeScores, careerProfileText, profileDiagnosis, catalog]);
-
-  const majorCatalogPanel = (
-    <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-bold text-white">Danh sách ngành học</h3>
-          <p className="text-sm text-slate-300 mt-1">{filteredMajors.length.toLocaleString('vi-VN')} / {majorOptions.length.toLocaleString('vi-VN')} ngành</p>
-        </div>
-        <label className="flex flex-col gap-1 text-sm text-slate-300">
-          Lĩnh vực
-          <select
-            value={selectedSectorFilter}
-            onChange={(e) => setSelectedSectorFilter(e.target.value)}
-            className="min-h-11 min-w-56 rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="ALL">Tất cả lĩnh vực ({majorOptions.length.toLocaleString('vi-VN')})</option>
-            {sectorOptions.map((sector) => (
-              <option key={sector.id} value={sector.id}>
-                {sector.label} ({sector.count.toLocaleString('vi-VN')})
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <label htmlFor="major-search" className="sr-only">Tìm ngành học</label>
-      <input
-        id="major-search"
-        type="search"
-        value={majorSearchQuery}
-        onChange={(e) => setMajorSearchQuery(e.target.value)}
-        placeholder="Tìm tên hoặc mã ngành"
-        className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-      />
-
-      <div className="flex flex-col gap-2">
-        {filteredMajors.length === 0 && (
-          <p className="col-span-full py-8 text-center text-base text-slate-300">Không tìm thấy ngành phù hợp.</p>
-        )}
-        {filteredMajors.map((major) => {
-          const isSelected = selectedMajorCode === major.code;
-          return (
-            <button
-              key={major.code}
-              type="button"
-              aria-pressed={isSelected}
-              onClick={() => {
-                sfx.playActionSuccess();
-                handleSelectMajor(major.code);
-              }}
-              className={isSelected
-                ? 'flex min-h-14 w-full items-center rounded-lg border border-blue-400 bg-blue-950/70 px-4 py-3 text-left ring-1 ring-blue-400'
-                : 'flex min-h-14 w-full items-center rounded-lg border border-slate-700 bg-[#141923] px-4 py-3 text-left hover:border-blue-500'}
-            >
-              <span className="block text-lg font-bold text-white">{major.name}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
 
   // Mỗi tổ hợp lấy từ danh mục ngành và dữ liệu tuyển sinh liên quan.
   const validCombosForMajor = useMemo(() => {
@@ -602,6 +502,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const handleResetAll = () => {
     sfx.playUiClick();
     setHasMajorChoice(null);
+    setHasAnalyzedMajor(false);
     setSelectedMajorCode(null);
     setSelectedComboCode(null);
     setSelectedSchoolCode(null);
@@ -661,21 +562,22 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           ========================================================================= */}
       {activeTab === 'tab-major' && (
         <section ref={activeSelectionRef} className="space-y-5 scroll-mt-28">
-          {hasMajorChoice === 'YES' && majorCatalogPanel}
-
-          {hasMajorChoice === 'NO' && (
+          {(hasMajorChoice === 'YES' || hasMajorChoice === 'NO') && (
             <div className="space-y-5">
               <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
                 <div>
                   <h3 className="text-xl font-bold text-white">Sở thích và năng lực</h3>
-                  <p className="mt-1 text-base text-slate-300">Nhập vài điều bạn thích và việc bạn làm tốt. Gợi ý ngành sẽ cập nhật theo nội dung này.</p>
+                  <p className="mt-1 text-base text-slate-300">Nhập sở thích, thế mạnh hoặc điểm số; sau đó bấm “Phân tích ngành” để xem gợi ý.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="space-y-2 text-base font-semibold text-white">
                     Sở thích
                     <textarea
                       value={careerInterests}
-                      onChange={(e) => setCareerInterests(e.target.value)}
+                      onChange={(e) => {
+                        setCareerInterests(e.target.value);
+                        setHasAnalyzedMajor(false);
+                      }}
                       rows={4}
                       placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
                       className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
@@ -685,7 +587,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     Năng lực và thế mạnh
                     <textarea
                       value={careerStrengths}
-                      onChange={(e) => setCareerStrengths(e.target.value)}
+                      onChange={(e) => {
+                        setCareerStrengths(e.target.value);
+                        setHasAnalyzedMajor(false);
+                      }}
                       rows={4}
                       placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
                       className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
@@ -722,6 +627,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               onChange={(e) => {
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setScores((previous) => ({ ...previous, [subject.key]: value }));
+                                setHasAnalyzedMajor(false);
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -745,6 +651,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                               onChange={(e) => {
                                 const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
                                 setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
+                                setHasAnalyzedMajor(false);
                               }}
                               className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
                             />
@@ -756,13 +663,29 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </details>
               </div>
 
-              {hasCareerProfile && (
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  disabled={!hasCareerProfile}
+                  onClick={() => {
+                    sfx.playActionSuccess();
+                    setHasAnalyzedMajor(true);
+                  }}
+                  className="min-h-12 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-md transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                >
+                  {hasAnalyzedMajor ? 'Phân tích lại ngành' : 'Phân tích ngành'}
+                </button>
+              </div>
+
+              {hasAnalyzedMajor && hasCareerProfile && (
                 <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
-                  <h3 className="text-lg font-bold text-white">Ngành gợi ý</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {rankedMajors.slice(0, 6).map((major) => (
+                  <h3 className="text-lg font-bold text-white">Kết quả phân tích ngành</h3>
+                  {rankedMajors.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {rankedMajors.slice(0, 3).map((major, index) => (
                       <div key={major.codeTT09} className="rounded-xl border border-slate-700 bg-[#141923] p-4 space-y-3">
                         <div>
+                          <p className="text-sm font-bold text-blue-300">Gợi ý {index + 1}</p>
                           <h4 className="text-lg font-bold text-white">{major.name}</h4>
                           <p className="mt-1 text-sm text-slate-300">{major.fitReason}</p>
                         </div>
@@ -775,11 +698,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                         </button>
                       </div>
                     ))}
-                  </div>
+                    </div>
+                  ) : (
+                    <p className="text-base text-slate-300">Chưa đủ dữ liệu để đưa ra gợi ý. Hãy bổ sung sở thích, thế mạnh hoặc điểm số rồi phân tích lại.</p>
+                  )}
                 </div>
               )}
-
-              {majorCatalogPanel}
             </div>
           )}
         </section>
