@@ -1,5 +1,5 @@
 # Project Memory & Persistent State
-Last Updated: 2026-10-20T08:56:00+07:00
+Last Updated: 2026-11-05T15:35:00+07:00
 
 ## 1. Project Overview & Context
 - **Name**: UNIROOT Platform / Career Guidance Platform (Website Hướng Nghiệp)
@@ -10,6 +10,47 @@ Last Updated: 2026-10-20T08:56:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Tách Luồng Bước 1 thành 2 Giai Đoạn (2-Phase Step 1 UX) & Tích Hợp Input Mật Mã Holland + Điểm Yếu (2026-11-05)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"ở phần này, trước cái màn hình này là cho làm mật mã holland, dùng cái đó để làm 1 phần của input, thêm phần điểm yếu để người dùng nhập vào nữa."* kèm ảnh chụp màn hình UI thực tế.
+  - **Kiến trúc & Giải pháp triển khai:**
+    1. **Tách Giai Đoạn 1 (Bước 1.1: Trắc nghiệm Mật mã Holland RIASEC trước):**
+       - Hiển thị bài trắc nghiệm Mật mã Holland trước màn hình điền hồ sơ chi tiết.
+       - Cho phép 2 chế độ: Làm bài 60 câu O*NET chuẩn hóa (`RiasecAssessment.tsx`) hoặc Tự điều chỉnh thanh trượt 6 miền nhanh (0 - 100đ) với các preset nhanh (STEM, Kinh doanh, Sáng tạo, Xã hội).
+       - Hiển thị Badge Mật mã đỉnh (ví dụ: `IRC`, `SAE`) và nút *"Xác nhận Mật mã & Tiếp tục sang Hồ sơ cá nhân →"*.
+    2. **Giai đoạn 2 (Màn hình Hồ sơ cá nhân theo đúng Layout yêu cầu):**
+       - **Input 1 (Mật mã Holland):** Đặt ngay đầu màn hình hồ sơ, tóm tắt mã Holland đỉnh và điểm 6 miền đã xác lập, tích hợp tự động vào thuật toán xếp hạng ngành, kèm nút *"🔄 Làm lại / Đổi Mật mã Holland"*.
+       - **3 Ô Textarea nhập liệu cá nhân:**
+         1. *Sở thích* (`careerInterests` - Đam mê).
+         2. *Năng lực và thế mạnh* (`careerStrengths` - Sở trường).
+         3. *Điểm yếu và hạn chế* (`careerWeaknesses` - Cần tránh: ngại giao tiếp đám đông, sợ máu, không thích số liệu, v.v.).
+       - Khối Accordion *"Điểm học tập và năng khiếu (tùy chọn)"* thu gọn/mở rộng với 10 môn văn hóa và các môn năng khiếu.
+       - Nút bấm *"Gợi ý ngành"* đúng màu sắc, kiểu dáng theo ảnh chụp màn hình.
+       - Ô tra cứu nhanh *"Nhập tên hoặc mã ngành"* hỗ trợ tìm kiếm trực tiếp và chốt ngành tức thì.
+    3. **Nâng cấp Thuật toán Xếp hạng (`counselorBackend.ts`):**
+       - Bổ sung `weaknessesText` và từ điển xung đột ngành `WEAKNESS_CONFLICT_MAP` (ví dụ: Y Dược xung đột với sợ máu; Sư phạm/Kinh doanh xung đột với ngại giao tiếp...).
+       - Tự động gắn cảnh báo thích ứng `(Lưu ý: Bạn có điểm yếu về "...", cần cân nhắc tính thích ứng)` vào lý do đề xuất (`fitReason`).
+       - Sắp xếp ưu tiên các ngành an toàn, không xung đột lên trước.
+    4. **Hiển thị Domino Bước 4:** Tự động đưa điểm yếu/hạn chế vào mục kiểm tra độ khớp hồ sơ tổng hợp.
+  - **Kiểm thử & Xác thực:**
+    - TypeScript compiler (`tsc --noEmit`): Hoàn toàn sạch lỗi (0 error).
+    - 70/70 Unit test cases đạt 100% PASS (`recommendationEngine`: 7/7, `scoringEngine`: 27/27, `admissionsCalculationEngine`: 36/36).
+- **Phuc hoi va Toi uu hoa Co che Trac nghiem Holland RIASEC (2026-11-05)**:
+  - **Boi canh & Yeu cau:** Nguoi dung yeu cau "cho co che RIASEC tro lai" sau khi giao dien Buoc 1 (Scientific4TabPortal.tsx) bi tinh gian thanh chi nhap van ban tu do, lam ngat ket noi voi bo khao sat 60 cau va dong co tinh diem tuong quan Pearson.
+  - **Nang cap & Khoi phuc toan dien:**
+    1. **Khoi phuc Bo Khao Sat RIASEC 60 cau (RiasecAssessment.tsx):** Tich hop hoan chinh vao Buoc 1, co phan trang 6 cau/trang, phim tat 1-5, thanh tien do va luu tru trang thai qua localStorage (nexora_riasec_responses_v1).
+    2. **Che do Kep Linh Hoat (Dual Mode):**
+       - Tab 1: Trac nghiem 60 cau chi tiet (Chuan hoa O*NET IPSF).
+       - Tab 2: Tu dieu chinh nhanh 6 mien diem (0 - 100d) voi 6 thanh slider truc quan, ma mau tung mien tinh cach (R - Cam, I - Lam, A - Hong, S - Xanh luc, E - Ho phach, C - Lo) cung cac nut preset nap mau nhanh (Ky thuat/STEM, Kinh doanh/Quan ly, Nghe thuat/Thiet ke, Xa hoi/Su pham).
+    3. **Tinh toan & Hien thi Ma Dinh (Dominant Holland Code):**
+       - Tinh toan dong ma 3 chu cai dai dien (vi du: IRC, SAE, RIC) tu ho so khao sat hoac diem so tuy chinh.
+       - Hien thi badge noi bat tren giao dien: Ma Holland: IRC.
+    4. **Tich hop Dong co Xep hang (linkAndRankMajorsWithDossier & counselorBackend.ts):**
+       - Khac phuc tuong thich khi truyen truc tiep doi tuong RiasecProfile, cho phep thuat toan tinh he so tuong quan Pearson 6 chieu giua Vector nguoi dung va Vector nganh (SECTOR_RIASEC_VECTORS).
+       - The ket qua goi y nganh hien thi huy hieu RIASEC Match XX% va can cu de xuat chi tiet.
+    5. **Lien ket Chuoi Domino Buoc 4:** Dua ma Holland RIASEC vao bao cao kiem tra do khop ho so tong hop (Tam ly -> Nganh -> To hop -> Truong -> Nghe nghiep).
+  - **Kiem thu & Xac thuc:**
+    - TypeScript (tsc --noEmit): Hoan toan sach loi (0 error).
+    - 70/70 Unit Test Cases dat 100% (recommendationEngine: 7/7, scoringEngine: 27/27, admissionsCalculationEngine: 36/36).
 - **Root Cause Eradication: sfx.playActionStart TypeError & Resilient Sound Proxy (2026-10-20)**:
   - Addressed user report: *"nó k hoạt động"*, *"vẫn chưa phân tích được, nó đã để màn hình gọi API key được 3p r"*:
     * **Smoking Gun Located**: Screenshot revealed DevTools crash: `Uncaught (in promise) TypeError: Z.playActionStart is not a function at be (index-DtiRy1zY.js:225:6779)`.

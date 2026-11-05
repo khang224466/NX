@@ -19,7 +19,8 @@ import seedData from '../data/seed_data.json';
 import { getAdmissionsWorkbookContext } from '../data/admissionsWorkbookSearch.js';
 import {
   createRiasecProfileFromNormalizedScores,
-  rankMajorsByEvidence
+  rankMajorsByEvidence,
+  type RiasecProfile
 } from './assessment/recommendationEngine';
 export { SECTOR_RIASEC_VECTORS } from '../data/riasecSectorProfiles';
 
@@ -509,24 +510,37 @@ export const COMBINATION_SUBJECTS_MAP: Record<string, string[]> = {
  */
 export function linkAndRankMajorsWithDossier(
   scores: Record<string, number | '' | undefined>,
-  riasecOrInterests?: { R?: number | ''; I?: number | ''; A?: number | ''; S?: number | ''; E?: number | ''; C?: number | '' } | string,
+  riasecOrInterests?: { R?: number | ''; I?: number | ''; A?: number | ''; S?: number | ''; E?: number | ''; C?: number | '' } | string | RiasecProfile | null,
   aiDiagnosis: Partial<AIDiagnosisSemanticResult> = {},
   catalog: any[] = seedData.majorCatalogLevelIV
 ): RecommendedMajorItem[] {
-  const riasecProfile = typeof riasecOrInterests === 'object' && riasecOrInterests !== null
-    ? createRiasecProfileFromNormalizedScores(riasecOrInterests)
+  const riasecProfile: RiasecProfile | null = (typeof riasecOrInterests === 'object' && riasecOrInterests !== null)
+    ? ('dominantDimensions' in riasecOrInterests && 'scores' in riasecOrInterests
+        ? (riasecOrInterests as RiasecProfile)
+        : createRiasecProfileFromNormalizedScores(riasecOrInterests as any))
     : null;
   const interestsText = typeof riasecOrInterests === 'string'
     ? riasecOrInterests
-    : String((aiDiagnosis as any)?.user_profile_summary || '');
+    : String((aiDiagnosis as any)?.user_profile_summary || (aiDiagnosis as any)?.interestsText || '');
   const directRecs = Array.isArray((aiDiagnosis as any)?.recommendations) ? (aiDiagnosis as any).recommendations : [];
   const aiSuggestedNames = [
     ...directRecs.map((item: any) => String(item.name || '')).filter(Boolean),
     ...(aiDiagnosis.recommendedKeywords || []).map(String)
   ];
+  const weaknessesText = String((aiDiagnosis as any)?.weaknessesText || '').toLocaleLowerCase('vi');
+  const WEAKNESS_CONFLICT_MAP: Record<string, string[]> = {
+    CNTT_BAN_DAN_AI: ['ngồi lâu', 'máy tính', 'màn hình'],
+    KY_THUAT_CONG_NGHE: ['cơ khí', 'chân tay', 'ngoài trời', 'vận động'],
+    KINH_TE_QUAN_TRI: ['giao tiếp', 'đàm phán', 'doanh số', 'thuyết phục'],
+    Y_DUOC_SUC_KHOE: ['sợ máu', 'máu', 'bệnh viện', 'bệnh nhân', 'y tế'],
+    SU_PHAM_GIAO_DUC: ['giao tiếp', 'đám đông', 'kiên nhẫn', 'giảng dạy'],
+    LUAT_HANH_CHINH: ['đọc nhiều', 'văn bản', 'tranh luận', 'luật pháp'],
+    XA_HOI_NHAN_VAN: ['viết lách', 'giao tiếp', 'đám đông'],
+    KIEN_TRUC_NGHE_THUAT_TDTT: ['vẽ', 'mỹ thuật', 'thể thao', 'thể chất']
+  };
   const ranked = rankMajorsByEvidence(catalog, riasecProfile, interestsText, aiSuggestedNames);
 
-  return ranked.map((major) => {
+  const mapped = ranked.map((major) => {
     const m = major as any;
     const sectorKey = major.sector || 'NGANH_KHAC';
     const meta = SECTOR_META[sectorKey];
@@ -575,7 +589,13 @@ export function linkAndRankMajorsWithDossier(
       fitPercent: major.interestSimilarityIndex,
       interestSimilarityIndex: major.interestSimilarityIndex,
       recommendationBasis: major.recommendationBasis,
-      fitReason: major.explanation,
+      fitReason: (() => {
+        const conflicts = weaknessesText ? (WEAKNESS_CONFLICT_MAP[sectorKey] || []).filter(term => weaknessesText.includes(term)) : [];
+        if (conflicts.length > 0) {
+          return `${major.explanation} (Lưu ý: Bạn có điểm yếu về "${conflicts.join(', ')}", cần cân nhắc tính thích ứng).`;
+        }
+        return major.explanation;
+      })(),
       targetJobs: major.targetJobs || meta?.popularJobs || [],
       salaryMedian: m.salaryMedian || meta?.salaryMedian || null,
       aiRisk: m.aiRisk || meta?.aiRisk || null,
@@ -587,6 +607,17 @@ export function linkAndRankMajorsWithDossier(
       considerations: recMatch?.considerations || []
     } as any;
   });
+
+  if (weaknessesText) {
+    mapped.sort((a: any, b: any) => {
+      const aConflict = (WEAKNESS_CONFLICT_MAP[a.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
+      const bConflict = (WEAKNESS_CONFLICT_MAP[b.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
+      if (aConflict !== bConflict) return aConflict - bConflict;
+      return (b.interestSimilarityIndex ?? 0) - (a.interestSimilarityIndex ?? 0);
+    });
+  }
+
+  return mapped;
 }
 
 /**

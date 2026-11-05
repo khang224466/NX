@@ -126,10 +126,11 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
     // Grid step size: 18px delivers razor-sharp sub-pixel interpolated lines at 60+ FPS
     const STEP = 18;
     let time = 0;
+    const BACKGROUND_WAVE_SPEED = 1.4;
     let idleCounter = 0;
 
     const render = () => {
-      time += 0.005;
+      time += 0.005 * BACKGROUND_WAVE_SPEED;
 
       // Smooth lerp mouse tracking
       const dx = mouseRef.current.targetX - mouseRef.current.x;

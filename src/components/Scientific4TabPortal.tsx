@@ -10,6 +10,74 @@ import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
 import { CAREER_CATALOG, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
+import { RiasecAssessment } from './RiasecAssessment';
+import {
+  RIASEC_CODES,
+  RIASEC_PROFILE_NOTICE,
+  hasRiasecProfileVariation,
+  createRiasecProfileFromNormalizedScores,
+  type RiasecProfile,
+  type RiasecCode
+} from '../services/assessment/recommendationEngine';
+
+// Metadata for 6 Holland RIASEC Dimensions
+const RIASEC_DIMENSIONS_META: Array<{
+  key: RiasecCode;
+  label: string;
+  name: string;
+  desc: string;
+  color: string;
+  borderColor: string;
+}> = [
+  {
+    key: 'R',
+    label: 'R - Thực tế (Realistic)',
+    name: 'Thực tế',
+    desc: 'Kỹ thuật, cơ khí, vận hành máy móc, ngoài trời',
+    color: 'text-orange-400',
+    borderColor: 'border-orange-500/40'
+  },
+  {
+    key: 'I',
+    label: 'I - Nghiên cứu (Investigative)',
+    name: 'Nghiên cứu',
+    desc: 'Khoa học, tư duy logic, phân tích dữ liệu',
+    color: 'text-blue-400',
+    borderColor: 'border-blue-500/40'
+  },
+  {
+    key: 'A',
+    label: 'A - Nghệ thuật (Artistic)',
+    name: 'Nghệ thuật',
+    desc: 'Sáng tác, thiết kế, thẩm mỹ, tự do đổi mới',
+    color: 'text-pink-400',
+    borderColor: 'border-pink-500/40'
+  },
+  {
+    key: 'S',
+    label: 'S - Xã hội (Social)',
+    name: 'Xã hội',
+    desc: 'Giảng dạy, tư vấn, giúp đỡ, cộng đồng',
+    color: 'text-emerald-400',
+    borderColor: 'border-emerald-500/40'
+  },
+  {
+    key: 'E',
+    label: 'E - Quản lý (Enterprising)',
+    name: 'Quản lý',
+    desc: 'Kinh doanh, lãnh đạo, thuyết phục, khởi nghiệp',
+    color: 'text-amber-400',
+    borderColor: 'border-amber-500/40'
+  },
+  {
+    key: 'C',
+    label: 'C - Nghiệp vụ (Conventional)',
+    name: 'Nghiệp vụ',
+    desc: 'Quy củ, kế toán, dữ liệu chi tiết, hồ sơ tổ chức',
+    color: 'text-cyan-400',
+    borderColor: 'border-cyan-500/40'
+  }
+];
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
@@ -113,8 +181,23 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     apt_dienXuat: ''
   });
 
+  // RIASEC States
+  const [riasecProfile, setRiasecProfile] = useState<RiasecProfile | null>(null);
+  const [riasecScores, setRiasecScores] = useState<Record<RiasecCode, number | ''>>({
+    R: '',
+    I: '',
+    A: '',
+    S: '',
+    E: '',
+    C: ''
+  });
+  const [riasecMode, setRiasecMode] = useState<'survey' | 'sliders'>('survey');
+
   const [careerInterests, setCareerInterests] = useState('');
   const [careerStrengths, setCareerStrengths] = useState('');
+  const [careerWeaknesses, setCareerWeaknesses] = useState('');
+  const [majorSearchQuery, setMajorSearchQuery] = useState('');
+  const [step1Phase, setStep1Phase] = useState<'holland' | 'profile'>('holland');
 
   // =========================================================================
   // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
@@ -254,16 +337,97 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
       .filter((word) => word.length >= 4 && !stopWords.has(word)))];
   }, [careerProfileText]);
   const profileDiagnosis = useMemo(() => ({ recommendedKeywords: profileKeywords }), [profileKeywords]);
-  const hasCareerProfile = careerInterests.trim().length > 0
-    || careerStrengths.trim().length > 0
-    || Object.values(scores).some((score) => score !== '')
-    || Object.values(aptitudeScores).some((score) => score !== '');
 
-  // Rank locally against the saved catalog and current school scores.
+  // Handle profile from 60-question survey
+  const handleRiasecSurveyProfileChange = (profile: RiasecProfile | null) => {
+    setRiasecProfile(profile);
+    if (profile) {
+      setRiasecScores({
+        R: Math.round(profile.scores.R),
+        I: Math.round(profile.scores.I),
+        A: Math.round(profile.scores.A),
+        S: Math.round(profile.scores.S),
+        E: Math.round(profile.scores.E),
+        C: Math.round(profile.scores.C)
+      });
+      setHasAnalyzedMajor(false);
+    }
+  };
+
+  // Compute dominant Holland code (e.g. IRC, SAE)
+  const dominantRiasec = useMemo(() => {
+    if (riasecProfile && hasRiasecProfileVariation(riasecProfile)) {
+      return riasecProfile.dominantDimensions.join('');
+    }
+    const valid = (Object.entries(riasecScores) as [RiasecCode, number | ''][])
+      .filter((e): e is [RiasecCode, number] => typeof e[1] === 'number' && Number.isFinite(e[1]) && e[1] > 0);
+    if (valid.length < 2) return null;
+    valid.sort((a, b) => b[1] - a[1]);
+    return valid.slice(0, 3).map(([k]) => k).join('');
+  }, [riasecProfile, riasecScores]);
+
+  // Active Effective RIASEC Profile
+  const effectiveRiasecProfile = useMemo(() => {
+    if (riasecProfile && hasRiasecProfileVariation(riasecProfile)) {
+      return riasecProfile;
+    }
+    const allFilled = RIASEC_CODES.every((code) => typeof riasecScores[code] === 'number' && Number.isFinite(riasecScores[code]));
+    if (allFilled) {
+      return createRiasecProfileFromNormalizedScores(riasecScores);
+    }
+    return null;
+  }, [riasecProfile, riasecScores]);
+
+  // Presets for quick experimentation
+  const handleApplyRiasecPreset = (preset: 'STEM' | 'BUSINESS' | 'CREATIVE' | 'SOCIAL') => {
+    sfx.playUiClick();
+    let scoresMap: Record<RiasecCode, number>;
+    if (preset === 'STEM') {
+      scoresMap = { R: 85, I: 95, A: 40, S: 35, E: 45, C: 75 };
+    } else if (preset === 'BUSINESS') {
+      scoresMap = { R: 30, I: 55, A: 45, S: 75, E: 95, C: 80 };
+    } else if (preset === 'CREATIVE') {
+      scoresMap = { R: 35, I: 60, A: 95, S: 70, E: 50, C: 30 };
+    } else {
+      scoresMap = { R: 25, I: 50, A: 65, S: 95, E: 60, C: 45 };
+    }
+    setRiasecScores(scoresMap);
+    const prof = createRiasecProfileFromNormalizedScores(scoresMap);
+    setRiasecProfile(prof);
+    setHasAnalyzedMajor(false);
+  };
+
+  // Search majors directly in Step 1
+  const filteredSearchedMajors = useMemo(() => {
+    const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
+    if (!query) return [];
+    return catalog.filter((m) =>
+      m.name.toLocaleLowerCase('vi').includes(query) ||
+      m.codeTT09.includes(query) ||
+      (m.codeTT74 && m.codeTT74.includes(query))
+    ).slice(0, 8);
+  }, [catalog, majorSearchQuery]);
+
+  const hasCareerProfile = Boolean(
+    effectiveRiasecProfile ||
+    Object.values(riasecScores).some((s) => typeof s === 'number' && s > 0) ||
+    careerInterests.trim().length > 0 ||
+    careerStrengths.trim().length > 0 ||
+    careerWeaknesses.trim().length > 0 ||
+    Object.values(scores).some((score) => score !== '') ||
+    Object.values(aptitudeScores).some((score) => score !== '')
+  );
+
+  // Rank locally against the saved catalog, combining Holland RIASEC, strengths, weaknesses, and scores
   const rankedMajors = useMemo(() => {
     const allScores = { ...scores, ...aptitudeScores };
-    return linkAndRankMajorsWithDossier(allScores, careerProfileText, profileDiagnosis, catalog);
-  }, [scores, aptitudeScores, careerProfileText, profileDiagnosis, catalog]);
+    return linkAndRankMajorsWithDossier(
+      allScores,
+      effectiveRiasecProfile || careerProfileText,
+      { ...profileDiagnosis, interestsText: careerProfileText, weaknessesText: careerWeaknesses } as any,
+      catalog
+    );
+  }, [scores, aptitudeScores, effectiveRiasecProfile, careerProfileText, careerWeaknesses, profileDiagnosis, catalog]);
 
   // Mỗi tổ hợp lấy từ danh mục ngành và dữ liệu tuyển sinh liên quan.
   const validCombosForMajor = useMemo(() => {
@@ -510,6 +674,12 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setExpectedScoreInput('');
     setCareerInterests('');
     setCareerStrengths('');
+    setCareerWeaknesses('');
+    setMajorSearchQuery('');
+    setStep1Phase('holland');
+    setRiasecProfile(null);
+    setRiasecScores({ R: '', I: '', A: '', S: '', E: '', C: '' });
+    setRiasecMode('survey');
     setSchoolSearchQuery('');
     setSchoolMatchFilter('ALL');
     setShowSuggestedSchools(false);
@@ -564,143 +734,436 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         <section ref={activeSelectionRef} className="space-y-5 scroll-mt-28">
           {(hasMajorChoice === 'YES' || hasMajorChoice === 'NO') && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
-                <div>
-                  <h3 className="text-xl font-bold text-white">Sở thích và năng lực</h3>
-                  <p className="mt-1 text-base text-slate-300">Nhập sở thích, thế mạnh hoặc điểm số; sau đó bấm “Phân tích ngành” để xem gợi ý.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="space-y-2 text-base font-semibold text-white">
-                    Sở thích
-                    <textarea
-                      value={careerInterests}
-                      onChange={(e) => {
-                        setCareerInterests(e.target.value);
-                        setHasAnalyzedMajor(false);
-                      }}
-                      rows={4}
-                      placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
-                      className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    />
-                  </label>
-                  <label className="space-y-2 text-base font-semibold text-white">
-                    Năng lực và thế mạnh
-                    <textarea
-                      value={careerStrengths}
-                      onChange={(e) => {
-                        setCareerStrengths(e.target.value);
-                        setHasAnalyzedMajor(false);
-                      }}
-                      rows={4}
-                      placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
-                      className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    />
-                  </label>
-                </div>
-
-                <details className="rounded-xl border border-slate-700 bg-[#141923] p-4">
-                  <summary className="cursor-pointer text-base font-semibold text-white">Điểm học tập và năng khiếu (tùy chọn)</summary>
-                  <div className="mt-4 space-y-5">
+              {/* =========================================================================
+                  GIAI ĐOẠN 1: LÀM MẬT MÃ HOLLAND TRƯỚC (HOLLAND RIASEC CODE)
+                  ========================================================================= */}
+              {step1Phase === 'holland' && (
+                <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 sm:p-7 space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
                     <div>
-                      <h4 className="mb-3 text-base font-semibold text-white">Điểm môn học</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                        {[
-                          { key: 'math', label: 'Toán' },
-                          { key: 'literature', label: 'Ngữ văn' },
-                          { key: 'english', label: 'Tiếng Anh' },
-                          { key: 'physics', label: 'Vật lý' },
-                          { key: 'chemistry', label: 'Hóa học' },
-                          { key: 'biology', label: 'Sinh học' },
-                          { key: 'history', label: 'Lịch sử' },
-                          { key: 'geography', label: 'Địa lý' },
-                          { key: 'informatics', label: 'Tin học' },
-                          { key: 'economicLegal', label: 'GDKT & PL' }
-                        ].map((subject) => (
-                          <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
-                            {subject.label}
-                            <input
-                              type="number"
-                              min="0"
-                              max="10"
-                              step="0.1"
-                              value={scores[subject.key] === '' ? '' : scores[subject.key]}
-                              onChange={(e) => {
-                                const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
-                                setScores((previous) => ({ ...previous, [subject.key]: value }));
-                                setHasAnalyzedMajor(false);
-                              }}
-                              className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
-                            />
-                          </label>
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-blue-900/60 text-blue-300 border border-blue-500/30">
+                          BƯỚC 1.1: KHÁM PHÁ MẬT MÃ TÂM LÝ
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">HOLLAND O*NET</span>
                       </div>
+                      <h2 className="text-2xl font-bold text-white mt-1">Trắc nghiệm Mật mã Holland (RIASEC)</h2>
+                      <p className="mt-1 text-sm text-slate-300 max-w-2xl">
+                        Trước khi điền chi tiết hồ sơ sở thích và năng lực, hãy xác định Mật mã Holland của bạn để hệ thống định vị chuẩn xác 6 nhóm thiên hướng tính cách nghề nghiệp.
+                      </p>
                     </div>
 
-                    <div>
-                      <h4 className="mb-3 text-base font-semibold text-white">Điểm năng khiếu</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {APTITUDE_SUBJECTS_METADATA.map((subject) => (
-                          <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
-                            {subject.label}
-                            <input
-                              type="number"
-                              min="0"
-                              max="10"
-                              step="0.1"
-                              value={aptitudeScores[subject.key] === '' ? '' : aptitudeScores[subject.key]}
-                              onChange={(e) => {
-                                const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
-                                setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
-                                setHasAnalyzedMajor(false);
-                              }}
-                              className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
-                            />
-                          </label>
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-2 bg-[#141923] p-3 rounded-xl border border-slate-700">
+                      <span className="text-xs text-slate-400 font-mono">Mã Holland:</span>
+                      <span className="px-3 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-base">
+                        {dominantRiasec ? dominantRiasec : 'Chưa thiết lập'}
+                      </span>
                     </div>
                   </div>
-                </details>
-              </div>
 
-              <div className="flex justify-center pt-2">
-                <button
-                  type="button"
-                  disabled={!hasCareerProfile}
-                  onClick={() => {
-                    sfx.playActionSuccess();
-                    setHasAnalyzedMajor(true);
-                  }}
-                  className="min-h-12 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-md transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-                >
-                  {hasAnalyzedMajor ? 'Phân tích lại ngành' : 'Phân tích ngành'}
-                </button>
-              </div>
+                  {/* Chuyển đổi: Trắc nghiệm 60 câu vs Tự chỉnh 6 miền */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => setRiasecMode('survey')}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                        riasecMode === 'survey'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-[#141923] text-slate-300 hover:text-white border border-slate-700'
+                      }`}
+                    >
+                      📋 Làm trắc nghiệm 60 câu hỏi chuẩn hóa (O*NET)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiasecMode('sliders')}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                        riasecMode === 'sliders'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-[#141923] text-slate-300 hover:text-white border border-slate-700'
+                      }`}
+                    >
+                      ⚡ Tự điều chỉnh điểm 6 miền nhanh (0 - 100đ)
+                    </button>
+                  </div>
 
-              {hasAnalyzedMajor && hasCareerProfile && (
-                <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
-                  <h3 className="text-lg font-bold text-white">Kết quả phân tích ngành</h3>
-                  {rankedMajors.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {rankedMajors.slice(0, 3).map((major, index) => (
-                      <div key={major.codeTT09} className="rounded-xl border border-slate-700 bg-[#141923] p-4 space-y-3">
-                        <div>
-                          <p className="text-sm font-bold text-blue-300">Gợi ý {index + 1}</p>
-                          <h4 className="text-lg font-bold text-white">{major.name}</h4>
-                          <p className="mt-1 text-sm text-slate-300">{major.fitReason}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
-                          className="min-h-11 w-full rounded-lg bg-blue-600 px-4 text-base font-bold text-white hover:bg-blue-500"
-                        >
-                          Chọn ngành
-                        </button>
-                      </div>
-                    ))}
+                  {/* Chế độ 1: 60 câu trắc nghiệm */}
+                  {riasecMode === 'survey' && (
+                    <div className="space-y-3">
+                      <RiasecAssessment onProfileChange={handleRiasecSurveyProfileChange} />
                     </div>
-                  ) : (
-                    <p className="text-base text-slate-300">Chưa đủ dữ liệu để đưa ra gợi ý. Hãy bổ sung sở thích, thế mạnh hoặc điểm số rồi phân tích lại.</p>
+                  )}
+
+                  {/* Chế độ 2: Tự chỉnh điểm 6 miền */}
+                  {riasecMode === 'sliders' && (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-slate-400 font-mono">Nạp nhanh theo nhóm:</span>
+                        {[
+                          { id: 'STEM' as const, label: 'Kỹ thuật / STEM (IR)' },
+                          { id: 'BUSINESS' as const, label: 'Kinh doanh / Quản lý (EC)' },
+                          { id: 'CREATIVE' as const, label: 'Nghệ thuật / Thiết kế (AS)' },
+                          { id: 'SOCIAL' as const, label: 'Xã hội / Sư phạm (SE)' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleApplyRiasecPreset(preset.id)}
+                            className="px-3 py-1 rounded-lg bg-[#141923] hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {RIASEC_DIMENSIONS_META.map((dim) => {
+                          const val = riasecScores[dim.key];
+                          const numVal = typeof val === 'number' ? val : 0;
+                          return (
+                            <div
+                              key={dim.key}
+                              className={`p-3.5 rounded-xl bg-[#141923] border ${
+                                dominantRiasec?.includes(dim.key)
+                                  ? `${dim.borderColor} ring-1 ring-emerald-500/30`
+                                  : 'border-slate-800'
+                              } space-y-2`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className={`text-sm font-bold ${dim.color}`}>{dim.label}</span>
+                                <span className="font-mono text-white text-sm font-bold px-2 py-0.5 rounded bg-black/40">
+                                  {val !== '' ? `${val}đ` : '--'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 leading-tight line-clamp-2">{dim.desc}</p>
+                              <div className="space-y-1 pt-1">
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  value={numVal}
+                                  onChange={(e) => {
+                                    const newVal = parseInt(e.target.value, 10);
+                                    setRiasecScores((prev: Record<RiasecCode, number | ''>) => {
+                                      const next: Record<RiasecCode, number | ''> = { ...prev, [dim.key]: newVal };
+                                      const allFilled = RIASEC_CODES.every((c) => typeof next[c] === 'number');
+                                      if (allFilled) {
+                                        setRiasecProfile(createRiasecProfileFromNormalizedScores(next));
+                                      }
+                                      return next;
+                                    });
+                                    setHasAnalyzedMajor(false);
+                                  }}
+                                  className="w-full accent-blue-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                                />
+                                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                                  <span>0</span>
+                                  <span>50</span>
+                                  <span>100</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nút Tiếp tục sang Màn hình Hồ sơ cá nhân */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+                    <p className="text-xs text-slate-400 font-mono">
+                      {dominantRiasec
+                        ? `✓ Đã ghi nhận Mật mã ${dominantRiasec}. Kết quả sẽ tự động đưa vào làm dữ liệu đầu vào (Input) của hồ sơ.`
+                        : 'Bạn có thể làm bài trắc nghiệm, chọn mẫu gợi ý hoặc tiếp tục để điền hồ sơ.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playActionSuccess();
+                        setStep1Phase('profile');
+                      }}
+                      className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-lg transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <span>Xác nhận Mật mã &amp; Tiếp tục sang Hồ sơ cá nhân →</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* =========================================================================
+                  GIAI ĐOẠN 2: MÀN HÌNH NHẬP LIỆU HỒ SƠ (ĐÚNG THEO GIAO DIỆN YÊU CẦU)
+                  - Dùng Mật mã Holland làm 1 phần của Input
+                  - Có thêm ô Điểm yếu & hạn chế
+                  - Nút "Gợi ý ngành"
+                  - Ô tìm kiếm "Nhập tên hoặc mã ngành"
+                  ========================================================================= */}
+              {step1Phase === 'profile' && (
+                <div className="space-y-5">
+                  {/* INPUT 1: MẬT MÃ HOLLAND ĐÃ XÁC LẬP */}
+                  <div className="rounded-xl border border-blue-500/40 bg-blue-950/20 p-4 flex flex-wrap items-center justify-between gap-3 shadow-md">
+                    <div className="flex items-center gap-3">
+                      <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-blue-600 text-white">
+                        INPUT 1: MẬT MÃ HOLLAND
+                      </span>
+                      <div>
+                        <span className="text-sm font-bold text-white">
+                          Mật mã Holland của bạn: <span className="text-emerald-400 font-mono text-base ml-1">{dominantRiasec ? dominantRiasec : 'Chưa thiết lập'}</span>
+                        </span>
+                        {dominantRiasec ? (
+                          <div className="flex flex-wrap items-center gap-2 mt-1 font-mono text-xs text-slate-300">
+                            {RIASEC_CODES.map((c) => (
+                              <span key={c} className="px-1.5 py-0.5 rounded bg-black/40 text-slate-300 border border-slate-700/50">
+                                {c}: {riasecScores[c] !== '' ? `${riasecScores[c]}đ` : '--'}
+                              </span>
+                            ))}
+                            <span className="text-[11px] text-emerald-300 font-sans ml-1">✓ Đã đưa vào dữ liệu đầu vào so khớp</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 mt-0.5">Chưa hoàn thành khảo sát; thuật toán sẽ dùng từ khóa tự khai để khám phá.</p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setStep1Phase('holland');
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 bg-[#141923] text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                    >
+                      🔄 Làm lại / Đổi Mật mã Holland
+                    </button>
+                  </div>
+
+                  {/* FORM SỞ THÍCH, THẾ MẠNH & ĐIỂM YẾU */}
+                  <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Sở thích và năng lực</h3>
+                      <p className="mt-1 text-base text-slate-300">
+                        Nhập sở thích, năng lực, điểm yếu hoặc điểm số, rồi bấm “Gợi ý ngành” để xem kết quả.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Ô 1: Sở thích */}
+                      <label className="space-y-2 text-base font-semibold text-white">
+                        <div className="flex items-center justify-between">
+                          <span>Sở thích</span>
+                          <span className="text-xs font-normal text-slate-400 font-mono">Đam mê</span>
+                        </div>
+                        <textarea
+                          value={careerInterests}
+                          onChange={(e) => {
+                            setCareerInterests(e.target.value);
+                            setHasAnalyzedMajor(false);
+                          }}
+                          rows={4}
+                          placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
+                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                        />
+                      </label>
+
+                      {/* Ô 2: Năng lực và thế mạnh */}
+                      <label className="space-y-2 text-base font-semibold text-white">
+                        <div className="flex items-center justify-between">
+                          <span>Năng lực và thế mạnh</span>
+                          <span className="text-xs font-normal text-emerald-400 font-mono">Sở trường</span>
+                        </div>
+                        <textarea
+                          value={careerStrengths}
+                          onChange={(e) => {
+                            setCareerStrengths(e.target.value);
+                            setHasAnalyzedMajor(false);
+                          }}
+                          rows={4}
+                          placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
+                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                        />
+                      </label>
+
+                      {/* Ô 3: Điểm yếu và hạn chế (MỚI) */}
+                      <label className="space-y-2 text-base font-semibold text-white">
+                        <div className="flex items-center justify-between">
+                          <span className="text-amber-200">Điểm yếu và hạn chế</span>
+                          <span className="text-xs font-normal text-amber-400/80 font-mono">Cần tránh</span>
+                        </div>
+                        <textarea
+                          value={careerWeaknesses}
+                          onChange={(e) => {
+                            setCareerWeaknesses(e.target.value);
+                            setHasAnalyzedMajor(false);
+                          }}
+                          rows={4}
+                          placeholder="Ví dụ: ngại giao tiếp trước đám đông, không thích làm việc với số liệu, tính kiên nhẫn chưa cao, sợ máu..."
+                          className="min-h-28 w-full resize-y rounded-xl border border-amber-500/40 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Điểm học tập và năng khiếu (tùy chọn) */}
+                    <details className="rounded-xl border border-slate-700 bg-[#141923] p-4">
+                      <summary className="cursor-pointer text-base font-semibold text-white">Điểm học tập và năng khiếu (tùy chọn)</summary>
+                      <div className="mt-4 space-y-5">
+                        <div>
+                          <h4 className="mb-3 text-base font-semibold text-white">Điểm môn học</h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                            {[
+                              { key: 'math', label: 'Toán' },
+                              { key: 'literature', label: 'Ngữ văn' },
+                              { key: 'english', label: 'Tiếng Anh' },
+                              { key: 'physics', label: 'Vật lý' },
+                              { key: 'chemistry', label: 'Hóa học' },
+                              { key: 'biology', label: 'Sinh học' },
+                              { key: 'history', label: 'Lịch sử' },
+                              { key: 'geography', label: 'Địa lý' },
+                              { key: 'informatics', label: 'Tin học' },
+                              { key: 'economicLegal', label: 'GDKT & PL' }
+                            ].map((subject) => (
+                              <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
+                                {subject.label}
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="10"
+                                  step="0.1"
+                                  value={scores[subject.key] === '' ? '' : scores[subject.key]}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                                    setScores((previous) => ({ ...previous, [subject.key]: value }));
+                                    setHasAnalyzedMajor(false);
+                                  }}
+                                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="mb-3 text-base font-semibold text-white">Điểm môn năng khiếu</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {APTITUDE_SUBJECTS_METADATA.map((subject) => (
+                              <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
+                                {subject.label}
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="10"
+                                  step="0.1"
+                                  value={aptitudeScores[subject.key] === '' ? '' : aptitudeScores[subject.key]}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                                    setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
+                                    setHasAnalyzedMajor(false);
+                                  }}
+                                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+
+                  {/* NÚT GỢI Ý NGÀNH */}
+                  <div className="flex justify-center pt-2">
+                    <button
+                      type="button"
+                      disabled={!hasCareerProfile}
+                      onClick={() => {
+                        sfx.playActionSuccess();
+                        setHasAnalyzedMajor(true);
+                      }}
+                      className="min-h-12 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-md transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 cursor-pointer"
+                    >
+                      {hasAnalyzedMajor ? 'Gợi ý lại ngành' : 'Gợi ý ngành'}
+                    </button>
+                  </div>
+
+                  {/* Ô TRA CỨU: NHẬP TÊN HOẶC MÃ NGÀNH */}
+                  <div className="space-y-2">
+                    <label htmlFor="major-search-input" className="sr-only">Nhập tên hoặc mã ngành</label>
+                    <input
+                      id="major-search-input"
+                      type="search"
+                      value={majorSearchQuery}
+                      onChange={(e) => setMajorSearchQuery(e.target.value)}
+                      placeholder="Nhập tên hoặc mã ngành"
+                      className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                    />
+
+                    {majorSearchQuery.trim() && (
+                      <div className="p-3 rounded-xl border border-slate-700 bg-[#0E1117] max-h-60 overflow-y-auto space-y-2">
+                        {filteredSearchedMajors.length > 0 ? (
+                          filteredSearchedMajors.map((m) => (
+                            <div
+                              key={m.codeTT09}
+                              onClick={() => handleSelectMajor(m.codeTT09, 'tab-combo')}
+                              className="p-2.5 rounded-lg bg-[#141923] hover:bg-blue-900/30 border border-slate-800 hover:border-blue-500/50 flex items-center justify-between cursor-pointer transition-colors"
+                            >
+                              <div>
+                                <span className="font-bold text-white text-sm">{m.name}</span>
+                                <span className="text-xs text-slate-400 ml-2 font-mono">Mã {m.codeTT09}</span>
+                              </div>
+                              <span className="text-xs text-blue-400 font-bold">Chọn ngành này →</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400 py-2 text-center">Không tìm thấy ngành khớp với từ khóa.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* KẾT QUẢ GỢI Ý NGÀNH */}
+                  {hasAnalyzedMajor && hasCareerProfile && (
+                    <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                        <h3 className="text-lg font-bold text-white">Kết quả phân tích &amp; Gợi ý ngành</h3>
+                        <span className="text-xs text-slate-400 font-mono">
+                          Đối chiếu: Mật mã Holland + Sở thích + Thế mạnh + Điểm yếu
+                        </span>
+                      </div>
+
+                      {rankedMajors.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {rankedMajors.slice(0, 3).map((major, index) => (
+                            <div key={major.codeTT09} className="rounded-xl border border-slate-700 bg-[#141923] p-4 space-y-3 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className="text-xs font-bold text-blue-300 font-mono">Gợi ý {index + 1}</span>
+                                  {major.interestSimilarityIndex !== null ? (
+                                    <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-950/60 text-emerald-300 border border-emerald-500/30">
+                                      RIASEC Match {major.interestSimilarityIndex}%
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded text-xs font-mono bg-blue-950/60 text-blue-300 border border-blue-500/30">
+                                      Khám phá từ khóa
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-lg font-bold text-white">{major.name}</h4>
+                                <span className="text-xs font-mono text-slate-400 block mt-0.5">Mã ngành: {major.codeTT09}</span>
+                                <p className="mt-2 text-sm text-slate-300 leading-relaxed">{major.fitReason}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
+                                className="min-h-11 w-full rounded-lg bg-blue-600 px-4 text-base font-bold text-white hover:bg-blue-500 transition-colors cursor-pointer mt-2"
+                              >
+                                Chọn ngành này →
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-base text-slate-300">
+                          Chưa đủ dữ liệu để đưa ra gợi ý. Hãy bổ sung sở thích, thế mạnh hoặc điểm số rồi bấm “Gợi ý ngành” lại.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -1227,6 +1690,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 1. KIỂM TRA ĐỘ KHỚP (NGÀNH ⟷ TỔ HỢP ⟷ TRƯỜNG ⟷ VIỆC LÀM):
               </div>
               <ul className="text-sm text-slate-200 space-y-1.5 leading-relaxed font-sans">
+                <li className="flex items-start gap-2">
+                  <span>
+                    <strong>Hồ sơ Mật mã Holland</strong>: <strong>{dominantRiasec ? `Mã Holland ${dominantRiasec}` : 'Chưa làm test / Tự do'}</strong> {effectiveRiasecProfile ? '• Đã đối chiếu ma trận tương quan Pearson' : ''}
+                  </span>
+                </li>
+                {careerWeaknesses && (
+                  <li className="flex items-start gap-2">
+                    <span>
+                      <strong>Điểm yếu / Hạn chế đã ghi nhận</strong>: <strong className="text-amber-300">{careerWeaknesses}</strong>
+                    </span>
+                  </li>
+                )}
                 <li className="flex items-start gap-2">
                   <span>
                     <strong>Ngành &amp; Tổ hợp</strong>: <strong>{selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn')}</strong> được liên kết với ngành <strong>{currentMajor?.name}</strong> trong hồ sơ tư vấn.
