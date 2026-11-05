@@ -128,6 +128,7 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
 
     // Finer adaptive sampling reduces angular contour segments without oversampling wide screens.
     let time = 0;
+    const BACKGROUND_WAVE_SPEED = 1.4;
     let idleCounter = 0;
     let grid = new Float32Array(0);
 
@@ -162,7 +163,7 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
         idleCounter = 0;
       }
 
-      time += 0.005;
+      time += 0.005 * BACKGROUND_WAVE_SPEED;
 
       ctx.clearRect(0, 0, width, height);
 

@@ -4,13 +4,80 @@ import {
   calculateEffectivePriority,
   calculateBasePriority30
 } from '../services/admissionsCalculationEngine';
-
+import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/counselorBackend';
 
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
 import { getRegionFromProvinceCity } from '../services/unifiedSearchEngine';
-import { CAREER_CATALOG, CAREER_PROGRAM_CATALOG, getMajorAdmissionRecords } from '../services/careerCatalog';
-import { VERIFIED_COMBINATIONS_219 } from '../data/verifiedAdmissionDatabase';
+import { CAREER_CATALOG, getMajorAdmissionRecords, getSectorTuitionBenchmark } from '../services/careerCatalog';
+import { RiasecAssessment } from './RiasecAssessment';
+import {
+  RIASEC_CODES,
+  RIASEC_PROFILE_NOTICE,
+  hasRiasecProfileVariation,
+  createRiasecProfileFromNormalizedScores,
+  type RiasecProfile,
+  type RiasecCode
+} from '../services/assessment/recommendationEngine';
+
+// Metadata for 6 Holland RIASEC Dimensions
+const RIASEC_DIMENSIONS_META: Array<{
+  key: RiasecCode;
+  label: string;
+  name: string;
+  desc: string;
+  color: string;
+  borderColor: string;
+}> = [
+  {
+    key: 'R',
+    label: 'R - Thực tế (Realistic)',
+    name: 'Thực tế',
+    desc: 'Kỹ thuật, cơ khí, vận hành máy móc, ngoài trời',
+    color: 'text-orange-400',
+    borderColor: 'border-orange-500/40'
+  },
+  {
+    key: 'I',
+    label: 'I - Nghiên cứu (Investigative)',
+    name: 'Nghiên cứu',
+    desc: 'Khoa học, tư duy logic, phân tích dữ liệu',
+    color: 'text-blue-400',
+    borderColor: 'border-blue-500/40'
+  },
+  {
+    key: 'A',
+    label: 'A - Nghệ thuật (Artistic)',
+    name: 'Nghệ thuật',
+    desc: 'Sáng tác, thiết kế, thẩm mỹ, tự do đổi mới',
+    color: 'text-pink-400',
+    borderColor: 'border-pink-500/40'
+  },
+  {
+    key: 'S',
+    label: 'S - Xã hội (Social)',
+    name: 'Xã hội',
+    desc: 'Giảng dạy, tư vấn, giúp đỡ, cộng đồng',
+    color: 'text-emerald-400',
+    borderColor: 'border-emerald-500/40'
+  },
+  {
+    key: 'E',
+    label: 'E - Quản lý (Enterprising)',
+    name: 'Quản lý',
+    desc: 'Kinh doanh, lãnh đạo, thuyết phục, khởi nghiệp',
+    color: 'text-amber-400',
+    borderColor: 'border-amber-500/40'
+  },
+  {
+    key: 'C',
+    label: 'C - Nghiệp vụ (Conventional)',
+    name: 'Nghiệp vụ',
+    desc: 'Quy củ, kế toán, dữ liệu chi tiết, hồ sơ tổ chức',
+    color: 'text-cyan-400',
+    borderColor: 'border-cyan-500/40'
+  }
+];
 
 export type ScientificTabKey = 'tab-major' | 'tab-combo' | 'tab-university' | 'tab-domino';
 
@@ -34,34 +101,38 @@ const APTITUDE_SUBJECTS_METADATA = [
   { key: 'apt_dienXuat', label: 'Năng khiếu Diễn xuất / Hình thể', category: 'Sân khấu', combos: ['S00'] }
 ];
 
-const AUDITED_PROVINCE_OPTIONS = [...new Set(
-  AUDITED_INSTITUTIONS_300.flatMap((institution) =>
-    institution.verified_province_city.split(/\s*&\s*/).map((place) => place.trim()).filter(Boolean)
-  )
-)].sort((a, b) => a.localeCompare(b, 'vi'));
+interface LiveSchoolResearchResult {
+  institutionCode: string;
+  institutionName: string;
+  provider: string;
+  model: string;
+  admissionsYear: string;
+  admissionsSummary: string;
+  admissionMethods: Array<{ name: string; detail: string; sourceUrl?: string }>;
+  cutoffFacts: Array<{
+    programName: string;
+    admissionsYear: string;
+    method: string;
+    combination: string;
+    score: string;
+    scale: string;
+    note: string;
+    sourceUrl?: string;
+  }>;
+  tuitionFacts: Array<{
+    programName: string;
+    academicYear: string;
+    amount: string;
+    unit: string;
+    note: string;
+    sourceUrl?: string;
+  }>;
+  scholarships: Array<{ name: string; detail: string; academicYear: string; status: string; sourceUrl?: string }>;
+  verificationNotes: string[];
+  sources: Array<{ title: string; url: string }>;
+  checkedAt: string;
+}
 
-const normalizeMajorCatalogName = (value: string) => value.normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/đ/g, 'd')
-  .toLocaleLowerCase('vi')
-  .replace(/[^a-z0-9]+/g, ' ')
-  .trim();
-
-const getMajorCatalogAliases = (name: string) => {
-  const normalized = normalizeMajorCatalogName(name);
-  const aliases = [name];
-  if (normalized.includes('giao duc the chat') && normalized.startsWith('su pham ')) {
-    aliases.push(name.replace(/^sư phạm\s+/i, ''));
-  }
-  return [...new Set(aliases)];
-};
-
-const isPhysicalEducationMajorName = (name: string) => {
-  const normalized = normalizeMajorCatalogName(name);
-  return normalized.includes('giao duc the chat') ||
-    normalized.includes('quan ly the duc the thao') ||
-    normalized.includes('huan luyen the thao');
-};
 
 export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   onSelectSchool,
@@ -70,13 +141,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // Navigation: 4 procedural steps
   const [activeTab, setActiveTab] = useState<ScientificTabKey>('tab-major');
   const activeSelectionRef = useRef<HTMLElement | null>(null);
+  const selectedSchoolDetailsRef = useRef<HTMLDivElement | null>(null);
 
   // =========================================================================
   // STEP 1 STATE: MAJOR DETERMINATION
   // =========================================================================
   const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
-  const [majorSearchQuery, setMajorSearchQuery] = useState('');
+  const [hasAnalyzedMajor, setHasAnalyzedMajor] = useState(false);
+  const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
+  const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
+  const [showSuggestedSchools, setShowSuggestedSchools] = useState(false);
+  const [showAllSchools, setShowAllSchools] = useState(false);
 
   // Step 1: Input Profile if user doesn't have major yet
   const [scores, setScores] = useState<Record<string, number | ''>>({
@@ -105,36 +181,23 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     apt_dienXuat: ''
   });
 
+  // RIASEC States
+  const [riasecProfile, setRiasecProfile] = useState<RiasecProfile | null>(null);
+  const [riasecScores, setRiasecScores] = useState<Record<RiasecCode, number | ''>>({
+    R: '',
+    I: '',
+    A: '',
+    S: '',
+    E: '',
+    C: ''
+  });
+  const [riasecMode, setRiasecMode] = useState<'survey' | 'sliders'>('survey');
+
   const [careerInterests, setCareerInterests] = useState('');
   const [careerStrengths, setCareerStrengths] = useState('');
-  const [hasRequestedSuggestions, setHasRequestedSuggestions] = useState(false);
-  const [isAnalyzingMajors, setIsAnalyzingMajors] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<any | null>(null);
-  const [discoveredMajors, setDiscoveredMajors] = useState<any[]>([]);
-  const [analysisError, setAnalysisError] = useState('');
-  const analysisRequestIdRef = useRef(0);
-  const [isAnalyzingUniversities, setIsAnalyzingUniversities] = useState(false);
-  const [universityAnalysis, setUniversityAnalysis] = useState<any | null>(null);
-  const [universityAnalysisError, setUniversityAnalysisError] = useState('');
-  const [hasRequestedUniversityAnalysis, setHasRequestedUniversityAnalysis] = useState(false);
-  const universityAnalysisRequestIdRef = useRef(0);
-
-  const clearUniversityAnalysis = () => {
-    universityAnalysisRequestIdRef.current += 1;
-    setIsAnalyzingUniversities(false);
-    setUniversityAnalysis(null);
-    setUniversityAnalysisError('');
-    setHasRequestedUniversityAnalysis(false);
-  };
-
-  const clearCareerAnalysis = () => {
-    analysisRequestIdRef.current += 1;
-    setHasRequestedSuggestions(false);
-    setIsAnalyzingMajors(false);
-    setAiAnalysis(null);
-    setDiscoveredMajors([]);
-    setAnalysisError('');
-  };
+  const [careerWeaknesses, setCareerWeaknesses] = useState('');
+  const [majorSearchQuery, setMajorSearchQuery] = useState('');
+  const [step1Phase, setStep1Phase] = useState<'holland' | 'profile'>('holland');
 
   // =========================================================================
   // STEP 2 STATE: COMBINATION SELECTION (Locked to Step 1 Major)
@@ -146,9 +209,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // STEP 3 STATE: UNIVERSITY STRATIFICATION (Requires Tuition Budget & Region)
   // =========================================================================
   const [selectedSchoolCode, setSelectedSchoolCode] = useState<string | null>(null);
+  const [liveSchoolResearch, setLiveSchoolResearch] = useState<LiveSchoolResearchResult | null>(null);
+  const [liveSchoolResearchLoading, setLiveSchoolResearchLoading] = useState(false);
+  const [liveSchoolResearchError, setLiveSchoolResearchError] = useState('');
+  const [liveSchoolResearchRefresh, setLiveSchoolResearchRefresh] = useState(0);
+  const liveSchoolResearchCache = useRef(new Map<string, LiveSchoolResearchResult>());
+  const forceNextSchoolResearchRef = useRef(false);
   const [maxTuition, setMaxTuition] = useState<number | null>(null);
   const [targetRegionFilter, setTargetRegionFilter] = useState<'ALL' | 'BAC' | 'TRUNG' | 'NAM' | 'DBSCL'>('ALL');
-  const [targetProvinceFilter, setTargetProvinceFilter] = useState('');
   const [priorityRegion, setPriorityRegion] = useState<'KV1' | 'KV2-NT' | 'KV2' | 'KV3'>('KV2');
   const [priorityObject, setPriorityObject] = useState<'DT_0' | 'DT_NHOM_1' | 'DT_NHOM_2'>('DT_0');
 
@@ -163,7 +231,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setSelectedSchoolCode(null);
     setTargetJob('');
     setExpectedScoreInput('');
-    clearUniversityAnalysis();
     setActiveTab(nextTab);
   };
 
@@ -180,171 +247,192 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     return calculateBasePriority30(priorityRegion, priorityObject, 2026, 2026);
   }, [priorityRegion, priorityObject]);
 
-  // Display each major once; retain school and combination links only for later analysis.
+  // Keep the catalog for matching and later steps; do not render the full catalog here.
   const catalog = CAREER_CATALOG;
-  const programCatalog = CAREER_PROGRAM_CATALOG;
-  const majorOptions = useMemo(() => {
-    const majorsByCode = new Map<string, { code: string; name: string }>();
-    programCatalog.forEach((program) => {
-      if (majorsByCode.has(program.majorCode)) return;
-      const canonicalMajor = catalog.find((major) => major.codeTT09 === program.majorCode);
-      majorsByCode.set(program.majorCode, {
-        code: program.majorCode,
-        name: canonicalMajor?.name || program.name
-      });
-    });
-    return [...majorsByCode.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-  }, [catalog, programCatalog]);
-  const filteredMajors = useMemo(() => {
-    const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
-    if (!query) return [];
-    return majorOptions.filter((major) =>
-      `${major.name} ${major.code}`.toLocaleLowerCase('vi').includes(query)
-    );
-  }, [majorOptions, majorSearchQuery]);
 
   // Current chosen major object
   const currentMajor = useMemo(() => {
     if (!selectedMajorCode) return null;
-    return discoveredMajors.find(m => m.codeTT09 === selectedMajorCode) ||
-      catalog.find(m => m.codeTT09 === selectedMajorCode) || null;
-  }, [catalog, discoveredMajors, selectedMajorCode]);
+    return catalog.find(m => m.codeTT09 === selectedMajorCode) || null;
+  }, [catalog, selectedMajorCode]);
 
   // Current chosen university object
-  const getComboSubjectLabel = (comboCode: string) => {
-    // T00/T01 are school-specific aptitude codes for physical-education majors.
-    if (isPhysicalEducationMajorName(currentMajor?.name || '') && comboCode === 'T00') {
-      return 'Toán – Sinh học – Năng khiếu TDTT';
-    }
-    if (isPhysicalEducationMajorName(currentMajor?.name || '') && comboCode === 'T01') {
-      return 'Toán – Ngữ văn – Năng khiếu TDTT';
-    }
-
-    const verifiedCombo = VERIFIED_COMBINATIONS_219.find((item) => item.code === comboCode);
-    return verifiedCombo
-      ? verifiedCombo.subjects.join(' – ')
-      : 'Chưa có mô tả môn cho tổ hợp này trong danh mục.';
-  };
-
   const currentSchool = useMemo(() => {
     if (!selectedSchoolCode) return null;
-    return (universityAnalysis?.recommendedSchools?.find((school: any) =>
-      school.institutionCode === selectedSchoolCode || school.name === selectedSchoolCode
-    ) ||
-      AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
-      (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode) ||
-      null) || null;
-  }, [selectedSchoolCode, universityAnalysis]);
+    return (AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
+      (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode)) || null;
+  }, [selectedSchoolCode]);
 
-  const requestMajorSuggestions = async () => {
-    sfx.playUiClick();
-    setHasRequestedSuggestions(true);
-    setAiAnalysis(null);
-    setDiscoveredMajors([]);
-    setAnalysisError('');
-
-    if (!hasRecommendationInput) {
-      setAnalysisError('Hãy nhập sở thích, năng lực hoặc ít nhất một điểm số trước khi gợi ý ngành.');
+  useEffect(() => {
+    // Start the school-specific lookup as soon as a school is selected, so
+    // the user can review tuition, cutoffs, admissions methods, and scholarships
+    // before continuing to the final dossier.
+    if (activeTab !== 'tab-university' && activeTab !== 'tab-domino') return;
+    if (!currentSchool?.institution_code) {
+      setLiveSchoolResearch(null);
+      setLiveSchoolResearchError('');
+      setLiveSchoolResearchLoading(false);
       return;
     }
 
-    const requestId = ++analysisRequestIdRef.current;
-    setIsAnalyzingMajors(true);
+    const institutionCode = currentSchool.institution_code;
+    const majorName = currentMajor?.name || '';
+    const comboCode = selectedComboCode || '';
+    const cacheKey = `${institutionCode}:${majorName.toLocaleLowerCase('vi')}:${comboCode}`;
+    const cached = liveSchoolResearchCache.current.get(cacheKey);
+    if (cached && !forceNextSchoolResearchRef.current) {
+      setLiveSchoolResearch(cached);
+      setLiveSchoolResearchError('');
+      setLiveSchoolResearchLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
-    const requestTimeout = window.setTimeout(() => controller.abort(), 50_000);
-    try {
-      const response = await fetch('/api/ai/counselor/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          careerInterests,
-          careerStrengths,
-          scores,
-          aptitudeScores,
-          analysisType: 'majors',
-          academicYear: new Date().getFullYear(),
-          maxTuition,
-          priorityRegion,
-          priorityObject,
-          targetRegionFilter,
-          targetJob
-        })
+    const forceRefresh = forceNextSchoolResearchRef.current;
+    forceNextSchoolResearchRef.current = false;
+    setLiveSchoolResearch(null);
+    setLiveSchoolResearchError('');
+    setLiveSchoolResearchLoading(true);
+
+    fetch('/api/admissions/research-school-profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ institutionCode, majorName, comboCode, forceRefresh }),
+      signal: controller.signal
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || !payload?.success || !payload?.data) {
+          throw new Error(payload?.error || 'Chưa lấy được thông tin từ nguồn chính thức.');
+        }
+        return payload.data as LiveSchoolResearchResult;
+      })
+      .then((result) => {
+        liveSchoolResearchCache.current.set(cacheKey, result);
+        setLiveSchoolResearch(result);
+      })
+      .catch((error: any) => {
+        if (error?.name === 'AbortError') return;
+        setLiveSchoolResearchError(error?.message || 'Tra cứu đang gián đoạn. Vui lòng thử lại sau.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLiveSchoolResearchLoading(false);
       });
-      const payload = await response.json();
-      if (requestId !== analysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek' || !payload?.analysis) {
-        throw new Error(payload?.error || 'Chưa nhận được kết quả phân tích. Hãy thử lại.');
-      }
-      setDiscoveredMajors(Array.isArray(payload.analysis.recommendedMajors)
-        ? payload.analysis.recommendedMajors.map((major: any) => ({ ...major, isDynamicRecommendation: !major.catalogMatch }))
-        : []);
-      setAiAnalysis(payload.analysis);
-    } catch (error) {
-      if (requestId === analysisRequestIdRef.current) {
-        setAnalysisError(error instanceof Error && error.name === 'AbortError'
-          ? 'Phân tích quá thời gian cho phép. Hãy thử lại sau.'
-          : error instanceof Error ? error.message : 'Không kết nối được dịch vụ phân tích. Hãy thử lại.');
-      }
-    } finally {
-      window.clearTimeout(requestTimeout);
-      if (requestId === analysisRequestIdRef.current) setIsAnalyzingMajors(false);
+
+    return () => controller.abort();
+  }, [
+    activeTab,
+    currentSchool?.institution_code,
+    currentMajor?.name,
+    selectedComboCode,
+    liveSchoolResearchRefresh
+  ]);
+
+  const careerProfileText = [careerInterests, careerStrengths].filter(Boolean).join(' ').trim();
+  const profileKeywords = useMemo(() => {
+    const stopWords = new Set(['thích', 'muốn', 'mình', 'ngành', 'nghề', 'làm', 'giỏi', 'học', 'em', 'tôi']);
+    return [...new Set(careerProfileText.toLocaleLowerCase('vi')
+      .split(/\s+/)
+      .map((word) => word.replace(/^[^a-zA-ZÀ-ỹ]+|[^a-zA-ZÀ-ỹ]+$/g, ''))
+      .filter((word) => word.length >= 4 && !stopWords.has(word)))];
+  }, [careerProfileText]);
+  const profileDiagnosis = useMemo(() => ({ recommendedKeywords: profileKeywords }), [profileKeywords]);
+
+  // Handle profile from 60-question survey
+  const handleRiasecSurveyProfileChange = (profile: RiasecProfile | null) => {
+    setRiasecProfile(profile);
+    if (profile) {
+      setRiasecScores({
+        R: Math.round(profile.scores.R),
+        I: Math.round(profile.scores.I),
+        A: Math.round(profile.scores.A),
+        S: Math.round(profile.scores.S),
+        E: Math.round(profile.scores.E),
+        C: Math.round(profile.scores.C)
+      });
+      setHasAnalyzedMajor(false);
     }
   };
 
-  const hasCareerProfile = careerInterests.trim().length > 0 || careerStrengths.trim().length > 0;
-  const hasEnteredScore = [...Object.values(scores), ...Object.values(aptitudeScores)].some((value) => value !== '');
-  const hasRecommendationInput = hasCareerProfile || hasEnteredScore;
+  // Compute dominant Holland code (e.g. IRC, SAE)
+  const dominantRiasec = useMemo(() => {
+    if (riasecProfile && hasRiasecProfileVariation(riasecProfile)) {
+      return riasecProfile.dominantDimensions.join('');
+    }
+    const valid = (Object.entries(riasecScores) as [RiasecCode, number | ''][])
+      .filter((e): e is [RiasecCode, number] => typeof e[1] === 'number' && Number.isFinite(e[1]) && e[1] > 0);
+    if (valid.length < 2) return null;
+    valid.sort((a, b) => b[1] - a[1]);
+    return valid.slice(0, 3).map(([k]) => k).join('');
+  }, [riasecProfile, riasecScores]);
 
-  const majorCatalogPanel = (
-    <div className="space-y-3">
-      <label htmlFor="major-search" className="sr-only">Tìm ngành học</label>
-      <input
-        id="major-search"
-        type="search"
-        value={majorSearchQuery}
-        onChange={(e) => setMajorSearchQuery(e.target.value)}
-        placeholder="Nhập tên hoặc mã ngành"
-        aria-controls="major-search-results"
-        aria-expanded={Boolean(majorSearchQuery.trim())}
-        className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-      />
+  // Active Effective RIASEC Profile
+  const effectiveRiasecProfile = useMemo(() => {
+    if (riasecProfile && hasRiasecProfileVariation(riasecProfile)) {
+      return riasecProfile;
+    }
+    const allFilled = RIASEC_CODES.every((code) => typeof riasecScores[code] === 'number' && Number.isFinite(riasecScores[code]));
+    if (allFilled) {
+      return createRiasecProfileFromNormalizedScores(riasecScores);
+    }
+    return null;
+  }, [riasecProfile, riasecScores]);
 
-      {majorSearchQuery.trim() && (
-        <div
-          id="major-search-results"
-          role="listbox"
-          aria-label="Kết quả tìm ngành"
-          className="flex max-h-80 flex-col gap-2 overflow-y-auto"
-        >
-          {filteredMajors.length === 0 ? (
-            <p role="status" className="py-4 text-center text-base text-slate-300">Không tìm thấy ngành phù hợp.</p>
-          ) : (
-            filteredMajors.map((major) => (
-              <button
-                key={major.code}
-                type="button"
-                role="option"
-                aria-selected={selectedMajorCode === major.code}
-                onClick={() => {
-                  sfx.playActionSuccess();
-                  handleSelectMajor(major.code);
-                }}
-                className="flex min-h-14 w-full items-center rounded-lg border border-slate-700 bg-[#141923] px-4 py-3 text-left hover:border-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              >
-                <span className="block text-lg font-bold text-white">{major.name}</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+  // Presets for quick experimentation
+  const handleApplyRiasecPreset = (preset: 'STEM' | 'BUSINESS' | 'CREATIVE' | 'SOCIAL') => {
+    sfx.playUiClick();
+    let scoresMap: Record<RiasecCode, number>;
+    if (preset === 'STEM') {
+      scoresMap = { R: 85, I: 95, A: 40, S: 35, E: 45, C: 75 };
+    } else if (preset === 'BUSINESS') {
+      scoresMap = { R: 30, I: 55, A: 45, S: 75, E: 95, C: 80 };
+    } else if (preset === 'CREATIVE') {
+      scoresMap = { R: 35, I: 60, A: 95, S: 70, E: 50, C: 30 };
+    } else {
+      scoresMap = { R: 25, I: 50, A: 65, S: 95, E: 60, C: 45 };
+    }
+    setRiasecScores(scoresMap);
+    const prof = createRiasecProfileFromNormalizedScores(scoresMap);
+    setRiasecProfile(prof);
+    setHasAnalyzedMajor(false);
+  };
+
+  // Search majors directly in Step 1
+  const filteredSearchedMajors = useMemo(() => {
+    const query = majorSearchQuery.trim().toLocaleLowerCase('vi');
+    if (!query) return [];
+    return catalog.filter((m) =>
+      m.name.toLocaleLowerCase('vi').includes(query) ||
+      m.codeTT09.includes(query) ||
+      (m.codeTT74 && m.codeTT74.includes(query))
+    ).slice(0, 8);
+  }, [catalog, majorSearchQuery]);
+
+  const hasCareerProfile = Boolean(
+    effectiveRiasecProfile ||
+    Object.values(riasecScores).some((s) => typeof s === 'number' && s > 0) ||
+    careerInterests.trim().length > 0 ||
+    careerStrengths.trim().length > 0 ||
+    careerWeaknesses.trim().length > 0 ||
+    Object.values(scores).some((score) => score !== '') ||
+    Object.values(aptitudeScores).some((score) => score !== '')
   );
+
+  // Rank locally against the saved catalog, combining Holland RIASEC, strengths, weaknesses, and scores
+  const rankedMajors = useMemo(() => {
+    const allScores = { ...scores, ...aptitudeScores };
+    return linkAndRankMajorsWithDossier(
+      allScores,
+      effectiveRiasecProfile || careerProfileText,
+      { ...profileDiagnosis, interestsText: careerProfileText, weaknessesText: careerWeaknesses } as any,
+      catalog
+    );
+  }, [scores, aptitudeScores, effectiveRiasecProfile, careerProfileText, careerWeaknesses, profileDiagnosis, catalog]);
 
   // Mỗi tổ hợp lấy từ danh mục ngành và dữ liệu tuyển sinh liên quan.
   const validCombosForMajor = useMemo(() => {
     if (!currentMajor) return [];
-    const dataCombos = currentMajor.isDynamicRecommendation ? [] : getMajorAdmissionRecords(currentMajor.name)
+    const dataCombos = getMajorAdmissionRecords(currentMajor.name)
       .flatMap((record) => record.subject_combinations || []);
     return [...new Set([...(currentMajor.admissionsCombos || []), ...dataCombos])].sort();
   }, [currentMajor]);
@@ -356,8 +444,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
     return combos.map((comboCode: string) => {
       // Academic mapping
-      const isArts = ['H00', 'H01', 'V00', 'V01', 'N00', 'N01', 'M00', 'M01', 'R00', 'S00'].includes(comboCode) ||
-        (isPhysicalEducationMajorName(currentMajor.name) && ['T00', 'T01'].includes(comboCode));
+      const isArts = ['H00', 'H01', 'V00', 'V01', 'N00', 'N01', 'T00', 'T01', 'M00', 'M01', 'R00', 'S00'].includes(comboCode);
       let m1 = 0, m2 = 0, m3 = 0;
       let hasData = false;
 
@@ -416,11 +503,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
         m2 = Number(scores.biology) || 0;
         m3 = Number(aptitudeScores.apt_theThao) || 0;
         hasData = scores.math !== '' && scores.biology !== '' && aptitudeScores.apt_theThao !== '';
-      } else if (comboCode === 'T01' && isPhysicalEducationMajorName(currentMajor.name)) {
-        m1 = Number(scores.math) || 0;
-        m2 = Number(scores.literature) || 0;
-        m3 = Number(aptitudeScores.apt_theThao) || 0;
-        hasData = scores.math !== '' && scores.literature !== '' && aptitudeScores.apt_theThao !== '';
       } else {
         m1 = 0;
         m2 = 0;
@@ -454,77 +536,137 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const topCombo = evaluatedCombos[0] || null;
 
   // Keep all 300 schools visible while marking exact ngành/tổ hợp matches.
-  const requestUniversityAnalysis = async () => {
-    sfx.playUiClick();
-    setHasRequestedUniversityAnalysis(true);
-    setUniversityAnalysis(null);
-    setUniversityAnalysisError('');
+  const stratifiedSchools = useMemo(() => {
+    const institutionsByCode = new Map(AUDITED_INSTITUTIONS_300.map((institution) => [institution.institution_code, institution]));
+    const schoolQuery = schoolSearchQuery.trim().toLocaleLowerCase('vi');
+    const visibleInstitutions = AUDITED_INSTITUTIONS_300.filter((institution) => {
+      if (targetRegionFilter !== 'ALL' && getRegionFromProvinceCity(institution.verified_province_city) !== targetRegionFilter) return false;
+      if (schoolQuery) {
+        const searchableSchool = [institution.official_name, institution.institution_code, institution.verified_province_city]
+          .join(' ')
+          .toLocaleLowerCase('vi');
+        if (!searchableSchool.includes(schoolQuery)) return false;
+      }
+      return true;
+    });
+
+    if (!currentMajor) {
+      return { dream: [], target: [], safe: [], schools: [], hasScore: false, totalSchools: 0, matchingSchoolCount: 0, tuitionBenchmark: null };
+    }
 
     const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null);
-    if (!currentMajor || !chosenCombo) {
-      setUniversityAnalysisError('Chọn ngành và tổ hợp trước khi tra cứu trường.');
-      return;
+    const visibleSchoolCodes = new Set(visibleInstitutions.map((institution) => institution.institution_code));
+    const records = getMajorAdmissionRecords(currentMajor.name, chosenCombo)
+      .filter((record) => record.verification_status === 'VERIFIED_OFFICIAL' && visibleSchoolCodes.has(record.institution_code));
+    const groups = new Map<string, { institution: any; cutoffs: number[] }>();
+
+    for (const record of records) {
+      const institution = institutionsByCode.get(record.institution_code);
+      if (!institution) continue;
+
+      const cutoff = record.audited_official_scale === 'THANG_30'
+        ? Number(record.audited_official_cutoff)
+        : Number(record.analytical_normalized_100) * 0.3;
+      if (!Number.isFinite(cutoff)) continue;
+
+      const group = groups.get(record.institution_code) || { institution, cutoffs: [] };
+      group.cutoffs.push(cutoff);
+      groups.set(record.institution_code, group);
     }
 
-    const requestId = ++universityAnalysisRequestIdRef.current;
-    setIsAnalyzingUniversities(true);
     const selectedEvaluation = evaluatedCombos.find((combo: any) => combo.code === chosenCombo);
-    const controller = new AbortController();
-    const requestTimeout = window.setTimeout(() => controller.abort(), 50_000);
-    try {
-      const response = await fetch('/api/ai/counselor/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          analysisType: 'universities',
-          academicYear: new Date().getFullYear(),
-          studentProfile: {
-            interests: careerInterests,
-            strengths: careerStrengths,
-            scores,
-            aptitudeScores,
-            targetJob,
-            major: {
-              codeTT09: currentMajor.codeTT09,
-              name: currentMajor.name,
-              sector: currentMajor.sector
-            },
-            selectedCombination: chosenCombo,
-            userEnteredExpectedScore: expectedScoreInput.trim() === '' ? null : Number(expectedScoreInput),
-            calculatedSubjectScore: selectedEvaluation?.rawScore ?? null,
-            effectivePriority: selectedEvaluation ? Number(selectedEvaluation.effectivePriority.toFixed(2)) : null,
-            officialScoreForComparison: selectedEvaluation?.officialScore ?? null,
-            maxAnnualTuitionMillions: maxTuition,
-            preferredStudyRegion: targetRegionFilter,
-            preferredProvince: targetProvinceFilter,
-            priorityRegion,
-            priorityObject
-          }
-        })
-      });
-      const payload = await response.json();
-      if (requestId !== universityAnalysisRequestIdRef.current) return;
-      if (!response.ok || payload?.success !== true || payload?.provider !== 'deepseek' || !payload?.analysis) {
-        throw new Error(payload?.error || 'Chưa nhận được kết quả tra cứu trường. Hãy thử lại.');
-      }
-      setUniversityAnalysis(payload.analysis);
-    } catch (error) {
-      if (requestId === universityAnalysisRequestIdRef.current) {
-        setUniversityAnalysisError(error instanceof Error && error.name === 'AbortError'
-          ? 'Tra cứu quá thời gian cho phép. Hãy thử lại sau.'
-          : error instanceof Error ? error.message : 'Không kết nối được dịch vụ tra cứu. Hãy thử lại.');
-      }
-    } finally {
-      window.clearTimeout(requestTimeout);
-      if (requestId === universityAnalysisRequestIdRef.current) setIsAnalyzingUniversities(false);
+    const typedScore = Number(expectedScoreInput);
+    const hasTypedScore = expectedScoreInput.trim() !== '' && Number.isFinite(typedScore) && typedScore >= 0 && typedScore <= 30;
+    const hasScore = hasTypedScore || Boolean(selectedEvaluation?.hasData);
+    const userScore = hasTypedScore ? typedScore : selectedEvaluation?.officialScore;
+    const tuitionBenchmark = getSectorTuitionBenchmark(currentMajor.sector);
+    const dream: any[] = [];
+    const target: any[] = [];
+    const safe: any[] = [];
+
+    for (const { institution, cutoffs } of groups.values()) {
+      const orderedCutoffs = [...cutoffs].sort((a, b) => a - b);
+      const middle = Math.floor(orderedCutoffs.length / 2);
+      const benchmark = orderedCutoffs.length % 2
+        ? orderedCutoffs[middle]
+        : Number(((orderedCutoffs[middle - 1] + orderedCutoffs[middle]) / 2).toFixed(2));
+      const margin = hasScore && typeof userScore === 'number'
+        ? Number((userScore - benchmark).toFixed(2))
+        : null;
+      const item = {
+        code: institution.institution_code,
+        name: institution.official_name,
+        city: institution.verified_province_city,
+        benchmark: Number(benchmark.toFixed(2)),
+        margin,
+        sectorTuition: tuitionBenchmark?.avg2026_2027 ?? null,
+        isBudgetOk: tuitionBenchmark?.avg2026_2027 != null && maxTuition != null
+          ? tuitionBenchmark.avg2026_2027 <= maxTuition
+          : null
+      };
+
+      if (!hasScore) target.push(item);
+      else if (margin !== null && margin >= 1.5) safe.push(item);
+      else if (margin !== null && margin >= -0.7) target.push(item);
+      else dream.push(item);
     }
-  };
+
+    const byCutoff = (a: any, b: any) => a.benchmark - b.benchmark;
+    dream.sort(byCutoff);
+    target.sort(hasScore ? (a: any, b: any) => Math.abs(a.margin) - Math.abs(b.margin) : byCutoff);
+    safe.sort((a: any, b: any) => b.margin - a.margin);
+
+    const matchedByCode = new Map<string, any>();
+    safe.forEach((school) => matchedByCode.set(school.code, { ...school, tier: 'An toàn' }));
+    target.forEach((school) => matchedByCode.set(school.code, { ...school, tier: hasScore ? 'Vừa sức' : '' }));
+    dream.forEach((school) => matchedByCode.set(school.code, { ...school, tier: 'Mơ ước' }));
+
+    const allSchools = visibleInstitutions.map((institution) => {
+      const match = matchedByCode.get(institution.institution_code);
+      return {
+        code: institution.institution_code,
+        name: institution.official_name,
+        city: institution.verified_province_city,
+        hasMajorData: Boolean(match),
+        tier: match?.tier || '',
+        benchmark: match?.benchmark ?? null,
+        margin: match?.margin ?? null
+      };
+    });
+    const schools = allSchools
+      .filter((school) => schoolMatchFilter === 'ALL' || school.hasMajorData)
+      .sort((a, b) => Number(b.hasMajorData) - Number(a.hasMajorData) || a.name.localeCompare(b.name, 'vi'));
+
+    return {
+      dream,
+      target,
+      safe,
+      schools,
+      hasScore,
+      totalSchools: schools.length,
+      matchingSchoolCount: matchedByCode.size,
+      tuitionBenchmark
+    };
+  }, [currentMajor, selectedComboCode, topCombo, evaluatedCombos, expectedScoreInput, targetRegionFilter, schoolSearchQuery, schoolMatchFilter, maxTuition]);
+
+  const suggestedSchoolCandidates = useMemo(
+    () => stratifiedSchools.schools.filter((school) => school.hasMajorData).slice(0, 5),
+    [stratifiedSchools.schools]
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'tab-university' || !selectedSchoolCode) return;
+    const frame = window.requestAnimationFrame(() => {
+      selectedSchoolDetailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, selectedSchoolCode]);
 
   // Reset entire session
   const handleResetAll = () => {
     sfx.playUiClick();
     setHasMajorChoice(null);
+    setHasAnalyzedMajor(false);
     setSelectedMajorCode(null);
     setSelectedComboCode(null);
     setSelectedSchoolCode(null);
@@ -532,55 +674,52 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setExpectedScoreInput('');
     setCareerInterests('');
     setCareerStrengths('');
-    clearCareerAnalysis();
-    clearUniversityAnalysis();
-    setScores({ math: '', literature: '', english: '', physics: '', chemistry: '', biology: '', history: '', geography: '', informatics: '', economicLegal: '' });
-    setAptitudeScores({ apt_hinhHoa: '', apt_trangTri: '', apt_veMyThuat: '', apt_thamAm: '', apt_thanhNhac: '', apt_theThao: '', apt_mamNon: '', apt_baoChi: '', apt_dienXuat: '' });
-    setMaxTuition(null);
-    setTargetRegionFilter('ALL');
-    setTargetProvinceFilter('');
+    setCareerWeaknesses('');
+    setMajorSearchQuery('');
+    setStep1Phase('holland');
+    setRiasecProfile(null);
+    setRiasecScores({ R: '', I: '', A: '', S: '', E: '', C: '' });
+    setRiasecMode('survey');
+    setSchoolSearchQuery('');
+    setSchoolMatchFilter('ALL');
+    setShowSuggestedSchools(false);
+    setShowAllSchools(false);
     setActiveTab('tab-major');
   };
 
   if (hasMajorChoice === null) {
     return (
       <div className="career-flow fixed inset-x-0 bottom-0 top-16 sm:top-24 z-20 flex items-center justify-center overflow-y-auto px-4 py-6 text-slate-100">
-        <div className="flex w-full max-w-3xl flex-col items-center gap-8 text-center">
-          <p aria-label="NEXORA" className="font-wordmark text-6xl sm:text-8xl md:text-9xl font-bold uppercase leading-none tracking-tight text-blue-400">
-            NEXORA
-          </p>
-          <section
-            aria-labelledby="startup-major-question"
-            className="w-full p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
-          >
-            <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
-              Bạn đã xác định được ngành chưa?
-            </h1>
-            <div className="mt-8 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasMajorChoice('YES');
-                }}
-                className="px-5 py-3 border border-blue-500 bg-blue-950/70 text-white font-bold hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-              >
-                Có
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sfx.playUiClick();
-                  setHasMajorChoice('NO');
-                  clearCareerAnalysis();
-                }}
-                className="px-5 py-3 border border-slate-700 bg-[#141923] text-slate-200 font-bold hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-              >
-                Chưa
-              </button>
-            </div>
-          </section>
-        </div>
+        <section
+          aria-labelledby="startup-major-question"
+          className="w-full max-w-2xl p-6 sm:p-10 bg-[#0E1117] border border-slate-800 rounded-2xl text-center"
+        >
+          <h1 id="startup-major-question" className="text-2xl sm:text-4xl font-bold text-white">
+            Bạn đã xác định được ngành chưa?
+          </h1>
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                sfx.playUiClick();
+                setHasMajorChoice('YES');
+              }}
+              className="px-5 py-3 border border-blue-500 bg-blue-950/70 text-white font-bold hover:bg-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            >
+              Có
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sfx.playUiClick();
+                setHasMajorChoice('NO');
+              }}
+              className="px-5 py-3 border border-slate-700 bg-[#141923] text-slate-200 font-bold hover:border-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            >
+              Chưa
+            </button>
+          </div>
+        </section>
       </div>
     );
   }
@@ -593,204 +732,441 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
           ========================================================================= */}
       {activeTab === 'tab-major' && (
         <section ref={activeSelectionRef} className="space-y-5 scroll-mt-28">
-          {hasMajorChoice === 'YES' && majorCatalogPanel}
-
-          {hasMajorChoice === 'NO' && (
+          {(hasMajorChoice === 'YES' || hasMajorChoice === 'NO') && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
-                <div>
-                  <h3 className="text-xl font-bold text-white">Sở thích và năng lực</h3>
-                  <p className="mt-1 text-base text-slate-300">Nhập sở thích, năng lực hoặc điểm số, rồi bấm “Gợi ý ngành” để xem kết quả.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="space-y-2 text-base font-semibold text-white">
-                    Sở thích
-                    <textarea
-                      value={careerInterests}
-                      onChange={(e) => {
-                        setCareerInterests(e.target.value);
-                        clearCareerAnalysis();
-                      }}
-                      rows={4}
-                      placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
-                      className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    />
-                  </label>
-                  <label className="space-y-2 text-base font-semibold text-white">
-                    Năng lực và thế mạnh
-                    <textarea
-                      value={careerStrengths}
-                      onChange={(e) => {
-                        setCareerStrengths(e.target.value);
-                        clearCareerAnalysis();
-                      }}
-                      rows={4}
-                      placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
-                      className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    />
-                  </label>
-                </div>
-
-                <details className="rounded-xl border border-slate-700 bg-[#141923] p-4">
-                  <summary className="cursor-pointer text-base font-semibold text-white">Điểm học tập và năng khiếu (tùy chọn)</summary>
-                  <div className="mt-4 space-y-5">
+              {/* =========================================================================
+                  GIAI ĐOẠN 1: LÀM MẬT MÃ HOLLAND TRƯỚC (HOLLAND RIASEC CODE)
+                  ========================================================================= */}
+              {step1Phase === 'holland' && (
+                <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 sm:p-7 space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
                     <div>
-                      <h4 className="mb-3 text-base font-semibold text-white">Điểm môn học</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                        {[
-                          { key: 'math', label: 'Toán' },
-                          { key: 'literature', label: 'Ngữ văn' },
-                          { key: 'english', label: 'Tiếng Anh' },
-                          { key: 'physics', label: 'Vật lý' },
-                          { key: 'chemistry', label: 'Hóa học' },
-                          { key: 'biology', label: 'Sinh học' },
-                          { key: 'history', label: 'Lịch sử' },
-                          { key: 'geography', label: 'Địa lý' },
-                          { key: 'informatics', label: 'Tin học' },
-                          { key: 'economicLegal', label: 'GDKT & PL' }
-                        ].map((subject) => (
-                          <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
-                            {subject.label}
-                            <input
-                              type="number"
-                              min="0"
-                              max="10"
-                              step="0.1"
-                              value={scores[subject.key] === '' ? '' : scores[subject.key]}
-                              onChange={(e) => {
-                                const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
-                                setScores((previous) => ({ ...previous, [subject.key]: value }));
-                                clearCareerAnalysis();
-                                 clearUniversityAnalysis();
-                              }}
-                              className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
-                            />
-                          </label>
-                        ))}
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-blue-900/60 text-blue-300 border border-blue-500/30">
+                          BƯỚC 1.1: KHÁM PHÁ MẬT MÃ TÂM LÝ
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">HOLLAND O*NET</span>
                       </div>
+                      <h2 className="text-2xl font-bold text-white mt-1">Trắc nghiệm Mật mã Holland (RIASEC)</h2>
+                      <p className="mt-1 text-sm text-slate-300 max-w-2xl">
+                        Trước khi điền chi tiết hồ sơ sở thích và năng lực, hãy xác định Mật mã Holland của bạn để hệ thống định vị chuẩn xác 6 nhóm thiên hướng tính cách nghề nghiệp.
+                      </p>
                     </div>
 
-                    <div>
-                      <h4 className="mb-3 text-base font-semibold text-white">Điểm năng khiếu</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {APTITUDE_SUBJECTS_METADATA.map((subject) => (
-                          <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
-                            {subject.label}
-                            <input
-                              type="number"
-                              min="0"
-                              max="10"
-                              step="0.1"
-                              value={aptitudeScores[subject.key] === '' ? '' : aptitudeScores[subject.key]}
-                              onChange={(e) => {
-                                const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
-                                setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
-                                clearCareerAnalysis();
-                                 clearUniversityAnalysis();
-                              }}
-                              className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
-                            />
-                          </label>
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-2 bg-[#141923] p-3 rounded-xl border border-slate-700">
+                      <span className="text-xs text-slate-400 font-mono">Mã Holland:</span>
+                      <span className="px-3 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-base">
+                        {dominantRiasec ? dominantRiasec : 'Chưa thiết lập'}
+                      </span>
                     </div>
                   </div>
-                </details>
-              </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void requestMajorSuggestions()}
-                  disabled={isAnalyzingMajors}
-                  className="min-h-11 rounded-lg bg-blue-600 px-6 py-3 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-                >
-                  {isAnalyzingMajors ? 'Đang phân tích…' : 'Gợi ý ngành'}
-                </button>
-              </div>
-
-              {hasRequestedSuggestions && (
-                <section aria-labelledby="recommended-majors-title" className="rounded-xl border border-slate-700 bg-[#0E1117] p-5 space-y-4">
-                  <div>
-                    <h3 id="recommended-majors-title" className="text-xl font-bold text-white">Phân tích và gợi ý ngành</h3>
-                    <p className="mt-1 text-sm text-slate-300">
-                      Hệ thống phân tích hồ sơ và đối chiếu kết quả với danh mục ngành. Thông tin tuyển sinh cần kiểm tra theo đề án chính thức.
-                    </p>
+                  {/* Chuyển đổi: Trắc nghiệm 60 câu vs Tự chỉnh 6 miền */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => setRiasecMode('survey')}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                        riasecMode === 'survey'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-[#141923] text-slate-300 hover:text-white border border-slate-700'
+                      }`}
+                    >
+                      📋 Làm trắc nghiệm 60 câu hỏi chuẩn hóa (O*NET)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRiasecMode('sliders')}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                        riasecMode === 'sliders'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-[#141923] text-slate-300 hover:text-white border border-slate-700'
+                      }`}
+                    >
+                      ⚡ Tự điều chỉnh điểm 6 miền nhanh (0 - 100đ)
+                    </button>
                   </div>
 
-                      {isAnalyzingMajors && (
-                    <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                      Đang phân tích hồ sơ và tạo gợi ý ngành…
-                    </p>
+                  {/* Chế độ 1: 60 câu trắc nghiệm */}
+                  {riasecMode === 'survey' && (
+                    <div className="space-y-3">
+                      <RiasecAssessment onProfileChange={handleRiasecSurveyProfileChange} />
+                    </div>
                   )}
-                  {analysisError && (
-                    <p role="alert" className="rounded-lg border border-red-900 bg-red-950/30 p-4 text-base text-red-200">
-                      {analysisError}
-                    </p>
-                  )}
-                  {aiAnalysis && (
+
+                  {/* Chế độ 2: Tự chỉnh điểm 6 miền */}
+                  {riasecMode === 'sliders' && (
                     <div className="space-y-4">
-                      {aiAnalysis.headline && <h4 className="text-lg font-bold text-white">{aiAnalysis.headline}</h4>}
-                      {aiAnalysis.directAnswer && <p className="text-base leading-relaxed text-slate-200">{aiAnalysis.directAnswer}</p>}
-                      {aiAnalysis.strengthsEvaluation && (
-                        <p className="text-sm leading-relaxed text-slate-300">{aiAnalysis.strengthsEvaluation}</p>
-                      )}
-                      {aiAnalysis.risksAndBottlenecks && (
-                        <p className="text-sm leading-relaxed text-slate-300">{aiAnalysis.risksAndBottlenecks}</p>
-                      )}
-                      {aiAnalysis.warnings?.map((warning: string, index: number) => (
-                        <p key={`major-warning-${index}`} className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">{warning}</p>
-                      ))}
-                      <ol className="flex flex-col gap-2" aria-label="Danh sách ngành được gợi ý">
-                        {aiAnalysis.recommendedMajors.map((major: any, index: number) => (
-                          <li key={`${major.codeTT09 || major.name}-${index}`} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}</p>
-                              <h5 className="mt-1 text-lg font-bold text-white">{major.name}{major.codeTT09 ? ` · ${major.codeTT09}` : ''}</h5>
-                              <p className={`mt-1 text-sm ${major.verificationStatus === 'VERIFIED' ? 'text-emerald-300' : 'text-amber-300'}`}>
-                                {major.verificationStatus === 'VERIFIED'
-                                  ? `Đã xác minh theo nguồn năm ${major.year}`
-                                  : major.catalogMatch ? 'Tên và mã có trong danh mục NEXORA; cần đối chiếu đề án từng trường.' : 'Gợi ý định hướng từ AI; chưa xác minh mã ngành hoặc tuyển sinh.'}
-                              </p>
-                              {major.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{major.whyFit}</p>}
-                              {major.evidence && <p className="mt-1 text-sm leading-relaxed text-slate-400"><strong>Điểm khớp hồ sơ:</strong> {major.evidence}</p>}
-                              {major.nextStep && <p className="mt-1 text-sm leading-relaxed text-slate-400"><strong>Bước tìm hiểu tiếp:</strong> {major.nextStep}</p>}
-                              {major.source?.url && (
-                                <a href={major.source.url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-blue-300 underline underline-offset-2">
-                                  Nguồn chính thức: {major.source.title}
-                                </a>
-                              )}
-                              {major.admissionsCombos?.length > 0 && (
-                                <div className="mt-1 text-sm text-slate-300">
-                                  <p>{major.catalogMatch ? 'Tổ hợp trong danh mục tham khảo:' : 'Tổ hợp:'} {major.admissionsCombos.join(', ')}</p>
-                                  {major.comboSource?.url && (
-                                    <a href={major.comboSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-blue-300 underline underline-offset-2">
-                                      Nguồn tổ hợp: {major.comboSource.title}
-                                    </a>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
-                              disabled={!major.catalogMatch || !major.codeTT09}
-                              className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-                            >
-                              {major.catalogMatch && major.codeTT09 ? 'Chọn ngành để xem tổ hợp' : 'Chưa có trong danh mục'}
-                            </button>
-                          </li>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-slate-400 font-mono">Nạp nhanh theo nhóm:</span>
+                        {[
+                          { id: 'STEM' as const, label: 'Kỹ thuật / STEM (IR)' },
+                          { id: 'BUSINESS' as const, label: 'Kinh doanh / Quản lý (EC)' },
+                          { id: 'CREATIVE' as const, label: 'Nghệ thuật / Thiết kế (AS)' },
+                          { id: 'SOCIAL' as const, label: 'Xã hội / Sư phạm (SE)' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleApplyRiasecPreset(preset.id)}
+                            className="px-3 py-1 rounded-lg bg-[#141923] hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                          >
+                            {preset.label}
+                          </button>
                         ))}
-                      </ol>
-                      {aiAnalysis.recommendedMajors.length === 0 && (
-                        <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm thấy gợi ý ngành phù hợp. Hãy thử mô tả thêm sở thích hoặc thế mạnh.</p>
-                      )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {RIASEC_DIMENSIONS_META.map((dim) => {
+                          const val = riasecScores[dim.key];
+                          const numVal = typeof val === 'number' ? val : 0;
+                          return (
+                            <div
+                              key={dim.key}
+                              className={`p-3.5 rounded-xl bg-[#141923] border ${
+                                dominantRiasec?.includes(dim.key)
+                                  ? `${dim.borderColor} ring-1 ring-emerald-500/30`
+                                  : 'border-slate-800'
+                              } space-y-2`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className={`text-sm font-bold ${dim.color}`}>{dim.label}</span>
+                                <span className="font-mono text-white text-sm font-bold px-2 py-0.5 rounded bg-black/40">
+                                  {val !== '' ? `${val}đ` : '--'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 leading-tight line-clamp-2">{dim.desc}</p>
+                              <div className="space-y-1 pt-1">
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  value={numVal}
+                                  onChange={(e) => {
+                                    const newVal = parseInt(e.target.value, 10);
+                                    setRiasecScores((prev: Record<RiasecCode, number | ''>) => {
+                                      const next: Record<RiasecCode, number | ''> = { ...prev, [dim.key]: newVal };
+                                      const allFilled = RIASEC_CODES.every((c) => typeof next[c] === 'number');
+                                      if (allFilled) {
+                                        setRiasecProfile(createRiasecProfileFromNormalizedScores(next));
+                                      }
+                                      return next;
+                                    });
+                                    setHasAnalyzedMajor(false);
+                                  }}
+                                  className="w-full accent-blue-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+                                />
+                                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                                  <span>0</span>
+                                  <span>50</span>
+                                  <span>100</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
-                </section>
+
+                  {/* Nút Tiếp tục sang Màn hình Hồ sơ cá nhân */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+                    <p className="text-xs text-slate-400 font-mono">
+                      {dominantRiasec
+                        ? `✓ Đã ghi nhận Mật mã ${dominantRiasec}. Kết quả sẽ tự động đưa vào làm dữ liệu đầu vào (Input) của hồ sơ.`
+                        : 'Bạn có thể làm bài trắc nghiệm, chọn mẫu gợi ý hoặc tiếp tục để điền hồ sơ.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playActionSuccess();
+                        setStep1Phase('profile');
+                      }}
+                      className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-lg transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <span>Xác nhận Mật mã &amp; Tiếp tục sang Hồ sơ cá nhân →</span>
+                    </button>
+                  </div>
+                </div>
               )}
 
-              {majorCatalogPanel}
+              {/* =========================================================================
+                  GIAI ĐOẠN 2: MÀN HÌNH NHẬP LIỆU HỒ SƠ (ĐÚNG THEO GIAO DIỆN YÊU CẦU)
+                  - Dùng Mật mã Holland làm 1 phần của Input
+                  - Có thêm ô Điểm yếu & hạn chế
+                  - Nút "Gợi ý ngành"
+                  - Ô tìm kiếm "Nhập tên hoặc mã ngành"
+                  ========================================================================= */}
+              {step1Phase === 'profile' && (
+                <div className="space-y-5">
+                  {/* INPUT 1: MẬT MÃ HOLLAND ĐÃ XÁC LẬP */}
+                  <div className="rounded-xl border border-blue-500/40 bg-blue-950/20 p-4 flex flex-wrap items-center justify-between gap-3 shadow-md">
+                    <div className="flex items-center gap-3">
+                      <span className="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-blue-600 text-white">
+                        INPUT 1: MẬT MÃ HOLLAND
+                      </span>
+                      <div>
+                        <span className="text-sm font-bold text-white">
+                          Mật mã Holland của bạn: <span className="text-emerald-400 font-mono text-base ml-1">{dominantRiasec ? dominantRiasec : 'Chưa thiết lập'}</span>
+                        </span>
+                        {dominantRiasec ? (
+                          <div className="flex flex-wrap items-center gap-2 mt-1 font-mono text-xs text-slate-300">
+                            {RIASEC_CODES.map((c) => (
+                              <span key={c} className="px-1.5 py-0.5 rounded bg-black/40 text-slate-300 border border-slate-700/50">
+                                {c}: {riasecScores[c] !== '' ? `${riasecScores[c]}đ` : '--'}
+                              </span>
+                            ))}
+                            <span className="text-[11px] text-emerald-300 font-sans ml-1">✓ Đã đưa vào dữ liệu đầu vào so khớp</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 mt-0.5">Chưa hoàn thành khảo sát; thuật toán sẽ dùng từ khóa tự khai để khám phá.</p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sfx.playUiClick();
+                        setStep1Phase('holland');
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-500 bg-[#141923] text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+                    >
+                      🔄 Làm lại / Đổi Mật mã Holland
+                    </button>
+                  </div>
+
+                  {/* FORM SỞ THÍCH, THẾ MẠNH & ĐIỂM YẾU */}
+                  <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Sở thích và năng lực</h3>
+                      <p className="mt-1 text-base text-slate-300">
+                        Nhập sở thích, năng lực, điểm yếu hoặc điểm số, rồi bấm “Gợi ý ngành” để xem kết quả.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Ô 1: Sở thích */}
+                      <label className="space-y-2 text-base font-semibold text-white">
+                        <div className="flex items-center justify-between">
+                          <span>Sở thích</span>
+                          <span className="text-xs font-normal text-slate-400 font-mono">Đam mê</span>
+                        </div>
+                        <textarea
+                          value={careerInterests}
+                          onChange={(e) => {
+                            setCareerInterests(e.target.value);
+                            setHasAnalyzedMajor(false);
+                          }}
+                          rows={4}
+                          placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
+                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                        />
+                      </label>
+
+                      {/* Ô 2: Năng lực và thế mạnh */}
+                      <label className="space-y-2 text-base font-semibold text-white">
+                        <div className="flex items-center justify-between">
+                          <span>Năng lực và thế mạnh</span>
+                          <span className="text-xs font-normal text-emerald-400 font-mono">Sở trường</span>
+                        </div>
+                        <textarea
+                          value={careerStrengths}
+                          onChange={(e) => {
+                            setCareerStrengths(e.target.value);
+                            setHasAnalyzedMajor(false);
+                          }}
+                          rows={4}
+                          placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
+                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                        />
+                      </label>
+
+                      {/* Ô 3: Điểm yếu và hạn chế (MỚI) */}
+                      <label className="space-y-2 text-base font-semibold text-white">
+                        <div className="flex items-center justify-between">
+                          <span className="text-amber-200">Điểm yếu và hạn chế</span>
+                          <span className="text-xs font-normal text-amber-400/80 font-mono">Cần tránh</span>
+                        </div>
+                        <textarea
+                          value={careerWeaknesses}
+                          onChange={(e) => {
+                            setCareerWeaknesses(e.target.value);
+                            setHasAnalyzedMajor(false);
+                          }}
+                          rows={4}
+                          placeholder="Ví dụ: ngại giao tiếp trước đám đông, không thích làm việc với số liệu, tính kiên nhẫn chưa cao, sợ máu..."
+                          className="min-h-28 w-full resize-y rounded-xl border border-amber-500/40 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Điểm học tập và năng khiếu (tùy chọn) */}
+                    <details className="rounded-xl border border-slate-700 bg-[#141923] p-4">
+                      <summary className="cursor-pointer text-base font-semibold text-white">Điểm học tập và năng khiếu (tùy chọn)</summary>
+                      <div className="mt-4 space-y-5">
+                        <div>
+                          <h4 className="mb-3 text-base font-semibold text-white">Điểm môn học</h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                            {[
+                              { key: 'math', label: 'Toán' },
+                              { key: 'literature', label: 'Ngữ văn' },
+                              { key: 'english', label: 'Tiếng Anh' },
+                              { key: 'physics', label: 'Vật lý' },
+                              { key: 'chemistry', label: 'Hóa học' },
+                              { key: 'biology', label: 'Sinh học' },
+                              { key: 'history', label: 'Lịch sử' },
+                              { key: 'geography', label: 'Địa lý' },
+                              { key: 'informatics', label: 'Tin học' },
+                              { key: 'economicLegal', label: 'GDKT & PL' }
+                            ].map((subject) => (
+                              <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
+                                {subject.label}
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="10"
+                                  step="0.1"
+                                  value={scores[subject.key] === '' ? '' : scores[subject.key]}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                                    setScores((previous) => ({ ...previous, [subject.key]: value }));
+                                    setHasAnalyzedMajor(false);
+                                  }}
+                                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="mb-3 text-base font-semibold text-white">Điểm môn năng khiếu</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {APTITUDE_SUBJECTS_METADATA.map((subject) => (
+                              <label key={subject.key} className="space-y-1 text-sm font-medium text-white">
+                                {subject.label}
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="10"
+                                  step="0.1"
+                                  value={aptitudeScores[subject.key] === '' ? '' : aptitudeScores[subject.key]}
+                                  onChange={(e) => {
+                                    const value = e.target.value === '' ? '' : Math.min(10, Math.max(0, parseFloat(e.target.value)));
+                                    setAptitudeScores((previous) => ({ ...previous, [subject.key]: value }));
+                                    setHasAnalyzedMajor(false);
+                                  }}
+                                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#0A0D14] px-3 text-base text-white"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+
+                  {/* NÚT GỢI Ý NGÀNH */}
+                  <div className="flex justify-center pt-2">
+                    <button
+                      type="button"
+                      disabled={!hasCareerProfile}
+                      onClick={() => {
+                        sfx.playActionSuccess();
+                        setHasAnalyzedMajor(true);
+                      }}
+                      className="min-h-12 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-md transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 cursor-pointer"
+                    >
+                      {hasAnalyzedMajor ? 'Gợi ý lại ngành' : 'Gợi ý ngành'}
+                    </button>
+                  </div>
+
+                  {/* Ô TRA CỨU: NHẬP TÊN HOẶC MÃ NGÀNH */}
+                  <div className="space-y-2">
+                    <label htmlFor="major-search-input" className="sr-only">Nhập tên hoặc mã ngành</label>
+                    <input
+                      id="major-search-input"
+                      type="search"
+                      value={majorSearchQuery}
+                      onChange={(e) => setMajorSearchQuery(e.target.value)}
+                      placeholder="Nhập tên hoặc mã ngành"
+                      className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                    />
+
+                    {majorSearchQuery.trim() && (
+                      <div className="p-3 rounded-xl border border-slate-700 bg-[#0E1117] max-h-60 overflow-y-auto space-y-2">
+                        {filteredSearchedMajors.length > 0 ? (
+                          filteredSearchedMajors.map((m) => (
+                            <div
+                              key={m.codeTT09}
+                              onClick={() => handleSelectMajor(m.codeTT09, 'tab-combo')}
+                              className="p-2.5 rounded-lg bg-[#141923] hover:bg-blue-900/30 border border-slate-800 hover:border-blue-500/50 flex items-center justify-between cursor-pointer transition-colors"
+                            >
+                              <div>
+                                <span className="font-bold text-white text-sm">{m.name}</span>
+                                <span className="text-xs text-slate-400 ml-2 font-mono">Mã {m.codeTT09}</span>
+                              </div>
+                              <span className="text-xs text-blue-400 font-bold">Chọn ngành này →</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-slate-400 py-2 text-center">Không tìm thấy ngành khớp với từ khóa.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* KẾT QUẢ GỢI Ý NGÀNH */}
+                  {hasAnalyzedMajor && hasCareerProfile && (
+                    <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                        <h3 className="text-lg font-bold text-white">Kết quả phân tích &amp; Gợi ý ngành</h3>
+                        <span className="text-xs text-slate-400 font-mono">
+                          Đối chiếu: Mật mã Holland + Sở thích + Thế mạnh + Điểm yếu
+                        </span>
+                      </div>
+
+                      {rankedMajors.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {rankedMajors.slice(0, 3).map((major, index) => (
+                            <div key={major.codeTT09} className="rounded-xl border border-slate-700 bg-[#141923] p-4 space-y-3 flex flex-col justify-between">
+                              <div>
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className="text-xs font-bold text-blue-300 font-mono">Gợi ý {index + 1}</span>
+                                  {major.interestSimilarityIndex !== null ? (
+                                    <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-emerald-950/60 text-emerald-300 border border-emerald-500/30">
+                                      RIASEC Match {major.interestSimilarityIndex}%
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded text-xs font-mono bg-blue-950/60 text-blue-300 border border-blue-500/30">
+                                      Khám phá từ khóa
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-lg font-bold text-white">{major.name}</h4>
+                                <span className="text-xs font-mono text-slate-400 block mt-0.5">Mã ngành: {major.codeTT09}</span>
+                                <p className="mt-2 text-sm text-slate-300 leading-relaxed">{major.fitReason}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectMajor(major.codeTT09, 'tab-combo')}
+                                className="min-h-11 w-full rounded-lg bg-blue-600 px-4 text-base font-bold text-white hover:bg-blue-500 transition-colors cursor-pointer mt-2"
+                              >
+                                Chọn ngành này →
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-base text-slate-300">
+                          Chưa đủ dữ liệu để đưa ra gợi ý. Hãy bổ sung sở thích, thế mạnh hoặc điểm số rồi bấm “Gợi ý ngành” lại.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -834,7 +1210,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   max="30"
                   step="0.25"
                   value={expectedScoreInput}
-                  onChange={(e) => { setExpectedScoreInput(e.target.value); setSelectedSchoolCode(null); clearUniversityAnalysis(); }}
+                  onChange={(e) => { setExpectedScoreInput(e.target.value); setSelectedSchoolCode(null); }}
                   placeholder="Ví dụ: 25.5"
                   className="w-28 bg-[#141923] border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-500"
                 />
@@ -853,7 +1229,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       sfx.playActionSuccess();
                       setSelectedComboCode(combo.code);
                       setSelectedSchoolCode(null);
-                      clearUniversityAnalysis();
                       setActiveTab('tab-university');
                     }}
                     className={`p-4 rounded-xl border text-left cursor-pointer transition-all space-y-2 ${
@@ -882,11 +1257,19 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
                     <div className="text-sm text-slate-300 font-mono">
                       {combo.hasData ? <>Điểm tham khảo: <strong className="text-blue-300 font-bold">{combo.officialScore}đ</strong></> : <span className="text-slate-400">Nhập điểm để so sánh tổ hợp này</span>}
-                      {combo.effectivePriority > 0 && <span className="text-blue-300 text-sm ml-1">(+ {combo.effectivePriority.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}đ ưu tiên TT06)</span>}
+                      {combo.effectivePriority > 0 && <span className="text-blue-300 text-sm ml-1">(+ {combo.effectivePriority}đ ưu tiên TT06)</span>}
                     </div>
 
-                    <div className="text-sm text-slate-300">
-                      Gồm: {getComboSubjectLabel(combo.code)}
+                    <div className="text-sm text-slate-400">
+                      {combo.code === 'A00' ? 'Toán – Vật lý – Hóa học' :
+                       combo.code === 'A01' ? 'Toán – Vật lý – Tiếng Anh' :
+                       combo.code === 'D01' ? 'Toán – Ngữ văn – Tiếng Anh' :
+                       combo.code === 'C00' ? 'Ngữ văn – Lịch sử – Địa lý' :
+                       combo.code === 'H00' ? 'Ngữ văn – Hình họa – Bố cục màu' :
+                       combo.code === 'V00' ? 'Toán – Vật lý – Vẽ mỹ thuật' :
+                       combo.code === 'N00' ? 'Ngữ văn – Thẩm âm – Thanh nhạc' :
+                       combo.code === 'T00' ? 'Toán – Sinh học – Năng khiếu Thể thao' :
+                       'Tổ hợp chuẩn Bộ GD&ĐT'}
                     </div>
 
                     <div className="pt-1 flex items-center justify-between text-sm font-bold text-blue-300">
@@ -913,11 +1296,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <h3 className="font-bold text-base text-white">
                 Ngành {currentMajor?.name} · Tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}{topCombo?.hasData ? ' · ' + topCombo.officialScore + ' điểm' : ''}
               </h3>
-              {(selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : null)) && (
-                <p className="mt-1 text-sm text-slate-300">
-                  Gồm: {getComboSubjectLabel(selectedComboCode || topCombo!.code)}
-                </p>
-              )}
             </div>
             <button
               type="button"
@@ -931,50 +1309,32 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
           {/* Practical Constraints: Tuition Budget & Region */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Ngân sách: để trống nếu người dùng chưa biết */}
+            {/* 1. Ngân sách học phí (NĐ 238/2025) */}
             <div className="p-5 rounded-2xl bg-[#0E1117] border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
-                <label htmlFor="annual-tuition-budget" className="font-bold text-sm text-white">
-                  Ngân sách học phí tối đa mỗi năm:
-                </label>
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <span>Ngân sách học phí tham khảo mỗi năm:</span>
+                </span>
                 <span className="font-mono font-bold text-blue-300 text-sm">
-                  {maxTuition == null ? 'Chưa biết' : String(maxTuition) + ' triệu/năm'}
+                  {maxTuition == null ? 'Chưa biết' : `${maxTuition} triệu/năm`}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
-                <input
-                  id="annual-tuition-budget"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={maxTuition ?? ''}
-                  placeholder="Chưa biết"
-                  aria-label="Ngân sách học phí tối đa mỗi năm, triệu đồng; để trống nếu chưa biết"
-                  onChange={(e) => {
-                    const rawValue = e.target.value;
-                    const nextValue = rawValue === '' ? null : Math.min(100, Math.max(0, Number(rawValue)));
-                    setMaxTuition(nextValue !== null && Number.isFinite(nextValue) ? nextValue : null);
-                    clearUniversityAnalysis();
-                  }}
-                  className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                />
-                {maxTuition != null && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMaxTuition(null);
-                      clearUniversityAnalysis();
-                    }}
-                    className="min-h-11 shrink-0 rounded-lg border border-slate-700 px-3 text-sm text-slate-200 hover:border-blue-500"
-                  >
-                    Chưa biết
-                  </button>
-                )}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={maxTuition ?? 35}
+                aria-label="Ngân sách học phí tối đa mỗi năm, triệu đồng"
+                onChange={(e) => setMaxTuition(parseInt(e.target.value, 10))}
+                className="w-full accent-blue-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
+              />
+              <div className="flex justify-between text-sm font-mono text-slate-400">
+                <span>0 triệu</span>
+                <span>33,7 triệu (bình quân tham khảo)</span>
+                <span>100 triệu</span>
               </div>
-              <p className="text-sm text-slate-400">
-                Đơn vị triệu đồng/năm. Để trống nếu chưa biết; mức bình quân ngành chỉ là tham khảo, không phải học phí riêng của trường.
-              </p>
+              <p className="text-sm text-slate-400">Dữ liệu học phí trường chưa đầy đủ. Khi chưa đặt ngân sách, danh sách trường không bị lọc theo mức phí.</p>
             </div>
 
             {/* 2. Địa chỉ / Vùng miền mong muốn */}
@@ -995,9 +1355,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     type="button"
                     onClick={() => {
                       setTargetRegionFilter(r.id as any);
-                      setTargetProvinceFilter('');
                       setSelectedSchoolCode(null);
-                      clearUniversityAnalysis();
                     }}
                     className={`min-h-11 rounded-lg border text-center transition-colors cursor-pointer ${
                       targetRegionFilter === r.id
@@ -1011,133 +1369,264 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               </div>
             </div>
           </div>
-            <label className="block space-y-2 text-sm font-semibold text-white">
-              Tỉnh/thành phố mong muốn
-              <select
-                value={targetProvinceFilter}
-                onChange={(e) => {
-                  setTargetProvinceFilter(e.target.value);
-                  setSelectedSchoolCode(null);
-                  clearUniversityAnalysis();
-                }}
-                className="min-h-11 w-full rounded-lg border border-slate-700 bg-[#141923] px-3 text-base text-white focus:outline-none focus:border-blue-500"
-              >
-                <option value="">Tất cả tỉnh/thành trong vùng đã chọn</option>
-                {AUDITED_PROVINCE_OPTIONS.filter((province) => targetRegionFilter === 'ALL' || getRegionFromProvinceCity(province) === targetRegionFilter).map((province) => (
-                  <option key={province} value={province}>{province}</option>
-                ))}
-              </select>
-            </label>
 
-          <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-950/10 p-5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
-                <p className="mt-1 text-sm text-slate-300">Hệ thống phân tích hồ sơ và gợi ý trường; điểm chuẩn, ngành tuyển sinh và học phí chưa được tra cứu trực tiếp trong lượt này.</p>
+                <p className="mt-1 text-base text-slate-300">
+                  Bấm “Gợi ý trường”, rồi chọn trường muốn tìm hiểu. DeepSeek sẽ tra cứu điểm chuẩn, học phí, phương thức xét tuyển và học bổng từ nguồn chính thức.
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => void requestUniversityAnalysis()}
-                disabled={isAnalyzingUniversities}
-                className="min-h-11 rounded-lg bg-blue-600 px-5 py-2 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                onClick={() => setShowSuggestedSchools(true)}
+                className="min-h-12 rounded-lg bg-blue-600 px-5 py-3 text-base font-bold text-white hover:bg-blue-500"
               >
-                {isAnalyzingUniversities ? 'Đang phân tích…' : 'Gợi ý trường'}
+                Gợi ý trường
               </button>
             </div>
 
-            {hasRequestedUniversityAnalysis && (
-              <div className="space-y-3">
-                {isAnalyzingUniversities && (
-                  <p role="status" className="rounded-lg border border-slate-700 bg-[#141923] p-4 text-base text-slate-200">
-                    Đang phân tích trường theo hồ sơ của bạn…
-                  </p>
-                )}
-                {universityAnalysisError && (
-                  <p role="alert" className="rounded-lg border border-red-900 bg-red-950/30 p-4 text-base text-red-200">
-                    {universityAnalysisError}
-                  </p>
-                )}
-                {universityAnalysis && (
-                  <div className="space-y-3">
-                    {universityAnalysis.headline && <h4 className="text-lg font-bold text-white">{universityAnalysis.headline}</h4>}
-                    {universityAnalysis.summary && <p className="text-base leading-relaxed text-slate-200">{universityAnalysis.summary}</p>}
-                    {universityAnalysis.scoreAnalysis && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.scoreAnalysis}</p>}
-                    {universityAnalysis.budgetNote && <p className="text-sm leading-relaxed text-slate-300">{universityAnalysis.budgetNote}</p>}
-                    {universityAnalysis.warnings?.map((warning: string, index: number) => (
-                      <p key={`school-warning-${index}`} className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">{warning}</p>
+            {showSuggestedSchools && (
+              <div className="space-y-3" aria-live="polite">
+                <h4 className="font-bold text-blue-200">
+                  Trường có dữ liệu đối chiếu cho ngành {currentMajor?.name} và tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'đang chọn')}:
+                </h4>
+                {suggestedSchoolCandidates.length ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {suggestedSchoolCandidates.map((school, index) => (
+                      <article key={`suggested-${school.code}`} className={`rounded-xl border p-4 ${selectedSchoolCode === school.code ? 'border-blue-400 bg-blue-950/40' : 'border-slate-700 bg-[#141923]'}`}>
+                        <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1} · {school.city}</p>
+                        <h5 className="mt-1 font-bold text-white">{school.name}</h5>
+                        <p className="mt-2 text-sm text-slate-300">
+                          Đã có mốc đối chiếu trong danh mục: {school.benchmark} điểm
+                          {school.margin !== null ? ` · chênh ${school.margin > 0 ? '+' : ''}${school.margin} điểm so với hồ sơ` : ''}. Thông tin riêng của trường sẽ được DeepSeek tra cứu sau khi chọn.
+                        </p>
+                        <button
+                          type="button"
+                          aria-pressed={selectedSchoolCode === school.code}
+                          onClick={() => setSelectedSchoolCode(school.code)}
+                          className="mt-3 min-h-10 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500"
+                        >
+                          {liveSchoolResearchLoading && selectedSchoolCode === school.code ? 'DeepSeek đang tra cứu…' : 'Chọn để tìm hiểu'}
+                        </button>
+                      </article>
                     ))}
-                    <ol className="flex flex-col gap-2" aria-label="Trường được gợi ý">
-                      {(universityAnalysis.recommendedSchools || []).map((school: any, index: number) => (
-                        <li key={`${school.institutionCode || school.name}-${index}`} className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-[#141923] p-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1}{school.city ? ' · ' + school.city : ''}</p>
-                            <h4 className="mt-1 text-lg font-bold text-white">{school.name}</h4>
-                            <p className={`mt-1 text-sm ${school.programStatus === 'VERIFIED' ? 'text-emerald-300' : 'text-amber-300'}`}>
-                              {school.programStatus === 'VERIFIED'
-                                ? `Ngành, tổ hợp và trường đã xác minh năm ${school.programYear}`
-                                : school.programStatus === 'CONFLICT' ? 'Nguồn chính thức mâu thuẫn về ngành hoặc tổ hợp; không xác nhận kết quả này.' : 'Có thể chọn trường để tìm hiểu; ngành và tổ hợp chưa được xác minh cho năm đã chọn.'}
-                            </p>
-                            {school.programName && <p className="mt-1 text-sm text-slate-300">Ngành: {school.programName}{school.majorCode ? ` · Mã ${school.majorCode}` : ''}{school.combinationCode ? ` · Tổ hợp ${school.combinationCode}` : ''}</p>}
-                            {school.programSource?.url && (
-                              <a href={school.programSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm text-blue-300 underline underline-offset-2">
-                                Nguồn ngành và tổ hợp: {school.programSource.title}
-                              </a>
-                            )}
-                            {school.whyFit && <p className="mt-1 text-base leading-relaxed text-slate-300">{school.whyFit}</p>}
-                            {school.questionsToVerify?.length > 0 && <p className="mt-2 text-sm leading-relaxed text-slate-400"><strong>Cần hỏi trường:</strong> {school.questionsToVerify.join(' · ')}</p>}
-                            {school.cutoffBenchmark != null && (
-                              <p className="mt-1 text-sm text-slate-400">
-                                Điểm chuẩn năm {school.cutoffYear}: {Number(school.cutoffBenchmark).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} điểm
-                              </p>
-                            )}
-                            {school.cutoffSource?.url && (
-                              <a href={school.cutoffSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm text-blue-300 underline underline-offset-2">
-                                Nguồn điểm chuẩn: {school.cutoffSource.title}
-                              </a>
-                            )}
-                            {school.cutoffBenchmark == null && (
-                              <p className="mt-1 text-sm text-amber-300">
-                                {school.cutoffStatus === 'CONFLICT'
-                                  ? `Nguồn chính thức mâu thuẫn về điểm chuẩn năm ${universityAnalysis.academicYear}; hệ thống không chọn một con số.`
-                                  : `Điểm chuẩn năm ${universityAnalysis.academicYear}: chưa xác minh từ nguồn chính thức.`}
-                              </p>
-                            )}
-                            {school.tuitionAnnualMillions != null && (
-                              <p className="mt-1 text-sm text-slate-400">
-                                Học phí năm {school.tuitionYear}: {Number(school.tuitionAnnualMillions).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} triệu/năm
-                              </p>
-                            )}
-                            {school.tuitionSource?.url && (
-                              <a href={school.tuitionSource.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm text-blue-300 underline underline-offset-2">
-                                Nguồn học phí: {school.tuitionSource.title}
-                              </a>
-                            )}
-                            {school.tuitionAnnualMillions == null && <p className="mt-1 text-sm text-amber-300">{school.tuitionStatus === 'CONFLICT' ? `Nguồn chính thức mâu thuẫn về học phí năm ${universityAnalysis.academicYear}; hệ thống không chọn một con số.` : `Học phí năm ${universityAnalysis.academicYear}: chưa xác minh từ nguồn chính thức.`}</p>}
-                          </div>
-                          <button
-                            type="button"
-                            disabled={!school.institutionCode && !school.name}
-                            onClick={() => {
-                              setSelectedSchoolCode(school.institutionCode || school.name);
-                              setActiveTab('tab-domino');
-                            }}
-                            className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-5 text-base font-bold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-                          >
-                            {school.programStatus === 'VERIFIED' ? 'Chọn trường' : 'Chọn để tìm hiểu'}
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
-                    {(!universityAnalysis.recommendedSchools || universityAnalysis.recommendedSchools.length === 0) && (
-                      <p role="status" className="rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-sm text-amber-200">Chưa tìm thấy trường phù hợp trong danh mục NEXORA. Không có điểm chuẩn hoặc học phí tự điền.</p>
-                    )}
                   </div>
+                ) : (
+                  <p className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
+                    Danh mục chưa có trường được xác minh khớp đồng thời ngành và tổ hợp này. Bạn có thể chọn trường trong danh sách để DeepSeek tra cứu thông tin riêng.
+                  </p>
                 )}
               </div>
             )}
+
+            <button
+              type="button"
+              aria-expanded={showAllSchools}
+              onClick={() => setShowAllSchools((shown) => !shown)}
+              className="text-sm font-semibold text-blue-300 underline hover:text-white"
+            >
+              {showAllSchools ? 'Ẩn danh sách 300 trường' : 'Tìm hoặc chọn thủ công trong danh sách 300 trường'}
+            </button>
           </div>
 
+          {showAllSchools && (
+          <div className="rounded-2xl border border-slate-800 bg-[#0E1117] p-5 space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-white">Danh sách trường</h3>
+                <p className="mt-1 text-base text-slate-300">
+                  {stratifiedSchools.totalSchools} / {AUDITED_INSTITUTIONS_300.length} trường · {stratifiedSchools.matchingSchoolCount} trường có điểm cho ngành và tổ hợp này
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  aria-pressed={schoolMatchFilter === 'ALL'}
+                  onClick={() => setSchoolMatchFilter('ALL')}
+                  className={schoolMatchFilter === 'ALL'
+                    ? 'min-h-11 rounded-lg bg-blue-600 px-4 text-base font-bold text-white'
+                    : 'min-h-11 rounded-lg border border-slate-700 px-4 text-base text-slate-200'}
+                >
+                  Tất cả
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={schoolMatchFilter === 'MATCHED'}
+                  onClick={() => setSchoolMatchFilter('MATCHED')}
+                  className={schoolMatchFilter === 'MATCHED'
+                    ? 'min-h-11 rounded-lg bg-blue-600 px-4 text-base font-bold text-white'
+                    : 'min-h-11 rounded-lg border border-slate-700 px-4 text-base text-slate-200'}
+                >
+                  Có dữ liệu
+                </button>
+              </div>
+            </div>
 
+            <label htmlFor="school-search" className="sr-only">Tìm trường theo tên, mã hoặc tỉnh thành</label>
+            <input
+              id="school-search"
+              type="search"
+              value={schoolSearchQuery}
+              onChange={(e) => {
+                setSchoolSearchQuery(e.target.value);
+                setSelectedSchoolCode(null);
+              }}
+              placeholder="Tìm trường theo tên, mã hoặc tỉnh/thành"
+              className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            />
+
+            <p className="text-sm text-slate-300">
+              {currentMajor?.name} · {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn tổ hợp')} · {targetRegionFilter === 'ALL' ? 'Toàn quốc' : ({ BAC: 'Miền Bắc', TRUNG: 'Miền Trung', NAM: 'Miền Nam', DBSCL: 'ĐBSCL' }[targetRegionFilter])}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {stratifiedSchools.schools.length === 0 && (
+                <p className="col-span-full py-8 text-center text-base text-slate-300">Không có trường phù hợp bộ lọc.</p>
+              )}
+              {stratifiedSchools.schools.map((school) => (
+                <button
+                  key={school.code}
+                  type="button"
+                  aria-pressed={selectedSchoolCode === school.code}
+                  onClick={() => {
+                    setSelectedSchoolCode(school.code);
+                  }}
+                  className={selectedSchoolCode === school.code
+                    ? 'min-h-32 rounded-xl border border-blue-400 bg-blue-950/70 p-4 text-left ring-1 ring-blue-400'
+                    : 'min-h-32 rounded-xl border border-slate-700 bg-[#141923] p-4 text-left hover:border-blue-500'}
+                >
+                  <span className="flex items-center justify-between text-sm text-slate-300">
+                    <span className="font-bold text-white">{school.code}</span>
+                    <span>{school.city}</span>
+                  </span>
+                  <span className="mt-2 block text-lg font-bold text-white">{school.name}</span>
+                  {school.hasMajorData ? (
+                    <span className="mt-2 block text-sm text-blue-300">
+                      {school.tier ? school.tier + ' · ' : ''}
+                      Mốc tuyển sinh: {school.benchmark}đ
+                      {school.margin !== null ? ' · Chênh ' + (school.margin > 0 ? '+' : '') + school.margin + 'đ' : ''}
+                    </span>
+                  ) : (
+                    <span className="mt-2 block text-sm text-slate-300">Chưa có dữ liệu cho lựa chọn này</span>
+                  )}
+                  <span className="mt-2 block text-xs font-semibold text-emerald-300">
+                    {selectedSchoolCode !== school.code
+                      ? 'Chọn trường để xem thông tin tuyển sinh & học bổng'
+                      : liveSchoolResearchLoading
+                        ? 'Đang tra cứu học phí, điểm chuẩn, tuyển sinh và học bổng…'
+                        : liveSchoolResearchError
+                          ? 'Không tra cứu được lúc này · xem thông báo bên dưới'
+                          : liveSchoolResearch
+                            ? 'Đã tải thông tin có dẫn nguồn · xem bên dưới'
+                            : 'Đang chuẩn bị tra cứu…'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          )}
+
+            {selectedSchoolCode && currentSchool && (
+              <div ref={selectedSchoolDetailsRef} className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4 space-y-3 scroll-mt-24">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-white">Thông tin trường đang chọn: {currentSchool.name || currentSchool.schoolName}</h4>
+                    <p className="mt-1 text-xs text-slate-300">DeepSeek tra cứu theo ngành và tổ hợp, ưu tiên nguồn chính thức của trường. Mỗi thông tin có liên kết nguồn để bạn kiểm tra.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={liveSchoolResearchLoading}
+                    onClick={() => {
+                      const institutionCode = currentSchool.institution_code;
+                      if (!institutionCode) return;
+                      const comboCode = selectedComboCode || '';
+                      const cacheKey = `${institutionCode}:${(currentMajor?.name || '').toLocaleLowerCase('vi')}:${comboCode}`;
+                      liveSchoolResearchCache.current.delete(cacheKey);
+                      forceNextSchoolResearchRef.current = true;
+                      setLiveSchoolResearchRefresh((value) => value + 1);
+                    }}
+                    className="min-h-9 rounded-lg border border-emerald-500/50 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {liveSchoolResearchLoading ? 'Đang tra cứu…' : 'Tra cứu lại'}
+                  </button>
+                </div>
+
+                {liveSchoolResearchLoading && (
+                  <p role="status" className="text-sm text-slate-300">Đang tìm điểm chuẩn, học phí, phương thức xét tuyển và học bổng trên nguồn chính thức…</p>
+                )}
+                {!liveSchoolResearchLoading && liveSchoolResearchError && (
+                  <p role="alert" className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">{liveSchoolResearchError}</p>
+                )}
+                {!liveSchoolResearchLoading && liveSchoolResearch && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-200">
+                    <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                      <p className="font-bold text-blue-200">Điểm chuẩn gần nhất theo ngành/tổ hợp</p>
+                      {liveSchoolResearch.cutoffFacts.length ? (
+                        <ul className="mt-2 space-y-2">
+                          {liveSchoolResearch.cutoffFacts.slice(0, 3).map((fact, index) => (
+                            <li key={`selection-cutoff-${index}`}>
+                              <strong>{fact.programName}</strong>{fact.admissionsYear ? ` · ${fact.admissionsYear}` : ''}{fact.combination ? ` · ${fact.combination}` : ''}{`: ${fact.score}${fact.scale ? `/${fact.scale}` : ''}`}
+                              {fact.sourceUrl && <a href={fact.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p className="mt-1 text-slate-300">Chưa tìm thấy điểm chuẩn chính thức phù hợp.</p>}
+                    </div>
+                    <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                      <p className="font-bold text-blue-200">Học phí công bố gần nhất</p>
+                      {liveSchoolResearch.tuitionFacts.length ? (
+                        <ul className="mt-2 space-y-2">
+                          {liveSchoolResearch.tuitionFacts.slice(0, 3).map((fact, index) => (
+                            <li key={`selection-tuition-${index}`}>
+                              <strong>{fact.programName}</strong>{fact.academicYear ? ` · ${fact.academicYear}` : ''}{`: ${fact.amount}${fact.unit ? ` (${fact.unit})` : ''}`}
+                              {fact.sourceUrl && <a href={fact.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p className="mt-1 text-slate-300">Chưa tìm thấy học phí chính thức phù hợp.</p>}
+                    </div>
+                    <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                      <p className="font-bold text-blue-200">Phương thức xét tuyển</p>
+                      {liveSchoolResearch.admissionMethods.length ? (
+                        <ul className="mt-2 list-disc space-y-1 pl-5">
+                          {liveSchoolResearch.admissionMethods.slice(0, 4).map((method, index) => (
+                            <li key={`selection-method-${index}`}>
+                              <strong>{method.name}:</strong> {method.detail}
+                              {method.sourceUrl && <a href={method.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p className="mt-1 text-slate-300">Chưa tìm thấy phương thức chính thức phù hợp.</p>}
+                    </div>
+                    <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                      <p className="font-bold text-blue-200">Học bổng và hỗ trợ người học</p>
+                      {liveSchoolResearch.scholarships.length ? (
+                        <ul className="mt-2 space-y-2">
+                          {liveSchoolResearch.scholarships.slice(0, 3).map((scholarship, index) => (
+                            <li key={`selection-scholarship-${index}`}>
+                              <strong>{scholarship.name}</strong>{scholarship.academicYear ? ` · ${scholarship.academicYear}` : ''}: {scholarship.detail}
+                              {scholarship.sourceUrl && <a href={scholarship.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : <p className="mt-1 text-slate-300">Chưa tìm thấy học bổng riêng có nguồn chính thức.</p>}
+                    </div>
+                  </div>
+                )}
+                {liveSchoolResearch && (
+                  <p className="text-xs text-emerald-300">Đã tra cứu bằng {liveSchoolResearch.provider} · {liveSchoolResearch.model} · {liveSchoolResearch.admissionsYear}. {liveSchoolResearch.admissionsSummary}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('tab-domino')}
+                  className="min-h-11 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500"
+                >
+                  Tiếp tục xem hồ sơ đối chiếu →
+                </button>
+              </div>
+            )}
         </section>
       )}
 
@@ -1153,11 +1642,6 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <h3 className="font-bold text-base text-white">
                 {currentMajor?.name} · {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')} · {currentSchool ? (currentSchool.name || currentSchool.schoolName) : 'Trường chưa chọn'}
               </h3>
-              {currentSchool && currentSchool.programStatus !== 'VERIFIED' && (
-                <p role="status" className="mt-2 text-sm text-amber-300">
-                  Trường đã chọn để tìm hiểu; ngành và tổ hợp chưa được xác minh theo đề án tuyển sinh.
-                </p>
-              )}
             </div>
           </div>
 
@@ -1208,6 +1692,18 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               <ul className="text-sm text-slate-200 space-y-1.5 leading-relaxed font-sans">
                 <li className="flex items-start gap-2">
                   <span>
+                    <strong>Hồ sơ Mật mã Holland</strong>: <strong>{dominantRiasec ? `Mã Holland ${dominantRiasec}` : 'Chưa làm test / Tự do'}</strong> {effectiveRiasecProfile ? '• Đã đối chiếu ma trận tương quan Pearson' : ''}
+                  </span>
+                </li>
+                {careerWeaknesses && (
+                  <li className="flex items-start gap-2">
+                    <span>
+                      <strong>Điểm yếu / Hạn chế đã ghi nhận</strong>: <strong className="text-amber-300">{careerWeaknesses}</strong>
+                    </span>
+                  </li>
+                )}
+                <li className="flex items-start gap-2">
+                  <span>
                     <strong>Ngành &amp; Tổ hợp</strong>: <strong>{selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'Chưa chọn')}</strong> được liên kết với ngành <strong>{currentMajor?.name}</strong> trong hồ sơ tư vấn.
                   </span>
                 </li>
@@ -1218,10 +1714,148 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <span>
-                    <strong>Kinh phí &amp; Trường học</strong>: {maxTuition == null ? 'Ngân sách chưa biết' : `Giới hạn ${maxTuition} triệu/năm`} · học phí chỉ được nêu khi có nguồn chính thức cho trường đã chọn.
+                    <strong>Kinh phí &amp; Trường học</strong>: {maxTuition == null ? 'Ngân sách chưa biết' : `Giới hạn ${maxTuition} triệu/năm`} · bình quân nhóm ngành {stratifiedSchools.tuitionBenchmark?.avg2026_2027 ?? 'chưa có dữ liệu'} triệu/năm; đây không phải học phí riêng của trường.
                   </span>
                 </li>
               </ul>
+            </div>
+
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4 space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h5 className="font-bold text-emerald-200">Thông tin chính thức của trường đã chọn</h5>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-300">
+                    DeepSeek tìm và phân tích nguồn chính thức theo trường, ngành và tổ hợp; không gửi điểm số, sở thích hoặc thông tin cá nhân.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={!currentSchool || liveSchoolResearchLoading}
+                  onClick={() => {
+                    if (!currentSchool?.institution_code) return;
+                    const comboCode = selectedComboCode || '';
+                    const cacheKey = `${currentSchool.institution_code}:${(currentMajor?.name || '').toLocaleLowerCase('vi')}:${comboCode}`;
+                    liveSchoolResearchCache.current.delete(cacheKey);
+                    forceNextSchoolResearchRef.current = true;
+                    setLiveSchoolResearchRefresh((value) => value + 1);
+                  }}
+                  className="min-h-9 rounded-lg border border-emerald-500/50 px-3 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {liveSchoolResearchLoading ? 'Đang tra cứu…' : 'Tra cứu lại'}
+                </button>
+              </div>
+
+              {liveSchoolResearchLoading && (
+                <p role="status" className="text-sm text-slate-300">Đang tìm điểm chuẩn, học phí, phương thức xét tuyển và học bổng trên nguồn chính thức…</p>
+              )}
+              {!liveSchoolResearchLoading && liveSchoolResearchError && (
+                <p role="alert" className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
+                  {liveSchoolResearchError}
+                </p>
+              )}
+              {!liveSchoolResearchLoading && liveSchoolResearch && (
+                <div className="space-y-3 text-sm text-slate-200">
+                  <p className="text-xs font-semibold text-emerald-300">
+                    Đã phân tích bằng {liveSchoolResearch.provider} · {liveSchoolResearch.model}
+                  </p>
+                  <p className="font-semibold text-white">
+                    Đề án tuyển sinh gần nhất: {liveSchoolResearch.admissionsYear}. {liveSchoolResearch.admissionsSummary}
+                  </p>
+
+                  <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                    <p className="font-bold text-blue-200">Điểm chuẩn gần nhất theo ngành/tổ hợp</p>
+                    {liveSchoolResearch.cutoffFacts.length ? (
+                      <ul className="mt-1 space-y-2">
+                        {liveSchoolResearch.cutoffFacts.map((fact, index) => (
+                          <li key={`${fact.admissionsYear}-${fact.method}-${index}`}>
+                            <strong>{fact.programName}</strong>{fact.admissionsYear ? ` · ${fact.admissionsYear}` : ''}
+                            {fact.method ? ` · ${fact.method}` : ''}
+                            {fact.combination ? ` · ${fact.combination}` : ''}
+                            {`: ${fact.score}${fact.scale ? `/${fact.scale}` : ''}`}
+                            {fact.note && <span className="text-slate-300"> — {fact.note}</span>}
+                            {fact.sourceUrl && <a href={fact.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 text-slate-300">Chưa tìm thấy điểm trúng tuyển cuối cùng có nguồn chính thức cho ngành/tổ hợp này. Không dùng điểm sàn thay cho điểm chuẩn.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                    <p className="font-bold text-blue-200">Học phí được công bố gần nhất</p>
+                    {liveSchoolResearch.tuitionFacts.length ? (
+                      <ul className="mt-1 space-y-2">
+                        {liveSchoolResearch.tuitionFacts.map((fact, index) => (
+                          <li key={`${fact.academicYear}-${fact.programName}-${index}`}>
+                            <strong>{fact.programName}</strong>{fact.academicYear ? ` · ${fact.academicYear}` : ''}
+                            {`: ${fact.amount}${fact.unit ? ` (${fact.unit})` : ''}`}
+                            {fact.note && <span className="text-slate-300"> — {fact.note}</span>}
+                            {fact.sourceUrl && <a href={fact.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 text-slate-300">Chưa tìm thấy học phí có nguồn chính thức phù hợp. Mức theo tín chỉ không được tự quy đổi thành học phí năm.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="font-bold text-blue-200">Phương thức xét tuyển</p>
+                    {liveSchoolResearch.admissionMethods.length ? (
+                      <ul className="mt-1 list-disc space-y-1 pl-5">
+                        {liveSchoolResearch.admissionMethods.map((method, index) => (
+                          <li key={`${method.name}-${index}`}>
+                            <strong>{method.name}:</strong> {method.detail}
+                            {method.sourceUrl && <a href={method.sourceUrl} target="_blank" rel="noreferrer" className="ml-2 text-blue-300 hover:underline">Nguồn</a>}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <p className="mt-1 text-slate-300">Chưa tìm thấy phương thức có nguồn chính thức trong lượt tra cứu này.</p>}
+                  </div>
+
+                  <div>
+                    <p className="font-bold text-blue-200">Học bổng và hỗ trợ người học</p>
+                    {liveSchoolResearch.scholarships.length ? (
+                      <div className="mt-1 space-y-2">
+                        {liveSchoolResearch.scholarships.map((scholarship, index) => (
+                          <div key={`${scholarship.name}-${index}`} className="rounded-lg border border-slate-700 bg-[#141923] p-3">
+                            <p className="font-semibold text-white">
+                              {scholarship.name}
+                              {scholarship.academicYear ? ` · ${scholarship.academicYear}` : ''}
+                              {scholarship.status ? ` · ${scholarship.status}` : ''}
+                            </p>
+                            <p className="mt-1 text-slate-300">{scholarship.detail}</p>
+                            {scholarship.sourceUrl && <a href={scholarship.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-blue-300 hover:underline">Nguồn chính thức</a>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="mt-1 text-slate-300">Chưa tìm thấy học bổng riêng có nguồn chính thức trong lượt tra cứu này.</p>}
+                  </div>
+
+                  {liveSchoolResearch.verificationNotes.length > 0 && (
+                    <div>
+                      <p className="font-bold text-amber-200">Điểm cần kiểm tra</p>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-300">
+                        {liveSchoolResearch.verificationNotes.map((note, index) => <li key={`${index}-${note}`}>{note}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-blue-200">Nguồn tra cứu</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5">
+                      {liveSchoolResearch.sources.map((source) => (
+                        <li key={source.url}>
+                          <a href={source.url} target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">{source.title}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Tra cứu lúc {new Date(liveSchoolResearch.checkedAt).toLocaleString('vi-VN')}. Dữ liệu có thể thay đổi; hãy mở thông báo gốc trước khi đăng ký.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 2. Phân tích What-If */}
@@ -1233,14 +1867,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Ngành ➔ Điểm chuẩn]</span>
                   <p className="text-sm text-slate-300 leading-relaxed">
-                    {topCombo?.hasData ? `Điểm hồ sơ ${topCombo.officialScore}đ đã được gửi cùng ngành và tổ hợp để tra cứu. Kết quả có điểm chuẩn sẽ kèm năm và nguồn chính thức.` : 'Chưa có điểm số để so sánh với mốc tuyển sinh. Hãy nhập điểm dự kiến hoặc điểm từng môn ở Bước 2.'}
+                    {topCombo?.hasData ? 'Điểm hồ sơ ' + topCombo.officialScore + 'đ được đối chiếu với mốc tuyển sinh tham chiếu của ' + stratifiedSchools.totalSchools + ' trường có dữ liệu cho lựa chọn này.' : 'Chưa có điểm số để so sánh với mốc tuyển sinh. Hãy nhập điểm dự kiến hoặc điểm từng môn ở Bước 2.'}
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg bg-[#141923] border border-slate-800 space-y-1">
                   <span className="font-bold text-white block">[Tổ hợp ➔ Cạnh tranh]</span>
                   <p className="text-sm text-slate-300 leading-relaxed">
-                    {universityAnalysis?.recommendedSchools?.length || 0} kết quả đã được tìm cho tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}; dữ kiện thiếu sẽ được ghi là chưa xác minh.
+                    Có thông tin tuyển sinh tại {stratifiedSchools.matchingSchoolCount} trường cho tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'chưa chọn')}.
                   </p>
                 </div>
 

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleCounselorChatRequest, handleCounselorStatusRequest, handleDossierAnalysisRequest } from './scripts/counselor_backend.mjs';
+import { researchSchoolProfile } from './scripts/school_profile_research.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,6 +70,45 @@ async function start() {
 
   const server = http.createServer((req, res) => {
     const url = req.url?.split('?')[0];
+
+    // Search official, school-specific admissions and finance information.
+    if (url === '/api/admissions/research-school-profile' && req.method === 'POST') {
+      let rawBody = '';
+      let bodyTooLarge = false;
+      req.on('data', (chunk) => {
+        if (bodyTooLarge) return;
+        rawBody += chunk.toString('utf-8');
+        if (rawBody.length > 12_000) bodyTooLarge = true;
+      });
+      req.on('end', async () => {
+        if (bodyTooLarge) {
+          res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: 'Yêu cầu quá dài.' }));
+          return;
+        }
+
+        try {
+          const body = JSON.parse(rawBody || '{}');
+          const { AUDITED_INSTITUTIONS_300 } = await vite.ssrLoadModule('/src/data/auditedInstitutionsData.ts');
+          const { getInstitutionPolicyByCode } = await vite.ssrLoadModule('/src/data/institutionPolicyDirectory.js');
+          const result = await researchSchoolProfile({
+            body,
+            clientKey: req.socket.remoteAddress || 'unknown-client',
+            env: process.env,
+            loadInstitutions: async () => AUDITED_INSTITUTIONS_300,
+            loadPolicy: async (institutionCode) => getInstitutionPolicyByCode(institutionCode)
+          });
+          for (const [name, value] of Object.entries(result.headers || {})) res.setHeader(name, value);
+          res.writeHead(result.status, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result.body));
+        } catch (error) {
+          console.warn('[School profile request]', error?.message);
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: 'Không thể xử lý yêu cầu tra cứu lúc này.' }));
+        }
+      });
+      return;
+    }
 
     // Status
     if (url === '/api/ai/status' && req.method === 'GET') {
