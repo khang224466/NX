@@ -1589,7 +1589,7 @@ Bước 3 — Xác định nhóm lĩnh vực và ngành học tiềm năng
 
 Đối chiếu hồ sơ người dùng với dữ liệu ngành học.
 
-Đề xuất tối đa 3 ngành hoặc nhóm ngành phù hợp nhất ở lượt đầu. Với mỗi đề xuất, giải thích:
+Đề xuất tối đa 9 ngành hoặc nhóm ngành phù hợp nhất theo thứ tự ưu tiên giảm dần. Với mỗi đề xuất, giải thích:
 - Đặc điểm nào trong hồ sơ tạo ra sự phù hợp?
 - Người dùng có thể thích những nội dung hoặc hoạt động nào của ngành?
 - Những yêu cầu, khó khăn hoặc điểm chưa phù hợp nào cần cân nhắc?
@@ -1648,7 +1648,7 @@ Không bắt người dùng cung cấp lại thông tin đã có trong lịch s�
 Thiết kế câu trả lời theo cơ chế tiết lộ thông tin từng bước:
 - Mỗi lượt chỉ tập trung vào một quyết định chính.
 - Không hiển thị đồng thời hàng chục ngành, hàng trăm tổ hợp và hàng loạt trường học.
-- Dùng tối đa 3 phương án nổi bật trong một lượt tư vấn, trừ khi người dùng yêu cầu danh sách đầy đủ.
+- Đề xuất tối đa 9 phương án ngành nghề phù hợp nhất để người học có bức tranh lựa chọn đa dạng và toàn diện.
 - Mỗi phương án phải giải thích lý do được đề xuất.
 - Ưu tiên lựa chọn có thể nhấn, chọn, so sánh hoặc yêu cầu phân tích sâu hơn trên giao diện.
 - Khi cần thêm thông tin, chỉ hỏi câu hỏi có giá trị phân biệt cao nhất giữa các phương án đang cân nhắc.
@@ -1772,7 +1772,7 @@ CONVERSATION_STATE:
 - Các lựa chọn đã thực hiện: Chưa chốt ngành, chưa chốt tổ hợp, chưa chốt trường.
 
 USER_REQUEST:
-"Dựa trên hồ sơ của em, hãy thực hiện phân tích theo quy trình 6 bước, tuân thủ nghiêm ngặt 4 nguyên tắc suy luận và trả về kết quả bằng định dạng JSON chuẩn theo Mục 8."`;
+"Dựa trên hồ sơ của em, hãy thực hiện phân tích và đề xuất tối đa 9 ngành học tiềm năng phù hợp nhất từ danh mục cấp IV chính thức (xếp theo thứ tự ưu tiên giảm dần), tuân thủ nghiêm ngặt các nguyên tắc suy luận và trả về kết quả bằng định dạng JSON chuẩn theo Mục 8."`;
 
   // Keys to try (custom key first, then guaranteed working default key)
   const customKey = (params.customApiKey && params.customApiKey.trim()) || getStoredApiKey();
@@ -1956,6 +1956,66 @@ USER_REQUEST:
       considerations: ['Yêu cầu kiến thức vững chắc về Toán giải tích và Vật lý'],
       evidence_status: 'verified',
       missing_information: []
+    },
+    {
+      id: 'major_7520216',
+      type: 'major',
+      name: 'Kỹ thuật điều khiển và tự động hóa',
+      reason: 'Kết hợp giữa lập trình thông minh, hệ thống cảm biến và cơ cấu robot tự hành.',
+      advantages: ['Nhu cầu rất cao trong các nhà máy thông minh và công nghiệp 4.0', 'Tổ hợp A00, A01 điểm số cao'],
+      considerations: ['Đòi hỏi tư duy tích hợp phần cứng lẫn phần mềm'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7480103',
+      type: 'major',
+      name: 'Kỹ thuật phần mềm',
+      reason: 'Tập trung chuyên sâu vào quy trình kiến trúc, kiểm thử và xây dựng các hệ sinh thái phần mềm quy mô lớn.',
+      advantages: ['Thu nhập khởi điểm cao và linh hoạt làm việc toàn cầu', 'Dễ dàng chuyển đổi linh hoạt các chuyên môn số'],
+      considerations: ['Cần rèn luyện kỹ năng làm việc nhóm và thiết kế hệ thống'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7480109',
+      type: 'major',
+      name: 'Khoa học dữ liệu',
+      reason: 'Giao thoa giữa Toán thống kê, máy học (Machine Learning) và phân tích dữ liệu kinh doanh.',
+      advantages: ['Ngành nghề mũi nhọn của nền kinh tế số và AI', 'Lợi thế với điểm Toán 10 và Tin 10'],
+      considerations: ['Yêu cầu tư duy mô hình hóa toán học sâu'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7480202',
+      type: 'major',
+      name: 'An toàn thông tin',
+      reason: 'Bảo vệ không gian số, an ninh mạng, mã hóa và hệ thống phòng thủ dữ liệu doanh nghiệp.',
+      advantages: ['Nhu cầu nhân lực an ninh mạng cấp thiết trên toàn cầu', 'Chính sách đãi ngộ cao'],
+      considerations: ['Đòi hỏi sự am hiểu sâu về hệ điều hành, mạng và đạo đức bảo mật'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7480204',
+      type: 'major',
+      name: 'Hệ thống thông tin',
+      reason: 'Cầu nối giữa công nghệ máy tính và quản trị vận hành tổ chức, tối ưu hóa quy trình số.',
+      advantages: ['Phù hợp với các bạn vừa thích công nghệ vừa muốn phát triển kỹ năng quản lý dự án'],
+      considerations: ['Cần bổ sung kiến thức về kinh doanh và chuỗi cung ứng'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7340122',
+      type: 'major',
+      name: 'Thương mại điện tử',
+      reason: 'Ứng dụng nền tảng công nghệ số và phân tích hành vi người dùng vào kinh doanh trực tuyến.',
+      advantages: ['Tốc độ tăng trưởng thị trường nhanh chóng', 'Đa dạng cơ hội khởi nghiệp công nghệ'],
+      considerations: ['Cạnh tranh thị trường cao và thay đổi xu hướng liên tục'],
+      evidence_status: 'verified',
+      missing_information: []
     }
   ] : (isHumanities ? [
     {
@@ -1977,6 +2037,76 @@ USER_REQUEST:
       considerations: ['Đòi hỏi tính chủ động và kỹ năng tác nghiệp thực tế'],
       evidence_status: 'verified',
       missing_information: []
+    },
+    {
+      id: 'major_7320108',
+      type: 'major',
+      name: 'Quan hệ công chúng',
+      reason: 'Xây dựng hình ảnh, chiến lược truyền thông và kết nối xã hội.',
+      advantages: ['Môi trường năng động, phát huy tối đa kỹ năng giao tiếp'],
+      considerations: ['Cần rèn luyện tính kiên nhẫn xử lý khủng hoảng'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7220201',
+      type: 'major',
+      name: 'Ngôn ngữ Anh',
+      reason: 'Nền tảng giao tiếp quốc tế và biên phiên dịch chất lượng cao.',
+      advantages: ['Cơ hội nghề nghiệp toàn cầu'],
+      considerations: ['Cần phát triển thêm kỹ năng chuyên ngành bổ trợ'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7310401',
+      type: 'major',
+      name: 'Tâm lý học',
+      reason: 'Nghiên cứu hành vi con người và tư vấn tâm lý giáo dục, xã hội.',
+      advantages: ['Nhu cầu chăm sóc sức khỏe tinh thần ngày càng tăng'],
+      considerations: ['Đòi hỏi sự kiên nhẫn và thấu cảm sâu sắc'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7380101',
+      type: 'major',
+      name: 'Luật',
+      reason: 'Tư duy phản biện sắc bén và khả năng nghiên cứu văn bản pháp luật.',
+      advantages: ['Nghề nghiệp chuẩn mực, uy tín cao trong xã hội'],
+      considerations: ['Khối lượng kiến thức và văn bản cần nghiên cứu lớn'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7140217',
+      type: 'major',
+      name: 'Sư phạm Ngữ văn',
+      reason: 'Đào tạo giáo viên Ngữ văn, được miễn học phí theo Nghị định 116.',
+      advantages: ['Chính sách hỗ trợ học phí và sinh hoạt phí từ Nhà nước'],
+      considerations: ['Chỉ tiêu tuyển sinh được quy định chặt chẽ theo nhu cầu địa phương'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7140231',
+      type: 'major',
+      name: 'Sư phạm Tiếng Anh',
+      reason: 'Giảng dạy ngoại ngữ chất lượng cao với điểm xét tuyển đầu vào xuất sắc.',
+      advantages: ['Miễn học phí NĐ 116, nhu cầu giáo viên tiếng Anh bền vững'],
+      considerations: ['Điểm chuẩn đầu vào luôn ở top cao'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7210403',
+      type: 'major',
+      name: 'Thiết kế đồ họa',
+      reason: 'Sáng tạo hình ảnh số, truyền thông thị giác và trải nghiệm giao diện người dùng.',
+      advantages: ['Không gian sáng tạo rộng lớn trong ngành công nghiệp nội dung'],
+      considerations: ['Cần chuẩn bị điểm thi các môn năng khiếu vẽ'],
+      evidence_status: 'verified',
+      missing_information: []
     }
   ] : [
     {
@@ -1986,6 +2116,26 @@ USER_REQUEST:
       reason: 'Phù hợp với tư duy logic và các tổ hợp có Toán/Kỹ thuật.',
       advantages: ['Nhu cầu thị trường lao động cao', 'Nhiều phân nhánh chuyên sâu'],
       considerations: ['Cần rèn luyện tính kiên trì và tự học công nghệ mới liên tục'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7340120',
+      type: 'major',
+      name: 'Kinh doanh quốc tế',
+      reason: 'Nắm bắt thị trường thương mại toàn cầu và quản trị chuỗi kinh doanh.',
+      advantages: ['Năng động, hội nhập quốc tế'],
+      considerations: ['Yêu cầu ngoại ngữ thành thạo'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7340115',
+      type: 'major',
+      name: 'Marketing',
+      reason: 'Nghiên cứu thị trường, xây dựng thương hiệu và truyền thông sản phẩm.',
+      advantages: ['Cơ hội việc làm đa dạng trong mọi doanh nghiệp'],
+      considerations: ['Cạnh tranh cao'],
       evidence_status: 'verified',
       missing_information: []
     }

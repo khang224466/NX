@@ -609,23 +609,28 @@ export function linkAndRankMajorsWithDossier(
       bestCombo: bestCombo?.comboCode,
       bestComboScore: bestCombo?.score ?? null,
       advantages: recMatch?.advantages || [],
-      considerations: recMatch?.considerations || []
+      considerations: recMatch?.considerations || [],
+      aiMatchIndex: (major as any).aiMatchIndex
     } as any;
   });
 
-  if (weaknessesText) {
-    mapped.sort((a: any, b: any) => {
+  mapped.sort((a: any, b: any) => {
+    if (weaknessesText) {
       const aConflict = (WEAKNESS_CONFLICT_MAP[a.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
       const bConflict = (WEAKNESS_CONFLICT_MAP[b.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
       if (aConflict !== bConflict) return aConflict - bConflict;
+    }
 
-      const aAi = (a as any).aiMatchIndex !== undefined && (a as any).aiMatchIndex >= 0 ? (a as any).aiMatchIndex : 999;
-      const bAi = (b as any).aiMatchIndex !== undefined && (b as any).aiMatchIndex >= 0 ? (b as any).aiMatchIndex : 999;
-      if (aAi !== bAi) return aAi - bAi;
+    const aAi = (a as any).aiMatchIndex !== undefined && (a as any).aiMatchIndex >= 0 ? (a as any).aiMatchIndex : 999;
+    const bAi = (b as any).aiMatchIndex !== undefined && (b as any).aiMatchIndex >= 0 ? (b as any).aiMatchIndex : 999;
+    if (aAi !== bAi) return aAi - bAi;
 
-      return (b.interestSimilarityIndex ?? 0) - (a.interestSimilarityIndex ?? 0);
-    });
-  }
+    const aIsOfficial = !String(a.codeTT09).startsWith('DATA-') ? 1 : 0;
+    const bIsOfficial = !String(b.codeTT09).startsWith('DATA-') ? 1 : 0;
+    if (aIsOfficial !== bIsOfficial) return bIsOfficial - aIsOfficial;
+
+    return (b.interestSimilarityIndex ?? 0) - (a.interestSimilarityIndex ?? 0);
+  });
 
   return mapped;
 }

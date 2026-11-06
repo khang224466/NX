@@ -1273,7 +1273,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   {hasAnalyzedMajor && hasCareerProfile && (
                     <div className="rounded-2xl border border-blue-500/40 bg-[#0E1117] p-5 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
-                        <h3 className="text-lg font-bold text-white">Kết quả phân tích &amp; Gợi ý ngành</h3>
+                        <h3 className="text-lg font-bold text-white">Kết quả phân tích &amp; Gợi ý ngành (Top 9 ngành tiềm năng nhất)</h3>
                         <span className="text-xs text-slate-400 font-mono">
                           Đối chiếu: Mật mã Holland + Sở thích + Thế mạnh + Điểm yếu
                         </span>
@@ -1281,7 +1281,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
                       {rankedMajors.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {rankedMajors.slice(0, 3).map((major, index) => (
+                          {rankedMajors.slice(0, 9).map((major, index) => (
                             <div key={major.codeTT09} className="rounded-xl border border-slate-700 bg-[#141923] p-4 space-y-3 flex flex-col justify-between">
                               <div>
                                 <div className="flex items-center justify-between gap-2 mb-1">
