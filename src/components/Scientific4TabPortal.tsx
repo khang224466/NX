@@ -366,6 +366,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     return valid.slice(0, 3).map(([k]) => k).join('');
   }, [riasecProfile, riasecScores]);
 
+  // Bắt buộc người dùng phải xác lập Mật mã Holland trước khi vào hoặc ở lại màn hình hồ sơ
+  useEffect(() => {
+    if (step1Phase === 'profile' && !dominantRiasec) {
+      setStep1Phase('holland');
+    }
+  }, [step1Phase, dominantRiasec]);
+
   // Active Effective RIASEC Profile
   const effectiveRiasecProfile = useMemo(() => {
     if (riasecProfile && hasRiasecProfileVariation(riasecProfile)) {
@@ -755,9 +762,15 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
                     <div className="flex items-center gap-2 bg-[#141923] p-3 rounded-xl border border-slate-700">
                       <span className="text-xs text-slate-400 font-mono">Mã Holland:</span>
-                      <span className="px-3 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-base">
-                        {dominantRiasec ? dominantRiasec : 'Chưa thiết lập'}
-                      </span>
+                      {dominantRiasec ? (
+                        <span className="px-3 py-1 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-base">
+                          {dominantRiasec}
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-lg bg-amber-950/50 border border-amber-500/30 text-amber-300 font-mono font-semibold text-xs">
+                          Chưa thiết lập (Bắt buộc)
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -927,25 +940,47 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     </div>
                   )}
 
-                  {/* Nút Tiếp tục sang Màn hình Hồ sơ cá nhân */}
+                  {/* Nút Tiếp tục sang Màn hình Hồ sơ cá nhân (Khóa chặt nếu chưa có Mật mã Holland) */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
-                    <div className="space-y-1">
-                      <p className="text-xs text-slate-300 font-medium">
-                        {dominantRiasec
-                          ? `✓ Đã xác lập Mật mã ${dominantRiasec}. Kết quả đã sẵn sàng đưa vào làm Input 1 cho bước Hồ sơ cá nhân.`
-                          : 'Bạn có thể làm bài trắc nghiệm 60 câu, chọn nhanh nhóm mẫu hoặc tiếp tục để điền hồ sơ.'}
-                      </p>
-                      <p className="text-[11px] text-slate-400 font-mono">
-                        Bước kế tiếp: Nhập sở thích, thế mạnh, điểm yếu cần tránh &amp; bấm "Gợi ý ngành" để xem kết quả.
-                      </p>
+                    <div className="space-y-1 max-w-xl">
+                      {dominantRiasec ? (
+                        <>
+                          <p className="text-xs text-emerald-300 font-semibold flex items-center gap-1.5">
+                            <span>✓</span>
+                            <span>Đã xác lập Mật mã {dominantRiasec}. Kết quả đã sẵn sàng làm Input 1 cho bước tiếp theo.</span>
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-mono">
+                            Bấm nút bên phải để tiếp tục sang bước điền sở thích, thế mạnh &amp; điểm yếu.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-amber-300 font-semibold flex items-center gap-1.5">
+                            <span>⚠️</span>
+                            <span>Bắt buộc hoàn thành Mật mã Holland: Bạn cần làm xong bài 60 câu hoặc nạp điểm 6 miền để tiếp tục.</span>
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-mono">
+                            Mật mã Holland là điều kiện tiên quyết để hệ thống lượng hóa tọa độ tính cách trước khi sang Hồ sơ cá nhân.
+                          </p>
+                        </>
+                      )}
                     </div>
                     <button
                       type="button"
+                      disabled={!dominantRiasec}
                       onClick={() => {
+                        if (!dominantRiasec) {
+                          sfx.playActionError();
+                          return;
+                        }
                         sfx.playActionSuccess();
                         setStep1Phase('profile');
                       }}
-                      className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-lg transition-all cursor-pointer flex items-center gap-2"
+                      className={`px-6 py-3 rounded-xl font-bold text-base shadow-lg transition-all flex items-center gap-2 ${
+                        dominantRiasec
+                          ? 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-blue-900/30'
+                          : 'bg-slate-800 text-slate-500 border border-slate-700/60 cursor-not-allowed shadow-none'
+                      }`}
                     >
                       <span>Xác nhận Mật mã &amp; Tiếp tục sang Hồ sơ cá nhân →</span>
                     </button>
