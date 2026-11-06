@@ -673,6 +673,17 @@ export function linkAndRankMajorsWithDossier(scores, riasec, aiDiagnosis = {}, c
   const recommendedKeywords = Array.isArray(aiDiagnosis.recommendedKeywords)
     ? aiDiagnosis.recommendedKeywords.map(k => String(k).toLowerCase())
     : [];
+  const weaknessesText = String(aiDiagnosis.weaknessesText || '').toLowerCase();
+  const WEAKNESS_CONFLICT_MAP = {
+    CNTT_BAN_DAN_AI: ['ngồi lâu', 'máy tính', 'màn hình'],
+    KY_THUAT_CONG_NGHE: ['cơ khí', 'chân tay', 'ngoài trời', 'vận động'],
+    KINH_TE_QUAN_TRI: ['giao tiếp', 'đàm phán', 'doanh số', 'thuyết phục'],
+    Y_DUOC_SUC_KHOE: ['sợ máu', 'máu', 'bệnh viện', 'bệnh nhân', 'y tế'],
+    SU_PHAM_GIAO_DUC: ['giao tiếp', 'đám đông', 'kiên nhẫn', 'giảng dạy'],
+    LUAT_HANH_CHINH: ['đọc nhiều', 'văn bản', 'tranh luận', 'luật pháp'],
+    XA_HOI_NHAN_VAN: ['viết lách', 'giao tiếp', 'đám đông'],
+    KIEN_TRUC_NGHE_THUAT_TDTT: ['vẽ', 'mỹ thuật', 'thể thao', 'thể chất']
+  };
 
   return catalog.map(m => {
     const sectorKey = m.sector || 'CNTT_BAN_DAN_AI';
@@ -740,6 +751,11 @@ export function linkAndRankMajorsWithDossier(scores, riasec, aiDiagnosis = {}, c
       }
     }
 
+    const conflicts = weaknessesText ? (WEAKNESS_CONFLICT_MAP[sectorKey] || []).filter(term => weaknessesText.includes(term)) : [];
+    if (conflicts.length > 0) {
+      fitReason += ` (Lưu ý: Bạn có điểm yếu về "${conflicts.join(', ')}", cần cân nhắc tính thích ứng).`;
+    }
+
     return {
       codeTT09: m.codeTT09,
       codeTT74: m.codeTT74,
@@ -757,7 +773,14 @@ export function linkAndRankMajorsWithDossier(scores, riasec, aiDiagnosis = {}, c
       bestCombo: bestCombo ? bestCombo.comboCode : combos[0],
       bestComboScore: bestCombo ? bestCombo.score : null
     };
-  }).sort((a, b) => b.fitPercent - a.fitPercent);
+  }).sort((a, b) => {
+    if (weaknessesText) {
+      const aConflict = (WEAKNESS_CONFLICT_MAP[a.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
+      const bConflict = (WEAKNESS_CONFLICT_MAP[b.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
+      if (aConflict !== bConflict) return aConflict - bConflict;
+    }
+    return b.fitPercent - a.fitPercent;
+  });
 }
 
 export async function handleDossierAnalysisRequest({ body, headers = {}, env = process.env }) {
