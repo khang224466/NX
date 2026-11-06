@@ -1057,7 +1057,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                           }}
                           rows={4}
                           placeholder="Ví dụ: thích thiết kế, làm việc với máy tính, chăm sóc mọi người"
-                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#0A0D14] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
                         />
                       </label>
 
@@ -1075,7 +1075,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                           }}
                           rows={4}
                           placeholder="Ví dụ: giỏi Toán, viết tốt, khéo tay, giao tiếp tốt"
-                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                          className="min-h-28 w-full resize-y rounded-xl border border-slate-700 bg-[#0A0D14] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
                         />
                       </label>
 
@@ -1093,13 +1093,13 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                           }}
                           rows={4}
                           placeholder="Ví dụ: ngại giao tiếp trước đám đông, không thích làm việc với số liệu, tính kiên nhẫn chưa cao, sợ máu..."
-                          className="min-h-28 w-full resize-y rounded-xl border border-amber-500/40 bg-[#141923] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
+                          className="min-h-28 w-full resize-y rounded-xl border border-amber-500/40 bg-[#0A0D14] p-3 text-base font-normal text-white placeholder-slate-400 focus:outline-none focus:border-amber-400"
                         />
                       </label>
                     </div>
 
                     {/* Điểm học tập và năng khiếu (tùy chọn) */}
-                    <details className="rounded-xl border border-slate-700 bg-[#141923] p-4">
+                    <details className="rounded-xl border border-slate-700 bg-[#0A0D14] p-4">
                       <summary className="cursor-pointer text-base font-semibold text-white">Điểm học tập và năng khiếu (tùy chọn)</summary>
                       <div className="mt-4 space-y-5">
                         <div>
@@ -1188,7 +1188,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                       value={majorSearchQuery}
                       onChange={(e) => setMajorSearchQuery(e.target.value)}
                       placeholder="Nhập tên hoặc mã ngành"
-                      className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                      className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#0A0D14] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
                     />
 
                     {majorSearchQuery.trim() && (
@@ -1571,7 +1571,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                 setSelectedSchoolCode(null);
               }}
               placeholder="Tìm trường theo tên, mã hoặc tỉnh/thành"
-              className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#141923] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+              className="min-h-12 w-full rounded-xl border border-slate-700 bg-[#0A0D14] px-4 text-base text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
             />
 
             <p className="text-sm text-slate-300">

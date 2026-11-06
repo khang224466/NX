@@ -11,34 +11,35 @@ interface SmoothScrollProps {
 
 export const SmoothScroll: React.FC<SmoothScrollProps> = ({ children }) => {
   useEffect(() => {
-    // Initialize Lenis with physics-based momentum scrolling
+    // Khởi tạo Lenis với quán tính vật lý (Momentum Scrolling) êm dịu, phản hồi tức thì
     const lenis = new Lenis({
-      duration: 1.25,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Exponential decay curve
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 1.15,
-      touchMultiplier: 2.0,
-      syncTouch: true,
+      wheelMultiplier: 1.05,
+      touchMultiplier: 1.0,
+      syncTouch: false, // Để Windows Touchpad & chuột cảm ứng cuộn tự nhiên, không giật
       autoResize: true
     });
 
-    // Synchronize Lenis with GSAP ScrollTrigger
+    // Đồng bộ trạng thái cuộn với GSAP ScrollTrigger
     lenis.on('scroll', ScrollTrigger.update);
 
-    const tickerCb = (time: number) => {
-      lenis.raf(time * 1000);
+    // Vòng lặp RAF độc lập dùng performance.now() chuẩn xác của trình duyệt
+    let rafId: number;
+    const raf = (time: number) => {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
     };
-    gsap.ticker.add(tickerCb);
-    // Standard lag smoothing prevents stuttering on frame drop
-    gsap.ticker.lagSmoothing(500, 33);
+    rafId = requestAnimationFrame(raf);
 
-    // Make lenis globally accessible for programmatic smooth scrolls and canvas parallax sync
+    // Gắn Lenis vào biến toàn cục để các component (Canvas, Parallax) đồng bộ vị trí cuộn
     (window as any).__lenis = lenis;
 
     return () => {
-      gsap.ticker.remove(tickerCb);
+      cancelAnimationFrame(rafId);
       lenis.destroy();
       delete (window as any).__lenis;
     };

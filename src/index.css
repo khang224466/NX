@@ -591,3 +591,30 @@ html.dark [class*="border-white/"] {
   font-size: 0.75rem;
   color: var(--accent, #C6F135);
 }
+
+
+/* =========================================================================
+   LIGHT MODE PURE #FFFFFF ENFORCEMENT (TOP SPECIFICITY)
+   Ensures textareas, input fields, selects, and card containers in Light Mode
+   render with pure #FFFFFF background and crisp contrast.
+   ========================================================================= */
+html.light textarea,
+html.light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.light select,
+html.light details,
+html.light details[open],
+html.light .bg-\[\#141923\],
+html.light .bg-\[\#0A0D14\],
+html.light .bg-\[\#0E1117\],
+html.light [class*="bg-[#141923]"],
+html.light [class*="bg-[#0A0D14]"],
+html.light [class*="bg-[#0E1117]"] {
+  background-color: #000000 !important; /* Invert filter maps #000000 to pure #FFFFFF */
+  color: #FFFFFF !important;             /* Invert filter maps #FFFFFF to pure #000000 text */
+  border-color: rgba(255, 255, 255, 0.22) !important; /* Invert filter maps to clean subtle border */
+}
+
+html.light textarea::placeholder,
+html.light input::placeholder {
+  color: rgba(255, 255, 255, 0.55) !important; /* Inverts to crisp medium-gray placeholder */
+}
