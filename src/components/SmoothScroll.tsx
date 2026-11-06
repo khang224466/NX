@@ -11,15 +11,17 @@ interface SmoothScrollProps {
 
 export const SmoothScroll: React.FC<SmoothScrollProps> = ({ children }) => {
   useEffect(() => {
-    // Initialize Lenis smooth scrolling with optimized performance
+    // Initialize Lenis with physics-based momentum scrolling
     const lenis = new Lenis({
-      duration: 1.0,
+      duration: 1.25,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 1.0,
-      touchMultiplier: 1.5,
+      wheelMultiplier: 1.15,
+      touchMultiplier: 2.0,
+      syncTouch: true,
+      autoResize: true
     });
 
     // Synchronize Lenis with GSAP ScrollTrigger
@@ -32,7 +34,7 @@ export const SmoothScroll: React.FC<SmoothScrollProps> = ({ children }) => {
     // Standard lag smoothing prevents stuttering on frame drop
     gsap.ticker.lagSmoothing(500, 33);
 
-    // Make lenis globally accessible for programmatic smooth scrolls
+    // Make lenis globally accessible for programmatic smooth scrolls and canvas parallax sync
     (window as any).__lenis = lenis;
 
     return () => {

@@ -60,7 +60,8 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
         height = parent?.clientHeight || window.innerHeight;
       }
 
-      step = Math.max(8, Math.min(12, Math.round(width / 160)));
+      // Higher sampling density (smaller step) for ultra-smooth non-faceted contour curves
+      step = Math.max(5, Math.min(8, Math.round(width / 240)));
 
       // Cap DPR at 1.25 for crisp lines without 4K GPU fillrate overhead
       dpr = Math.min(window.devicePixelRatio || 1, 1.25);
@@ -117,6 +118,17 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
     document.addEventListener('mouseleave', handleMouseLeave);
     window.addEventListener('scroll', handleScroll, { passive: true });
 
+    // Sync with Lenis Momentum Scrolling
+    const lenis = (window as any).__lenis;
+    const handleLenisScroll = (e: any) => {
+      if (typeof e?.scroll === 'number') {
+        scrollRef.current = e.scroll;
+      }
+    };
+    if (lenis && typeof lenis.on === 'function') {
+      lenis.on('scroll', handleLenisScroll);
+    }
+
     // 20 Elevation levels spanning valley to peaks (visually identical to 28 levels with sub-pixel interpolation)
     const numLevels = 20;
     const minLevel = 0.14;
@@ -139,13 +151,10 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       const isMouseMoving = Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1;
       const isScrolling = Math.abs(scrollRef.current - lastScrollY.current) > 0.5;
 
-      if (!mouseRef.current.isHovered) {
-        mouseRef.current.x += dx * 0.08;
-        mouseRef.current.y += dy * 0.08;
-      } else {
-        mouseRef.current.x = mouseRef.current.targetX;
-        mouseRef.current.y = mouseRef.current.targetY;
-      }
+      // Silky smooth exponential lerp under all conditions to prevent sudden contour snapping
+      const lerpSpeed = mouseRef.current.isHovered ? 0.09 : 0.045;
+      mouseRef.current.x += dx * lerpSpeed;
+      mouseRef.current.y += dy * lerpSpeed;
       lastScrollY.current = scrollRef.current;
 
       const curX = mouseRef.current.x;
@@ -423,11 +432,17 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       ctx.stroke(pathSummit);
 
       // =======================================================================
-      // 2. Technical HUD Coordinate Crosshairs (Exact replica of Image reference)
+      // 2. High-Visibility Precision Technical HUD Crosshairs & Marker
       // =======================================================================
+      const isLightMode = typeof document !== 'undefined' && document.documentElement.classList.contains('light');
+
+      // Adaptive high-contrast crosshair hairline colors
+      const crosshairColor = isLightMode ? 'rgba(37, 99, 235, 0.32)' : 'rgba(129, 140, 248, 0.28)';
+      const tickColor = isLightMode ? 'rgba(37, 99, 235, 0.45)' : 'rgba(129, 140, 248, 0.42)';
+
       // Full-bleed horizontal hairline across the entire canvas at curY
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
-      ctx.lineWidth = 0.75;
+      ctx.strokeStyle = crosshairColor;
+      ctx.lineWidth = 1.0;
       ctx.beginPath();
       ctx.moveTo(0, curY);
       ctx.lineTo(width, curY);
@@ -439,36 +454,65 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       ctx.lineTo(curX, height);
       ctx.stroke();
 
-      // Subtle tick marks along crosshairs
-      const tickSpacing = 96;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      // Precise tick marks along crosshairs
+      const tickSpacing = 80;
+      ctx.strokeStyle = tickColor;
+      ctx.lineWidth = 1.0;
       ctx.beginPath();
       for (let tx = 0; tx < width; tx += tickSpacing) {
-        if (Math.abs(tx - curX) > 12) {
-          ctx.moveTo(tx, curY - 2);
-          ctx.lineTo(tx, curY + 2);
+        if (Math.abs(tx - curX) > 16) {
+          ctx.moveTo(tx, curY - 3);
+          ctx.lineTo(tx, curY + 3);
         }
       }
       for (let ty = 0; ty < height; ty += tickSpacing) {
-        if (Math.abs(ty - curY) > 12) {
-          ctx.moveTo(curX - 2, ty);
-          ctx.lineTo(curX + 2, ty);
+        if (Math.abs(ty - curY) > 16) {
+          ctx.moveTo(curX - 3, ty);
+          ctx.lineTo(curX + 3, ty);
         }
       }
       ctx.stroke();
 
-      // Small periwinkle/cyan square coordinate marker box "■"
-      ctx.fillStyle = '#818CF8';
+      // Distinct Reticle Ring & Square Coordinate Marker
+      // Outer reticle ring
+      ctx.strokeStyle = isLightMode ? '#2563EB' : '#818CF8';
+      ctx.lineWidth = 1.25;
+      ctx.strokeRect(curX - 5.5, curY - 5.5, 11, 11);
+
+      // Solid central cursor box "■"
+      ctx.fillStyle = isLightMode ? '#1D4ED8' : '#A5B4FC';
       ctx.fillRect(curX - 3, curY - 3, 6, 6);
 
-      // Coordinate Text Label: "X 0526 · Y 0220"
+      // High-contrast Coordinate Pill Badge: "X 0683 · Y 0574"
       const xStr = String(Math.max(0, Math.round(curX))).padStart(4, '0');
       const yStr = String(Math.max(0, Math.round(curY))).padStart(4, '0');
       const labelText = `X ${xStr} · Y ${yStr}`;
 
-      ctx.font = '9px "Space Mono", monospace';
-      ctx.fillStyle = 'rgba(228, 228, 231, 0.72)';
-      ctx.fillText(labelText, curX + 10, curY + 14);
+      const badgeX = curX + 12;
+      const badgeY = curY + 4;
+      const badgeW = 96;
+      const badgeH = 18;
+
+      // Badge background pill
+      ctx.fillStyle = isLightMode ? 'rgba(15, 23, 42, 0.92)' : 'rgba(10, 14, 23, 0.90)';
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+      } else {
+        ctx.rect(badgeX, badgeY, badgeW, badgeH);
+      }
+      ctx.fill();
+
+      // Badge border
+      ctx.strokeStyle = isLightMode ? 'rgba(59, 130, 246, 0.5)' : 'rgba(129, 140, 248, 0.4)';
+      ctx.lineWidth = 0.75;
+      ctx.stroke();
+
+      // Badge text
+      ctx.font = 'bold 9px "Space Mono", monospace';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(labelText, badgeX + 8, badgeY + badgeH / 2);
 
       animFrameId.current = requestAnimationFrame(render);
     };
@@ -480,6 +524,9 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('scroll', handleScroll);
+      if (lenis && typeof lenis.off === 'function') {
+        lenis.off('scroll', handleLenisScroll);
+      }
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
     };
   }, [isFullPage]);

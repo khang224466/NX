@@ -64,6 +64,34 @@ html {
     filter: invert(1) hue-rotate(180deg);
   }
 
+  /* Enforce pure #FFFFFF white backgrounds in Light Mode for inputs, textareas, and card surfaces */
+  html.light textarea,
+  html.light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  html.light select,
+  html.light details,
+  html.light [class*="bg-[#141923]"],
+  html.light [class*="bg-[#0A0D14]"],
+  html.light [class*="bg-[#0E1117]"] {
+    background-color: #000000 !important; /* Invert filter turns #000000 into pure #FFFFFF */
+  }
+
+  /* Momentum Scrolling with Lenis */
+  html.lenis, html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+  .lenis.lenis-scrolling iframe {
+    pointer-events: none;
+  }
+
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
