@@ -761,6 +761,63 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     </div>
                   </div>
 
+                  {/* =========================================================================
+                      KHỐI DẪN NHẬP & KHAI BÁO PHƯƠNG PHÁP HƯỚNG NGHIỆP (DECLARATION & RATIONALE)
+                      ========================================================================= */}
+                  <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-4 sm:p-5 space-y-3.5 shadow-sm">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+                        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-blue-300">
+                          Khai báo mục đích &amp; Quy trình xử lý dữ liệu hướng nghiệp
+                        </h3>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400 bg-[#0A0D14] px-2.5 py-0.5 rounded border border-slate-800">
+                        Chuẩn tâm trắc O*NET IPSF
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+                      {/* Cột 1: Vì sao cần xác định Mật mã Holland? */}
+                      <div className="rounded-lg bg-[#0A0D14]/90 p-4 border border-slate-800 space-y-2">
+                        <div className="flex items-center gap-2 text-white">
+                          <span className="text-base">📌</span>
+                          <h4 className="text-sm font-bold text-blue-200">Tại sao bạn cần làm bước này?</h4>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Mô hình Holland (RIASEC) là công cụ tâm trắc học chuẩn quốc tế giúp lượng hóa 6 nhóm tính cách nghề nghiệp: <em>Thực tế (R), Nghiên cứu (I), Nghệ thuật (A), Xã hội (S), Quản lý (E), Nghiệp vụ (C)</em>. Bước này giúp bóc tách <strong>thiên hướng sở thích cốt lõi</strong> sâu bên trong, hạn chế việc chọn ngành cảm tính theo trào lưu ngắn hạn.
+                        </p>
+                      </div>
+
+                      {/* Cột 2: Sau khi có kết quả sẽ làm gì? */}
+                      <div className="rounded-lg bg-[#0A0D14]/90 p-4 border border-slate-800 space-y-2">
+                        <div className="flex items-center gap-2 text-white">
+                          <span className="text-base">🎯</span>
+                          <h4 className="text-sm font-bold text-emerald-300">Sau khi có kết quả sẽ làm gì?</h4>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          Hệ thống tự động trích xuất <strong>Mật mã 3 chữ cái đỉnh</strong> (ví dụ: <span className="font-mono text-emerald-300 font-bold">IRC</span>, <span className="font-mono text-emerald-300 font-bold">SAE</span>) làm <strong>Dữ liệu đầu vào (Input 1)</strong>. Ở màn hình kế tiếp, mật mã này sẽ kết hợp với <em>Sở thích, Thế mạnh, Điểm yếu cần tránh</em> và <em>Điểm thi THPT</em> để chạy ma trận tương quan Pearson đối chiếu 300+ ngành đại học.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Dòng lộ trình tóm lược 3 bước */}
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-blue-500/20 text-xs text-slate-400">
+                      <span className="font-mono font-semibold text-blue-300">Lộ trình chuyển tiếp:</span>
+                      <span className="flex items-center gap-1 text-slate-200 font-medium">
+                        <span className="font-mono text-blue-400">1.</span> Lấy Mật mã Holland
+                      </span>
+                      <span className="text-slate-500">→</span>
+                      <span className="flex items-center gap-1 text-slate-200 font-medium">
+                        <span className="font-mono text-blue-400">2.</span> Điền Hồ sơ, Thế mạnh &amp; Điểm yếu
+                      </span>
+                      <span className="text-slate-500">→</span>
+                      <span className="flex items-center gap-1 text-slate-200 font-medium">
+                        <span className="font-mono text-blue-400">3.</span> Gợi ý Top ngành, Tổ hợp &amp; Chọn Trường
+                      </span>
+                    </div>
+                  </div>
+
                   {/* Chuyển đổi: Trắc nghiệm 60 câu vs Tự chỉnh 6 miền */}
                   <div className="flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-3">
                     <button
@@ -872,11 +929,16 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
 
                   {/* Nút Tiếp tục sang Màn hình Hồ sơ cá nhân */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
-                    <p className="text-xs text-slate-400 font-mono">
-                      {dominantRiasec
-                        ? `✓ Đã ghi nhận Mật mã ${dominantRiasec}. Kết quả sẽ tự động đưa vào làm dữ liệu đầu vào (Input) của hồ sơ.`
-                        : 'Bạn có thể làm bài trắc nghiệm, chọn mẫu gợi ý hoặc tiếp tục để điền hồ sơ.'}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-300 font-medium">
+                        {dominantRiasec
+                          ? `✓ Đã xác lập Mật mã ${dominantRiasec}. Kết quả đã sẵn sàng đưa vào làm Input 1 cho bước Hồ sơ cá nhân.`
+                          : 'Bạn có thể làm bài trắc nghiệm 60 câu, chọn nhanh nhóm mẫu hoặc tiếp tục để điền hồ sơ.'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 font-mono">
+                        Bước kế tiếp: Nhập sở thích, thế mạnh, điểm yếu cần tránh &amp; bấm "Gợi ý ngành" để xem kết quả.
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {

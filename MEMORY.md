@@ -10,6 +10,14 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Bổ Sung Khối Khai Báo Phương Pháp & Lý Do Khảo Sát Mật Mã Holland (2026-11-06)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"thêm một đoạn để dẫn, giống như khai báo. trong trang này, thêm 1 chút thông tin về lý do cần làm cái này, và sẽ làm gì sau khi có kết quả"* kèm ảnh chụp trang Trắc nghiệm Mật mã Holland (Bước 1.1).
+  - **Giải pháp triển khai:**
+    1. **Khối Khai Báo Định Hướng (Declaration & Rationale Box):** Đặt nổi bật ngay dưới tiêu đề Bước 1.1, thiết kế card chuyên môn cao với viền `border-blue-500/30` và nền `bg-blue-950/20`.
+    2. **Cột "Tại sao bạn cần làm bước này?":** Giải thích mô hình chuẩn tâm trắc John Holland (O*NET IPSF), định lượng 6 nhóm tính cách nghề nghiệp cốt lõi, tránh việc chọn ngành cảm tính theo trào lưu ngắn hạn.
+    3. **Cột "Sau khi có kết quả sẽ làm gì?":** Nêu rõ quy trình trích xuất Mật mã 3 chữ cái đại diện (ví dụ `IRC`, `SAE`) làm Input 1, chuyển tiếp sang màn hình hồ sơ kết hợp cùng Sở thích, Thế mạnh, Điểm yếu và Điểm thi THPT để chạy ma trận tương quan Pearson đối chiếu 300+ ngành đại học.
+    4. **Dòng lộ trình 3 bước & Chú thích chân trang:** Hướng dẫn trực quan từng bước chuyển tiếp.
+  - **Kiểm thử:** `tsc --noEmit` 0 lỗi; 70/70 unit test cases đạt 100% PASS.
 - **Tách Luồng Bước 1 thành 2 Giai Đoạn (2-Phase Step 1 UX) & Tích Hợp Input Mật Mã Holland + Điểm Yếu (2026-11-05)**:
   - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"ở phần này, trước cái màn hình này là cho làm mật mã holland, dùng cái đó để làm 1 phần của input, thêm phần điểm yếu để người dùng nhập vào nữa."* kèm ảnh chụp màn hình UI thực tế.
   - **Kiến trúc & Giải pháp triển khai:**
