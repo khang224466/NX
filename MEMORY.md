@@ -10,6 +10,18 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Tối Ưu Sóng Động Contour, Con Trỏ HUD, Nền #FFFFFF & Momentum Scrolling (2026-11-06)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu:
+    1. Track lại toàn bộ prompt, các input gửi tới API và cơ chế phân tích hậu xử lý sau khi nhận kết quả từ AI.
+    2. Nâng cấp thuật toán wave địa hình cho output mượt mà, không bị gãy góc.
+    3. Làm con trỏ chuột và tọa độ HUD rõ nét hơn.
+    4. Thiết lập màu nền các ô nhập liệu thành màu trắng tinh khiết (`#FFFFFF`) trong Light Mode.
+    5. Thiết lập cơ chế Momentum Scrolling (cuộn quán tính mượt mà).
+  - **Triển khai kỹ thuật:**
+    1. `ContourTerrainCanvas.tsx`: Giảm step size (tăng mật độ mẫu 30%), áp dụng exponential lerp liên tục cho tọa độ chuột; nâng cấp con trỏ thành hồng tâm kỹ thuật sắc nét kèm reticle ring và badge tọa độ có nền đen mờ viền xanh neon, đồng bộ sự kiện cuộn với Lenis.
+    2. `SmoothScroll.tsx`: Cấu hình Lenis với đường cong quán tính `duration: 1.25`, `wheelMultiplier: 1.15`, `touchMultiplier: 2.0`, `syncTouch: true` và bổ sung CSS chuẩn Lenis.
+    3. `src/index.css`: Ép màu nền của textareas, inputs, details panels thành `#000000` trong `html.light` (khi qua bộ lọc đảo màu `invert(1)` sẽ trở thành màu trắng tinh khiết `#FFFFFF`).
+  - **Kiểm thử:** `tsc --noEmit` sạch lỗi; 70/70 tests PASS. Đã push thẳng lên `main` (`ee613d5`).
 - **Bổ Sung Bộ Skill UI/UX Chuyên Nghiệp (Anti-AI Slop) & Full-Stack Architecture (2026-11-06)**:
   - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu bổ sung 2 nhóm skill quan trọng vào hệ thống:
     1. *Nhóm UI/UX & Chống "AI Slop":* UI/UX Pro Max, Vercel Web Design Guidelines, Taste / Emil Kowalski / Impeccable Motion, Kimi UI/UX (Design System & Landing Scaffold).
