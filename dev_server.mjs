@@ -37,6 +37,7 @@ function resolveScriptPath(scriptName) {
 
 async function start() {
   const vite = await createViteServer({
+    root: __dirname,
     server: { 
       middlewareMode: true,
       watch: {

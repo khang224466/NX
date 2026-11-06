@@ -63,7 +63,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const applyZoom = (level: number) => {
     const root = document.documentElement;
     // Mốc 100% (level = 1.0) tương đương 150% kích thước thực tế (zoom = 1.50)
-    const effectiveZoom = Math.round(level * 1.5 * 100) / 100;
+    const effectiveZoom = Math.round(level * 100) / 100;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('resize'));
+      if ((window as any).__lenis?.resize) (window as any).__lenis.resize();
+    }
     root.style.zoom = String(effectiveZoom);
     root.style.setProperty('--nx-ui-zoom', String(effectiveZoom));
     try {

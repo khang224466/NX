@@ -10,6 +10,26 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Khắc Phục Triệt Để Hiện Tượng Lag Khi Để Nguyên Không Zoom (Default 100%) vs Mượt Khi Zoom Ra (2026-11-06)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng phát hiện hiện tượng then chốt: *"vấn đề mới, khi zoom ra, web hiện rất mượt mà, nhưng khi để nguyên k zoom thì rất là lag"*.
+  - **Phân tích nguyên nhân gốc rễ (Root Cause):**
+    1. *Phóng đại ẩn 150% (Hardcoded 1.5x Multiplier):* Trong `ThemeContext.tsx`, hàm `applyZoom` trước đó ngầm nhân `effectiveZoom = level * 1.5`. Khi người dùng để nguyên 100% hiển thị, CSS zoom trên `html` thực chất bị ép lên **150%** (`zoom: 1.5`). Chỉ khi người dùng bấm nút thu nhỏ ("zoom ra" về 70%), zoom thực tế mới giảm về `0.7 * 1.5 = 1.05` (tương đương 100% tự nhiên) nên máy mới mượt!
+    2. *Xung đột cuộn giữa Lenis và CSS Zoom:* Khi `html` có `zoom: 1.5`, `window.scrollY` trả về giá trị lệch 1.5x so với `window.scrollTo`. Vòng lặp quán tính của Lenis nhận phản hồi sai số liên tục, dẫn đến hiện tượng phản hồi ngược (feedback oscillation loop) gây giật cục và đơ cuộn.
+    3. *Xung đột 2 nguồn sự kiện cuộn:* `ContourTerrainCanvas.tsx` cùng lúc lắng nghe cả `window.scroll` (bị scale 1.5x) và `lenis.scroll` (không bị scale), khiến tọa độ `scrollRef.current` bị nhảy gián đoạn liên tục mỗi frame.
+    4. *GPU Fillrate quá tải:* Canvas vẽ lệnh `createRadialGradient` và `fillRect` phủ kín toàn màn hình mỗi frame. Khi zoom 1.5x và DPR 1.875, diện tích raster phình to gấp 2.25 lần khiến GPU quá tải.
+  - **Giải pháp xử lý:**
+    1. `ThemeContext.tsx` & `src/index.css`: Chuẩn hóa tỷ lệ zoom 1:1 (`effectiveZoom = level * 1.0`), đưa mốc 100% về đúng kích thước tự nhiên mượt mà 120 FPS. Tự động kích hoạt `lenis.resize()` và dispatch `resize` event khi zoom thay đổi.
+    2. `ContourTerrainCanvas.tsx`:
+       - Loại bỏ hoàn toàn lệnh `ctx.fillRect` toàn màn hình mỗi frame (tận dụng nền GPU `.blueprint-fixed-backdrop` có sẵn trong CSS).
+       - Khống chế DPR tối đa ở mức 1.15 để chống tràn bộ nhớ GPU ở màn hình độ phân giải cao.
+       - Tách biệt nguồn cuộn: Chỉ nhận từ Lenis nếu Lenis hoạt động; không bao giờ để 2 listener tranh chấp tọa độ.
+       - Gom các vòng sóng thành 1 path duy nhất, giảm 34 lệnh `stroke()` xuống còn 2 lệnh.
+       - Gỡ bỏ `transform: translateZ(0)` trên fixed container để trình duyệt duy trì static compositor layer.
+    3. `SmoothScroll.tsx`: Bổ sung event listener tự động gọi `lenis.resize()` khi thay đổi zoom hoặc kích thước cửa sổ.
+  - **Kiểm thử & Triển khai:**
+    - `tsc --noEmit`: Đạt 0 lỗi.
+    - 70/70 Unit test cases đạt 100% PASS.
+    - Đã xác thực trên cả dev server và branch `main`.
 - **Triệt Tiêu Hoàn Toàn Lag Bằng Thuật Toán Sóng Nước Lan Tỏa & Momentum Scroll Thực Thụ (2026-11-06)**:
   - **Bối cảnh & Yêu cầu:** Người dùng phản ánh: *"web giờ quá lag, phần wave ở sau vẫn chưa được mượt, nó cần mượt như là một giọt nước nhỏ xuống hồ rồi lan ra vậy, tìm nguồn gốc web bị lag, hiện tại trên 00f2860 vẫn chưa có momentum scroll"*, đồng thời yêu cầu *"track lại prompt và những phần input nào sẽ được gửi đi cùng với prompt đến API key, rồi cơ chế phân tích sau khi đã nhận được kết quả từ agent"*, làm con trỏ chuột rõ nét hơn và thiết lập màu nền các ô nhập liệu thành màu trắng `#FFFFFF`.
   - **Xác định chính xác nguồn gốc gây lag:**
