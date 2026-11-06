@@ -41,9 +41,12 @@ You are an autonomous AI engineering and project assistant operating with a pers
 ## 3. Mandatory Coding & Vibe-Coding Rules
 - **Verify Docs First**: Always inspect `node_modules/next/dist/docs/` before using routing, caching (`"use cache"`), or Server Actions when working with Next.js.
 - **Skill Activation**:
-  - When building or editing UI/UX, forms, or quiz flows -> follow `web-design-guidelines`, `composition-patterns`, and `react-best-practices`.
+  - When designing UI/UX, layouts, or eliminating generic AI slop -> follow `ui-ux-pro-max`, `vercel-web-design-guidelines`, and `design-system-landing-scaffold`.
+  - When tuning animations, spring physics, or micro-interactions -> follow `taste-motion-impeccable`.
   - When working on psychometric tests or scoring logic -> follow `career-assessment-engine`.
-  - When working on AI chat, prompts, or CV/roadmap analysis -> follow `ai-career-counselor-rag`.
+  - When working on AI chat, prompts, RAG, or CV/roadmap analysis -> follow `ai-career-counselor-rag`.
+  - When architecting fullstack features, APIs, schemas, or server logic -> follow `ultimate-fullstack-engineer`.
+  - When organizing files, components, refactoring, or managing project hierarchy -> follow `frontend-project-structure`.
   - Before finishing any feature or committing -> run the verification workflow in `next-dev-loop` and `vibe-code-github-vercel-ship`.
 - **No Unhandled States**: Every async route and AI streaming component must include a `<Suspense>` skeleton fallback, clear empty state, and friendly Vietnamese error message.
 - **Code Quality**:

@@ -10,6 +10,18 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Bổ Sung Bộ Skill UI/UX Chuyên Nghiệp (Anti-AI Slop) & Full-Stack Architecture (2026-11-06)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu bổ sung 2 nhóm skill quan trọng vào hệ thống:
+    1. *Nhóm UI/UX & Chống "AI Slop":* UI/UX Pro Max, Vercel Web Design Guidelines, Taste / Emil Kowalski / Impeccable Motion, Kimi UI/UX (Design System & Landing Scaffold).
+    2. *Nhóm Code Structure & Full-Stack:* Ultimate Full-Stack Engineer, Frontend & Project Structure.
+  - **Các Skill mới được thiết lập trong `.agents/skills/`:**
+    1. `ui-ux-pro-max`: Thiết kế giao diện chuyên nghiệp, loại bỏ triệt để AI slop (không neon tím/cyan, không khối blur lơ lửng, không copy sáo rỗng), thị giác phân cấp rõ ràng.
+    2. `vercel-web-design-guidelines`: Bộ chuẩn thiết kế Vercel về layout, spacing 4px/8px, hairline borders, typography Geist/Inter, và kiến trúc 4 góc trạng thái (loading skeletons, empty, error, active).
+    3. `taste-motion-impeccable`: Chuẩn chuyển động Emil Kowalski, spring physics tactile, micro-interactions, active-press feedback, chỉ animate transform/opacity.
+    4. `design-system-landing-scaffold`: Quản lý design tokens, component primitives, và dàn dựng chuẩn 5 section landing page (Hero, Proof, Core Feature, Methodology, Conversion).
+    5. `ultimate-fullstack-engineer`: Kiến trúc full-stack từ ý tưởng đến production, domain isolation, Zod validation, typed result patterns, API timeout ceilings và graceful fallbacks.
+    6. `frontend-project-structure`: Quản lý cây thư mục modular, atomic component composition, zero-regression refactoring, preview builds và Git staging an toàn.
+  - Cập nhật `.gitignore` và `AGENTS.md` để đồng bộ theo dõi qua Git repository.
 - **Khóa Chặt Cổng Bước 1.1: Bắt Buộc Hoàn Thành Mật Mã Holland (2026-11-06)**:
   - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"phần này nếu người dùng không làm mật mã holland thì sẽ k đc qua"* kèm ảnh chụp màn hình footer nút chuyển tiếp.
   - **Giải pháp triển khai:**
