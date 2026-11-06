@@ -10,6 +10,14 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Khóa Chặt Cổng Bước 1.1: Bắt Buộc Hoàn Thành Mật Mã Holland (2026-11-06)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"phần này nếu người dùng không làm mật mã holland thì sẽ k đc qua"* kèm ảnh chụp màn hình footer nút chuyển tiếp.
+  - **Giải pháp triển khai:**
+    1. **Khóa nút chuyển tiếp (Strict Button Gate):** Nút *"Xác nhận Mật mã & Tiếp tục sang Hồ sơ cá nhân →"* được gán `disabled={!dominantRiasec}`, chuyển sang giao diện xám mờ `cursor-not-allowed` khi chưa có kết quả.
+    2. **Cảnh báo bắt buộc trực quan:** Hiển thị thông báo màu hổ phách: *"⚠️ Bắt buộc hoàn thành Mật mã Holland: Bạn cần làm xong bài 60 câu hoặc nạp điểm 6 miền để tiếp tục"*.
+    3. **Chặn rẽ nhánh cấp độ State (`useEffect` Guard):** Tự động phát âm thanh cảnh báo lỗi (`sfx.playActionError()`) nếu cố nhấp chuột, và tự động ép quay về phase `holland` nếu state `dominantRiasec` chưa sẵn sàng.
+    4. **Badge Tiêu Đề:** Đổi thành *"Chưa thiết lập (Bắt buộc)"* với khung viền hổ phách.
+  - **Kiểm thử:** `tsc --noEmit` sạch lỗi; 70/70 unit test cases đạt 100% PASS. Đã push thẳng lên `main` (`9fbf2f5`).
 - **Bổ Sung Khối Khai Báo Phương Pháp & Lý Do Khảo Sát Mật Mã Holland (2026-11-06)**:
   - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"thêm một đoạn để dẫn, giống như khai báo. trong trang này, thêm 1 chút thông tin về lý do cần làm cái này, và sẽ làm gì sau khi có kết quả"* kèm ảnh chụp trang Trắc nghiệm Mật mã Holland (Bước 1.1).
   - **Giải pháp triển khai:**
