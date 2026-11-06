@@ -10,6 +10,34 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Khôi Phục Toàn Diện Cơ Chế AI Generate Gợi Ý Ngành & Chuẩn Hóa RIASEC Làm Input Cho Prompt AI (2026-11-06)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"back lại cơ chế generate cũ là thứ nhất, thứ 2 là RIASEC này chỉ là thêm input để gọi API key và cùng prompt gửi đi"*, kèm 2 ảnh chụp minh chứng:
+    1. Ảnh UI lỗi xếp hạng cục bộ: Xuất hiện 3 ngành chữ cái đầu "A" và "B" ("An toàn lao động và Pháp chế kỹ thuật", "Bản đồ số", "Bảo tồn di sản hóa học") với huy hiệu RIASEC Match 95%.
+    2. Ảnh hồ sơ thực tế của học sinh: Mật mã Holland đỉnh `RI` (R: 97, I: 90, A: 59, S: 55, E: 54, C: 64), Sở thích "thích AI, tìm hiểu công nghệ", Năng lực thế mạnh "Làm việc được với AI, học hỏi nhanh", Điểm yếu "rất tự tin đám ra thái quá, tim đập nhanh và run...", Bảng điểm: Toán 10, Anh 10, Lý 10, Tin 10, Sinh 10, Sử 10, Địa 10, GDKT&PL 10.
+  - **Xác định nguyên nhân gốc rễ (Root Cause):**
+    1. *Nút bấm không kích hoạt AI:* Trong `Scientific4TabPortal.tsx`, nút "Gợi ý ngành" trước đó chỉ thực hiện `setHasAnalyzedMajor(true)` cục bộ mà không hề gọi API hay LLM.
+    2. *Xếp hạng chữ cái đè bẹp sở thích học sinh:* Trong `recommendationEngine.ts`, hàm `rankMajorsByEvidence` khi `useRiasecProfile === true` chỉ so sánh `interestSimilarityIndex`. Do tất cả ngành kỹ thuật đều đạt 95% tương đồng với vector R & I, hàm rơi vào bước hòa điểm theo chữ cái `a.name.localeCompare(b.name, 'vi')`, dẫn đến việc các ngành "An toàn lao động", "Bản đồ số" luôn bị đẩy lên top 1-2-3 và che mờ hoàn toàn các ngành AI/Công nghệ thông tin.
+    3. *Prompt thiếu thông tin RIASEC và điểm yếu:* `requestGeminiDossierDiagnosis` chưa định dạng Mật mã Holland và điểm 6 miền chi tiết vào nội dung `USER_PROFILE` gửi đến Gemini.
+  - **Giải pháp xử lý:**
+    1. `Scientific4TabPortal.tsx`:
+       - Khôi phục luồng gọi AI thực thụ: Bấm "Gợi ý ngành" / "Gợi ý lại ngành" sẽ gọi `handleRunGeminiAnalysis()`.
+       - Hiển thị trạng thái phân tích chuyên nghiệp: Nút hiển thị spinner xoay `<Loader2 className="w-5 h-5 animate-spin" /> Đang phân tích hồ sơ & Kết nối AI...`.
+       - Nhận kết quả từ `requestGeminiDossierDiagnosis`, cập nhật `geminiDiagnosis` và đưa trực tiếp vào thuật toán xếp hạng ngành.
+    2. `geminiService.ts`:
+       - Bổ sung `careerInterests`, `careerStrengths`, `careerWeaknesses`, `dominantRiasec`, `riasec` vào tham số chẩn đoán.
+       - Định dạng chuẩn xác trong `userPrompt`: Mật mã Holland (`Mã đỉnh RI (R: 97đ, I: 90đ, A: 59đ, S: 55đ, E: 54đ, C: 64đ)`), Sở thích, Thế mạnh, Điểm yếu cần tránh, và bảng điểm 10 môn văn hóa + năng khiếu.
+       - Tự động nhận diện API key từ biến môi trường `VITE_GEMINI_API_KEY` / `GEMINI_API_KEY` nếu chưa lưu trong localStorage.
+       - Nâng cấp fallback cục bộ nhận diện từ khóa AI, công nghệ, lập trình để luôn đề xuất chính xác các ngành: Khoa học máy tính, Công nghệ thông tin, Kỹ thuật vi mạch bán dẫn.
+    3. `counselorBackend.ts` & `recommendationEngine.ts`:
+       - Ưu tiên cao nhất cho đề xuất từ AI (`aiMatchIndex >= 0`).
+       - Ưu tiên thứ hai cho bằng chứng tự khai trong sở thích/thế mạnh (`textEvidenceCount > 0`).
+       - Ưu tiên thứ ba cho các ngành cấp IV chính thức được Bộ GD&ĐT cấp phép (`isOfficialCode`) trước các tên chương trình thô chưa chuẩn hóa.
+       - Tích hợp lý do đề xuất (`rec.reason`) và thế mạnh (`rec.advantages`) chuyên sâu từ AI trực tiếp vào từng thẻ ngành.
+  - **Kiểm thử & Xác thực:**
+    - `tsc --noEmit`: Hoàn toàn sạch lỗi (0 errors).
+    - 70/70 Unit test cases đạt 100% PASS (`recommendationEngine`: 7/7, `scoringEngine`: 27/27, `admissionsCalculationEngine`: 36/36).
+    - Script kiểm thử tích hợp thực tế: Thẻ Top 1 hiển thị chuẩn xác **Khoa học máy tính (7480101)** kèm lý do phân tích AI, chấm dứt hoàn toàn hiện tượng gợi ý "An toàn lao động" hay "Bản đồ số".
+
 - **Khắc Phục Triệt Để Hiện Tượng Lag Khi Để Nguyên Không Zoom (Default 100%) vs Mượt Khi Zoom Ra (2026-11-06)**:
   - **Bối cảnh & Yêu cầu:** Người dùng phát hiện hiện tượng then chốt: *"vấn đề mới, khi zoom ra, web hiện rất mượt mà, nhưng khi để nguyên k zoom thì rất là lag"*.
   - **Phân tích nguyên nhân gốc rễ (Root Cause):**

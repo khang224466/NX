@@ -42,6 +42,8 @@ export interface MajorRecommendation extends MajorCandidate {
   evidence: string[];
   explanation: string;
   profileNote: string;
+  aiMatchIndex?: number;
+  textEvidenceCount?: number;
 }
 
 interface QuestionnaireData {
@@ -216,11 +218,12 @@ export function rankMajorsByEvidence(
       : null;
     const interestSimilarityIndex = correlationToSimilarityIndex(correlation);
     const textEvidence = getTextEvidence(selfReportedText, candidate);
-    const aiMatch = aiSuggestedNames.find((name) => {
+    const aiMatchIndex = aiSuggestedNames.findIndex((name) => {
       const normalizedName = name.toLocaleLowerCase('vi').trim();
       const candidateName = candidate.name.toLocaleLowerCase('vi');
       return normalizedName.length > 3 && (normalizedName === candidateName || candidateName.includes(normalizedName) || normalizedName.includes(candidateName));
     });
+    const aiMatch = aiMatchIndex >= 0 ? aiSuggestedNames[aiMatchIndex] : null;
     const hasRiasecMetric = interestSimilarityIndex !== null;
     const recommendationBasis: RecommendationBasis = hasRiasecMetric
       ? 'RIASEC_PROFILE'
@@ -255,18 +258,57 @@ export function rankMajorsByEvidence(
       explanation,
       profileNote: hasRiasecMetric
         ? `${RIASEC_PROFILE_NOTICE} ${SECTOR_RIASEC_PROFILE_NOTE}`
-        : RIASEC_PROFILE_NOTICE
+        : RIASEC_PROFILE_NOTICE,
+      aiMatchIndex,
+      textEvidenceCount: textEvidence.length
     };
   });
 
   if (useRiasecProfile) {
-    return recommendations.sort((a, b) =>
-      (b.interestSimilarityIndex ?? -1) - (a.interestSimilarityIndex ?? -1) ||
-      a.name.localeCompare(b.name, 'vi')
-    );
+    return recommendations.sort((a, b) => {
+      // 1. Direct AI recommendations first
+      if (aiSuggestedNames.length > 0) {
+        const aAi = (a.aiMatchIndex !== undefined && a.aiMatchIndex >= 0) ? a.aiMatchIndex : 999;
+        const bAi = (b.aiMatchIndex !== undefined && b.aiMatchIndex >= 0) ? b.aiMatchIndex : 999;
+        if (aAi !== bAi) return aAi - bAi;
+      }
+      // 2. Direct text exploration evidence
+      if (selfReportedText.trim().length > 0) {
+        const aText = a.textEvidenceCount || 0;
+        const bText = b.textEvidenceCount || 0;
+        if (aText !== bText) return bText - aText;
+      }
+      // 3. Official accredited Level IV majors over uncurated DATA- entries
+      const aIsOfficial = !String(a.codeTT09).startsWith('DATA-') ? 1 : 0;
+      const bIsOfficial = !String(b.codeTT09).startsWith('DATA-') ? 1 : 0;
+      if (aIsOfficial !== bIsOfficial) return bIsOfficial - aIsOfficial;
+
+      // 4. RIASEC interest similarity
+      const diff = (b.interestSimilarityIndex ?? -1) - (a.interestSimilarityIndex ?? -1);
+      if (diff !== 0) return diff;
+
+      // 5. Overall evidence count
+      if (b.evidence.length !== a.evidence.length) {
+        return b.evidence.length - a.evidence.length;
+      }
+
+      // 6. Alphabetical tie-breaker
+      return a.name.localeCompare(b.name, 'vi');
+    });
   }
 
   return recommendations
     .filter((recommendation) => recommendation.evidence.length > 0)
-    .sort((a, b) => b.evidence.length - a.evidence.length || a.name.localeCompare(b.name, 'vi'));
+    .sort((a, b) => {
+      if (aiSuggestedNames.length > 0) {
+        const aAi = (a.aiMatchIndex !== undefined && a.aiMatchIndex >= 0) ? a.aiMatchIndex : 999;
+        const bAi = (b.aiMatchIndex !== undefined && b.aiMatchIndex >= 0) ? b.aiMatchIndex : 999;
+        if (aAi !== bAi) return aAi - bAi;
+      }
+      const aIsOfficial = !String(a.codeTT09).startsWith('DATA-') ? 1 : 0;
+      const bIsOfficial = !String(b.codeTT09).startsWith('DATA-') ? 1 : 0;
+      if (aIsOfficial !== bIsOfficial) return bIsOfficial - aIsOfficial;
+
+      return b.evidence.length - a.evidence.length || a.name.localeCompare(b.name, 'vi');
+    });
 }

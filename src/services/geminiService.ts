@@ -38,6 +38,13 @@ export const getStoredApiKey = (): string => {
     }
   } catch {}
 
+  try {
+    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? (process.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY) : '');
+    if (envKey && typeof envKey === 'string' && envKey.trim().length >= 20) {
+      return envKey.trim();
+    }
+  } catch {}
+
   return DEFAULT_GEMINI_KEY;
 };
 
@@ -1446,6 +1453,10 @@ export async function requestGeminiDossierDiagnosis(params: {
   scores: Record<string, number | '' | undefined>;
   aptitudeScores?: Record<string, number | '' | undefined>;
   personalInterests?: string;
+  careerInterests?: string;
+  careerStrengths?: string;
+  careerWeaknesses?: string;
+  dominantRiasec?: string;
   riasec?: Record<string, number | '' | undefined>;
   careerGoalInterest?: string;
   personalQuestion?: string;
@@ -1724,12 +1735,25 @@ Sử dụng cấu trúc sau:
   "data_warnings": []
 }`;
 
+  const riasecScores = params.riasec || {};
+  const hasRiasecScores = Object.values(riasecScores).some(v => typeof v === 'number' && v > 0);
+  const formattedRiasec = hasRiasecScores
+    ? `Mã đỉnh ${params.dominantRiasec || 'Đã xác định'} (R: ${riasecScores.R ?? 0}đ, I: ${riasecScores.I ?? 0}đ, A: ${riasecScores.A ?? 0}đ, S: ${riasecScores.S ?? 0}đ, E: ${riasecScores.E ?? 0}đ, C: ${riasecScores.C ?? 0}đ)`
+    : (params.dominantRiasec ? `Mã đỉnh ${params.dominantRiasec}` : 'Chưa thiết lập');
+
+  const interests = params.careerInterests || params.personalInterests || 'Chưa nhập cụ thể';
+  const strengths = params.careerStrengths || 'Chưa nhập cụ thể';
+  const weaknesses = params.careerWeaknesses || 'Chưa có điểm yếu cần lưu ý';
+
   const userPrompt = `USER_PROFILE:
-- Sở thích của người dùng: ${params.personalInterests ? `"${params.personalInterests}"` : 'Chưa nhập cụ thể'}
+- Mật mã Holland (RIASEC): ${formattedRiasec}
+- Sở thích và đam mê: "${interests}"
+- Năng lực và thế mạnh: "${strengths}"
+- Điểm yếu và hạn chế cần tránh: "${weaknesses}"
 - Điểm các môn đã có điểm thi: ${enteredList.length > 0 ? enteredList.join(', ') : 'Chưa nhập điểm cụ thể'}
 - Các môn văn hóa chưa có điểm/không thi: ${missingList.join(', ')}
 - Xu hướng mục tiêu nghề nghiệp: ${params.careerGoalInterest || 'Chưa chọn cụ thể'}
-- Câu hỏi / Băn khoăn cụ thể: "${params.personalQuestion || 'Em muốn chuyên gia phân tích thế mạnh thực tế từ sở thích, bảng điểm và gợi ý cho em các ngành học phù hợp nhất.'}"
+- Câu hỏi / Băn khoăn cụ thể: "${params.personalQuestion || 'Dựa trên mật mã Holland, sở thích, thế mạnh, điểm yếu và bảng điểm của em, hãy phân tích và gợi ý cho em các ngành học phù hợp nhất.'}"
 
 CAREER_DATABASE:
 Danh mục ngành cấp IV chính thức từ Bộ GD&ĐT:
@@ -1887,10 +1911,14 @@ USER_REQUEST:
   const mathVal = typeof params.scores.math === 'number' ? params.scores.math : null;
   const litVal = typeof params.scores.literature === 'number' ? params.scores.literature : null;
 
-  const isHumanities = (litVal !== null && litVal >= 7.5) && (mathVal === null || litVal > mathVal);
-  const isSTEM = (mathVal !== null && mathVal >= 7.5) && (litVal === null || mathVal >= litVal);
+  const allProfileText = `${params.careerInterests || ''} ${params.personalInterests || ''} ${params.careerStrengths || ''}`.toLowerCase();
+  const isTechProfile = allProfileText.includes('ai') || allProfileText.includes('công nghệ') || allProfileText.includes('máy tính') || allProfileText.includes('lập trình') || allProfileText.includes('phần mềm') || (typeof params.scores.informatics === 'number' && params.scores.informatics >= 8.0);
+  const isHumanities = (litVal !== null && litVal >= 7.5) && (mathVal === null || litVal > mathVal) && !isTechProfile;
+  const isSTEM = ((mathVal !== null && mathVal >= 7.5) && (litVal === null || mathVal >= litVal)) || isTechProfile;
 
-  const fallbackSummary = isHumanities
+  const fallbackSummary = isTechProfile
+    ? 'Học sinh có thiên hướng công nghệ cao, tư duy logic giải thuật và định hướng sâu về Trí tuệ nhân tạo (AI) / Khoa học máy tính.'
+    : isHumanities
     ? 'Học sinh có ưu thế vượt trội ở các môn Khoa học Xã hội và Ngôn ngữ, tư duy diễn đạt tốt.'
     : isSTEM
     ? 'Học sinh có nền tảng vững vàng về tư duy Logic, Khoa học Tự nhiên và Kỹ thuật.'
@@ -1898,7 +1926,38 @@ USER_REQUEST:
     ? 'Học sinh thể hiện năng khiếu nghệ thuật, thị giác hoặc thể chất rõ rệt.'
     : 'Hồ sơ học tập cân bằng nhiều lĩnh vực.';
 
-  const fallbackRecs: RecommendationItem[] = isHumanities ? [
+  const fallbackRecs: RecommendationItem[] = isTechProfile ? [
+    {
+      id: 'major_7480101',
+      type: 'major',
+      name: 'Khoa học máy tính',
+      reason: 'Phù hợp sâu sắc với định hướng AI, khả năng học hỏi nhanh và điểm số xuất sắc ở các môn Toán học, Tin học, Vật lý. Lợi thế điểm tổ hợp A00, A01 vượt trội.',
+      advantages: ['Lợi thế tuyển sinh vào các trường đại học công nghệ hàng đầu', 'Nền tảng cốt lõi cho các kỹ sư và chuyên gia AI tương lai'],
+      considerations: ['Đòi hỏi tính kỷ luật cao và tiếp tục rèn luyện kỹ năng giải thuật toán chuyên sâu'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7480201',
+      type: 'major',
+      name: 'Công nghệ thông tin',
+      reason: 'Nền tảng công nghệ toàn diện, mở rộng năng lực ứng dụng phần mềm, phát triển hệ thống và sản phẩm số.',
+      advantages: ['Thị trường việc làm rộng lớn và tính ứng dụng cao', 'Nhiều chuyên ngành phát triển theo sở trường'],
+      considerations: ['Cần liên tục cập nhật công nghệ mới và nâng cao năng lực tiếng Anh'],
+      evidence_status: 'verified',
+      missing_information: []
+    },
+    {
+      id: 'major_7520208',
+      type: 'major',
+      name: 'Kỹ thuật vi mạch bán dẫn',
+      reason: 'Đón đầu xu hướng công nghệ lõi phần cứng và thiết kế vi mạch bán dẫn phục vụ hạ tầng AI thế hệ mới.',
+      advantages: ['Được ưu tiên đầu tư trọng điểm quốc gia', 'Cơ hội học bổng và làm việc tại các tập đoàn quốc tế'],
+      considerations: ['Yêu cầu kiến thức vững chắc về Toán giải tích và Vật lý'],
+      evidence_status: 'verified',
+      missing_information: []
+    }
+  ] : (isHumanities ? [
     {
       id: 'major_7320104',
       type: 'major',
@@ -1930,7 +1989,7 @@ USER_REQUEST:
       evidence_status: 'verified',
       missing_information: []
     }
-  ];
+  ]);
 
   return {
     success: true,

@@ -5,6 +5,8 @@ import {
   calculateBasePriority30
 } from '../services/admissionsCalculationEngine';
 import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/counselorBackend';
+import { requestGeminiDossierDiagnosis, type GeminiDiagnosisResponse } from '../services/geminiService';
+import { Loader2 } from 'lucide-react';
 
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
@@ -149,6 +151,9 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [hasMajorChoice, setHasMajorChoice] = useState<'YES' | 'NO' | null>(null);
   const [selectedMajorCode, setSelectedMajorCode] = useState<string | null>(null);
   const [hasAnalyzedMajor, setHasAnalyzedMajor] = useState(false);
+  const [isAnalyzingWithGemini, setIsAnalyzingWithGemini] = useState(false);
+  const [geminiDiagnosis, setGeminiDiagnosis] = useState<GeminiDiagnosisResponse | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [schoolSearchQuery, setSchoolSearchQuery] = useState('');
   const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
   const [showSuggestedSchools, setShowSuggestedSchools] = useState(false);
@@ -425,16 +430,59 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     Object.values(aptitudeScores).some((score) => score !== '')
   );
 
-  // Rank locally against the saved catalog, combining Holland RIASEC, strengths, weaknesses, and scores
+  // Handle AI analysis generation
+  const handleRunGeminiAnalysis = async () => {
+    if (!hasCareerProfile) return;
+    setIsAnalyzingWithGemini(true);
+    setAnalysisError(null);
+    try {
+      sfx.playActionStart();
+    } catch {}
+
+    try {
+      const res = await requestGeminiDossierDiagnosis({
+        scores,
+        aptitudeScores,
+        careerInterests,
+        careerStrengths,
+        careerWeaknesses,
+        dominantRiasec: dominantRiasec || undefined,
+        riasec: riasecScores,
+        personalQuestion: careerInterests || undefined
+      });
+
+      if (res.success && res.diagnosis) {
+        setGeminiDiagnosis(res.diagnosis);
+        setHasAnalyzedMajor(true);
+        try {
+          sfx.playActionSuccess();
+        } catch {}
+      } else {
+        setHasAnalyzedMajor(true);
+      }
+    } catch (err: any) {
+      console.error('Lỗi khi phân tích hồ sơ qua AI:', err);
+      setHasAnalyzedMajor(true);
+    } finally {
+      setIsAnalyzingWithGemini(false);
+    }
+  };
+
+  // Rank against catalog, combining Holland RIASEC, strengths, weaknesses, scores, and Gemini AI diagnosis
   const rankedMajors = useMemo(() => {
     const allScores = { ...scores, ...aptitudeScores };
     return linkAndRankMajorsWithDossier(
       allScores,
       effectiveRiasecProfile || careerProfileText,
-      { ...profileDiagnosis, interestsText: careerProfileText, weaknessesText: careerWeaknesses } as any,
+      {
+        ...profileDiagnosis,
+        ...(geminiDiagnosis || {}),
+        interestsText: careerProfileText,
+        weaknessesText: careerWeaknesses
+      } as any,
       catalog
     );
-  }, [scores, aptitudeScores, effectiveRiasecProfile, careerProfileText, careerWeaknesses, profileDiagnosis, catalog]);
+  }, [scores, aptitudeScores, effectiveRiasecProfile, careerProfileText, careerWeaknesses, profileDiagnosis, geminiDiagnosis, catalog]);
 
   // Mỗi tổ hợp lấy từ danh mục ngành và dữ liệu tuyển sinh liên quan.
   const validCombosForMajor = useMemo(() => {
@@ -1165,18 +1213,25 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                   </div>
 
                   {/* NÚT GỢI Ý NGÀNH */}
-                  <div className="flex justify-center pt-2">
+                  <div className="flex flex-col items-center justify-center pt-2 gap-2">
                     <button
                       type="button"
-                      disabled={!hasCareerProfile}
-                      onClick={() => {
-                        sfx.playActionSuccess();
-                        setHasAnalyzedMajor(true);
-                      }}
-                      className="min-h-12 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-md transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 cursor-pointer"
+                      disabled={!hasCareerProfile || isAnalyzingWithGemini}
+                      onClick={handleRunGeminiAnalysis}
+                      className="min-h-12 rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white shadow-md transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 cursor-pointer flex items-center justify-center gap-2"
                     >
-                      {hasAnalyzedMajor ? 'Gợi ý lại ngành' : 'Gợi ý ngành'}
+                      {isAnalyzingWithGemini ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                          <span>Đang phân tích hồ sơ &amp; Kết nối AI...</span>
+                        </>
+                      ) : (
+                        <span>{hasAnalyzedMajor ? 'Gợi ý lại ngành' : 'Gợi ý ngành'}</span>
+                      )}
                     </button>
+                    {analysisError && (
+                      <p className="text-xs text-amber-400 font-medium">{analysisError}</p>
+                    )}
                   </div>
 
                   {/* Ô TRA CỨU: NHẬP TÊN HOẶC MÃ NGÀNH */}

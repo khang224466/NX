@@ -590,11 +590,16 @@ export function linkAndRankMajorsWithDossier(
       interestSimilarityIndex: major.interestSimilarityIndex,
       recommendationBasis: major.recommendationBasis,
       fitReason: (() => {
+        const baseReason = recMatch?.reason
+          ? recMatch.reason
+          : (recMatch?.advantages && recMatch.advantages.length > 0
+              ? `${recMatch.advantages.join('. ')}. ${major.explanation}`
+              : major.explanation);
         const conflicts = weaknessesText ? (WEAKNESS_CONFLICT_MAP[sectorKey] || []).filter(term => weaknessesText.includes(term)) : [];
         if (conflicts.length > 0) {
-          return `${major.explanation} (Lưu ý: Bạn có điểm yếu về "${conflicts.join(', ')}", cần cân nhắc tính thích ứng).`;
+          return `${baseReason} (Lưu ý: Bạn có điểm yếu về "${conflicts.join(', ')}", cần cân nhắc tính thích ứng).`;
         }
-        return major.explanation;
+        return baseReason;
       })(),
       targetJobs: major.targetJobs || meta?.popularJobs || [],
       salaryMedian: m.salaryMedian || meta?.salaryMedian || null,
@@ -613,6 +618,11 @@ export function linkAndRankMajorsWithDossier(
       const aConflict = (WEAKNESS_CONFLICT_MAP[a.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
       const bConflict = (WEAKNESS_CONFLICT_MAP[b.sector] || []).some(t => weaknessesText.includes(t)) ? 1 : 0;
       if (aConflict !== bConflict) return aConflict - bConflict;
+
+      const aAi = (a as any).aiMatchIndex !== undefined && (a as any).aiMatchIndex >= 0 ? (a as any).aiMatchIndex : 999;
+      const bAi = (b as any).aiMatchIndex !== undefined && (b as any).aiMatchIndex >= 0 ? (b as any).aiMatchIndex : 999;
+      if (aAi !== bAi) return aAi - bAi;
+
       return (b.interestSimilarityIndex ?? 0) - (a.interestSimilarityIndex ?? 0);
     });
   }
