@@ -5,8 +5,13 @@ import {
   calculateBasePriority30
 } from '../services/admissionsCalculationEngine';
 import { getTuitionContext, linkAndRankMajorsWithDossier } from '../services/counselorBackend';
-import { requestGeminiDossierDiagnosis, type GeminiDiagnosisResponse } from '../services/geminiService';
-import { Loader2 } from 'lucide-react';
+import {
+  requestGeminiDossierDiagnosis,
+  requestGeminiUniversityRecommendations,
+  type GeminiDiagnosisResponse,
+  type GeneratedUniversityRecommendation
+} from '../services/geminiService';
+import { Loader2, Sparkles } from 'lucide-react';
 
 import seedData from '../data/seed_data.json';
 import { AUDITED_INSTITUTIONS_300 } from '../data/auditedInstitutionsData';
@@ -158,6 +163,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   const [schoolMatchFilter, setSchoolMatchFilter] = useState<'ALL' | 'MATCHED'>('ALL');
   const [showSuggestedSchools, setShowSuggestedSchools] = useState(false);
   const [showAllSchools, setShowAllSchools] = useState(false);
+  const [isAnalyzingSchoolsWithAI, setIsAnalyzingSchoolsWithAI] = useState(false);
+  const [aiGeneratedSchools, setAiGeneratedSchools] = useState<GeneratedUniversityRecommendation[]>([]);
+  const [hasGeneratedSchools, setHasGeneratedSchools] = useState(false);
+  const [aiSchoolSummary, setAiSchoolSummary] = useState<string | null>(null);
 
   // Step 1: Input Profile if user doesn't have major yet
   const [scores, setScores] = useState<Record<string, number | ''>>({
@@ -264,9 +273,14 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
   // Current chosen university object
   const currentSchool = useMemo(() => {
     if (!selectedSchoolCode) return null;
-    return (AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode) ||
-      (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode)) || null;
-  }, [selectedSchoolCode]);
+    const fromAudited = AUDITED_INSTITUTIONS_300.find(i => i.institution_code === selectedSchoolCode);
+    if (fromAudited) return fromAudited;
+    const fromAnchor = (seedData.anchorInstitutions as any[])?.find(i => i.code === selectedSchoolCode);
+    if (fromAnchor) return { ...fromAnchor, institution_code: fromAnchor.code, official_name: fromAnchor.name };
+    const fromAI = aiGeneratedSchools.find(s => s.code === selectedSchoolCode);
+    if (fromAI) return { institution_code: fromAI.code, official_name: fromAI.name, name: fromAI.name, verified_province_city: fromAI.city } as any;
+    return null;
+  }, [selectedSchoolCode, aiGeneratedSchools]);
 
   useEffect(() => {
     // Start the school-specific lookup as soon as a school is selected, so
@@ -429,6 +443,50 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     Object.values(scores).some((score) => score !== '') ||
     Object.values(aptitudeScores).some((score) => score !== '')
   );
+
+  // AI Generation for Step 3 University Recommendations
+  const handleRunAIUniversityRecommendation = async () => {
+    if (!currentMajor) return;
+    sfx.playActionStart();
+    setIsAnalyzingSchoolsWithAI(true);
+    setAnalysisError(null);
+
+    const chosenCombo = selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'D06');
+    const selectedEvaluation = evaluatedCombos.find((combo: any) => combo.code === chosenCombo);
+    const typedScore = Number(expectedScoreInput);
+    const hasTypedScore = expectedScoreInput.trim() !== '' && Number.isFinite(typedScore) && typedScore >= 0 && typedScore <= 30;
+    const candScore = hasTypedScore ? typedScore : (selectedEvaluation?.officialScore ?? 25.4);
+
+    try {
+      const res = await requestGeminiUniversityRecommendations({
+        majorName: currentMajor.name,
+        majorCode: currentMajor.codeTT09,
+        comboCode: chosenCombo,
+        candidateScore: candScore,
+        region: targetRegionFilter,
+        maxTuition: maxTuition ?? 80,
+        careerInterests: careerInterests,
+        careerStrengths: careerStrengths
+      });
+
+      if (res.success && res.schools && res.schools.length > 0) {
+        setAiGeneratedSchools(res.schools);
+        setAiSchoolSummary(res.summary || res.headline || null);
+        setHasGeneratedSchools(true);
+        setShowSuggestedSchools(true);
+        sfx.playActionSuccess();
+      } else {
+        setHasGeneratedSchools(true);
+        setShowSuggestedSchools(true);
+      }
+    } catch (err: any) {
+      console.warn('AI university recommendation error:', err);
+      setHasGeneratedSchools(true);
+      setShowSuggestedSchools(true);
+    } finally {
+      setIsAnalyzingSchoolsWithAI(false);
+    }
+  };
 
   // Handle AI analysis generation
   const handleRunGeminiAnalysis = async () => {
@@ -739,6 +797,10 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
     setSchoolMatchFilter('ALL');
     setShowSuggestedSchools(false);
     setShowAllSchools(false);
+    setAiGeneratedSchools([]);
+    setHasGeneratedSchools(false);
+    setIsAnalyzingSchoolsWithAI(false);
+    setAiSchoolSummary(null);
     setActiveTab('tab-major');
   };
 
@@ -1508,6 +1570,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
                     onClick={() => {
                       setTargetRegionFilter(r.id as any);
                       setSelectedSchoolCode(null);
+                      setHasGeneratedSchools(false);
                     }}
                     className={`min-h-11 rounded-lg border text-center transition-colors cursor-pointer ${
                       targetRegionFilter === r.id
@@ -1522,52 +1585,136 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-blue-500/30 bg-blue-950/10 p-5 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-bold text-white">Phân tích trường</h3>
-                <p className="mt-1 text-base text-slate-300">
-                  Bấm “Gợi ý trường”, rồi chọn trường muốn tìm hiểu. DeepSeek sẽ tra cứu điểm chuẩn, học phí, phương thức xét tuyển và học bổng từ nguồn chính thức.
+          <div className="rounded-2xl border border-blue-500/30 bg-blue-950/10 p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="max-w-2xl">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-blue-400" />
+                  Phân tích & Đề xuất trường đại học phù hợp (AI Generation)
+                </h3>
+                <p className="mt-1 text-sm text-slate-300 leading-relaxed">
+                  AI sẽ phân tích ngành <strong className="text-white">{currentMajor?.name}</strong>, tổ hợp môn <strong className="text-blue-300 font-mono">{selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'đang chọn')}</strong>, điểm xét tuyển và khu vực <strong className="text-white">({targetRegionFilter === 'ALL' ? 'Toàn quốc' : ({ BAC: 'Miền Bắc', TRUNG: 'Miền Trung', NAM: 'Miền Nam', DBSCL: 'ĐBSCL' }[targetRegionFilter])})</strong> để đề xuất các trường đại học đào tạo chuẩn xác nhất, không dùng luồng ghép trường ngẫu nhiên.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowSuggestedSchools(true)}
-                className="min-h-12 rounded-lg bg-blue-600 px-5 py-3 text-base font-bold text-white hover:bg-blue-500"
+                disabled={isAnalyzingSchoolsWithAI}
+                onClick={handleRunAIUniversityRecommendation}
+                className="min-h-12 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white hover:bg-blue-500 shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
               >
-                Gợi ý trường
+                {isAnalyzingSchoolsWithAI ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                    <span>Đang kết nối AI phân tích trường...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-white" />
+                    <span>{hasGeneratedSchools ? 'Gợi ý lại trường' : 'Gợi ý trường bằng AI'}</span>
+                  </>
+                )}
               </button>
             </div>
 
-            {showSuggestedSchools && (
-              <div className="space-y-3" aria-live="polite">
-                <h4 className="font-bold text-blue-200">
-                  Trường có dữ liệu đối chiếu cho ngành {currentMajor?.name} và tổ hợp {selectedComboCode || (topCombo?.hasSubjectScores ? topCombo.code : 'đang chọn')}:
-                </h4>
-                {suggestedSchoolCandidates.length ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {suggestedSchoolCandidates.map((school, index) => (
-                      <article key={`suggested-${school.code}`} className={`rounded-xl border p-4 ${selectedSchoolCode === school.code ? 'border-blue-400 bg-blue-950/40' : 'border-slate-700 bg-[#141923]'}`}>
-                        <p className="text-sm font-semibold text-blue-300">Gợi ý {index + 1} · {school.city}</p>
-                        <h5 className="mt-1 font-bold text-white">{school.name}</h5>
-                        <p className="mt-2 text-sm text-slate-300">
-                          Đã có mốc đối chiếu trong danh mục: {school.benchmark} điểm
-                          {school.margin !== null ? ` · chênh ${school.margin > 0 ? '+' : ''}${school.margin} điểm so với hồ sơ` : ''}. Thông tin riêng của trường sẽ được DeepSeek tra cứu sau khi chọn.
-                        </p>
-                        <button
-                          type="button"
-                          aria-pressed={selectedSchoolCode === school.code}
-                          onClick={() => setSelectedSchoolCode(school.code)}
-                          className="mt-3 min-h-10 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500"
+            {hasGeneratedSchools && (
+              <div className="space-y-4 pt-2" aria-live="polite">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                  <h4 className="font-bold text-white text-base flex items-center gap-2">
+                    <span className="text-blue-400 font-mono">✦</span>
+                    Trường đại học do AI đề xuất cho ngành {currentMajor?.name}:
+                  </h4>
+                  <span className="text-xs font-mono text-slate-400">
+                    Phân tầng chiến lược: Mơ ước · Vừa sức · An toàn
+                  </span>
+                </div>
+
+                {aiGeneratedSchools.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {aiGeneratedSchools.map((school, index) => {
+                      const isSelected = selectedSchoolCode === school.code;
+                      const tierBadgeClass = school.tier === 'Mơ ước'
+                        ? 'bg-purple-950/80 text-purple-300 border-purple-500/40'
+                        : school.tier === 'Vừa sức'
+                          ? 'bg-blue-950/80 text-blue-300 border-blue-500/40'
+                          : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40';
+
+                      return (
+                        <article
+                          key={`ai-school-${school.code}-${index}`}
+                          className={`rounded-xl border p-4 flex flex-col justify-between transition-all duration-200 ${
+                            isSelected
+                              ? 'border-blue-400 bg-blue-950/50 shadow-lg shadow-blue-500/20 ring-1 ring-blue-400'
+                              : 'border-slate-800 bg-[#141923] hover:border-slate-700'
+                          }`}
                         >
-                          {liveSchoolResearchLoading && selectedSchoolCode === school.code ? 'DeepSeek đang tra cứu…' : 'Chọn để tìm hiểu'}
-                        </button>
-                      </article>
-                    ))}
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-bold ${tierBadgeClass}`}>
+                                {school.tier}
+                              </span>
+                              <span className="text-xs font-mono text-slate-400">
+                                Gợi ý {index + 1} · {school.city}
+                              </span>
+                            </div>
+
+                            <h5 className="font-bold text-white text-base leading-snug">
+                              {school.name} <span className="text-slate-400 font-mono text-xs">[{school.code}]</span>
+                            </h5>
+
+                            <div className="pt-1 text-xs space-y-1.5 text-slate-300 font-sans border-t border-slate-800/80">
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400">Điểm chuẩn tham chiếu:</span>
+                                <span className="font-bold text-white font-mono text-sm">{school.benchmark}đ</span>
+                              </div>
+                              {school.margin !== null && (
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="text-slate-400">Chênh lệch hồ sơ:</span>
+                                  <span className={`font-mono font-semibold ${school.margin >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    {school.margin >= 0 ? `+${school.margin}đ (Vừa sức)` : `${school.margin}đ (Mơ ước)`}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400">Học phí dự kiến:</span>
+                                <span className={`font-mono font-semibold ${school.isBudgetFeasible ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                  ~${school.estimatedTuitionMln} tr/năm
+                                </span>
+                              </div>
+                            </div>
+
+                            <p className="mt-2 text-xs text-slate-300 leading-relaxed border-t border-slate-800/80 pt-2 italic">
+                              &ldquo;{school.fitReason}&rdquo;
+                            </p>
+
+                            {school.programHighlights && (
+                              <p className="text-[11px] text-blue-300 bg-blue-950/40 p-2 rounded-lg border border-blue-500/20">
+                                ★ {school.programHighlights}
+                              </p>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            aria-pressed={isSelected}
+                            onClick={() => {
+                              sfx.playUiSelect();
+                              setSelectedSchoolCode(school.code);
+                            }}
+                            className={`mt-4 w-full py-2.5 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700'
+                            }`}
+                          >
+                            <span>{isSelected ? '✓ Đã chọn trường này' : 'Chọn trường này →'}</span>
+                          </button>
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-sm text-amber-100">
-                    Danh mục chưa có trường được xác minh khớp đồng thời ngành và tổ hợp này. Bạn có thể chọn trường trong danh sách để DeepSeek tra cứu thông tin riêng.
+                    Chưa tìm thấy trường phù hợp trong khu vực đã chọn. Vui lòng thử đổi sang "Toàn quốc" hoặc bấm "Gợi ý lại trường".
                   </p>
                 )}
               </div>
@@ -1577,7 +1724,7 @@ export const Scientific4TabPortal: React.FC<Scientific4TabPortalProps> = ({
               type="button"
               aria-expanded={showAllSchools}
               onClick={() => setShowAllSchools((shown) => !shown)}
-              className="text-sm font-semibold text-blue-300 underline hover:text-white"
+              className="text-sm font-semibold text-blue-300 underline hover:text-white cursor-pointer"
             >
               {showAllSchools ? 'Ẩn danh sách 300 trường' : 'Tìm hoặc chọn thủ công trong danh sách 300 trường'}
             </button>
