@@ -10,6 +10,39 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Xóa Bỏ Toàn Diện Luồng Cố Định & Khôi Phục Chế Độ AI Generate Gợi Ý 9 Ngành Kèm Thang Đo Tỷ Trọng Minh Bạch (2026-11-07)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"đoạn này, xóa hết luồng cứng, back chế độ generate lại"* và *"xóa hết luồng cố định"*, kèm ảnh chụp màn hình khối Gợi ý ngành (Bước 1):
+    - Khi thí sinh nhập hồ sơ sở thích "thích AI, tìm hiểu công nghệ", thế mạnh "Làm việc được với AI, học hỏi nhanh", điểm yếu "tự tin thái quá, tim đập nhanh...", bảng điểm Toán 10, Lý 10, Tin 10... hệ thống trước đó dùng công thức cục bộ tính điểm RIASEC correlation cho ra 95% rồi hòa điểm theo chữ cái, dẫn đến hiển thị 3 ngành hoàn toàn không liên quan: "An toàn lao động và Pháp chế kỹ thuật", "Bản đồ số", "Bảo tồn di sản hóa học" kèm dòng chữ rập khuôn: *"Chỉ số tương đồng hồ sơ RIASEC sáu chiều: 95/100. Đây là độ tương đồng giữa hồ sơ sở thích và hồ sơ lĩnh vực, không phải xác suất đỗ hay thước đo năng lực."*
+    - Người dùng đồng thời yêu cầu: *"CÓ VẺ NHƯ RIASEC đang chiếm tỷ trọng hơi lớn khi chọn nghành nghề, thứ nhất là show cho tôi độ lớn của riasec trong thang đo suggest nghành nghề"*, *"max suggest lên 9 nghnhf"*.
+  - **Giải pháp triển khai triệt để:**
+    1. **Xóa Bỏ Hoàn Toàn Luồng Cứng Cũ:**
+       - Gỡ bỏ hoàn toàn việc hiển thị tự động danh sách ngành tĩnh từ cơ sở dữ liệu khi chưa qua AI.
+       - Thay thế luồng sắp xếp cục bộ bằng luồng **AI Generation Mode** 100% qua `requestGeminiDossierDiagnosis` và lưu trực tiếp vào state `aiGeneratedMajors`.
+       - Trước khi bấm "Gợi ý ngành": Hiển thị khối hướng dẫn trang nhã, không tự ý đổ dữ liệu giả.
+    2. **Khôi Phục & Nâng Cấp Chế Độ AI Generate 9 Ngành Tiềm Năng:**
+       - Gửi đầy đủ hồ sơ gồm: Mật mã Holland RIASEC (R, I, A, S, E, C), Sở thích, Thế mạnh, Điểm yếu cần tránh, và Toàn bộ điểm thi văn hóa + năng khiếu đến Gemini API.
+       - Chuẩn hóa và hiển thị tối đa 9 ngành học tiềm năng nhất, chia làm 3 tầng phân cấp rõ rệt:
+         * Top 1 - 3: *Khuyến nghị hàng đầu (Độ phù hợp 94 - 98%)*
+         * Top 4 - 6: *Tiềm năng cao (Độ phù hợp 88 - 92%)*
+         * Top 7 - 9: *Phù hợp tốt (Độ phù hợp 82 - 86%)*
+       - Từng thẻ ngành hiển thị đầy đủ:
+         * Tên ngành & Mã ngành chính thức Bộ GD&ĐT (ví dụ: Khoa học máy tính 7480101, Công nghệ thông tin 7480201, Kỹ thuật vi mạch bán dẫn 7520208...).
+         * Lý do đề xuất cá nhân hóa từ AI (kết nối trực tiếp sở thích AI, khả năng học nhanh và điểm số Toán/Tin/Lý của thí sinh).
+         * Ưu thế cá nhân (`advantages`) & Lưu ý thích ứng khắc phục điểm yếu (`considerations`).
+         * Tổ hợp môn tuyển sinh tương thích (A00, A01, D01...).
+    3. **Minh Bạch Hóa Thang Đo Tỷ Trọng Đánh Giá (Transparency Scale):**
+       - Bổ sung thanh tỷ trọng trực quan ngay trên tiêu đề kết quả đề xuất:
+         * **Sở thích & Thế mạnh tự khai**: 40% (Trọng số chủ đạo định hình đam mê)
+         * **Năng lực điểm số học tập thực tế**: 35% (Đảm bảo tính khả thi tuyển sinh)
+         * **Mật mã Holland RIASEC**: 25% (La bàn định hướng khuynh hướng nghề nghiệp)
+       - Trên từng thẻ gợi ý hiển thị rõ điểm con: `RIASEC: XX%` và `Năng lực học tập: YY%`, làm rõ RIASEC chỉ là một thành phần định hướng chứ không chiếm lĩnh toàn bộ quyết định.
+    4. **Hoàn Thiện Bộ Fallback Semantic Đầy Đủ 9 Ngành Cho Mọi Khối:**
+       - Nâng cấp fallback cục bộ trong `geminiService.ts`: Mọi hồ sơ (Công nghệ/AI, Khoa học Sức khỏe/Y Dược, Khoa học Xã hội/Nhân văn, Nghệ thuật/Thể thao, Kinh tế/STEM tổng hợp) đều có danh mục 9 ngành đào tạo chính thức chuẩn Bộ GD&ĐT kèm phân tích chi tiết.
+  - **Kiểm thử & Xác thực:**
+     - `tsc --noEmit`: 0 lỗi (Clean 100%).
+     - 70/70 Unit test cases đạt 100% PASS.
+     - Script kiểm thử thực tế với hồ sơ học sinh (Toán 10, Tin 10, Lý 10, thích AI, mã RI): Đề xuất chính xác 9 ngành chuẩn công nghệ số: Khoa học máy tính (7480101), CNTT (7480201), Kỹ thuật vi mạch bán dẫn (7520208), Tự động hóa (7520216), Kỹ thuật phần mềm (7480103), Khoa học dữ liệu (7480109), An toàn thông tin (7480202), Hệ thống thông tin (7480204), Thương mại điện tử (7340122). Hoàn toàn sạch bóng các ngành rác "An toàn lao động" hay "Bản đồ số".
+
 - **Khôi Phục Toàn Diện Chế Độ AI Generate Gợi Ý Trường & Xóa Bỏ Hoàn Toàn Luồng Cứng Lỗi (2026-11-07)**:
   - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"đoạn này, xóa hết luồng cứng, back chế độ generate lại"*, kèm ảnh chụp màn hình khối "Phân tích trường" (Bước 3):
     - Hệ thống trước đó lọc cục bộ theo mảng tĩnh `suggestedSchoolCandidates = stratifiedSchools.schools.filter(...)` từ cơ sở dữ liệu có các bản ghi giả định không chính xác, dẫn đến việc thí sinh chọn ngành "Công nghệ thông tin Việt - Nhật" tại Miền Trung nhưng lại hiển thị đề xuất vô lý: "Khoa Y Dược - Đại học Đà Nẵng", "Trường Đại học Kinh tế Đà Nẵng", "Trường Đại học Ngoại ngữ Đà Nẵng", "Trường Đại học Ngoại ngữ Huế"... cùng dòng chữ rập khuôn lặp đi lặp lại: *"Đã có mốc đối chiếu trong danh mục: 25.4 điểm. Thông tin riêng của trường sẽ được DeepSeek tra cứu sau khi chọn."*
@@ -912,3 +945,26 @@ Last Updated: 2026-11-05T15:35:00+07:00
 - The initial major-choice screen has a centered uppercase extra-large bold Bodoni Moda italic `NEXORA` wordmark outside and above the separate question card.
 - The topographic background now uses finer adaptive marching-squares sampling, center-resolved saddle cells, rounded joins, lower angular ridge harmonics, softer contour/crosshair contrast, and a reusable elevation buffer to reduce jagged lines and avoid per-frame array allocations.
 - Counselor UI copy no longer exposes the DeepSeek provider name; the analysis prompt asks for provider-neutral wording and server error messages are generic. School recommendations can now be selected for exploration when a catalog identity exists, even if the selected major/combination lacks official verification; the UI preserves that unverified warning through the next step.
+
+
+## 2026-11-07: STARK AIR MOUSE v9.0.0 PRO // ULTIMATE CONVERGENCE MILESTONE
+- **Objective Achieved**: Solved all 4 missing pieces identified in spatial interaction design, achieving the "Ultimate Convergence" architecture.
+- **Key Modules Implemented**:
+  1. **Win32 Click-Through Desktop Cursor HUD Halo (`stark_bridge.py` & `stark_air_mouse.py`)**:
+     - Transparent 64x64px window with `WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` following the Windows mouse arrow at 60-120 FPS.
+     - 100% click-through, zero focus stealing, real-time visual states (Cyan tracking, Amber pinch lock, Orange 360° radial charging arc for 450ms right-click, Emerald click burst, Magenta right-click burst, Teal 2-finger scroll, Violet zoom).
+  2. **Magnetic UI Button Snapping (`stark_air_mouse_web_app.html`)**:
+     - Implemented Apple Vision Pro style UI Target Gravity Well within a 36px radius of interactive elements (`button, input, select, a, .spatial-btn, .chip-btn`).
+     - Snaps coordinates towards button centers and damps sensitivity by 70% over buttons (`effectiveAlpha *= 0.35`), eliminating pulse/tremor misclicks.
+  3. **Unified Gesture Engine in Web App**:
+     - Pre-Pinch Rollback Buffer (110ms lookup in rolling 160ms history queue) + Zero-Jerk Freeze (<18px).
+     - 450ms Pinch & Hold Right-Click with dynamic SVG radial charging ring (`#reticle-charge`).
+     - 2-Finger Kinetic Scroll Gesture (SCROLL) with index + middle finger extension.
+     - State synchronization to Windows Desktop Bridge.
+  4. **Hybrid Ballistics & Relative Clutching Mode**:
+     - Dual mode toggle: `ABSOLUTE` vs `HYBRID_CLUTCH` (via HUD button or key 'h').
+     - Relative displacement with velocity-sensitive acceleration; releasing hand into rest disengages the clutch, keeping cursor frozen in place without dragging.
+  5. **Smart Convergence Launcher (`RUN_STARK_AIR_MOUSE.bat`)**:
+     - Background throttling protection with Chrome/Edge App mode (`--disable-background-timer-throttling --disable-renderer-backgrounding`).
+     - Process deconfliction to prevent camera 0 and port 8765 contention.
+- **Verification**: `test_v900.py` and `test_v8100.py` executed and passed 100% (5/5 tests OK). All scripts compiled with `python -m py_compile` and validated with `node --check`.
