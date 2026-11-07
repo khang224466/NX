@@ -10,6 +10,33 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Khôi Phục Toàn Diện Chế Độ AI Generate Gợi Ý Trường & Xóa Bỏ Hoàn Toàn Luồng Cứng Lỗi (2026-11-07)**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"đoạn này, xóa hết luồng cứng, back chế độ generate lại"*, kèm ảnh chụp màn hình khối "Phân tích trường" (Bước 3):
+    - Hệ thống trước đó lọc cục bộ theo mảng tĩnh `suggestedSchoolCandidates = stratifiedSchools.schools.filter(...)` từ cơ sở dữ liệu có các bản ghi giả định không chính xác, dẫn đến việc thí sinh chọn ngành "Công nghệ thông tin Việt - Nhật" tại Miền Trung nhưng lại hiển thị đề xuất vô lý: "Khoa Y Dược - Đại học Đà Nẵng", "Trường Đại học Kinh tế Đà Nẵng", "Trường Đại học Ngoại ngữ Đà Nẵng", "Trường Đại học Ngoại ngữ Huế"... cùng dòng chữ rập khuôn lặp đi lặp lại: *"Đã có mốc đối chiếu trong danh mục: 25.4 điểm. Thông tin riêng của trường sẽ được DeepSeek tra cứu sau khi chọn."*
+  - **Giải pháp triển khai triệt để:**
+    1. **Xóa Bỏ Hoàn Toàn Luồng Cứng:**
+       - Gỡ bỏ hoàn toàn mảng tĩnh `suggestedSchoolCandidates` và cơ chế tự động đổ trường cứng sai lệch chuyên ngành.
+       - Gỡ bỏ nội dung rập khuôn mô tả mốc điểm không xác thực.
+    2. **Khôi Phục Chế Độ AI Generate Thực Thụ Cho Trường Học (`requestGeminiUniversityRecommendations` trong `geminiService.ts`):**
+       - Nhận toàn bộ tham số: Ngành mục tiêu (`majorName`, `majorCode`), Tổ hợp môn (`comboCode`), Điểm số thực tế của thí sinh (`candidateScore`), Vùng miền mong muốn (`region`), Ngân sách học phí trần (`maxTuition`), Sở thích và thế mạnh cá nhân.
+       - Kết nối trực tiếp Google Gemini API qua luồng streaming / direct REST call, yêu cầu đề xuất 4 - 6 trường đại học CÓ THẬT và UY TÍN TẠI VIỆT NAM đào tạo chính thức ngành đó tại khu vực yêu cầu.
+       - Ràng buộc phủ định nghiêm ngặt: Tuyệt đối không đề xuất trường Y Dược, Ngoại ngữ đơn thuần hay Sư phạm thể thao cho khối ngành Kỹ thuật / Công nghệ thông tin / Máy tính.
+       - Phân tầng chiến lược 3 cấp độ rõ ràng:
+         * **Mơ ước**: Điểm chuẩn cao hơn điểm thí sinh 0.5 - 1.5đ.
+         * **Vừa sức**: Điểm chuẩn an toàn, tỷ lệ trúng tuyển 80 - 90%, học phí phù hợp.
+         * **An toàn**: Điểm chuẩn thấp hơn 1.5 - 3.0đ, bảo đảm có vé vào đại học.
+       - Bộ dữ liệu dự phòng cục bộ chuẩn xác tuyệt đối (Deterministic Local Fallback) theo từng nhóm ngành và vùng miền: Đối với CNTT tại Miền Trung, luôn đảm bảo đề xuất chính xác các trường hàng đầu: ĐH Bách Khoa Đà Nẵng (DDK), ĐH CNTT&TT Việt - Hàn (VKU), ĐH FPT Đà Nẵng (FPT), ĐH Sư phạm Kỹ thuật Đà Nẵng (DSK), ĐH Khoa học Huế (DHT), ĐH Nha Trang (TSN).
+    3. **Nâng Cấp Giao Diện Phân Tích Trường (`Scientific4TabPortal.tsx`):**
+       - Nút bấm *"Gợi ý trường bằng AI"* / *"Gợi ý lại trường"* hiển thị trạng thái đang phân tích: `<Loader2 className="w-5 h-5 animate-spin" /> Đang kết nối AI phân tích trường...`.
+       - Render dạng thẻ chuyên sâu với: Badge phân tầng (Mơ ước / Vừa sức / An toàn), Tên trường & Mã trường, Tỉnh/Thành phố, Điểm chuẩn tham chiếu, Độ chênh lệch hồ sơ, Mức học phí ước tính theo NĐ 238, Lý do đề xuất chi tiết từ AI và Điểm nhấn đào tạo (ví dụ: Chuẩn đầu ra tiếng Nhật JLPT N3, hợp tác đối tác Nhật Bản).
+       - Nút *"Chọn trường này →"* chốt lựa chọn và liên kết trực tiếp sang Bước 4 (Kiểm tra chuỗi ảnh hưởng Domino Effect).
+       - Khi người dùng bấm chuyển vùng miền (Miền Bắc, Miền Trung, Miền Nam, ĐBSCL, Toàn quốc), nút bấm tự động sẵn sàng tạo lại đề xuất cho vùng mới.
+  - **Kiểm thử & Xác thực:**
+    - `tsc --noEmit`: Đạt 0 lỗi (Clean 100%).
+    - 70/70 Unit test cases đạt 100% PASS.
+    - Script kiểm thử thực tế: Trả về chuẩn xác 6 trường đại học đào tạo CNTT tại Miền Trung (Bách Khoa Đà Nẵng, VKU Đà Nẵng, FPT Đà Nẵng, SPKT Đà Nẵng, ĐH Khoa học Huế, ĐH Nha Trang), xóa bỏ vĩnh viễn việc đề xuất Khoa Y Dược hay ĐH Ngoại ngữ cho ngành CNTT.
+    - Git commit `2d76f56` đã push thành công lên branch `main` và kích hoạt Vercel Production Build.
+
 - **Thực Hiện Toàn Diện Gói Fix 4 Trụ Cột (UX/UI Mobile, SEO Kỹ Thuật, A11y & Persistence) - 2026-11-07**:
   - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu thực hiện sửa đổi theo bản báo cáo đánh giá 4 nhóm tiêu chí (Nội dung, UX/UI & Mobile, SEO Kỹ thuật, Độ uy tín/Liên kết) với lệnh *"fix đi"*.
   - **Các hạng mục đã giải quyết triệt để:**
