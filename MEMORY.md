@@ -10,6 +10,37 @@ Last Updated: 2026-11-05T15:35:00+07:00
   - Deployed on Vercel, Version control via GitHub (`khang224466/figma-make-app`)
 
 ## 2. Key Architecture & Recent Decisions
+- **Thực Hiện Toàn Diện Gói Fix 4 Trụ Cột (UX/UI Mobile, SEO Kỹ Thuật, A11y & Persistence) - 2026-11-07**:
+  - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu thực hiện sửa đổi theo bản báo cáo đánh giá 4 nhóm tiêu chí (Nội dung, UX/UI & Mobile, SEO Kỹ thuật, Độ uy tín/Liên kết) với lệnh *"fix đi"*.
+  - **Các hạng mục đã giải quyết triệt để:**
+    1. **Sửa Lỗi Tràn & Cắt Chữ Header Trên Mobile (`BlueprintHeaderRuler.tsx`):**
+       - Khắc phục xung đột chiều rộng khi co màn hình (< 768px): Ẩn phụ đề dài `WEBSITE HỖ TRỢ HƯỚNG NGHIỆP` trên mobile nhỏ (`hidden sm:inline`).
+       - Nhãn Tab điều hướng 3 mục (01 Cố Vấn, 02 Tổ Hợp, 03 300 Trường) hiển thị dạng ngắn gọn trên phone và đầy đủ trên desktop, bọc thanh cuộn ngang `overflow-x-auto no-scrollbar`.
+       - Nút UI Zoom Pill (`- 100% +`): Ẩn trên thiết bị di động/máy tính bảng (`hidden lg:flex`) do trình duyệt mobile đã có pinch-to-zoom gốc.
+       - Nút hành động *"Tham vấn ngay"*: Bổ sung thuộc tính `whitespace-nowrap shrink-0`, xóa bỏ hoàn toàn hiện tượng vỡ dòng hoặc cắt chữ thành *"Thanh..."*.
+    2. **Khắc Phục Ẩn Ô Nhập Liệu & Bàn Phím Ảo Trên Mobile (`AICareerCopilot.tsx`):**
+       - Điều chỉnh container Drawer từ `min-h-[520px]` cứng sang `h-[100dvh] sm:h-[88vh] sm:max-h-[820px] rounded-none sm:rounded-2xl flex flex-col`.
+       - Ô nhập liệu tin nhắn: Thiết lập `shrink-0 sticky bottom-0 z-10 bg-[#121622] pb-[max(0.75rem,env(safe-area-inset-bottom))]`, đảm bảo luôn nổi trên bàn phím ảo của điện thoại và tương thích Safe Area Inset.
+       - Danh sách tin nhắn: Đặt `flex-1 min-h-0 overflow-y-auto`.
+    3. **Khôi Phục & Lưu Trữ Phiên Chat Khi F5 (`localStorage` Persistence):**
+       - Tự động lưu `messages` vào `nexora_copilot_chat_history` và `profile` vào `nexora_copilot_profile`.
+       - Khi người dùng tải lại trang (F5) hoặc vô tình đóng tab, toàn bộ ngữ cảnh trao đổi và hồ sơ chẩn đoán 4 bước được giữ nguyên vẹn 100%.
+       - Nút "Đặt lại" cho phép xóa sạch cache và bắt đầu phiên tư vấn mới một cách an toàn.
+    4. **Loại Bỏ Rào Cản API Key Gây Hoang Mang Cho Học Sinh:**
+       - Nút cấu hình API Key trên Header không còn gắn nhãn cảnh báo màu hổ phách "Cài API Key".
+       - Thay thế bằng nút cài đặt trang nhã `Cấu hình AI` (`Sliders` icon), nêu rõ hệ thống đã có sẵn trí tuệ cố vấn tự động, chỉ nhập thêm nếu muốn tùy biến provider cá nhân.
+    5. **Bổ Sung Trụ Cột SEO Kỹ Thuật (Technical SEO) & Khả Năng Tiếp Cận (A11y):**
+       - Tạo mới `public/robots.txt` cho phép bot tìm kiếm index toàn trang và dẫn tới sitemap.
+       - Tạo mới `public/sitemap.xml` chứa danh mục URL tĩnh, các anchor tab (#co-van, #to-hop, #truong, #riasec-assessment, #tinh-diem-xet-tuyen).
+       - Tạo mới trang lỗi tùy biến `public/404.html` thẩm mỹ chuẩn dark-slate kèm nút điều hướng quay về trang chủ.
+       - Nâng cấp `index.html`: Bổ sung Open Graph, Twitter Cards, Schema.org JSON-LD (WebSite, EducationalOrganization, SoftwareApplication) và khối `<noscript>` phân cấp tiêu đề chuẩn SEO (H1, H2, H3) chứa hơn 1.000 từ khóa tuyển sinh giúp Googlebot lập chỉ mục ngay lập tức mà không cần chạy JS.
+       - Gắn `role="img"` và `aria-label` cùng thẻ mô tả ẩn `sr-only` cho Canvas sóng nước trong `ContourTerrainCanvas.tsx`.
+       - Gắn link nguồn nghiên cứu của Oxford Martin & McKinsey Global Institute trực tiếp vào chỉ số % Rủi ro AI trên thẻ nghề nghiệp (`CareerPathwayNavigator.tsx`).
+  - **Kiểm thử & Triển khai:**
+    - `tsc --noEmit`: 0 errors.
+    - 70/70 Unit test cases đạt 100% PASS.
+    - Git commit `8d80224` đã push thành công lên `origin main` và kích hoạt Vercel Production Build.
+
 - **Khôi Phục Toàn Diện Cơ Chế AI Generate Gợi Ý Ngành & Chuẩn Hóa RIASEC Làm Input Cho Prompt AI (2026-11-06)**:
   - **Bối cảnh & Yêu cầu:** Người dùng yêu cầu: *"back lại cơ chế generate cũ là thứ nhất, thứ 2 là RIASEC này chỉ là thêm input để gọi API key và cùng prompt gửi đi"*, kèm 2 ảnh chụp minh chứng:
     1. Ảnh UI lỗi xếp hạng cục bộ: Xuất hiện 3 ngành chữ cái đầu "A" và "B" ("An toàn lao động và Pháp chế kỹ thuật", "Bản đồ số", "Bảo tồn di sản hóa học") với huy hiệu RIASEC Match 95%.
