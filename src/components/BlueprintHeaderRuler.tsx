@@ -128,34 +128,34 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
       </div>
 
       {/* Consolidated 1 Single Header Row */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 h-14 flex items-center justify-between gap-1.5 sm:gap-4">
         {/* Left: Brand Monogram & Role */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             onClick={() => {
               sfx.playUiHover();
               onNavigate?.('home');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="flex items-center gap-2 text-left group cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2 text-left group cursor-pointer"
           >
             <span className="font-bold text-white text-base sm:text-lg tracking-tight font-sans group-hover:text-[#60A5FA] transition-colors">
               NX.
             </span>
-            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-mono text-[#D1D5DB] tracking-wider uppercase">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-mono text-[#D1D5DB] tracking-wider uppercase">
               <span className="font-semibold text-white">NEXORA</span>
-              <span className="text-slate-500">/</span>
-              <span className="text-slate-200 hidden sm:inline text-[11px] font-medium">WEBSITE HỖ TRỢ HƯỚNG NGHIỆP</span>
+              <span className="text-slate-500 hidden sm:inline">/</span>
+              <span className="text-slate-300 hidden md:inline text-[11px] font-medium">WEBSITE HỖ TRỢ HƯỚNG NGHIỆP</span>
             </div>
           </button>
         </div>
 
         {/* Center: Consolidated Nav Tabs (01 Cố Vấn & Tuyển Sinh, 02 Tra Cứu Tổ Hợp, 03 Tra Cứu 300 Trường) */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar py-1">
           {[
-            { id: 'home', num: '01', label: 'Cố Vấn & Tuyển Sinh' },
-            { id: 'to-hop', num: '02', label: 'Tra Cứu Tổ Hợp' },
-            { id: 'truong', num: '03', label: 'Tra Cứu 300 Trường' },
+            { id: 'home', num: '01', full: 'Cố Vấn & Tuyển Sinh', short: 'Cố Vấn' },
+            { id: 'to-hop', num: '02', full: 'Tra Cứu Tổ Hợp', short: 'Tổ Hợp' },
+            { id: 'truong', num: '03', full: 'Tra Cứu 300 Trường', short: '300 Trường' },
           ].map((tab) => {
             const isActive = currentTab === tab.id || (tab.id === 'to-hop' && (currentTab === 'to-hop-detail' || currentTab === 'to-hop')) || (tab.id === 'truong' && (currentTab === 'truong-detail' || currentTab === 'truong'));
             return (
@@ -165,7 +165,7 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
                   sfx.playUiSelect();
                   onNavigate?.(tab.id);
                 }}
-                className={`px-3 py-1.5 whitespace-nowrap text-xs transition-all duration-200 rounded-full flex items-center gap-1.5 cursor-pointer ${
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 whitespace-nowrap text-[11px] sm:text-xs transition-all duration-200 rounded-full flex items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-[#3B82F6]/20 text-white border border-[#3B82F6] font-semibold shadow-[0_0_12px_rgba(59,130,246,0.25)]'
                     : 'bg-transparent text-slate-200 hover:text-white border border-transparent hover:border-[#262630] font-medium'
@@ -174,7 +174,8 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
                 <span className={`text-[10px] ${isActive ? 'text-[#60A5FA] font-bold' : 'text-slate-400 font-semibold'}`}>
                   {tab.num}
                 </span>
-                <span>{tab.label}</span>
+                <span className="hidden sm:inline">{tab.full}</span>
+                <span className="sm:hidden">{tab.short}</span>
               </button>
             );
           })}
@@ -192,9 +193,9 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             </button>
           )}
 
-          {/* 1. Interactive UI Zoom Pill */}
+          {/* 1. Interactive UI Zoom Pill (Desktop only) */}
           <div
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-[#262630] hover:border-[#3B82F6]/60 bg-[#121316] text-[#D1D5DB] text-[10px] font-mono transition-colors"
+            className="hidden lg:flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-[#262630] hover:border-[#3B82F6]/60 bg-[#121316] text-[#D1D5DB] text-[10px] font-mono transition-colors"
             title="Tùy chỉnh tỷ lệ phóng to giao diện"
           >
             <button
@@ -236,16 +237,16 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
               toggleTheme();
             }}
             title={isDarkMode ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối'}
-            className="w-7 h-7 rounded-full border border-[#262630] hover:border-[#60A5FA] bg-[#121316] text-[#D1D5DB] hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-full border border-[#262630] hover:border-[#60A5FA] bg-[#121316] text-[#D1D5DB] hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer shrink-0"
           >
             {isDarkMode ? '◑' : '◐'}
           </button>
 
-          {/* 2. Interactive Audio Dot */}
+          {/* 3. Interactive Audio Dot */}
           <button
             onClick={handleToggleAudio}
             title={isAudioMuted ? 'Bật âm thanh hiệu ứng' : 'Tắt âm thanh hiệu ứng'}
-            className="w-7 h-7 rounded-full border border-[#262630] hover:border-[#60A5FA] bg-[#121316] flex items-center justify-center transition-colors relative cursor-pointer group"
+            className="hidden sm:flex w-7 h-7 rounded-full border border-[#262630] hover:border-[#60A5FA] bg-[#121316] items-center justify-center transition-colors relative cursor-pointer group shrink-0"
           >
             <span
               className={`w-2 h-2 rounded-full transition-transform ${
@@ -259,14 +260,13 @@ export const BlueprintHeaderRuler: React.FC<BlueprintHeaderRulerProps> = ({
             )}
           </button>
 
-
-          {/* 4. Signature White Pill Button */}
+          {/* 4. Signature White Pill Button (Never truncated on mobile) */}
           <button
             onClick={() => {
               sfx.playActionSuccess();
               onOpenAIChat();
             }}
-            className="px-3.5 sm:px-4 py-1.5 rounded-full bg-white text-[#07080B] hover:bg-[#E4E4E7] font-sans font-semibold text-xs tracking-tight transition-transform duration-200 hover:scale-[1.04] active:scale-[0.98] shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+            className="px-2.5 sm:px-4 py-1.5 rounded-full bg-white text-[#07080B] hover:bg-[#E4E4E7] font-sans font-semibold text-xs tracking-tight transition-transform duration-200 hover:scale-[1.04] active:scale-[0.98] shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
           >
             <span>Tham vấn ngay</span>
           </button>

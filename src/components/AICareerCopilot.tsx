@@ -64,11 +64,29 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
   onClose,
   initialQuery
 }) => {
-  // Saved dossier persistent state
-  const [profile, setProfile] = useState<SavedDossierProfile>(INITIAL_PROFILE);
+  // Saved dossier persistent state (Restores on F5 / tab reload)
+  const [profile, setProfile] = useState<SavedDossierProfile>(() => {
+    try {
+      const saved = localStorage.getItem('nexora_copilot_profile');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {}
+    return INITIAL_PROFILE;
+  });
 
-  // Chat message thread
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Chat message thread (Restores on F5 / tab reload)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('nexora_copilot_chat_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [inputPrompt, setInputPrompt] = useState('');
   const [isSending, setIsSending] = useState(false);
 
@@ -90,6 +108,22 @@ export const AICareerCopilot: React.FC<AICareerCopilotProps> = ({
     setAiProvider(getStoredAiProvider());
     setSelectedModel(getStoredSelectedModel());
   }, []);
+
+  // Persist messages to localStorage on every change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem('nexora_copilot_chat_history', JSON.stringify(messages));
+      } catch {}
+    }
+  }, [messages]);
+
+  // Persist dossier profile to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem('nexora_copilot_profile', JSON.stringify(profile));
+    } catch {}
+  }, [profile]);
 
   // Initialize dialog when opened
   useEffect(() => {
@@ -138,6 +172,10 @@ Bạn đã chọn được Ngành học chưa? (Nếu có, hãy nhập tên ngà
 
   const handleResetSession = () => {
     sfx.playUiClick();
+    try {
+      localStorage.removeItem('nexora_copilot_chat_history');
+      localStorage.removeItem('nexora_copilot_profile');
+    } catch {}
     initSession();
   };
 
@@ -467,12 +505,12 @@ Bạn có muốn thử đổi tổ hợp khác để kiểm tra sự thay đổi
   const hasConfiguredKey = (aiProvider === 'gemini' && !!customKey) || (aiProvider === 'groq' && !!customGroqKey);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center items-center p-0 sm:p-5 bg-black/85 backdrop-blur-md">
       <motion.div
         initial={{ opacity: 0, scale: 0.98, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: 12 }}
-        className="w-full max-w-4xl h-[88vh] max-h-[820px] min-h-[520px] bg-[#0E1117] border border-slate-700/80 rounded-2xl flex flex-col shadow-2xl overflow-hidden font-sans"
+        className="w-full max-w-4xl h-[100dvh] sm:h-[88vh] sm:max-h-[820px] bg-[#0E1117] border-0 sm:border border-slate-700/80 rounded-none sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden font-sans"
       >
         {/* Header (Classical Academic Design) */}
         <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-[#121620]">
@@ -507,15 +545,11 @@ Bạn có muốn thử đổi tổ hợp khác để kiểm tra sự thay đổi
 
             <button
               onClick={() => setShowKeyConfig(!showKeyConfig)}
-              className={`px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors cursor-pointer border ${
-                hasConfiguredKey
-                  ? 'bg-slate-800 text-emerald-400 border-emerald-500/30'
-                  : 'bg-slate-800 text-amber-300 border-amber-500/30'
-              }`}
-              title="Cài đặt API Key"
+              className="px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors cursor-pointer border bg-slate-800 text-slate-300 hover:text-white border-slate-700 hover:border-slate-600"
+              title="Tùy chọn cấu hình AI"
             >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline font-mono">{hasConfiguredKey ? 'API Sẵn Sàng' : 'Cài API Key'}</span>
+              <Sliders className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden sm:inline font-mono text-slate-300">Cấu hình AI</span>
             </button>
 
             <button
@@ -888,8 +922,8 @@ Bạn có muốn thử đổi tổ hợp khác để kiểm tra sự thay đổi
           )}
         </div>
 
-        {/* Input Box (Clean, minimal, respectful) */}
-        <div className="p-3 sm:p-4 bg-[#121622] border-t border-slate-800">
+        {/* Input Box (Clean, minimal, respectful, sticky on mobile) */}
+        <div className="p-3 sm:p-4 bg-[#121622] border-t border-slate-800 shrink-0 sticky bottom-0 z-10 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <form
             onSubmit={(e) => {
               e.preventDefault();

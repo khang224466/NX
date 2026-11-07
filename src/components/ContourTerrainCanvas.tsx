@@ -349,12 +349,18 @@ export const ContourTerrainCanvas: React.FC<ContourTerrainCanvasProps> = ({
     <div 
       ref={containerRef} 
       className={`${isFullPage ? 'fixed inset-0' : 'absolute inset-0'} pointer-events-none select-none overflow-hidden ${className}`}
-      aria-hidden="true"
+      role="region"
+      aria-label="Khu vực đồ họa không gian hướng nghiệp"
     >
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label="Bản đồ gợn sóng nước toán học và không gian hướng nghiệp tương tác"
         className="w-full h-full block"
       />
+      <div className="sr-only">
+        Bản đồ trực quan tương tác mô phỏng không gian hướng nghiệp NEXORA, biểu diễn ma trận kết nối nghề nghiệp, ngành học và tuyển sinh đại học 2026.
+      </div>
     </div>
   );
 };

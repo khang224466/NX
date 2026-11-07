@@ -1,0 +1,6 @@
+# robots.txt for NX NEXORA Career Guidance Platform
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://nx-three-chi.vercel.app/sitemap.xml

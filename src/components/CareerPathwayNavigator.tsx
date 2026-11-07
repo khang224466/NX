@@ -4093,11 +4093,21 @@ ${chosenSub?.id === 'sub_neutral_balanced'
                         </p>
                       </div>
                       <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[11px] font-mono">
-                        <div>
+                        <div title="Nguồn khảo sát: Báo cáo Oxford Martin & McKinsey Global Institute về tác động của Trí tuệ nhân tạo đến thị trường việc làm" className="flex items-center gap-1">
                           <span className={isSelected ? 'text-white/80' : 'text-[#64748B]'}>Rủi ro AI: </span>
                           <span className={`font-semibold ${isSelected ? 'text-white' : 'text-emerald-400'}`}>
                             {career.automationRisk}
                           </span>
+                          <a
+                            href="https://www.mckinsey.com/mgi/our-research/the-future-of-work-after-automations"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Xem nguồn nghiên cứu Oxford Martin & McKinsey Global Institute"
+                            className="text-[9px] text-[#60A5FA] hover:underline ml-0.5 inline-flex items-center"
+                          >
+                            [Nguồn]
+                          </a>
                         </div>
                         {(() => {
                           const reqMajor = activeCombo.majors.find(m => career.requiredMajors.includes(m.id)) || activeCombo.majors[0];
