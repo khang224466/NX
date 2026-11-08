@@ -1,30 +1,25 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.1.5 & FPT Study Hub Web Platform)
+## Current Status (v10.1.6 & FPT Study Hub Web Platform)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.1.5** across Web Platform, Bookmarklet, Standalone Chrome/Edge Extension, and Userscript.
-- **Core Breakthroughs in v10.1.5 (Intelligent Chat State, Screen Share Vision, Real AI Solver, 2-Stage Radial Submit & Zero-Newline Drag)**:
-  1. **Khắc Phục Triệt Để Lỗi 404 & Lỗi Kéo Bookmark Không Chạy ("có kéo cái con mẹ gì đâu")**:
-     - *Nguyên nhân:* Trước đây mã `javascript:...` trong thuộc tính `href` chứa nhiều ký tự xuống dòng (`\n`). Khi kéo thả lên thanh Bookmark, trình duyệt Chromium (Chrome/Edge/Brave) chiếu theo RFC 2483 phân tách `text/uri-list` theo từng dòng, biến dòng đầu thành URL không hợp lệ và rơi vào cơ chế kéo HTML toàn trang (`<!DOCTYPE html>...`) vào thanh địa chỉ gây lỗi `404 This page could not be found`.
-     - *Khắc phục:* Minify toàn bộ hàm JavaScript thành một chuỗi duy nhất trên 1 dòng duy nhất (`Has newline: false`, 28,200 ký tự). Dùng chuột kéo nút xanh thả lên thanh Bookmark mượt mà 100%. Bổ sung nút "📋 Bấm Vào Đây Để Sao Chép Mã" dành cho người dùng không muốn kéo thả.
-  2. **Khôi Phục Logic Thông Minh Của Code Cũ (v10.0.9) — Xóa Bỏ Hoàn Toàn Luồng Cứng**:
-     - Áp dụng cấu trúc `getLatestChatState()`: So sánh vị trí badge `"Học sinh"` và badge của giáo viên (`"Feedback"`, `"Sửa công thức"`, `"đã chấm bằng ai"`, `"INT:..."`).
-     - Khi học sinh đã gửi bài và học sinh nằm sau giáo viên -> Chuyển sang trạng thái `waiting_teacher` ("Đang chờ giáo viên/AI chấm bài..."). Tuyệt đối KHÔNG gửi lại, không điền đè "Sẵn sàng".
-     - Chỉ khi giáo viên ra câu hỏi mới hoặc bài tập mới (`student_turn`) mới tiến hành giải và nộp bài.
-  3. **Bộ Nộp Bài 2 Giai Đoạn (Two-Stage Radial Submit)**:
-     - Giai đoạn 1: Mở Radial Menu bằng cách click `.w-send-btn` hoặc `.exercise-intent-radial__trigger` nếu menu đang đóng.
-     - Giai đoạn 2: Quét chính xác mục `.exercise-intent-radial__item` chứa nhãn `"Nộp câu trả lời"` (icon cây bút) và mô phỏng chuỗi sự kiện chuột toàn diện (`pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click`).
-     - Khóa cứng Single Submit Guard chống bão 429 và spam click.
-  4. **Tích Hợp Toàn Diện AI Thật & Chia Sẻ Màn Hình (Vision AI)**:
-     - Cho phép chia sẻ màn hình trực tiếp bằng `navigator.mediaDevices.getDisplayMedia` để chụp lại công thức, bảng biểu, đồ thị (VD: Bảng 6.1 hóa học, hình tổng hợp lực vật lí).
-     - Kết nối trực tiếp: Google Gemini 2.5 Flash (`AIza...`), Groq Llama 3.3 70B (`gsk_...`), hoặc Cloud AI Proxy (`https://fpt-studyhub.vercel.app/api/v1/ai/solve`).
-     - Tự động định dạng `Trả lời: [đáp án]` khi câu hỏi yêu cầu theo mẫu.
-  5. **Bảo Mật Key, STK MBBank & Discord**:
-     - Modal cấu hình Key riêng biệt, hỗ trợ nạp key Gemini/Groq/License.
-     - STK MBBank: `0987654321` (Chủ TK: `VO TRI KHANG`).
-     - Discord Admin: `https://discord.com/users/888713971161505832`.
-  6. **100% Pure DOM (Zero innerHTML)**:
-     - Kháng 100% Cloudflare Trusted Types CSP trên EduNext LMS.
+- Current live version: **v10.1.6** across Web Platform, Bookmarklet, Standalone Chrome/Edge Extension, and Userscript.
+- **Core Breakthroughs in v10.1.6 (Fix Regex URL Stripping Bug, Terser AST Minifier & Universal Cross-Origin Engine)**:
+  1. **Khắc Phục Triệt Để Lỗi "didnt work"**:
+     - *Phát hiện chí mạng:* Trong bản `v10.1.5`, đoạn regex loại bỏ comment `\/\/[^\n]*\n` đã vô tình xóa phần đuôi của chuỗi `https://discord.com/users/...`, để lại mã `dcLink.href = 'https: dcLink.target = '_blank';`. Điều này gây ra lỗi nghiêm trọng `SyntaxError: Unexpected identifier '_blank'` khiến trình duyệt hoàn toàn KHÔNG THỂ chạy Bookmarklet khi click!
+     - *Khắc phục:* Chuyển sang sử dụng bộ nén AST chuyên nghiệp **Terser (`next/dist/compiled/terser`)**. Bảo toàn nguyên vẹn 100% mọi URL `https://...` (Discord, Gemini, Groq, Cloud Proxy). Kiểm thử `new vm.Script()` pass 100% (0 lỗi cú pháp).
+  2. **Bổ Sung Động Cơ Gửi Yêu Cầu Đa Nền Tảng (`universalRequest`)**:
+     - Tự động nhận diện môi trường: Nếu chạy trên Tampermonkey / Tiện ích mở rộng sẽ sử dụng `GM_xmlhttpRequest` (vượt 100% rào cản CSP của trang web). Nếu chạy qua Bookmarklet sẽ sử dụng `fetch()`.
+  3. **Bộ Giải Cứu Nguy Cấp Nội Bộ (`localSolver`)**:
+     - Tích hợp bộ giải tức thì (0ms latency, không phụ thuộc mạng/CSP) cho các câu hỏi phổ biến trên EduNext:
+       - Hóa học cấu hình electron: $Li \rightarrow 1$, $Na \rightarrow 1$, $K \rightarrow 1$, $C \rightarrow 4$, $O \rightarrow 6$, $N \rightarrow 5$, $Cl \rightarrow 7$, $Ne \rightarrow 8$.
+       - Vật lí tổng hợp lực: Cùng chiều ($F = F_1 + F_2$), ngược chiều ($F = |F_1 - F_2|$), vuông góc ($F = \sqrt{F_1^2 + F_2^2}$), quy tắc hình bình hành.
+       - Sẵn sàng chuyển phần tiếp theo.
+  4. **Giữ Nguyên Các Tính Năng Cao Cấp**:
+     - Chia sẻ màn hình Live Vision (`navigator.mediaDevices.getDisplayMedia`).
+     - Hộp thoại nạp Key riêng biệt, hỗ trợ Google Gemini (`AIza...`), Groq (`gsk_...`), hoặc License Key.
+     - STK MBBank: `0987654321` (Chủ TK: `VO TRI KHANG`), Discord Admin: `https://discord.com/users/888713971161505832`.
+     - Nộp bài 2 giai đoạn: Mở Radial Menu qua `.w-send-btn` $\rightarrow$ bấm `.exercise-intent-radial__item` ("Nộp câu trả lời").
+     - 100% Pure DOM (Zero innerHTML), kháng Trusted Types CSP.
 
 ---
 
@@ -33,7 +28,7 @@
 - **Tech Stack**: Next.js 16 (App Router, Turbopack, TypeScript strict), React 19, Tailwind CSS v4, Lucide Icons, Canvas Confetti.
 - **Port**: Development server running at `http://localhost:8443`.
 - **Trạng Thái Vận Hành Hiện Tại (Focus EduNext)**:
-  1. **FPT EduNext AI Assistant Pro (v10.1.5)**: **ĐANG HOẠT ĐỘNG CHÍNH THỨC**
+  1. **FPT EduNext AI Assistant Pro (v10.1.6)**: **ĐANG HOẠT ĐỘNG CHÍNH THỨC**
      - Trải Nghiệm 2 Tiếng: **Miễn Phí (0₫)**.
      - 1 Tuần: **30.000₫**.
      - 1 Tháng: **69.000₫**.
@@ -44,7 +39,8 @@
 ---
 
 ## Past Milestones
-- **v10.1.5**: Fixed Bookmarklet 404 & Dragging, Restored Turn-Based Chat State (v10.0.9 logic), 2-Stage Radial Submit clicker, Live Vision Screen Capture, Multi-AI Dispatch (Gemini/Groq/Proxy).
+- **v10.1.6**: Fixed regex URL stripping bug using Terser AST, verified 0 syntax errors, added universalRequest (GM_xmlhttpRequest + fetch) and local emergency solver.
+- **v10.1.5**: Fixed Bookmarklet 404 & Dragging, Restored Turn-Based Chat State (v10.0.9 logic), 2-Stage Radial Submit clicker, Live Vision Screen Capture.
 - **v10.1.4**: Real AI integration, user API key modal, dual submit button finding (.w-send-btn + Nộp câu trả lời).
 - **v10.1.3**: 100% Auto-Submit targeted to 'Nộp câu trả lời', License Key Security Gate, MBBank STK & Discord Support info, Pure DOM.
 - **v10.1.2**: Modal Draggable Button, Native Draggable Bookmarklet (dataTransfer URI-list/URL), Pure DOM (Zero innerHTML), Standalone Extension MV3.
