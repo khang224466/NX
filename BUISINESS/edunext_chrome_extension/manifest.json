@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FPT EduNext AI Assistant Pro",
-  "version": "10.1.6",
+  "version": "10.1.7",
   "description": "Trợ lý học tập thông minh tự giải bài tập, tự chọn Làm Rõ Ý Định, chống 429 Rate Limit trên FPT EduNext LMS. Độc lập 100% không cần Tampermonkey.",
   "permissions": [
     "storage",
@@ -26,6 +26,6 @@
     }
   ],
   "action": {
-    "default_title": "FPT EduNext Assistant Pro v10.1.6"
+    "default_title": "FPT EduNext Assistant Pro v10.1.7"
   }
 }
