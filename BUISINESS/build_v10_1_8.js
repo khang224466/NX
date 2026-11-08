@@ -759,8 +759,8 @@ function bookmarkletFunction(preKey) {
 
       var key = activeKey || '';
 
-      // BƯỚC 2: NẾU CẦU NỐI AI BRIDGE ĐANG MỞ -> ƯU TIÊN SỐ 1 ĐỂ TRÁNH CSP CHẶN
-      if (bridgeWin && !bridgeWin.closed) {
+      // BƯỚC 2: NẾU LÀ BOOKMARKLET HOẶC CẦU NỐI AI ĐANG MỞ -> DÙNG AI BRIDGE (100% BYPASS CSP)
+      if (typeof GM_xmlhttpRequest === 'undefined' || (bridgeWin && !bridgeWin.closed)) {
         try {
           log('info', 'Đang chuyển tiếp câu hỏi qua Cầu Nối Cloud AI Bridge...');
           var bAns = await solveViaBridge(q, imageBase64);
@@ -776,7 +776,7 @@ function bookmarkletFunction(preKey) {
         }
       }
 
-      // BƯỚC 3: NẾU CÓ KEY TRỰC TIẾP HOẶC KHÔNG BỊ CSP CHẶN (Tampermonkey/Extension)
+      // BƯỚC 3: DÀNH RIÊNG CHO TAMPERMONKEY / EXTENSION CÓ QUYỀN GM_xmlhttpRequest
       try {
         // Trường hợp 1: Google Gemini API Key
         if (key.startsWith('AIza')) {
