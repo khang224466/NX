@@ -1,6 +1,19 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.15 - One-Way Ready Lock & Historical Message Bypass)
+## Current Status (v10.2.16 - Auto-Destroy Zombie HUDs & 160-Char jsDelivr Drag Loader)
+- **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
+- Current live version: **v10.2.16** (Đột phá: Khắc phục triệt để lỗi người dùng bị kẹt ở bản v10.2.12 khi bấm lại bookmarklet; tự động phát hiện và tiêu diệt hoàn toàn HUD + setInterval + Observer cũ của các phiên bản trước; tích hợp loader jsDelivr 160 ký tự siêu nhẹ kéo thả 100% ăn ngay trên Bookmarks Bar).
+- **Core Breakthroughs in v10.2.16**:
+  1. **Tiêu Diệt Tận Gốc Bản Zombie v10.2.12 Đang Chạy Ngầm Trong Tab**:
+     - Trước đây, khi v10.2.12 đang chạy, `window.__ENX_PRO_HUD__ = true`. Khi click bookmarklet mới, mã chỉ toggle ẩn/hiện `#enx-pro-hud` của bản cũ mà không bao giờ khởi tạo bản mới.
+     - **Giải pháp v10.2.16**: Kiểm tra `window.__ENX_VERSION__ === CURRENT_VERSION`. Nếu phát hiện phiên bản khác đang chạy ngầm, lập tức phát sự kiện `enx_destroy`, xóa sạch `setInterval`, gỡ HUD cũ khỏi DOM và khởi động lại sạch sẽ v10.2.16.
+  2. **Bookmarklet Kéo Thả 160 Ký Tự (jsDelivr CDN Whitelisted)**:
+     - URL bookmarklet rút gọn còn đúng 160 ký tự, không bao giờ bị Chromium cắt ngắn bộ nhớ đệm kéo thả.
+     - Dùng timestamp `?t=' + Date.now()` bypass sạch sẽ cache trình duyệt và CDN.
+  3. **Tự Động Mở Trang Kéo Thả Trực Quan**:
+     - Đã tạo và tự động mở file `d:\BUISINESS\keo_bookmark_edunext.html` trên trình duyệt người dùng.
+
+## Previous Status (v10.2.15 - One-Way Ready Lock & Historical Message Bypass)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - Current live version: **v10.2.15** (Đột phá: Khắc phục triệt để lỗi "vẫn là 10_2_12, vẫn là spam sẵn sàng" do quét nhầm tin nhắn lịch sử mở đầu bài học; bổ sung khóa 1 chiều `hasHandledInitialReady` và cơ chế phân tách nghiêm ngặt giữa lượt giáo viên và học sinh).
 - **Core Breakthroughs in v10.2.15**:
