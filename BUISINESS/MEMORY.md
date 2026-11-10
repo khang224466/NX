@@ -65,11 +65,11 @@
 ---
 
 ## FPT Study Hub — Nền Tảng Hỗ Trợ Học Tập & Thi Cử FPT (EduNext • Khảo Thí • SEB)
-- **Directory**: `d:\BUISINESS\rental_platform\`
+- **Directory**: `d:\BUISINESS\FPT service\` (kèm junction `d:\BUISINESS\rental_platform` để tương thích tuyệt đối mọi script)
 - **Tech Stack**: Next.js 16 (App Router, Turbopack, TypeScript strict), React 19, Tailwind CSS v4, Lucide Icons.
 - **Port**: Development server running at `http://localhost:8443`.
 - **Trạng Thái Vận Hành Hiện Tại (Focus EduNext)**:
-  1. **FPT EduNext AI Assistant Pro (v10.2.15)**: **ĐANG HOẠT ĐỘNG CHÍNH THỨC**
+  1. **FPT EduNext AI Assistant Pro (v10.2.16)**: **ĐANG HOẠT ĐỘNG CHÍNH THỨC**
      - Trải Nghiệm 2 Tiếng: **Miễn Phí (0₫)**.
      - 1 Tuần: **30.000₫**.
      - 1 Tháng: **69.000₫**.
