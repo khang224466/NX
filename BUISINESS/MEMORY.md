@@ -22,6 +22,10 @@
      - Cập nhật toàn diện `inject.js`, `edunext.user.js`, `utils.ts`, `bridge.html` và toàn bộ giao diện Next.js lên `v10.2.15`.
      - Thêm header `Cache-Control: no-cache, no-store, must-revalidate, max-age=0, s-maxage=0` và `Pragma: no-cache`.
      - Xuất mã Bookmarklet 1-Click Inline đầy đủ và mã Loader có timestamp `?v=10_2_15&t=Date.now()` để người dùng cập nhật không bị vướng cache cũ của Chrome/Vercel.
+  4. **Khôi Phục Trải Nghiệm Kéo Thả Tiện Lợi (Drag & Drop Bookmarklet)**:
+     - Tạo trang `keo_bookmark_edunext.html` và `rental_platform/public/keo_bookmark.html`.
+     - Tự động mở tab trình duyệt để người dùng chỉ cần nhấp giữ chuột vào nút xanh và kéo thẳng lên thanh Bookmark (Bookmarks Bar).
+     - Đồng bộ mã `v10.2.15` vào `RAW_FN_STRING` trong `utils.ts` phục vụ cho landing page và modal kích hoạt.
 
 ---
 
