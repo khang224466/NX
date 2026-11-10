@@ -1,28 +1,22 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.10 & FPT Study Hub Web Platform)
+## Current Status (v10.2.11 & FPT Study Hub Web Platform)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.10** (Vòng lặp tự động khép kín: Điền Sẵn sàng ➔ Track nút Nộp ➔ Giải câu hỏi ➔ Lặp lại tới khi Hoàn thành).
-- **Core Breakthroughs in v10.2.10 (Autonomous Closed Loop + Unblocked Submit Tracker)**:
-  1. **Khởi Động Tự Động Điền & Nộp "Sẵn sàng" ("khi bật lên, viết sẵn sàng, track nút nộp rồi bấm nộp")**:
-     - Phát hiện màn hình tóm tắt / bắt đầu buổi học (có chữ "Bạn đã sẵn sàng chuyển sang phần tiếp theo chưa?" hoặc nút `[Sẵn sàng]`).
-     - Tự động điền "Sẵn sàng" vào textarea với React prototype setters, đồng thời click đồng bộ nút `[Sẵn sàng]` trên EduNext.
-     - Lập tức track nút `Nộp câu trả lời` và click nộp bài chỉ trong < 300ms.
-  2. **Track Nút Nộp Bài Siêu Chuẩn (Unblocked Submit Button Tracker)**:
-     - Sửa triệt để bug `isSidebarOrInternal`: Loại bỏ việc loại trừ `.chat-footer` và `toolbar`, cho phép tìm thấy 100% nút `Nộp câu trả lời` (icon bút chì) nằm ở góc dưới cùng bên phải ô input.
-     - Tìm kiếm đa tầng có chấm điểm: `data-intent="SUBMIT_ANSWER"`, văn bản/aria/title `Nộp câu trả lời`, menu radial, `w-send-btn`, và các nút trong footer (loại trừ nút Text, Math).
-     - Kích hoạt chuỗi sự kiện click hoàn chỉnh (`pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click`) kết hợp phím tắt `Ctrl+Enter` và `Enter`.
-  3. **Tự Động Track Câu Hỏi Tiếp Theo & Giải Bằng Gemini Flash Vision**:
-     - Sau khi nộp "Sẵn sàng", hệ thống tự động track câu hỏi bài tập mới xuất hiện từ giáo viên (qua Vision chụp màn hình + trích xuất DOM).
-     - Gửi yêu cầu tới Gemini Flash Vision để giải chính xác và điền đáp án (ví dụ `Trả lời: [đáp án]`).
-     - Tiếp tục bấm nộp bài tự động.
-  4. **Lặp Lại Liên Tục Tới Khi Hoàn Thành ("rồi lặp lại tới khi nó hiện hoàn thành")**:
-     - Tự động theo dõi các câu hỏi 2, 3, 4,... và giải tuần tự.
-     - Tự động nhận diện tín hiệu kết thúc ("hoàn thành bài học", "chúc mừng bạn đã hoàn thành", "buổi học đã kết thúc", `__LESSON_COMPLETE__`).
-     - Khi hoàn thành: Báo thành công `🎉 ĐÃ HOÀN THÀNH TOÀN BỘ BÀI HỌC!`, tự động tắt chế độ Auto để kết thúc phiên học an toàn.
-  5. **HUD Kéo Thả & Thu Nhỏ Linh Hoạt**:
-     - HUD có thể kéo thả di chuyển (`onmousedown` ở header) để không che khuất bất kỳ nút nào trên màn hình EduNext.
-     - Thêm nút thu nhỏ (`─`) để ẩn gọn gàng khi cần quan sát toàn bộ trang.
+- Current live version: **v10.2.11** (Tối ưu Cầu Nối AI Bridge: Khắc phục treo 32s do 503, ghi nhớ model chiến thắng Flash-Lite, lọc sạch Gemma/2.5 lỗi, Timeout 7.5s).
+- **Core Breakthroughs in v10.2.11 (Zero-Hang AI Bridge + Winner Model Caching)**:
+  1. **Khắc Phục Treo Nghẽn Mạng AI Bridge (Chấm dứt lỗi "Đang xử lý câu hỏi trước đó, tạm hoãn yêu cầu lặp...")**:
+     - Phân tích log thực tế từ người dùng: Model `gemini-flash-latest` bị Google quá tải (HTTP 503) và treo fetch tới 32 giây, chặn đứng toàn bộ vòng lặp của Bridge.
+     - Thêm cơ chế ngắt `AbortController` với thời gian chờ tối đa 7.5 giây: Nếu một model treo hoặc lỗi 503, tự động chuyển ngay sang model tiếp theo chỉ trong chớp mắt.
+  2. **Ghi Nhớ Model Chiến Thắng (Preferred Model Caching)**:
+     - Log thực tế chứng minh `gemini-flash-lite-latest` phản hồi siêu tốc chỉ trong 2 giây.
+     - v10.2.11 bổ sung cơ chế lưu trữ `preferredModel`: Ngay khi một model trả lời thành công, model đó được lưu lại và luôn được gọi trực tiếp đầu tiên ở mọi câu hỏi tiếp theo, không phải quét qua các model lỗi nữa.
+  3. **Lọc Bỏ Các Model Gây Lỗi 404 & 500**:
+     - Loại bỏ các model `gemma` (không hỗ trợ Vision, gây HTTP 500) và `2.5` (gây HTTP 404).
+     - Ưu tiên nhóm model Flash Vision tốc độ cao: `gemini-flash-lite-latest`, `gemini-2.0-flash-lite`, `gemini-1.5-flash`.
+  4. **Quy Trình Tự Động Khép Kín Hoàn Thiện**:
+     - Bật lên tự động gõ "Sẵn sàng" và bấm Nộp (track trúng nút icon bút chì góc phải).
+     - Track câu hỏi bài tập mới xuất hiện và giải qua Gemini Vision.
+     - Lặp lại liên tục cho tới khi báo hoàn thành bài học.
 
 ---
 
@@ -31,7 +25,7 @@
 - **Tech Stack**: Next.js 16 (App Router, Turbopack, TypeScript strict), React 19, Tailwind CSS v4, Lucide Icons.
 - **Port**: Development server running at `http://localhost:8443`.
 - **Trạng Thái Vận Hành Hiện Tại (Focus EduNext)**:
-  1. **FPT EduNext AI Assistant Pro (v10.2.10)**: **ĐANG HOẠT ĐỘNG CHÍNH THỨC**
+  1. **FPT EduNext AI Assistant Pro (v10.2.11)**: **ĐANG HOẠT ĐỘNG CHÍNH THỨC**
      - Trải Nghiệm 2 Tiếng: **Miễn Phí (0₫)**.
      - 1 Tuần: **30.000₫**.
      - 1 Tháng: **69.000₫**.
@@ -40,6 +34,7 @@
 ---
 
 ## Past Milestones
+- **v10.2.11**: Smart winner model caching (`gemini-flash-lite-latest`), filtered Gemma/2.5 models, added 7.5s abort timeout, eliminating AI Bridge 32s hang.
 - **v10.2.10**: Closed-loop automation (Write 'Sẵn sàng' -> Track submit button -> Solve next question -> Loop until complete), unblocked footer submit button tracker, draggable/collapsible HUD.
 - **v10.2.9**: Purged hardcoded regex solvers and traps, fixed auto-submit button detection (Toolbar 'Nộp câu trả lời' + Enter dual-dispatch), auto-submits prefilled textarea text.
 - **v10.2.8**: Vision-Only model filtering (eliminated TTS 400 error), Flash priority ordering, and Concurrency lock (eliminated 429 rate limit).
