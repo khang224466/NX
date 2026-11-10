@@ -1,8 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const minifiedCode = fs.readFileSync(path.join(__dirname, 'v10_2_15_minified.js'), 'utf8');
-const bookmarkHref = 'javascript:(' + minifiedCode + ')("");';
+const loaderBm = "javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/khang224466/NX@main/BUISINESS/v10_2_15_minified.js?t='+Date.now();document.body.appendChild(s);})();";
 
 const htmlContent = `<!DOCTYPE html>
 <html lang="vi">
@@ -70,7 +69,7 @@ const htmlContent = `<!DOCTYPE html>
       color: #94a3b8;
       font-size: 14px;
       line-height: 1.6;
-      margin-bottom: 28px;
+      margin-bottom: 24px;
     }
     .arrow-guide {
       display: flex;
@@ -219,7 +218,7 @@ const htmlContent = `<!DOCTYPE html>
   <div class="container">
     <div class="badge">⚡ EduNext AI Assistant Pro v10.2.15</div>
     <h1>Cầm Kéo Lên <span>Thanh Dấu Trang</span> Là Xong!</h1>
-    <p class="desc">Không cần cài đặt script hay tiện ích. Bạn chỉ cần giữ chuột vào nút màu xanh bên dưới và kéo thẳng lên thanh Bookmark của trình duyệt.</p>
+    <p class="desc">Chuẩn CDN jsDelivr siêu tốc (Được EduNext cấp phép 100%). Nhấp giữ chuột vào nút màu xanh dưới đây và kéo thả lên thanh Bookmark.</p>
 
     <div class="arrow-guide">
       <span>⬆️ KÉO NÚT NÀY THẢ LÊN THANH BOOKMARK TRÊN CÙNG TRÌNH DUYỆT ⬆️</span>
@@ -230,12 +229,12 @@ const htmlContent = `<!DOCTYPE html>
       <a 
         id="main-bookmark-btn" 
         class="draggable-bookmark" 
-        href="${bookmarkHref}" 
+        href="${loaderBm}" 
         draggable="true"
         onclick="handleBtnClick(event)"
       >
         <span>⭐</span>
-        <span>⚡ EduNext AI Pro v10.2.15 (Kéo Nút Này Lên)</span>
+        <span>⚡ EduNext AI Pro v10.2.15 (Kéo Nút Này Lên Bookmark)</span>
       </a>
     </div>
 
@@ -243,7 +242,7 @@ const htmlContent = `<!DOCTYPE html>
       <h3>🚀 3 Bước Cực Dễ (Làm 1 Lần Dùng Mãi Mãi):</h3>
       <div class="step-item">
         <div class="step-num">1</div>
-        <div>Nhấn tổ hợp phím <kbd>Ctrl + Shift + B</kbd> (hoặc <kbd>Cmd + Shift + B</kbd> trên Mac) để trình duyệt hiển thị thanh Bookmark (Dấu trang) ở trên cùng.</div>
+        <div>Nhấn phím <kbd>Ctrl + Shift + B</kbd> (Mac: <kbd>Cmd + Shift + B</kbd>) để hiện thanh Bookmark ở trên cùng trình duyệt.</div>
       </div>
       <div class="step-item">
         <div class="step-num">2</div>
@@ -284,8 +283,8 @@ const htmlContent = `<!DOCTYPE html>
 
 // 1. Tạo file HTML độc lập trong d:\BUISINESS
 fs.writeFileSync(path.join(__dirname, 'keo_bookmark_edunext.html'), htmlContent, 'utf8');
-console.log('✓ Generated d:\\BUISINESS\\keo_bookmark_edunext.html');
+console.log('✓ Updated d:\\BUISINESS\\keo_bookmark_edunext.html with jsdelivr 160-char loader');
 
 // 2. Tạo file HTML trong rental_platform/public
 fs.writeFileSync(path.join(__dirname, 'rental_platform', 'public', 'keo_bookmark.html'), htmlContent, 'utf8');
-console.log('✓ Generated rental_platform/public/keo_bookmark.html');
+console.log('✓ Updated rental_platform/public/keo_bookmark.html');
