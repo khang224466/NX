@@ -1,0 +1,291 @@
+const fs = require('fs');
+const path = require('path');
+
+const minifiedCode = fs.readFileSync(path.join(__dirname, 'v10_2_15_minified.js'), 'utf8');
+const bookmarkHref = 'javascript:(' + minifiedCode + ')("");';
+
+const htmlContent = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cầm Bookmark Kéo Lên Bấm Vô Là Chạy — EduNext AI Pro v10.2.15</title>
+  <link rel="icon" href="https://fpt-studyhub.vercel.app/favicon.ico">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background: radial-gradient(circle at top, #064e3b 0%, #022c22 35%, #020617 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .container {
+      max-width: 680px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 24px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 35px rgba(16, 185, 129, 0.2);
+      backdrop-filter: blur(20px);
+      padding: 36px 28px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 9999px;
+      color: #34d399;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+    h1 span {
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p.desc {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .arrow-guide {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #34d399;
+      font-weight: 800;
+      font-size: 13px;
+      margin-bottom: 12px;
+      animation: bounce 1.5s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .btn-wrapper {
+      padding: 12px;
+      background: rgba(2, 6, 23, 0.6);
+      border: 2px dashed rgba(16, 185, 129, 0.5);
+      border-radius: 20px;
+      margin-bottom: 28px;
+    }
+    .draggable-bookmark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 18px 28px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+      color: #ffffff;
+      font-size: 17px;
+      font-weight: 900;
+      text-decoration: none;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.35);
+      cursor: grab;
+      user-select: none;
+      transition: all 0.2s ease;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    .draggable-bookmark:active {
+      cursor: grabbing;
+      transform: scale(0.98);
+    }
+    .draggable-bookmark:hover {
+      box-shadow: 0 15px 35px -5px rgba(16, 185, 129, 0.7), 0 0 30px rgba(16, 185, 129, 0.5);
+      transform: translateY(-2px);
+    }
+    .steps-card {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: left;
+      margin-bottom: 24px;
+    }
+    .steps-card h3 {
+      font-size: 13px;
+      color: #38bdf8;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .step-item:last-child {
+      margin-bottom: 0;
+    }
+    .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid #10b981;
+      color: #34d399;
+      font-weight: 800;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    kbd {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 2px 6px;
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .footer-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-secondary:hover {
+      border-color: #64748b;
+      color: #f1f5f9;
+      background: #0f172a;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #10b981;
+      color: #000;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+      display: none;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="badge">⚡ EduNext AI Assistant Pro v10.2.15</div>
+    <h1>Cầm Kéo Lên <span>Thanh Dấu Trang</span> Là Xong!</h1>
+    <p class="desc">Không cần cài đặt script hay tiện ích. Bạn chỉ cần giữ chuột vào nút màu xanh bên dưới và kéo thẳng lên thanh Bookmark của trình duyệt.</p>
+
+    <div class="arrow-guide">
+      <span>⬆️ KÉO NÚT NÀY THẢ LÊN THANH BOOKMARK TRÊN CÙNG TRÌNH DUYỆT ⬆️</span>
+      <span style="font-size: 18px; margin-top: 4px;">▲</span>
+    </div>
+
+    <div class="btn-wrapper">
+      <a 
+        id="main-bookmark-btn" 
+        class="draggable-bookmark" 
+        href="${bookmarkHref}" 
+        draggable="true"
+        onclick="handleBtnClick(event)"
+      >
+        <span>⭐</span>
+        <span>⚡ EduNext AI Pro v10.2.15 (Kéo Nút Này Lên)</span>
+      </a>
+    </div>
+
+    <div class="steps-card">
+      <h3>🚀 3 Bước Cực Dễ (Làm 1 Lần Dùng Mãi Mãi):</h3>
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div>Nhấn tổ hợp phím <kbd>Ctrl + Shift + B</kbd> (hoặc <kbd>Cmd + Shift + B</kbd> trên Mac) để trình duyệt hiển thị thanh Bookmark (Dấu trang) ở trên cùng.</div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div>Dùng chuột <strong>NHẤP GIỮ NÚT XANH Ở TRÊN ➔ KÉO LÊN THẢ VÀO THANH BOOKMARK</strong>.</div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div>Mở tab bài học EduNext: <strong style="color: #34d399;">https://fsc-edunext.fpt.edu.vn/home</strong> ➔ <strong>BẤM VÀO BOOKMARK VỪA KÉO LÀ CHẠY NGAY!</strong></div>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn-secondary" onclick="copyCode()">📋 Sao Chép Mã JavaScript</button>
+      <a class="btn-secondary" href="https://fsc-edunext.fpt.edu.vn/home" target="_blank">🌐 Mở EduNext FPT</a>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">✓ Đã sao chép mã Bookmarklet v10.2.15!</div>
+
+  <script>
+    function handleBtnClick(e) {
+      alert("👉 Bạn hãy dùng chuột GIỮ VÀ KÉO NÚT NÀY THẢ LÊN THANH DẤU TRANG (Bookmarks Bar) ở phía trên trình duyệt nhé!\\n\\nSau khi kéo lên xong, sang tab EduNext bấm vô là chạy!");
+    }
+
+    function copyCode() {
+      const code = document.getElementById('main-bookmark-btn').getAttribute('href');
+      navigator.clipboard.writeText(code).then(() => {
+        const toast = document.getElementById('toast');
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2500);
+      });
+    }
+  </script>
+
+</body>
+</html>
+`;
+
+// 1. Tạo file HTML độc lập trong d:\BUISINESS
+fs.writeFileSync(path.join(__dirname, 'keo_bookmark_edunext.html'), htmlContent, 'utf8');
+console.log('✓ Generated d:\\BUISINESS\\keo_bookmark_edunext.html');
+
+// 2. Tạo file HTML trong rental_platform/public
+fs.writeFileSync(path.join(__dirname, 'rental_platform', 'public', 'keo_bookmark.html'), htmlContent, 'utf8');
+console.log('✓ Generated rental_platform/public/keo_bookmark.html');
