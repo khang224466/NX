@@ -1,6 +1,10 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.16 - Auto-Destroy Zombie HUDs & 160-Char jsDelivr Drag Loader)
+## Current Status (v10.2.17 - Dual Key Support: Raw & Encrypted + Auto-Destroy Old HUD)
+- **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
+- Current live version: **v10.2.17** (Đột phá: Giải thích và giải quyết triệt để nguyên nhân người dùng bị kẹt ở v10.2.12; phát hiện trang Vercel cũ bị đóng băng lúc trưa khiến việc kéo nút từ trang web Vercel luôn ra bản .12; cung cấp giải pháp chỉnh sửa trực tiếp URL bookmarklet trên Chrome và hỗ trợ nhập trực tiếp Key Gemini AIza... lẫn Key mã hóa ENC_AI_...).
+
+## Previous Status (v10.2.16 - Auto-Destroy Zombie HUDs & 160-Char jsDelivr Drag Loader)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - Current live version: **v10.2.16** (Đột phá: Khắc phục triệt để lỗi người dùng bị kẹt ở bản v10.2.12 khi bấm lại bookmarklet; tự động phát hiện và tiêu diệt hoàn toàn HUD + setInterval + Observer cũ của các phiên bản trước; tích hợp loader jsDelivr 160 ký tự siêu nhẹ kéo thả 100% ăn ngay trên Bookmarks Bar).
 - **Core Breakthroughs in v10.2.16**:
