@@ -1,34 +1,36 @@
 Created At: 2026-11-11T14:39:40+07:00
-Completed At: 2026-11-11T16:11:00+07:00
+Completed At: 2026-11-11T16:26:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.29 - Realtime Cross-Page Order Sync, Cloud Store Auto-Upsert, Gemini Key Validation & Purged Legacy Scripts)
+## Current Status (v10.2.30 - Expanded 3 Lessons / Week Quota For All Plans, Realtime Cross-Page Order Sync & Purged Legacy Scripts)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.29**
-- **Core Upgrades in v10.2.29**:
-  1. **Đồng Bộ Tuyệt Đối 100% Giữa Web Khách Hàng (`/`) & Web Quản Trị Admin (`/admin`)**:
-     - Khắc phục triệt để lỗi phân mảnh mã đơn (`ORD-xxxx`) và mã chuyển khoản (`PRxxxx`) giữa Client và Server:
-       - Client và Server sử dụng chung 1 bộ mã `orderId` và `transferCode` duy nhất ngay từ khoảnh khắc mở modal thanh toán.
-       - Không còn hiện tượng khách thấy mã này (`PR1702`), Admin lại thấy mã khác (`PR7874`).
-     - Khi khách hàng bấm **"Tôi Đã Chuyển Khoản — Báo Admin Duyệt Ngay"**:
-       - Trạng thái `waiting_approval` lập tức được đồng bộ lên Cloud Database (`api.restful-api.dev`).
-       - Trang Admin (`/admin`) polling mỗi 2 giây nhận diện ngay đơn mới, hiển thị nhấp nháy huy hiệu vàng `[Chờ Admin Duyệt]`.
-     - Khi Admin bấm **`[Duyệt & Cấp Key]`** (hoặc gõ mã CK vào ô duyệt nhanh):
-       - Hệ thống tự động sinh License Key chuẩn hạn (7 ngày / 30 ngày / 120 ngày) kèm thời điểm hết hạn `expiresAt`.
-       - Khách hàng đang mở modal thanh toán lập tức nhận tín hiệu `approved` $\rightarrow$ Nổ pháo hoa Confetti $\rightarrow$ Chuyển thẳng sang trang `/keo_bookmark.html?key=ENC_AI_...` đã nạp sẵn key bản quyền 100%.
+- Current live version: **v10.2.30**
+- **Core Upgrades in v10.2.30**:
+  1. **Mở Rộng Hạn Mức Toàn Diện: 3 Bài / Tuần Cho Mọi Gói Bản Quyền**:
+     - Nâng cấp hạn mức giải bài tập từ *1 bài / tuần* lên **3 bài / tuần** (trong vòng 7 ngày gần nhất) cho mọi môn học và mọi gói bản quyền (1 Tuần, 1 Tháng, 1 Kỳ).
+     - Thuật toán quản lý phiên học thông minh:
+       - Lưu mảng các phiên hoàn thành (`completedSessions: [timestamp1, timestamp2, ...]`) trong `localStorage`.
+       - Tự động lọc bỏ các phiên đã qua 7 ngày (`Date.now() - ts < 7 * 24 * 3600 * 1000`).
+       - Chỉ khóa khi sinh viên đã hoàn thành đủ **3 bài trong vòng 7 ngày** (`recentSessions.length >= 3`).
+       - Khi hoàn thành mỗi bài, hệ thống thông báo trạng thái trực quan: `📌 Đã ghi nhận hoàn thành bài (x/3 bài tuần này) cho môn: [Tên môn]`.
+     - Cập nhật đồng bộ nội dung tính năng & quy định trên:
+       - `SERVICES_CATALOG` (`servicesCatalog.ts`)
+       - Giao diện danh mục dịch vụ (`ServiceCatalog.tsx`)
+       - Trang công cụ chuyển đổi key (`converter.html`)
+       - Mã nguồn Bookmarklet và Script inject (`v10.2.30`)
 
-  2. **Cảnh Báo Trực Quan Định Dạng Master Gemini API Key Cho Admin**:
-     - Key Google Gemini hợp lệ từ Google AI Studio bắt buộc phải bắt đầu bằng **`AIzaSy...`** (39 ký tự).
-     - Hệ thống tự động kiểm tra cú pháp trên `/admin`: Nếu Admin nhập token lạ (như `AQ.Ab8RN6I0...`), hệ thống hiển thị cảnh báo đỏ/vàng kèm đường dẫn lấy key miễn phí tại `https://aistudio.google.com/app/apikey`.
+  2. **Đồng Bộ Tuyệt Đối 100% Giữa Web Khách Hàng (`/`) & Web Quản Trị Admin (`/admin`)**:
+     - Client và Server dùng chung 1 bộ mã `orderId` và `transferCode` duy nhất ngay từ khoảnh khắc mở modal thanh toán.
+     - Khách hàng bấm **"Tôi Đã Chuyển Khoản — Báo Admin Duyệt Ngay"** $\rightarrow$ Đồng bộ tức thì lên Cloud Store (`waiting_approval`).
+     - Admin bấm **`[Duyệt & Cấp Key]`** $\rightarrow$ Màn hình khách tự động nhận `approved` trong 2 giây $\rightarrow$ Nổ pháo hoa $\rightarrow$ Chuyển sang Bookmarklet đã nạp sẵn key.
 
-  3. **Nâng Cấp Cầu Nối AI Bridge Lên v10.2.29 & Ngăn Chặn Lặp Lỗi 400**:
-     - Đồng bộ cả `public/bridge.html` và `src/app/bridge/page.tsx` lên **`v10.2.29`**.
-     - Nếu Google trả về `HTTP 400: API key not valid`, Bridge ngắt ngay vòng lặp model, in thông báo tiếng Việt hướng dẫn Admin nạp lại key chuẩn `AIza...`, ngăn chặn việc spam gọi 6 model gây nghẽn kết nối.
+  3. **Cảnh Báo Trực Quan Định Dạng Master Gemini API Key Cho Admin**:
+     - Kiểm tra cú pháp key: Bắt buộc bắt đầu bằng **`AIzaSy...`** (39 ký tự). Ngăn chặn lỗi `400 API key not valid` khi nhập nhầm token khác.
 
-  4. **Dọn Sạch Triệt Để Toàn Bộ Luồng Cũ & File Cũ Rác (Xóa Luồng Cũ)**:
-     - Đã xóa sạch 25 file `.user.js` cũ từ `v10.1.0` tới `v10.2.14` trong `public/`.
-     - Loại bỏ các file txt cũ, giữ lại cấu trúc gọn gàng, tối ưu tốc độ build trên Vercel.
+  4. **Nâng Cấp Cầu Nối AI Bridge Lên v10.2.30 & Dọn Sạch Luồng Cũ**:
+     - Đồng bộ `bridge.html` và `src/app/bridge/page.tsx` lên **`v10.2.30`**.
+     - Đã dọn sạch 25 file `.user.js` cũ trong `public/`.
 
 ---
 
