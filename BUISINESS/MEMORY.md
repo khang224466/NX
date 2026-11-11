@@ -1,36 +1,31 @@
 Created At: 2026-11-11T14:39:40+07:00
-Completed At: 2026-11-11T16:26:00+07:00
+Completed At: 2026-11-11T17:22:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.30 - Expanded 3 Lessons / Week Quota For All Plans, Realtime Cross-Page Order Sync & Purged Legacy Scripts)
+## Current Status (v10.2.31 - Multi-Layer True Gemini Key Extraction, Bridge HTTP 400 Elimination, Admin Mandatory Key Validation & Cloud AI Fallback)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.30**
-- **Core Upgrades in v10.2.30**:
-  1. **Mở Rộng Hạn Mức Toàn Diện: 3 Bài / Tuần Cho Mọi Gói Bản Quyền**:
-     - Nâng cấp hạn mức giải bài tập từ *1 bài / tuần* lên **3 bài / tuần** (trong vòng 7 ngày gần nhất) cho mọi môn học và mọi gói bản quyền (1 Tuần, 1 Tháng, 1 Kỳ).
-     - Thuật toán quản lý phiên học thông minh:
-       - Lưu mảng các phiên hoàn thành (`completedSessions: [timestamp1, timestamp2, ...]`) trong `localStorage`.
-       - Tự động lọc bỏ các phiên đã qua 7 ngày (`Date.now() - ts < 7 * 24 * 3600 * 1000`).
-       - Chỉ khóa khi sinh viên đã hoàn thành đủ **3 bài trong vòng 7 ngày** (`recentSessions.length >= 3`).
-       - Khi hoàn thành mỗi bài, hệ thống thông báo trạng thái trực quan: `📌 Đã ghi nhận hoàn thành bài (x/3 bài tuần này) cho môn: [Tên môn]`.
-     - Cập nhật đồng bộ nội dung tính năng & quy định trên:
-       - `SERVICES_CATALOG` (`servicesCatalog.ts`)
-       - Giao diện danh mục dịch vụ (`ServiceCatalog.tsx`)
-       - Trang công cụ chuyển đổi key (`converter.html`)
-       - Mã nguồn Bookmarklet và Script inject (`v10.2.30`)
+- Current live version: **v10.2.31**
+- **Core Upgrades in v10.2.31**:
+  1. **Giải Mã Đa Tầng Trích Xuất Master Gemini Key (Xóa Triệt Để Lỗi Google HTTP 400 `API key not valid`)**:
+     - Cầu Nối `bridge.html` được trang bị thuật toán `extractTrueGeminiKey`: tự động mở gói giải mã tối đa 5 tầng `ENC_AI_` lồng nhau để trích xuất khóa API chuẩn `AIzaSy...` của Google AI Studio.
+     - **Tường lửa chặn gửi nhầm mã mã hóa lên Google**: Nếu key truyền sang là chuỗi mã hóa `ENC_AI_...` hoặc không bắt đầu bằng `AIza`, Bridge **tuyệt đối không bao giờ** gửi lên Google Studio API (tránh bị Google từ chối lỗi `400 / 401 unauthenticated`).
+     - Tự động chuyển thẳng sang Cloud AI Engine (`/api/v1/ai/solve`) với đầy đủ `licenseKey: rawKey`.
 
-  2. **Đồng Bộ Tuyệt Đối 100% Giữa Web Khách Hàng (`/`) & Web Quản Trị Admin (`/admin`)**:
-     - Client và Server dùng chung 1 bộ mã `orderId` và `transferCode` duy nhất ngay từ khoảnh khắc mở modal thanh toán.
-     - Khách hàng bấm **"Tôi Đã Chuyển Khoản — Báo Admin Duyệt Ngay"** $\rightarrow$ Đồng bộ tức thì lên Cloud Store (`waiting_approval`).
-     - Admin bấm **`[Duyệt & Cấp Key]`** $\rightarrow$ Màn hình khách tự động nhận `approved` trong 2 giây $\rightarrow$ Nổ pháo hoa $\rightarrow$ Chuyển sang Bookmarklet đã nạp sẵn key.
+  2. **Bắt Buộc Cấu Hình Master Gemini API Key Khi Admin Duyệt Đơn**:
+     - Trang Quản trị `/admin` gắn cờ báo động đỏ nổi bật khi Admin chưa nhập Master Key, kèm nút 1-click `[+ Lấy Key Miễn Phí (Google Studio)]` dẫn thẳng tới `https://aistudio.google.com/app/apikey`.
+     - Khi Admin bấm `[Duyệt & Cấp Key]` hoặc Duyệt nhanh: Nếu chưa có key `AIzaSy...`, hệ thống lập tức mở hộp thoại yêu cầu Admin dán Key Gemini chuẩn.
+     - Kiểm tra định dạng nghiêm ngặt: Ngăn chặn nhập nhầm Access Token `AQ.` hay token lạ. Key hợp lệ được tự động lưu vào trình duyệt của Admin và nhúng vào License cấp cho học sinh.
 
-  3. **Cảnh Báo Trực Quan Định Dạng Master Gemini API Key Cho Admin**:
-     - Kiểm tra cú pháp key: Bắt buộc bắt đầu bằng **`AIzaSy...`** (39 ký tự). Ngăn chặn lỗi `400 API key not valid` khi nhập nhầm token khác.
+  3. **Nâng Cấp Toàn Diện Cloud AI Solver (`/api/v1/ai/solve`) & Multi-Model Fallback**:
+     - Hỗ trợ giải mã tự động `ENC_AI_` ngay trên server Vercel nếu khách hàng gửi `licenseKey` qua Cloud.
+     - Cơ chế Multi-Model Fallback thông minh: thử tuần tự `gemini-flash-lite-latest` $\rightarrow$ `gemini-2.0-flash-lite` $\rightarrow$ `gemini-1.5-flash` $\rightarrow$ `gemini-2.0-flash`.
+     - Tích hợp bộ heuristic solver giải bài hóa học/toán học offline khi mạng AI gián đoạn.
 
-  4. **Nâng Cấp Cầu Nối AI Bridge Lên v10.2.30 & Dọn Sạch Luồng Cũ**:
-     - Đồng bộ `bridge.html` và `src/app/bridge/page.tsx` lên **`v10.2.30`**.
-     - Đã dọn sạch 25 file `.user.js` cũ trong `public/`.
+  4. **Cập Nhật Đồng Bộ Mã Nguồn Bookmarklet v10.2.31**:
+     - Đồng bộ toàn diện: `public/keo_bookmark.html`, `src/lib/utils.ts` (`RAW_FN_BASE64`), `src/app/inject.js/route.ts`, `src/app/edunext.user.js/route.ts`.
+     - Quản lý hạn mức chuẩn xác: 3 bài / tuần cho mọi môn học và mọi gói bản quyền.
+     - Giao diện HUD 100% không lộ key thô (zero-leak), tự hủy khi hết hạn.
 
 ---
 
