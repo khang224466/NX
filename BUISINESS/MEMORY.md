@@ -1,36 +1,34 @@
 Created At: 2026-11-11T14:39:40+07:00
-Completed At: 2026-11-11T15:47:00+07:00
+Completed At: 2026-11-11T16:11:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.28 - Turn-Based State Machine, Smart Teacher Feedback Re-Solve, Baked Bookmarklet Key, Zero-Leak Read-Only HUD)
+## Current Status (v10.2.29 - Realtime Cross-Page Order Sync, Cloud Store Auto-Upsert, Gemini Key Validation & Purged Legacy Scripts)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.28**
-- **Core Upgrades in v10.2.28**:
-  1. **Kế Thừa Tinh Túy State Machine & Feedback Loop Từ Tampermonkey**:
-     - Phân định lượt Giáo viên vs Học sinh theo thứ tự DOM thẻ huy hiệu (`compareDocumentPosition` giữa `teacherBadges` và `studentBadges`).
-     - Khi lượt cuối là Học sinh (`waiting_teacher`): Bot kiên nhẫn chờ giáo viên/AI chấm điểm, không spam lặp lại đáp án cũ.
-     - Phát hiện nhận xét/khiếu nại từ giáo viên (`isTeacherComplaint`):
-       - Nhận diện: "chưa đúng", "thử lại", "chưa chính xác", "lặp lại nhiều lần mà vẫn chưa tìm ra đáp án đúng", "điểm cần lưu ý là bạn đang tập trung vào", "thực chất đang hỏi về", "suy nghĩ lại",...
-       - Khi giáo viên chỉ ra lỗi: Tự động xóa sạch nội dung cũ trong textarea (`fillReactInput(ta, '')`), giải phóng cache hash câu hỏi để giải lại ngay lập tức.
-       - Tích hợp toàn bộ gợi ý/nhận xét của giáo viên và danh sách các câu trả lời sai trước đó vào Prompt của Gemini Flash-Lite với chỉ thị nghiêm ngặt: Tuyệt đối không lặp lại đáp án sai cũ, bám sát trọng tâm gợi ý của giáo viên.
+- Current live version: **v10.2.29**
+- **Core Upgrades in v10.2.29**:
+  1. **Đồng Bộ Tuyệt Đối 100% Giữa Web Khách Hàng (`/`) & Web Quản Trị Admin (`/admin`)**:
+     - Khắc phục triệt để lỗi phân mảnh mã đơn (`ORD-xxxx`) và mã chuyển khoản (`PRxxxx`) giữa Client và Server:
+       - Client và Server sử dụng chung 1 bộ mã `orderId` và `transferCode` duy nhất ngay từ khoảnh khắc mở modal thanh toán.
+       - Không còn hiện tượng khách thấy mã này (`PR1702`), Admin lại thấy mã khác (`PR7874`).
+     - Khi khách hàng bấm **"Tôi Đã Chuyển Khoản — Báo Admin Duyệt Ngay"**:
+       - Trạng thái `waiting_approval` lập tức được đồng bộ lên Cloud Database (`api.restful-api.dev`).
+       - Trang Admin (`/admin`) polling mỗi 2 giây nhận diện ngay đơn mới, hiển thị nhấp nháy huy hiệu vàng `[Chờ Admin Duyệt]`.
+     - Khi Admin bấm **`[Duyệt & Cấp Key]`** (hoặc gõ mã CK vào ô duyệt nhanh):
+       - Hệ thống tự động sinh License Key chuẩn hạn (7 ngày / 30 ngày / 120 ngày) kèm thời điểm hết hạn `expiresAt`.
+       - Khách hàng đang mở modal thanh toán lập tức nhận tín hiệu `approved` $\rightarrow$ Nổ pháo hoa Confetti $\rightarrow$ Chuyển thẳng sang trang `/keo_bookmark.html?key=ENC_AI_...` đã nạp sẵn key bản quyền 100%.
 
-  2. **Sửa Triệt Để Lỗi Vừa Vào Đã Báo "Hoàn Thành Toàn Bộ Bài Học"**:
-     - Loại bỏ việc quét toàn bộ trang `mainArea.innerText.toLowerCase()` (tránh việc trùng khớp với các từ khóa "hoàn thành bài học" trên thanh menu/breadcrumb hoặc lịch sử bài cũ).
-     - `isLessonEnded` chỉ kiểm tra duy nhất nội dung từ tin nhắn cuối cùng của giáo viên (`chatState.lastTeacherMsg`).
-     - Nếu còn câu hỏi mới (`looksLikeNewQuestion`) hoặc còn nút "Sẵn sàng", tuyệt đối không kích hoạt trạng thái hoàn thành.
+  2. **Cảnh Báo Trực Quan Định Dạng Master Gemini API Key Cho Admin**:
+     - Key Google Gemini hợp lệ từ Google AI Studio bắt buộc phải bắt đầu bằng **`AIzaSy...`** (39 ký tự).
+     - Hệ thống tự động kiểm tra cú pháp trên `/admin`: Nếu Admin nhập token lạ (như `AQ.Ab8RN6I0...`), hệ thống hiển thị cảnh báo đỏ/vàng kèm đường dẫn lấy key miễn phí tại `https://aistudio.google.com/app/apikey`.
 
-  3. **Tự Động Nạp Key Vào Nút Kéo Bookmarklet (`/keo_bookmark.html`)**:
-     - Modal kích hoạt thành công tự động chuyển hướng sang `/keo_bookmark.html?key=${encodeURIComponent(licenseKey)}` và lưu ngầm vào `localStorage`.
-     - Script trên trang kéo bookmarklet tự động thay thế mã bookmarklet, nạp sẵn key vào payload: `javascript:(function(preKey){...})("ENC_AI_...")`.
-     - Sinh viên chỉ cần kéo nút Bookmarklet lên thanh dấu trang là chạy được ngay 100%, không cần biết key và không thể sao chép hay xem key thô.
+  3. **Nâng Cấp Cầu Nối AI Bridge Lên v10.2.29 & Ngăn Chặn Lặp Lỗi 400**:
+     - Đồng bộ cả `public/bridge.html` và `src/app/bridge/page.tsx` lên **`v10.2.29`**.
+     - Nếu Google trả về `HTTP 400: API key not valid`, Bridge ngắt ngay vòng lặp model, in thông báo tiếng Việt hướng dẫn Admin nạp lại key chuẩn `AIza...`, ngăn chặn việc spam gọi 6 model gây nghẽn kết nối.
 
-  4. **Xóa Vĩnh Viễn Modal Đổi Key & Ô Nhập Key Trên Client HUD (Zero Key Leakage)**:
-     - Gỡ bỏ hoàn toàn `showKeyConfigModal` và `enx-key-modal`.
-     - Client HUD 100% read-only, chỉ hiển thị trạng thái bản quyền (ĐÃ KÍCH HOẠT / ĐÃ TỰ HỦY), loại bỏ toàn bộ nút "Đổi Key", link sửa và ô input.
-
-  5. **Xử Lý Nút "Sẵn sàng" Tự Động Xuyên Suốt Mọi Chặng**:
-     - Tự động nhận diện tin nhắn mời chuyển phần và bấm nút `[Sẵn sàng]` trên mọi chặng bài học, không bị giới hạn chỉ ở lần chạy đầu tiên.
+  4. **Dọn Sạch Triệt Để Toàn Bộ Luồng Cũ & File Cũ Rác (Xóa Luồng Cũ)**:
+     - Đã xóa sạch 25 file `.user.js` cũ từ `v10.1.0` tới `v10.2.14` trong `public/`.
+     - Loại bỏ các file txt cũ, giữ lại cấu trúc gọn gàng, tối ưu tốc độ build trên Vercel.
 
 ---
 
