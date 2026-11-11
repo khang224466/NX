@@ -1,40 +1,36 @@
 Created At: 2026-11-11T14:39:40+07:00
-Completed At: 2026-11-11T14:57:00+07:00
+Completed At: 2026-11-11T15:47:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.27 - Key Expiration Warning Dashboard, Instant Admin Renewal, Zero-Leak Read-Only Client HUD Without Edit/Copy)
+## Current Status (v10.2.28 - Turn-Based State Machine, Smart Teacher Feedback Re-Solve, Baked Bookmarklet Key, Zero-Leak Read-Only HUD)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.27**
-- **Core Upgrades in v10.2.27**:
-  1. **Bảng Quản Lý Thời Hạn & Cảnh Báo Key Gần Hết Hạn Trên Trang `/admin`**:
-     - Phân loại trực quan toàn bộ key đã cấp theo 3 cấp độ:
-       - 🟢 **Còn Hạn (An Toàn)**: Key còn trên 5 ngày sử dụng.
-       - 🟡 **Sắp Hết Hạn (Cảnh Báo Gia Hạn)**: Key còn $\le 5$ ngày (hiển thị số ngày & giờ còn lại, gắn badge vàng cảnh báo nhấp nháy để Admin chủ động chăm sóc khách).
-       - 🔴 **Đã Tự Hủy**: Key đã quá hạn (hiển thị số ngày đã hết hạn, trạng thái đã tự hủy).
-     - Bộ lọc Tab 1-Click: *Tất Cả*, *Sắp Hết Hạn*, *Còn Hạn*, *Đã Tự Hủy*.
-     - Thao tác nhanh cho Admin ngay trên bảng:
-       - `[+7 Ngày]`: Gia hạn thêm 1 tuần.
-       - `[+30 Ngày]`: Gia hạn thêm 1 tháng (30 ngày).
-       - `[+1 Kỳ]`: Gia hạn thêm 1 kỳ học (120 ngày).
-       - `[Khóa / Thu hồi]`: Thu hồi bản quyền ngay lập tức.
-     - Endpoint `PUT /api/v1/orders` hỗ trợ các action `extend` và `revoke` đồng bộ Realtime vào Cloud Database.
+- Current live version: **v10.2.28**
+- **Core Upgrades in v10.2.28**:
+  1. **Kế Thừa Tinh Túy State Machine & Feedback Loop Từ Tampermonkey**:
+     - Phân định lượt Giáo viên vs Học sinh theo thứ tự DOM thẻ huy hiệu (`compareDocumentPosition` giữa `teacherBadges` và `studentBadges`).
+     - Khi lượt cuối là Học sinh (`waiting_teacher`): Bot kiên nhẫn chờ giáo viên/AI chấm điểm, không spam lặp lại đáp án cũ.
+     - Phát hiện nhận xét/khiếu nại từ giáo viên (`isTeacherComplaint`):
+       - Nhận diện: "chưa đúng", "thử lại", "chưa chính xác", "lặp lại nhiều lần mà vẫn chưa tìm ra đáp án đúng", "điểm cần lưu ý là bạn đang tập trung vào", "thực chất đang hỏi về", "suy nghĩ lại",...
+       - Khi giáo viên chỉ ra lỗi: Tự động xóa sạch nội dung cũ trong textarea (`fillReactInput(ta, '')`), giải phóng cache hash câu hỏi để giải lại ngay lập tức.
+       - Tích hợp toàn bộ gợi ý/nhận xét của giáo viên và danh sách các câu trả lời sai trước đó vào Prompt của Gemini Flash-Lite với chỉ thị nghiêm ngặt: Tuyệt đối không lặp lại đáp án sai cũ, bám sát trọng tâm gợi ý của giáo viên.
 
-  2. **Bảo Mật Tuyệt Đối & Tự Động Hóa 100% Cho Khách Hàng (Zero Key Leakage)**:
-     - **Xóa vĩnh viễn nút "Đổi Key" và cửa sổ "Cấu hình key bản quyền"** (`showKeyConfigModal`) khỏi mã nguồn bot.
-     - Khách hàng không thể xem, sửa hoặc sao chép chuỗi mã key thô (`ENC_AI_...`).
-     - Key được đóng gói sẵn 100% bên trong nút Bookmarklet:
-       `javascript:(function(k){...})("ENC_AI_...")`.
-     - Khách hàng sau khi được Admin duyệt chỉ cần kéo nút Bookmarklet thả vào thanh dấu trang của trình duyệt và bấm chạy trên EduNext.
-     - Tool tự động nhận diện và lưu key vào `localStorage` ngầm, không hiện ô nhập, không cần thao tác thủ công.
-     - Trên EduNext HUD chỉ hiển thị thẻ trạng thái đọc (Read-Only):
-       - Còn hạn: `🔑 Bản Quyền: Đang Hoạt Động • Còn X ngày (Hết hạn: dd/mm/yyyy)` kèm huy hiệu `[ĐÃ KÍCH HOẠT]`.
-       - Hết hạn: `⛔ Bản Quyền: Đã Hết Hạn (Key đã tự hủy)` kèm huy hiệu `[ĐÃ TỰ HỦY]`.
-       - Tự hủy ngay lập tức khi `now > exp`: xóa sạch biến RAM và `localStorage`.
+  2. **Sửa Triệt Để Lỗi Vừa Vào Đã Báo "Hoàn Thành Toàn Bộ Bài Học"**:
+     - Loại bỏ việc quét toàn bộ trang `mainArea.innerText.toLowerCase()` (tránh việc trùng khớp với các từ khóa "hoàn thành bài học" trên thanh menu/breadcrumb hoặc lịch sử bài cũ).
+     - `isLessonEnded` chỉ kiểm tra duy nhất nội dung từ tin nhắn cuối cùng của giáo viên (`chatState.lastTeacherMsg`).
+     - Nếu còn câu hỏi mới (`looksLikeNewQuestion`) hoặc còn nút "Sẵn sàng", tuyệt đối không kích hoạt trạng thái hoàn thành.
 
-  3. **Chuẩn Hóa Ký Tự ASCII Trong Chuỗi Payload Mã Hóa**:
-     - Sử dụng nhãn `1 Tuan`, `1 Thang`, `1 Ky Hoc (4 Thang)` khi đóng gói vào payload `EXP|timestamp|plan|key`.
-     - Ngăn ngừa hiện tượng lệch byte khi giải mã XOR Base64 đối với ký tự Unicode tiếng Việt có dấu.
+  3. **Tự Động Nạp Key Vào Nút Kéo Bookmarklet (`/keo_bookmark.html`)**:
+     - Modal kích hoạt thành công tự động chuyển hướng sang `/keo_bookmark.html?key=${encodeURIComponent(licenseKey)}` và lưu ngầm vào `localStorage`.
+     - Script trên trang kéo bookmarklet tự động thay thế mã bookmarklet, nạp sẵn key vào payload: `javascript:(function(preKey){...})("ENC_AI_...")`.
+     - Sinh viên chỉ cần kéo nút Bookmarklet lên thanh dấu trang là chạy được ngay 100%, không cần biết key và không thể sao chép hay xem key thô.
+
+  4. **Xóa Vĩnh Viễn Modal Đổi Key & Ô Nhập Key Trên Client HUD (Zero Key Leakage)**:
+     - Gỡ bỏ hoàn toàn `showKeyConfigModal` và `enx-key-modal`.
+     - Client HUD 100% read-only, chỉ hiển thị trạng thái bản quyền (ĐÃ KÍCH HOẠT / ĐÃ TỰ HỦY), loại bỏ toàn bộ nút "Đổi Key", link sửa và ô input.
+
+  5. **Xử Lý Nút "Sẵn sàng" Tự Động Xuyên Suốt Mọi Chặng**:
+     - Tự động nhận diện tin nhắn mời chuyển phần và bấm nút `[Sẵn sàng]` trên mọi chặng bài học, không bị giới hạn chỉ ở lần chạy đầu tiên.
 
 ---
 
@@ -42,6 +38,6 @@ Completed At: 2026-11-11T14:57:00+07:00
 - **Directory**: `d:\BUISINESS\FPT service\`
 - **Production URL**: `https://fpt-studyhub.vercel.app` & `https://fpt-studyhub-onib.vercel.app`
 - **Admin Console**: `https://fpt-studyhub.vercel.app/admin`
-- **Converter URL**: `https://fpt-studyhub.vercel.app/converter.html`
+- **Drag Bookmarklet URL**: `https://fpt-studyhub.vercel.app/keo_bookmark.html`
 - **Beneficiary**: **Ngân hàng Quốc Tế (VIB)** • STK: **`858709070`** • Chủ TK: **`DIEP DAI PHU`**
 - **Admin Discord**: `https://discord.com/users/888713971161505832`
