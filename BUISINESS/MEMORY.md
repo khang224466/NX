@@ -1,25 +1,23 @@
 Created At: 2026-11-11T14:39:40+07:00
-Completed At: 2026-11-11T18:50:20+07:00
+Completed At: 2026-11-11T19:01:20+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.33 - Eliminate Admin Blocking Prompts, Auto-Unwrap ENC_AI Keys, 1-Click Order Approval)
+## Current Status (v10.2.34 - True Realtime Order Linking Between Landing & Admin, Stale Orders Purged, 1-Click Order Wipe)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.33**
-- **Core Upgrades in v10.2.33**:
-  1. **Xóa Bỏ Triệt Để Hộp Thoại Bắt Nhập Key Gây Khó Chịu & Lỗi Chặn `ENC_AI_`**:
-     - Đã gỡ bỏ 100% `window.prompt` và popup cảnh báo `❌ Lỗi định dạng Key: Key "ENC_AI_M..." không hợp lệ!`.
-     - Giờ đây Admin bấm **[Duyệt & Cấp Key]** là hệ thống duyệt ngay lập tức (1-click approve), không hỏi han lằng nhằng, không chặn bất kỳ định dạng nào.
+- Current live version: **v10.2.34**
+- **Core Upgrades in v10.2.34**:
+  1. **Liên Kết Đồng Bộ 100% Hai Chiều Giữa Màn Hình Khách Hàng & Trang Quản Trị Admin**:
+     - Khắc phục triệt để lỗi phân mảnh mã đơn: Khi học sinh mở Modal thanh toán, mã đơn `ORD-...` và mã chuyển khoản `PR...` được đồng nhất tuyệt đối giữa Client và Server (loại bỏ hoàn toàn việc server tự tạo mã lệch ngẫu nhiên).
+     - Khi học sinh mở modal thanh toán: Đơn lập tức xuất hiện trong danh sách Admin ở trạng thái `pending` (Chờ Chuyển Khoản).
+     - Khi học sinh bấm **[Tôi Đã Chuyển Khoản]**: Đơn lập tức chuyển sang `waiting_approval` (Chờ Admin Duyệt) với nút xanh `[Duyệt & Cấp Key]` sáng rực.
+     - Khi Admin bấm **[Duyệt & Cấp Key]**: Modal thanh toán của học sinh tự động kích hoạt, bắn pháo hoa Confetti và chuyển sang trang nhận Bookmarklet trong vòng 1-2 giây.
 
-  2. **Tự Động Mở Gói (Auto-Unwrap) Key Mã Hóa `ENC_AI_`**:
-     - Nếu Admin dán mã `ENC_AI_...` vào ô Master Key hoặc duyệt đơn: Hệ thống tự động bóc tách (unwrap) để lấy khóa Google Gemini ẩn bên trong (`AIza...` hoặc `AQ....`).
-     - Nếu không có key nhúng bên trong: Hệ thống vẫn chấp nhận bình thường và tự động sử dụng Cloud AI Engine (`process.env.GEMINI_API_KEY`) trên Vercel để phục vụ học sinh.
+  2. **Xóa Sạch Mọi Đơn Cũ / Luồng Cứng (Reset Danh Sách Trắng Tinh)**:
+     - Toàn bộ các đơn hàng cũ / rác (`ORD-74224794`, `ORD-12166413`, `ORD-31043373`) trên Cloud Database đã được dọn sạch về `0` (trắng tinh).
+     - Bổ sung nút **`[🗑️ Xóa Trắng Đơn Hàng]`** trực tiếp trên thanh công cụ Admin kèm API `DELETE /api/v1/orders` để Admin có thể tự reset toàn bộ danh sách trắng tinh bất cứ lúc nào chỉ với 1 click.
 
-  3. **Giao Diện Admin Thân Thiện & Linh Hoạt**:
-     - Hộp Master Gemini Key hiển thị trạng thái linh hoạt: Nhận cả `AIza...`, `AQ....`, `ENC_AI_...` hoặc trạng thái mặc định `⚡ Cloud AI Server`.
-     - Không bao giờ hiện thanh cảnh báo màu đỏ hay amber làm Admin bối rối.
-
-  4. **Cập Nhật Toàn Bộ Hệ Thống Bookmarklet & Server Lên v10.2.33**:
+  3. **Cập Nhật Đồng Bộ Toàn Bộ Hệ Thống Bookmarklet & Server Lên v10.2.34**:
      - Đồng bộ toàn diện: `public/keo_bookmark.html`, `src/lib/utils.ts` (`RAW_FN_BASE64`), `src/app/inject.js/route.ts`, `src/app/edunext.user.js/route.ts`, `public/bridge.html`, `src/app/api/v1/ai/solve/route.ts`.
 
 ---
