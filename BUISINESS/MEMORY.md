@@ -1,33 +1,25 @@
 Created At: 2026-11-11T13:43:57+07:00
-Completed At: 2026-11-11T14:02:00+07:00
+Completed At: 2026-11-11T14:24:45+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.24 - Triệt Tiêu Hoàn Toàn Luồng Cứng & Fake Orders, Master Gemini API Key Console, Realtime Cloud Sync 2 Web, Sửa Lỗi QR 220k)
+## Current Status (v10.2.25 - Instant Optimistic State, Auto-Upsert Orders, Quick Approve by Transfer Code PR..., 2s Realtime Sync)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.24**
-- **Core Upgrades in v10.2.24**:
-  1. **Triệt Tiêu 100% "Luồng Cứng" & Key Ảo Hỏng**:
-     - **Vấn đề đã khắc phục**: Trước đây khi Admin bấm duyệt đơn hoặc sinh key thủ công, hệ thống sử dụng chuỗi fallback cứng `'AIzaSyFPT_PRO_STUDYHUB_...'`. Đây là key giả, khiến bot sinh viên khi giải mã ra gọi Google Gemini bị lỗi `API_KEY_INVALID`.
+- Current live version: **v10.2.25**
+- **Core Upgrades in v10.2.25**:
+  1. **Khắc Phục Nút "Tôi Đã Chuyển Khoản — Báo Admin Duyệt Ngay"**:
+     - **Vấn đề đã khắc phục**: Trong ảnh chụp màn hình, khi người mua bấm nút này, modal không đổi trạng thái nếu request tạo đơn trước đó bị chậm hoặc trả về 404, khiến đơn hàng không được ghi nhận sang web Admin.
      - **Giải pháp**:
-       - Thêm ô cấu hình **Master Google Gemini API Key** ngay trên đầu trang Admin (`/admin`), tự động lưu trên `localStorage` máy Admin.
-       - Khi Admin bấm `[Duyệt & Cấp Key]`, API nhận `apiKey` thực tế này và mã hóa chuẩn xác vào token `EXP|timestamp|duration|apiKey`.
-       - Sinh viên mở Bookmarklet/Assistant nhận được key thật, gọi trực tiếp Gemini Flash-Lite thành công 100%.
-  2. **Đồng Bộ Dữ Liệu Thời Gian Thực Giữa 2 Web (Khách Mua <-> Admin)**:
-     - Khắc phục sự cố không đồng bộ giữa các instance Serverless và giữa 2 domain (`fpt-studyhub-onib.vercel.app` & `fpt-studyhub.vercel.app`).
-     - Tầng Persistent Cloud Sync Store (`https://api.restful-api.dev/objects/ff808181a09d98f701a1c947378e0537`) kết nối trực tiếp.
-     - `GET /api/v1/orders` và `CheckoutModal` polling mỗi 3 giây với `?t=${Date.now()}` và `Cache-Control: no-cache, no-store`.
-     - Khi Admin duyệt đơn, modal khách hàng lập tức kích hoạt pháo hoa (confetti) và mở khóa Bookmarklet.
-  3. **Khắc Phục Hoàn Toàn Lỗi Mã QR 220.000₫**:
-     - Đã tìm ra nguyên nhân tệp `qr_220k.png` trước đây bị lỗi hiển thị: curl không theo dõi redirect (-L) nên lưu trang HTML 301 (167 bytes).
-     - Đã tải lại tệp nhị phân PNG chuẩn xác 50.671 bytes và cấu hình kèm `qr_220k.svg` với fallback `onError` trực tiếp từ VietQR API.
-  4. **Triệt Tiêu Toàn Bộ Đơn Hàng Mẫu & Số Liệu Ảo**:
-     - Xóa bỏ triệt để các đơn hàng fake (`ORD-4219`, `ORD-9104`, `ORD-8821`).
-     - Các chỉ số trên Admin (Doanh thu, Khách hàng, Đơn chờ) được tính toán 100% từ đơn hàng thực tế trên Cloud Store.
-  5. **Auto Engine EduNext v10.2.24**:
-     - Tự động phát hiện câu hỏi, gửi Gemini Flash-Lite giải bài.
-     - Tự động nhận diện nhận xét / gợi ý sửa sai của giáo viên trong khung chat để tự động đổi đáp án đúng (không lặp lại đáp án cũ bị từ chối).
-     - Khóa giới hạn 1 môn / 1 bài / tuần và giới hạn số môn theo gói bản quyền.
+       - `CheckoutModal.tsx` khởi tạo ngay mã đơn và mã chuyển khoản `PR...` dự phòng tức thì khi modal mở ra (đảm bảo `order` không bao giờ null).
+       - Chuyển trạng thái giao diện lạc quan (optimistic UI) ngay lập tức: Nút bấm chuyển sang hộp thông báo màu vàng `Đang Chờ Admin Duyệt Đơn & Cấp Key Bản Quyền...`.
+       - Trong API `PUT /api/v1/orders`: Cơ chế **Auto-Upsert** tự động tạo đơn hàng mới với mã chuyển khoản `PR...` và trạng thái `waiting_approval` nếu đơn chưa có trong kho dữ liệu, đảm bảo 100% không bao giờ bị lỗi 404 hoặc mất đơn.
+  2. **Thêm Thanh Duyệt Nhanh Theo Mã CK Trên Trang Admin (`/admin`)**:
+     - Admin chỉ cần nhập mã chuyển khoản (ví dụ: `PR7874`) vào thanh **Duyệt nhanh theo Mã CK** và bấm `[Duyệt & Cấp Key Ngay]`.
+     - Hệ thống tự động tìm đơn hoặc tạo mới và cấp key có chứa Master Gemini API Key tức thì trong 1 click.
+     - Tăng tần suất đồng bộ tự động lên **2 giây/lần** (2s realtime polling) kèm `?t=${Date.now()}`.
+  3. **Auto Engine EduNext v10.2.25**:
+     - Nhận diện lời nhắc / sửa sai của giáo viên, tự động đổi sang đáp án đúng.
+     - Giới hạn 1 bài/môn/tuần và hạn mức số lượng môn theo gói.
 
 ---
 
