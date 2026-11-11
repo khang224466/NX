@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const minified = fs.readFileSync('d:/BUISINESS/v10_2_20_minified.js', 'utf8').trim();
+const minified = fs.readFileSync('d:/BUISINESS/v10_2_21_minified.js', 'utf8').trim();
 // Prepend javascript:(function e(e){...})("");
 const inlineHref = 'javascript:(' + minified + ')("");';
 
@@ -10,7 +10,7 @@ const html = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cầm Bookmark Kéo Lên Bấm Vô Là Chạy — EduNext AI Pro v10.2.20</title>
+  <title>Cầm Bookmark Kéo Lên Bấm Vô Là Chạy — EduNext AI Pro v10.2.21</title>
   <link rel="icon" href="https://fpt-studyhub.vercel.app/favicon.ico">
   <style>
     * {
@@ -233,12 +233,12 @@ const html = `<!DOCTYPE html>
 <body>
 
   <div class="container">
-    <div class="badge">⚡ EduNext AI Assistant Pro v10.2.20 (Mới Nhất)</div>
+    <div class="badge">⚡ EduNext AI Assistant Pro v10.2.21 (Mới Nhất)</div>
 
     <div class="why-notice">
       🔍 <strong>GIẢI THÍCH TẠI SAO KÉO TRÊN WEB CŨ VẪN LÀ v10.2.12:</strong><br>
       Trang web <code>https://fpt-studyhub.vercel.app</code> của bạn là bản deploy từ 4 ngày trước và <strong>chưa được cập nhật lại</strong> (trong ảnh của bạn vẫn hiện v10.2.4).<br>
-      👉 Nút màu xanh to bên dưới đã được nạp <strong>100% mã nguồn v10.2.20 MỚI NHẤT</strong>: Tự động phát hiện câu hỏi hiện lên mới chụp giải, triệt tiêu hoàn toàn lỗi spam "Sẵn sàng"!
+      👉 Nút màu xanh to bên dưới đã được nạp <strong>100% mã nguồn v10.2.21 MỚI NHẤT</strong>: Tự động phát hiện câu hỏi hiện lên mới chụp giải, triệt tiêu hoàn toàn lỗi spam "Sẵn sàng"!
     </div>
 
     <h1>Cầm Kéo Nút Này Lên <span>Thanh Dấu Trang</span> Là Xong!</h1>
@@ -258,7 +258,7 @@ const html = `<!DOCTYPE html>
         onclick="handleBtnClick(event)"
       >
         <span>⚡</span>
-        <span>KÉO NÚT NÀY LÊN THANH BOOKMARK (v10.2.20)</span>
+        <span>KÉO NÚT NÀY LÊN THANH BOOKMARK (v10.2.21)</span>
       </a>
     </div>
 
@@ -285,14 +285,14 @@ const html = `<!DOCTYPE html>
     </div>
   </div>
 
-  <div id="toast" class="toast">✓ Đã sao chép mã Bookmarklet v10.2.20!</div>
+  <div id="toast" class="toast">✓ Đã sao chép mã Bookmarklet v10.2.21!</div>
 
   <script>
     const INLINE_CODE = PLACEHOLDER_INLINE;
     document.getElementById("main-bookmark-btn").setAttribute("href", INLINE_CODE);
 
     function handleBtnClick(e) {
-      alert("👉 Bạn hãy dùng chuột GIỮ VÀ KÉO NÚT NÀY THẢ LÊN THANH DẤU TRANG (Bookmarks Bar) ở phía trên trình duyệt nhé!\\n\\nSau khi kéo lên xong, sang tab EduNext bấm vô là chạy v10.2.20!");
+      alert("👉 Bạn hãy dùng chuột GIỮ VÀ KÉO NÚT NÀY THẢ LÊN THANH DẤU TRANG (Bookmarks Bar) ở phía trên trình duyệt nhé!\\n\\nSau khi kéo lên xong, sang tab EduNext bấm vô là chạy v10.2.21!");
     }
 
     function copyInlineCode() {
@@ -310,4 +310,4 @@ const html = `<!DOCTYPE html>
 const finalHtml = html.replace('PLACEHOLDER_INLINE', JSON.stringify(inlineHref));
 fs.writeFileSync('d:/BUISINESS/keo_bookmark_edunext.html', finalHtml, 'utf8');
 fs.writeFileSync('d:/BUISINESS/FPT service/public/keo_bookmark.html', finalHtml, 'utf8');
-console.log('Successfully built keo_bookmark_edunext.html with inline v10.2.20!');
+console.log('Successfully built keo_bookmark_edunext.html with inline v10.2.21!');

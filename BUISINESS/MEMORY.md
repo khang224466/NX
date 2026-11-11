@@ -1,28 +1,36 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.20 - Subject Quota Limiter & 1-Lesson Per Course Per Week Enforcement)
+## Current Status (v10.2.21 - Dual Auto-Engine DOM+Vision & Converter Key Expiration Engine)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.20**
-- **Core Upgrades in v10.2.20**:
-  1. **Khóa Giới Hạn 1 Tuần Chỉ Được Làm 1 Bài Cho Mỗi Môn**:
-     - Nhận diện chính xác môn học từ URL (`/course/...`, `/session/...`) và mã môn FPT (`CSD201`, `MAS291`, `PRN211`, `SWT301`, `DBI202`, ...).
-     - Khi một bài học của môn được hoàn thành: Hệ thống ghi nhận lịch sử và khóa vĩnh viễn quyền làm bài tiếp theo của môn đó trong 7 ngày (`7 * 24 * 3600 * 1000` ms).
-     - Nếu học sinh cố tình mở bài khác của cùng môn đó trong tuần: Bot lập tức cảnh báo đỏ `⛔ Môn [...] đã làm 1 bài trong tuần này! Giới hạn bản quyền: Mỗi môn chỉ được làm 1 bài/tuần`, đồng thời tắt Auto và chặn mọi thao tác giải/nộp.
-  2. **Kiểm Soát Đúng Số Lượng Môn Theo Gói Bản Quyền**:
-     - Gói 1 Tuần: Tối đa 3 môn học.
-     - Gói 1 Tháng: Tối đa 5 môn học.
-     - Gói 1 Kỳ Học: Tối đa 6 môn học (toàn bộ chương trình kỳ).
-     - Khi số môn kích hoạt vượt quá giới hạn gói: Chặn không cho giải môn mới và yêu cầu nâng cấp gói.
-  3. **Đồng Bộ Toàn Bộ Hệ Thống & Vercel**:
-     - Đã build và cập nhật `build_v10_2_20.js`, `v10_2_20_minified.js`, `bookmarklet_v10_2_20.txt`, `utils.ts`, `keo_bookmark_edunext.html`, `public/keo_bookmark.html`.
-     - Pushed to `khang224466/fpt-studyhub@main` (commit `b09b18b`) và `khang224466/NX@main` (commit `499323e`).
+- Current live version: **v10.2.21**
+- **Core Upgrades in v10.2.21**:
+  1. **Dual Auto-Engine (Tự Động 100% Không Cần Bấm Chia Sẻ Màn Hình)**:
+     - Tích hợp bộ quét câu hỏi trực tiếp từ DOM EduNext (`extractDomQuestionText`).
+     - Tự động nhận diện câu hỏi mới từ bài tập / tin nhắn giảng viên trong DOM, gọi Gemini Flash-Lite giải và nộp bài liên tục.
+     - Sinh viên kéo bookmarklet lên và bấm là bot tự động chạy, không bắt buộc phải bấm chia sẻ màn hình. Nếu có chia sẻ màn hình, bot dùng thêm Vision Multimodal để giải cả hình ảnh / đồ thị phức tạp.
+  2. **Giải Quyết Vấn Đề Thời Hạn Key Gốc (Không Cần Dùng Groq)**:
+     - **Vấn đề**: Google AI Studio Key (`AIzaSy...`) không có hạn dùng trên máy chủ Google; Groq không hỗ trợ model Vision tiếng Việt mạnh như Gemini Flash-Lite.
+     - **Giải pháp 2 tầng**:
+       - *Tầng 1 (Mã hóa Client Token trên `converter.html`)*: Nhúng gói và timestamp `EXP|{timestamp}|{plan}|{key}` vào token `ENC_AI_...`. Bot EduNext giải mã trong RAM, kiểm tra `Date.now() > exp`. Khi hết hạn, bot lập tức khóa, hủy key trong storage và từ chối gọi API. 99% sinh viên không thể can thiệp.
+       - *Tầng 2 (Cloud AI Proxy / Key Tự Hủy)*: Sinh viên chỉ nhận License Token, gọi qua server proxy `/api/v1/ai/solve`. Server giữ API key gốc an toàn, kiểm tra hạn dùng ở server. Khi hết hạn, server trả về `403 Forbidden`. Key gốc không bao giờ lộ ra ngoài.
+  3. **Nâng Cấp Trang Chuyển Đổi Key Có Thời Hạn ([/converter.html](file:///d:/BUISINESS/FPT%20service/public/converter.html))**:
+     - Thêm các tùy chọn thời hạn: **1 Tuần (7 Ngày)**, **1 Tháng (30 Ngày)**, **4 Tháng (1 Kỳ Học / 120 Ngày)**, và **Vĩnh Viễn**.
+     - Tích hợp công cụ giải mã / kiểm tra hạn dùng ngay trên trang.
+  4. **Cơ Chế Khóa Môn Học & Khóa Bài Chuẩn Xác**:
+     - Nhận diện môn học theo Mã môn FPT (`CSD201`, `MAS291`, `PRN211`, ...) thay vì theo từng URL slot/session, tránh bị đếm nhầm nhiều lần.
+     - Mỗi môn học chỉ được hoàn thành 1 bài trong vòng 7 ngày. Khi hoàn thành bài học, môn đó bị khóa trong 7 ngày.
 
 ---
 
-## Previous Status (v10.2.19 - Expiration Engine, MBBank QR, Discord Admin & Interactive Video Trailer)
-- Current live version: **v10.2.19**
-- QR MBBank: 151010042005 (DIEP DAI PHU)
-- Discord Admin: https://discord.com/users/888713971161505832
-- Key Expiration: EXP|timestamp|plan|key
-- DemoVideoTrailer.tsx live on landing page.
-- Khảo Thí & SEB placeholder Sắp Ra Mắt.
+## Previous Status (v10.2.20 - Subject Quota Limiter & 1-Lesson Per Course Per Week)
+- Current live version: **v10.2.20**
+- Khóa 1 bài / môn / tuần.
+- Giới hạn số lượng môn kích hoạt theo gói.
+
+---
+
+## FPT Study Hub — Nền Tảng Hỗ Trợ Học Tập & Thi Cử FPT (EduNext • Khảo Thí • SEB)
+- **Directory**: `d:\BUISINESS\FPT service\`
+- **Production URL**: `https://fpt-studyhub-onib.vercel.app` & `https://fpt-studyhub.vercel.app`
+- **Converter URL**: `https://fpt-studyhub.vercel.app/converter.html`
+- **Tech Stack**: Next.js 16 (App Router, Turbopack, TypeScript strict), React 19, Tailwind CSS v4, Lucide Icons.
