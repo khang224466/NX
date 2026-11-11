@@ -1,30 +1,26 @@
 Created At: 2026-11-11T14:39:40+07:00
-Completed At: 2026-11-11T18:30:00+07:00
+Completed At: 2026-11-11T18:50:20+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.32 - Google AI Studio "AQ." Auth Key Official Support, Multi-Layer Cloud Fallback & Unblocked Admin Validation)
+## Current Status (v10.2.33 - Eliminate Admin Blocking Prompts, Auto-Unwrap ENC_AI Keys, 1-Click Order Approval)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.32**
-- **Core Upgrades in v10.2.32**:
-  1. **Hỗ Trợ Toàn Diện Định Dạng Key Mới "AQ." của Google AI Studio (Auth Keys)**:
-     - Google AI Studio đã chính thức chuyển sang sinh các khóa Authorization Keys bắt đầu bằng `AQ.` (Auth Keys gắn với Service Account bảo mật cao) thay thế định dạng cũ `AIza...`.
-     - Toàn bộ hệ thống (`admin/page.tsx`, `converter.html`, `bridge.html`, `cryptoKey.ts`, Bookmarklet HUD) đã dỡ bỏ hoàn toàn cảnh báo/chặn sai lầm trước đó. Hỗ trợ song song cả hai chuẩn: `AQ....` và `AIzaSy...`.
-     - Cầu Nối `bridge.html` truyền chuẩn xác header `x-goog-api-key: [key]` và query param `?key=[key]` theo tài liệu chính thức của Google.
+- Current live version: **v10.2.33**
+- **Core Upgrades in v10.2.33**:
+  1. **Xóa Bỏ Triệt Để Hộp Thoại Bắt Nhập Key Gây Khó Chịu & Lỗi Chặn `ENC_AI_`**:
+     - Đã gỡ bỏ 100% `window.prompt` và popup cảnh báo `❌ Lỗi định dạng Key: Key "ENC_AI_M..." không hợp lệ!`.
+     - Giờ đây Admin bấm **[Duyệt & Cấp Key]** là hệ thống duyệt ngay lập tức (1-click approve), không hỏi han lằng nhằng, không chặn bất kỳ định dạng nào.
 
-  2. **Cơ Chế Multi-Layer Cloud AI Fallback Thông Minh (Không Bao Giờ Chết Bài)**:
-     - Nếu key của sinh viên hoặc dự án GCP gặp lỗi quyền (`401 ACCESS_TOKEN_TYPE_UNSUPPORTED` do dự án GCP chưa bật Generative Language API hoặc lỗi mạng):
-     - Cầu nối AI Bridge không dừng lại mà lập tức chuyển tiếp bài tập qua Cloud Engine dự phòng (`/api/v1/ai/solve`).
-     - Cloud Engine thử tuần tự: Key học sinh $\rightarrow$ Master Key server Vercel (`process.env.GEMINI_API_KEY`) $\rightarrow$ Groq LPU $\rightarrow$ Bộ giải Heuristic Offline. Sinh viên được đảm bảo 100% luôn nhận được đáp án chính xác!
+  2. **Tự Động Mở Gói (Auto-Unwrap) Key Mã Hóa `ENC_AI_`**:
+     - Nếu Admin dán mã `ENC_AI_...` vào ô Master Key hoặc duyệt đơn: Hệ thống tự động bóc tách (unwrap) để lấy khóa Google Gemini ẩn bên trong (`AIza...` hoặc `AQ....`).
+     - Nếu không có key nhúng bên trong: Hệ thống vẫn chấp nhận bình thường và tự động sử dụng Cloud AI Engine (`process.env.GEMINI_API_KEY`) trên Vercel để phục vụ học sinh.
 
-  3. **Mở Khóa Toàn Diện Trang Quản Trị `/admin` & Máy Chuyển Đổi `converter.html`**:
-     - Admin có thể tự do nhập Master Key hoặc duyệt đơn bằng cả key `AQ.` lẫn `AIzaSy`.
-     - Máy chuyển đổi `converter.html` cho phép đóng gói key `AQ.` thành `ENC_AI_` có thời hạn (1 tuần, 1 tháng, 1 kỳ) chuẩn xác.
+  3. **Giao Diện Admin Thân Thiện & Linh Hoạt**:
+     - Hộp Master Gemini Key hiển thị trạng thái linh hoạt: Nhận cả `AIza...`, `AQ....`, `ENC_AI_...` hoặc trạng thái mặc định `⚡ Cloud AI Server`.
+     - Không bao giờ hiện thanh cảnh báo màu đỏ hay amber làm Admin bối rối.
 
-  4. **Cập Nhật Đồng Bộ Mã Nguồn Bookmarklet v10.2.32**:
-     - Đồng bộ toàn diện: `public/keo_bookmark.html`, `src/lib/utils.ts` (`RAW_FN_BASE64`), `src/app/inject.js/route.ts`, `src/app/edunext.user.js/route.ts`.
-     - Quản lý hạn mức chuẩn xác: 3 bài / tuần cho mọi môn học và mọi gói bản quyền.
-     - Giao diện HUD 100% không lộ key thô (zero-leak), tự hủy khi hết hạn.
+  4. **Cập Nhật Toàn Bộ Hệ Thống Bookmarklet & Server Lên v10.2.33**:
+     - Đồng bộ toàn diện: `public/keo_bookmark.html`, `src/lib/utils.ts` (`RAW_FN_BASE64`), `src/app/inject.js/route.ts`, `src/app/edunext.user.js/route.ts`, `public/bridge.html`, `src/app/api/v1/ai/solve/route.ts`.
 
 ---
 
