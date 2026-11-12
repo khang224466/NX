@@ -4,7 +4,7 @@ const terser = require(path.join(__dirname, 'FPT service', 'node_modules', 'next
 
 function bookmarkletFunction(preKey) {
   try {
-    var CURRENT_VERSION = 'v10.2.39';
+    var CURRENT_VERSION = 'v10.2.40';
 
     // 1. NẾU CÙNG PHIÊN BẢN VÀ ĐÃ CÓ HUD THÌ CHỈ ẨN / HIỆN
     if (window.__ENX_PRO_HUD__ && window.__ENX_VERSION__ === CURRENT_VERSION) {
@@ -1133,6 +1133,83 @@ function bookmarkletFunction(preKey) {
     // TRÍCH XUẤT NGỮ CẢNH CHAT & PHÂN ĐỊNH LƯỢT HỌC SINH / GIÁO VIÊN
     // (LẤY NGUYÊN BẢN TINH TÚY TỪ TAMPERMONKEY v10.1.4: HUY HIỆU & VỊ TRÍ DOM)
     // =========================================================================
+    
+    function cleanQuestionText(raw) {
+      if (!raw) return '';
+      var t = raw.replace(/\r\n/g, '\n');
+      var qIdx = t.search(/(?:câu\s*hỏi|question|bài\s*sau)\s*:/i);
+      if (qIdx !== -1) {
+        t = t.slice(qIdx);
+      }
+      t = t.replace(/[0-9a-f]{20,}/gi, '');
+      t = t.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '');
+      t = t.replace(/(?:Feedback|Sửa công thức(?:\s*\(\d+\))?|Đã chấm bằng AI|INT:\s*\w+)/gi, '');
+      return t.trim();
+    }
+
+    function hashQuestion(str) {
+      if (!str) return '';
+      var core = str.replace(/\s+/g, ' ').toLowerCase().trim();
+      var sample = core.slice(0, 150);
+      var h = 0;
+      for (var i = 0; i < sample.length; i++) {
+        h = ((h << 5) - h) + sample.charCodeAt(i);
+        h |= 0;
+      }
+      return 'Q_' + Math.abs(h).toString(36) + '_' + sample.slice(0, 25);
+    }
+
+    function extractActiveQuestion(lastStudent) {
+      try {
+        var allQuestionElements = Array.from(document.querySelectorAll('*')).filter(function(el) {
+          if (el.closest('#enx-pro-hud')) return false;
+          var t = (el.innerText || '').trim();
+          if (!t) return false;
+          return /^(?:câu\s*hỏi|question|bài\s*sau)\s*:/i.test(t) || /(?:^|\n)\s*(?:câu\s*hỏi|question|bài\s*sau)\s*:/i.test(t);
+        });
+
+        var candidatesAfterStudent = [];
+        if (lastStudent && allQuestionElements.length > 0) {
+          candidatesAfterStudent = allQuestionElements.filter(function(el) {
+            return (el.compareDocumentPosition(lastStudent) & Node.DOCUMENT_POSITION_PRECEDING);
+          });
+        }
+
+        var targetEl = null;
+        if (candidatesAfterStudent.length > 0) {
+          targetEl = candidatesAfterStudent[candidatesAfterStudent.length - 1];
+        } else if (allQuestionElements.length > 0) {
+          targetEl = allQuestionElements[allQuestionElements.length - 1];
+        }
+
+        if (targetEl) {
+          var cur = targetEl;
+          var best = cur;
+          for (var depth = 0; depth < 6; depth++) {
+            if (!cur || cur === document.body) break;
+            var txt = (cur.innerText || '').trim();
+            if (txt.includes('Trả lời:') || txt.includes('đáp án') || txt.length > 60) {
+              best = cur;
+              if (txt.includes('Trả lời:')) break;
+            }
+            cur = cur.parentElement;
+          }
+          return cleanQuestionText(best.innerText || targetEl.innerText);
+        }
+
+        var qBlocks = Array.from(document.querySelectorAll('.exercise-question-block, [class*="exercise-question"], [class*="question-content"], .question-title, [class*="question-box"]')).filter(function(el) {
+          return !el.closest('#enx-pro-hud') && (el.innerText || '').trim().length > 8;
+        });
+        if (lastStudent && qBlocks.length > 0) {
+          var after = qBlocks.filter(function(el) {
+            return (el.compareDocumentPosition(lastStudent) & Node.DOCUMENT_POSITION_PRECEDING);
+          });
+          if (after.length > 0) return cleanQuestionText(after[after.length - 1].innerText);
+        }
+        if (qBlocks.length > 0) return cleanQuestionText(qBlocks[qBlocks.length - 1].innerText);
+      } catch(e) {}
+      return '';
+    }
     function getLatestChatState() {
       try {
         // 1. Quét toàn bộ huy hiệu của học sinh (nhãn "Học sinh" hoặc avatar/bên phải)
@@ -1369,7 +1446,8 @@ function bookmarkletFunction(preKey) {
       }
 
       // 6. XÁC ĐỊNH CÂU HỎI & PHẢN HỒI SỬA SAI (FEEDBACK)
-      var questionText = chatState.questionBlockText || teacherText || '';
+      var activeQ = extractActiveQuestion(chatState.lastStudentBadge);
+      var questionText = activeQ || chatState.questionBlockText || teacherText || '';
       var hasVision = !!(visionScreenStream && visionScreenStream.getVideoTracks().some(function(t) { return t.readyState === 'live'; }));
       var shot = hasVision ? capturePersistentVisionFrame() : null;
 
@@ -1384,7 +1462,7 @@ function bookmarkletFunction(preKey) {
       }
 
       var isComplaint = isTeacherComplaint(teacherText);
-      var questionSignature = (questionText.slice(0, 150)) + '||' + (teacherText ? teacherText.slice(-100) : '');
+      var questionSignature = hashQuestion(questionText);
 
       // Nếu câu hỏi trùng chữ ký VÀ giáo viên KHÔNG phàn nàn/sửa sai -> Đã giải rồi, chờ câu mới
       if (questionSignature === lastSolvedHash && !isComplaint && !isForced) {
