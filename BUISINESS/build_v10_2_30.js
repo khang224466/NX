@@ -4,7 +4,7 @@ const terser = require(path.join(__dirname, 'FPT service', 'node_modules', 'next
 
 function bookmarkletFunction(preKey) {
   try {
-    var CURRENT_VERSION = 'v10.2.30';
+    var CURRENT_VERSION = 'v10.2.39';
 
     // 1. NẾU CÙNG PHIÊN BẢN VÀ ĐÃ CÓ HUD THÌ CHỈ ẨN / HIỆN
     if (window.__ENX_PRO_HUD__ && window.__ENX_VERSION__ === CURRENT_VERSION) {
@@ -1277,14 +1277,13 @@ function bookmarkletFunction(preKey) {
     }
 
     function isLessonEnded(text) {
-      if (!text) return false;
-      // Nếu có câu hỏi hoặc bài tập hoặc lời nhắc sẵn sàng -> Chưa thể kết thúc!
-      if (looksLikeNewQuestion(text)) return false;
-      if (/sẵn\s*sàng\s*chuyển\s*sang|bạn\s*đã\s*sẵn\s*sàng|are\s*you\s*ready|ready\s*to\s*move\s*on|sẵn\s*sàng\s*chưa/i.test(text)) return false;
-      
-      // Khớp các mẫu câu kết thúc buổi học chính thức
-      if (/chúc\s*mừng.{0,60}(?:hoàn\s*thành|kết\s*thúc).{0,40}(?:buổi\s*học|bài\s*học|khóa\s*học)|(?:buổi\s*học|bài\s*học|khóa\s*học).{0,40}(?:đã\s*hoàn\s*thành|đã\s*kết\s*thúc)|congratulations.{0,80}(?:completed|finished).{0,60}(?:lesson|session|course)/i.test(text)) return true;
-      if (/hẹn\s*gặp\s*(?:em|bạn).{0,20}(?:buổi|bài|chặng)\s*tiếp\s*theo/i.test(text)) return true;
+      var allBody = (text || '') + ' ' + (typeof document !== 'undefined' && document.body ? document.body.innerText : '');
+      if (/chúc\s*mừng\s*(?:em|bạn)?\s*hoàn\s*thành\s*buổi\s*học/i.test(allBody)) return true;
+      if (/điểm\s*buổi\s*học\s*:\s*\d+\s*\/\s*\d+/i.test(allBody)) return true;
+      if (/hẹn\s*gặp\s*(?:em|bạn).{0,30}buổi\s*học\s*tiếp\s*theo/i.test(allBody)) return true;
+      if (/chúc\s*mừng.{0,60}(?:hoàn\s*thành|kết\s*thúc).{0,40}(?:buổi\s*học|bài\s*học|khóa\s*học)/i.test(allBody)) return true;
+      if (/(?:buổi\s*học|bài\s*học|khóa\s*học).{0,40}(?:đã\s*hoàn\s*thành|đã\s*kết\s*thúc)/i.test(allBody)) return true;
+      if (/congratulations.{0,80}(?:completed|finished).{0,60}(?:lesson|session|course)/i.test(allBody)) return true;
       return false;
     }
 
