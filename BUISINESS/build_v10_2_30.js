@@ -1171,7 +1171,7 @@ function bookmarkletFunction(preKey) {
         var candidatesAfterStudent = [];
         if (lastStudent && allQuestionElements.length > 0) {
           candidatesAfterStudent = allQuestionElements.filter(function(el) {
-            return (el.compareDocumentPosition(lastStudent) & Node.DOCUMENT_POSITION_PRECEDING);
+            return (el.compareDocumentPosition(lastStudent) & Node.DOCUMENT_POSITION_FOLLOWING);
           });
         }
 
@@ -1202,7 +1202,7 @@ function bookmarkletFunction(preKey) {
         });
         if (lastStudent && qBlocks.length > 0) {
           var after = qBlocks.filter(function(el) {
-            return (el.compareDocumentPosition(lastStudent) & Node.DOCUMENT_POSITION_PRECEDING);
+            return (el.compareDocumentPosition(lastStudent) & Node.DOCUMENT_POSITION_FOLLOWING);
           });
           if (after.length > 0) return cleanQuestionText(after[after.length - 1].innerText);
         }

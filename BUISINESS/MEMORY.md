@@ -5,7 +5,7 @@ Completed At: 2026-11-12T07:54:00+07:00
 
 ## Current Status (v10.2.40 - Bulletproof Next-Question Tracking via DOM Slicing & 100% Cloaked Admin-Only API Key)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.40**
+- Current live version: **v10.2.41**
 - **Core Upgrades in v10.2.40**:
   1. **Khắc Phục Triệt Để Lỗi Không Track Được Câu 2 / Câu Tiếp Theo**:
      - *Nguyên nhân*: Hàm cũ dùng `document.querySelector` để tìm khối câu hỏi -> luôn luôn trả về Câu 1 ở đầu trang! Khi sang Câu 2, chữ ký `questionSignature` bị tính theo Câu 1 nên trùng với `lastSolvedHash`, khiến bot tưởng đã giải rồi và đứng chờ ở trạng thái `⏳ Đang theo dõi khi nào có câu hỏi mới...`.
