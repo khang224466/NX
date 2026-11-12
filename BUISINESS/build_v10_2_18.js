@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const terser = require(path.join(__dirname, '..', 'node_modules', 'next', 'dist', 'compiled', 'terser'));
+const terser = require(path.join(__dirname, 'FPT service', 'node_modules', 'next', 'dist', 'compiled', 'terser'));
 
 function bookmarkletFunction(preKey) {
   try {
