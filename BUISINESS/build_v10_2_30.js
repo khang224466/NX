@@ -4,7 +4,7 @@ const terser = require(path.join(__dirname, 'FPT service', 'node_modules', 'next
 
 function bookmarkletFunction(preKey) {
   try {
-    var CURRENT_VERSION = 'v10.2.40';
+    var CURRENT_VERSION = 'v10.2.41';
 
     // 1. NẾU CÙNG PHIÊN BẢN VÀ ĐÃ CÓ HUD THÌ CHỈ ẨN / HIỆN
     if (window.__ENX_PRO_HUD__ && window.__ENX_VERSION__ === CURRENT_VERSION) {
@@ -376,6 +376,44 @@ function bookmarkletFunction(preKey) {
       bodyBox.appendChild(vBox);
 
       // 5. NÚT CHỤP & GIẢI THỦ CÔNG + NÚT TOGGLE AUTO
+  // ------------------------------
+  // Function: detect if lesson is completed (e.g., a banner with text "Hoàn thành buổi học")
+  function detectLessonCompleted() {
+    // Look for a typical completion banner or button
+    var elems = document.querySelectorAll('div, span, button');
+    for (var i = 0; i < elems.length; i++) {
+      var txt = elems[i].textContent || '';
+      if (/Hoàn thành buổi học/i.test(txt)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Function: emit solve click (already defined earlier, kept for reference)
+  // function emitSolveClick() { ... }
+
+  // Update runAutoCycle to stop when lesson completed
+  var originalRunAutoCycle = runAutoCycle;
+  function runAutoCycle(isManual) {
+    // Stop if lesson completed
+    if (detectLessonCompleted()) {
+      log('info', '✅ Buổi học đã hoàn thành → Dừng Auto.');
+      // Clear timer
+      if (window.__ENX_AUTO_TIMER__) {
+        clearInterval(window.__ENX_AUTO_TIMER__);
+        window.__ENX_AUTO_TIMER__ = null;
+      }
+      isAuto = false;
+      // Update HUD auto status if present
+      var autoStatus = document.getElementById('enx-auto-status');
+      if (autoStatus) autoStatus.textContent = 'Auto: TẮT (Hoàn thành)';
+      return; // Do nothing more
+    }
+    // Existing logic (call original if needed)
+    originalRunAutoCycle(isManual);
+  }
+
       var actRow = document.createElement('div');
       actRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
 
