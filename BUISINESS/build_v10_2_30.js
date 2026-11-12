@@ -209,6 +209,19 @@ function bookmarkletFunction(preKey) {
     titleBox.appendChild(titleText);
     hd.appendChild(titleBox);
 
+    // Auto status and countdown UI
+    var autoStatus = document.createElement('span');
+    autoStatus.id = 'enx-auto-status';
+    autoStatus.style.cssText = 'font-size:10px;color:#10b981;font-weight:600;margin-left:12px;';
+    autoStatus.textContent = isAuto ? 'Auto: BẬT' : 'Auto: TẮT';
+    hd.appendChild(autoStatus);
+
+    var countdownElem = document.createElement('span');
+    countdownElem.id = 'enx-countdown';
+    countdownElem.style.cssText = 'font-size:10px;color:#fbbf24;margin-left:8px;font-weight:600;';
+    countdownElem.textContent = '(35s)';
+    hd.appendChild(countdownElem);
+
     var actBox = document.createElement('div');
     actBox.style.cssText = 'display:flex;align-items:center;gap:4px;';
 
@@ -1565,6 +1578,11 @@ function bookmarkletFunction(preKey) {
             ab2.textContent = '⏸ Auto: TẮT';
             ab2.style.background = 'rgba(100,116,139,0.2)';
           }
+          // Cập nhật UI khi hoàn thành
+          var asElem = document.getElementById('enx-auto-status');
+          if (asElem) asElem.textContent = 'Auto: TẮT (Hoàn thành)';
+          var cdElem = document.getElementById('enx-countdown');
+          if (cdElem) cdElem.textContent = '✅';
           isSubmitting = false;
           return;
         }
@@ -1596,14 +1614,26 @@ function bookmarkletFunction(preKey) {
     d.appendChild(bodyBox);
     renderBody();
 
-    // VÒNG LẶP TỰ ĐỘNG CHẠY (MỖI 3 GIÂY)
+    // BỘ ĐẾM 35 GIÂY - countdown UI
+    var remaining = 35;
+    var countdownInterval = setInterval(function() {
+      remaining--;
+      var cntElem = document.getElementById('enx-countdown');
+      var statusElem = document.getElementById('enx-auto-status');
+      if (cntElem) cntElem.textContent = '(' + remaining + 's)';
+      if (remaining <= 0) remaining = 35;
+    }, 1000);
+
+    // VÒNG LẶP TỰ ĐỘNG CHẠY (MỖI 35 GIÂY)
     var autoLoopInterval = setInterval(function() {
       runAutoCycle(false);
-    }, 3000);
+      remaining = 35; // reset countdown
+    }, 35000);
 
     // DỌN DẸP KHI ĐÓNG HOẶC NÂNG CẤP
     d.addEventListener('enx_destroy', function() {
       clearInterval(autoLoopInterval);
+      clearInterval(countdownInterval);
       window.__ENX_PRO_HUD__ = false;
       window.__ENX_VERSION__ = null;
     });
