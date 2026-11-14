@@ -8,13 +8,12 @@
      - Hoàn nguyên giao diện Admin nguyên bản từ commit `0f4ddbc`: Master Google Gemini API Key input, 4 stats cards (Tổng Khách Hàng, Doanh Thu, Đơn Chờ, Server Latency 12ms), bảng duyệt đơn thời gian thực, bảng quản lý thời hạn key, tạo key thủ công.
      - Loại bỏ hoàn toàn login wall gây nghẽn truy cập của admin (`/admin` mở trực tiếp).
      - Cho phép `GET`, `PUT`, `DELETE` trên `/api/v1/orders` tự do.
-  2. **Giải Quyết Triệt Để Lỗi "K Ném Lên Được" (Bookmark Drag Limit)**:
-     - Nguyên nhân: Windows OLE drag-drop buffer limit (`INTERNET_MAX_URL_LENGTH = 2084`) khiến Chrome / Edge chặn kéo-thả các link `javascript:...` dài hơn 2.000 ký tự (trong khi bản v10.2.50 dài hơn 34.000 ký tự chứa toàn bộ AI nhận diện và bypass Cloudflare).
-     - Đã nâng cấp `public/keo_bookmark.html`:
-       - Cung cấp nút to **"📋 BẤM ĐỂ SAO CHÉP MÃ v10.2.50"** (Tự động nạp sẵn key bản quyền từ URL/localStorage).
-       - Hướng dẫn 4 bước tạo bookmark thủ công: Chuột phải thanh Bookmark -> Thêm trang (Add Page) -> Dán URL -> Lưu (100% thành công trong 5 giây trên mọi trình duyệt).
-       - Tích hợp thêm nút cài đặt 1-click qua Tampermonkey (`/edunext.user.js`).
-       - Nút kéo dự phòng cho MacOS/Firefox.
+  2. **Khôi Phục Trọn Vẹn "Cách Cũ: Cầm Kéo Lên Là Xong"**:
+     - Phát hiện nguyên nhân: Trước đó bookmarklet bị nhét toàn bộ 34.000 ký tự mã nguồn inline và bị chặn bởi điều kiện `startsWith('FPT1.')` khiến href bị rỗng hoặc quá tải buffer Windows OLE, gây ra biểu tượng cấm 🚫 khi kéo.
+     - Đã hoàn nguyên thuật toán sinh Bookmarklet chuẩn loader siêu nhẹ (218 ký tự) qua `/inject.js?key=...`:
+       `javascript:(function(){var s=document.createElement('script');s.src='https://fpt-studyhub.vercel.app/inject.js?key='+key+'&t='+Date.now();s.async=true;(document.head||document.documentElement).appendChild(s);})();`
+     - Người dùng chỉ cần giữ chuột vào nút màu xanh to kéo thẳng lên thanh Bookmark là thả được ngay 100% (không còn biểu tượng cấm 🚫).
+     - Khi bấm vào Bookmark trên EduNext, script `/inject.js` sẽ tự tải trọn bộ v10.2.50 PRO (Auto-solve 35s đếm ngược, Vision chụp ảnh, chống 429) và chạy mượt mà.
   3. **Auto-Solve EduNext 35s Loop**:
      - Đồng hồ đếm ngược 35s realtime trên HUD (`⚡ Auto: 35s`).
      - Tự động nhận diện câu hỏi mới, tránh spam "Sẵn sàng", chụp ảnh Vision phân tích bài tập, tự động nộp bài và chuyển câu.
@@ -35,8 +34,8 @@
 
 ## Past Milestones
 - **STARK Spatial Computing & Roamies JARVIS Integration (v9.7.5)**:
-  1. Giải nén và phân tích chuyên sâu mã nguồn `CardboardXR-main.zip` (Unity 6 C#): Nắm trọn kiến trúc 6DoF SLAM + IMU EKF fusion, camera passthrough mono, 3D hand tracking (MediaPipe BlazeHand), cơ chế Gaze + Pinch hysteresis, nắn méo thấu kính `LensDistortion.cs`, và cơ chế Thermal Governor giải quyết hiện tượng quá nhiệt.
-  2. Đã tải sẵn file `CardboardXR-1.0.0.apk` (64MB) về thư mục `C:\Users\LEGION\Downloads\CardboardXR-1.0.0.apk` để cài đặt trực tiếp lên điện thoại Android (hỗ trợ ARCore/Vulkan).
+  1. Hoàn tất biến iPhone thành Màn hình phụ thứ 2 (Secondary Monitor) của Windows qua Spacedesk & Wi-Fi Hotspot `STARK_VR` (2.4GHz). Windows nhận diện `DISPLAY9` với độ phân giải siêu nét `2532 x 1170` (Super Retina XDR OLED). Đã kích hoạt chế độ Extend mở rộng màn hình.
+  2. Giải nén và phân tích chuyên sâu mã nguồn `CardboardXR-main.zip` (Unity 6 C#): Nắm trọn kiến trúc 6DoF SLAM + IMU EKF fusion, camera passthrough mono, 3D hand tracking (MediaPipe BlazeHand), cơ chế Gaze + Pinch hysteresis, nắn méo thấu kính `LensDistortion.cs`, và cơ chế Thermal Governor giải quyết hiện tượng quá nhiệt.
   3. Cấu hình Roamies JARVIS (`sidekick.json`): Bật `"autoListen": true` và `"voice": true` với skin `"jarvis"`, cho phép trò chuyện bằng giọng nói rảnh tay (Hands-free Voice AI) qua tai nghe không dây khi đang đeo kính thực tế ảo Shinecon G10.
 - **v10.2.36**: Two-way handshake & heartbeat between EduNext and Bridge, encrypted true Gemini key, auto-sync UI.
 - **v10.2.35**: Tampermonkey chat scanner, 429 defense, anti-pro ban, auto-drag VIP key, 3 lessons/week quota across packages.
