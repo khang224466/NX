@@ -3,22 +3,24 @@ Completed At: 2026-11-14T11:06:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.56 PRO - Synchronize All Versions Across Entire Platform)
+## Current Status (v10.2.57 PRO - Add Order Deletion Feature & Realtime Clean Sync)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.56 PRO**
-- **Đồng Bộ Hoàn Toàn Phiên Bản Toàn Bộ Nền Tảng (v10.2.56 PRO)**:
-  1. **Khắc phục logo / Header subtitle**: Sửa `EduNext (v10.2.23) • Khảo Thí • SEB` trên Navbar thành `EduNext (v10.2.56 PRO) • Khảo Thí • SEB`.
-  2. **Quét sạch & nâng cấp đồng bộ 100% các file**:
-     - `Navbar.tsx`, `HeroSection.tsx`, `Footer.tsx`, `ComparisonTable.tsx`, `FaqSection.tsx`, `DemoVideoTrailer.tsx` -> **v10.2.56 PRO**.
-     - `ServiceCatalog.tsx` (trước đó sót `v10.2.37`) -> **v10.2.56 PRO**.
-     - `ActivationSuccessModal.tsx` (trước đó sót `v10.2.52`) -> **v10.2.56 PRO**.
-     - `layout.tsx`, `activate/page.tsx`, `admin/page.tsx` -> **v10.2.56 PRO**.
-     - `api/v1/ai/solve/route.ts` & `edunext.user.js/route.ts` -> **v10.2.56 PRO** (nhúng trực tiếp từ bundle).
-     - `public/bridge.html` & `public/Cai_Dat_Bookmark_EduNext.html` & `public/keo_bookmark.html` -> **v10.2.56 PRO**.
-     - `src/lib/utils.ts` -> trỏ bookmarklet tới `v10_2_56_minified.js`.
-  3. **Tương thích ngược CDN 100%**:
-     - Tạo mới `v10_2_56_minified.js`.
-     - Đồng thời ghi đè toàn bộ các file CDN cũ từ `v10_2_55_minified.js`, `v10_2_54` ... đến `v10_2_16_minified.js` bằng mã nguồn v10.2.56 PRO. Bất kỳ sinh viên nào dùng bookmarklet cũ kéo từ ngày xưa chỉ cần bấm chạy là tự động chạy code mới nhất!
+- Current live version: **v10.2.57 PRO**
+- **Tính Năng Mới: Quản Lý & Xóa Đơn Hàng (Admin Console)**:
+  1. **Nút Xóa Từng Đơn (Icon Thùng Rác)**:
+     - Trên mỗi hàng ở cột "Thao Tác Admin" trong bảng "Danh Sách Yêu Cầu Đăng Ký Chờ Duyệt & Cấp Key", đã bổ sung nút xóa đơn (icon thùng rác đỏ `Trash2`).
+     - Khi bấm, hiển thị hộp thoại xác nhận `Bạn có chắc chắn muốn XÓA VĨNH VIỄN đơn hàng [Mã đơn]?`.
+     - Sau khi xác nhận, đơn hàng được xóa lập tức khỏi giao diện, đồng thời ghi vào danh sách chặn xóa (`fpt_admin_deleted_orders_v10` trong `localStorage`) và gọi API `DELETE /api/v1/orders?orderId=...` xóa triệt để trên backend/Redis.
+     - Cơ chế chặn thông minh: Trong các chu kỳ tự động đồng bộ Realtime (1.5s/2s), đơn đã xóa sẽ **KHÔNG BAO GIỜ bị phục hồi/tái xuất hiện**.
+  2. **Nút Xóa Nhanh Toàn Bộ Đơn Chờ (`Xóa Đơn Chờ (N)`):**
+     - Đặt ngay trên thanh tiêu đề của bảng Đăng Ký Chờ Duyệt.
+     - Cho phép Admin dọn dẹp hàng loạt toàn bộ các đơn hàng thử nghiệm, rác, hoặc chưa thanh toán chỉ với 1 click xác nhận.
+  3. **Backend API**:
+     - Route `DELETE /api/v1/orders`: hỗ trợ xóa theo `orderId`, xóa toàn bộ đơn chờ (`action=delete_pending`), hoặc xóa trắng (`clear_all`).
+     - File `orderRepository.ts`: bổ sung hàm `deleteOrder(id)` và `deletePendingOrders()`.
+  4. **Đồng bộ toàn bộ Website**:
+     - Toàn bộ website, video trailer, kho dịch vụ, cầu nối, và mã nguồn CDN đã được nâng cấp đồng bộ lên **v10.2.57 PRO**.
+     - Xuất bản `v10_2_57_minified.js` và cập nhật ghi đè toàn bộ file CDN cũ.
 - **Nguyên Nhân & Xử Lý Triệt Để Lỗi "Chưa Có Key Bản Quyền Hợp Lệ"**:
   1. **Nguyên nhân cốt lõi**:
      - Trong bản build trước, hàm giải mã `o(token)` bị giới hạn cứng chỉ kiểm tra `token.startsWith('FPT1.')`.
