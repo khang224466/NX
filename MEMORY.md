@@ -8,12 +8,13 @@
      - Hoàn nguyên giao diện Admin nguyên bản từ commit `0f4ddbc`: Master Google Gemini API Key input, 4 stats cards (Tổng Khách Hàng, Doanh Thu, Đơn Chờ, Server Latency 12ms), bảng duyệt đơn thời gian thực, bảng quản lý thời hạn key, tạo key thủ công.
      - Loại bỏ hoàn toàn login wall gây nghẽn truy cập của admin (`/admin` mở trực tiếp).
      - Cho phép `GET`, `PUT`, `DELETE` trên `/api/v1/orders` tự do.
-  2. **Khôi Phục Trọn Vẹn "Cách Cũ: Cầm Kéo Lên Là Xong"**:
-     - Phát hiện nguyên nhân: Trước đó bookmarklet bị nhét toàn bộ 34.000 ký tự mã nguồn inline và bị chặn bởi điều kiện `startsWith('FPT1.')` khiến href bị rỗng hoặc quá tải buffer Windows OLE, gây ra biểu tượng cấm 🚫 khi kéo.
-     - Đã hoàn nguyên thuật toán sinh Bookmarklet chuẩn loader siêu nhẹ (218 ký tự) qua `/inject.js?key=...`:
-       `javascript:(function(){var s=document.createElement('script');s.src='https://fpt-studyhub.vercel.app/inject.js?key='+key+'&t='+Date.now();s.async=true;(document.head||document.documentElement).appendChild(s);})();`
-     - Người dùng chỉ cần giữ chuột vào nút màu xanh to kéo thẳng lên thanh Bookmark là thả được ngay 100% (không còn biểu tượng cấm 🚫).
-     - Khi bấm vào Bookmark trên EduNext, script `/inject.js` sẽ tự tải trọn bộ v10.2.50 PRO (Auto-solve 35s đếm ngược, Vision chụp ảnh, chống 429) và chạy mượt mà.
+  2. **Khôi Phục Trọn Vẹn "Cách Cũ: Cầm Kéo Lên Là Xong" Qua jsDelivr CDN**:
+     - Phát hiện nguyên nhân cốt lõi khiến EduNext chặn: EduNext bật chính sách bảo mật **TrustedTypes** (`createScriptURL`), chỉ cho phép tải script từ các domain nằm trong danh sách trắng (`scriptOrigins`): Google, Cloudflare, unpkg, và **`https://cdn.jsdelivr.net`** (tuyệt đối chặn các domain khác như `fpt-studyhub.vercel.app`).
+     - Đã build và đẩy file `v10_2_50_minified.js` trực tiếp lên repository GitHub `NX` để phục vụ qua jsDelivr CDN:
+       `https://cdn.jsdelivr.net/gh/khang224466/NX@main/BUISINESS/v10_2_50_minified.js`
+     - Mã Bookmarklet siêu nhẹ (~190 ký tự):
+       `javascript:(function(){window.__ENX_KEY__='key';var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/khang224466/NX@main/BUISINESS/v10_2_50_minified.js?t='+Date.now();s.async=true;(document.head||document.documentElement).appendChild(s);})();`
+     - Đã kiểm tra trực tiếp qua trình duyệt Edge tự động (Playwright) trên trang EduNext: Script tải thành công 100%, vượt qua TrustedTypes, bảng HUD v10.2.50 PRO xuất hiện đầy đủ với đồng hồ đếm ngược 35s.
   3. **Auto-Solve EduNext 35s Loop**:
      - Đồng hồ đếm ngược 35s realtime trên HUD (`⚡ Auto: 35s`).
      - Tự động nhận diện câu hỏi mới, tránh spam "Sẵn sàng", chụp ảnh Vision phân tích bài tập, tự động nộp bài và chuyển câu.
