@@ -3,14 +3,22 @@ Completed At: 2026-11-14T11:06:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.55 PRO - Fix Key Not Activated, Video Trailer Overhaul & Full System Sync)
+## Current Status (v10.2.56 PRO - Synchronize All Versions Across Entire Platform)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.55 PRO**
-- **Nâng Cấp Toàn Diện Video Trailer Mô Phỏng (DemoVideoTrailer.tsx)**:
-  1. **Khớp 100% Câu Hỏi & Đáp Án Môn CSD201**: Câu hỏi giáo viên về độ phức tạp thuật toán Dijkstra với Priority Queue (Min-Heap) được trả lời chính xác bằng độ phức tạp `O((V + E) log V)` (hoặc `O(E log V)`), xóa bỏ triệt để đoạn text lệch về Buffer Overflow.
-  2. **Trực quan hóa kịch bản chuyển câu hỏi tiếng Anh (Step 4 ở 21s)**: Khi giáo viên hỏi "Are you ready to move on to the next part? 🚀", EduNext AI tự động điền `"Yes"` và nộp câu trả lời ngay lập tức để chuyển bài.
-  3. **Đồng bộ HUD & Đồng hồ đếm ngược**: Hiển thị nhãn **v10.2.55 PRO**, bộ đếm ngược 35s realtime (`Auto: 35s -> 7s`), badge `1 Kỳ Học (4 Tháng) - ĐÃ KÍCH HOẠT`.
-  4. **Đồng bộ toàn bộ Website**: Nâng cấp toàn bộ nhãn phiên bản cũ (`v10.2.15`, `v10.2.23`, `v10.2.50`) trên Navbar, HeroSection, Footer, ComparisonTable, FaqSection, Activate page thành **v10.2.55 PRO**.
+- Current live version: **v10.2.56 PRO**
+- **Đồng Bộ Hoàn Toàn Phiên Bản Toàn Bộ Nền Tảng (v10.2.56 PRO)**:
+  1. **Khắc phục logo / Header subtitle**: Sửa `EduNext (v10.2.23) • Khảo Thí • SEB` trên Navbar thành `EduNext (v10.2.56 PRO) • Khảo Thí • SEB`.
+  2. **Quét sạch & nâng cấp đồng bộ 100% các file**:
+     - `Navbar.tsx`, `HeroSection.tsx`, `Footer.tsx`, `ComparisonTable.tsx`, `FaqSection.tsx`, `DemoVideoTrailer.tsx` -> **v10.2.56 PRO**.
+     - `ServiceCatalog.tsx` (trước đó sót `v10.2.37`) -> **v10.2.56 PRO**.
+     - `ActivationSuccessModal.tsx` (trước đó sót `v10.2.52`) -> **v10.2.56 PRO**.
+     - `layout.tsx`, `activate/page.tsx`, `admin/page.tsx` -> **v10.2.56 PRO**.
+     - `api/v1/ai/solve/route.ts` & `edunext.user.js/route.ts` -> **v10.2.56 PRO** (nhúng trực tiếp từ bundle).
+     - `public/bridge.html` & `public/Cai_Dat_Bookmark_EduNext.html` & `public/keo_bookmark.html` -> **v10.2.56 PRO**.
+     - `src/lib/utils.ts` -> trỏ bookmarklet tới `v10_2_56_minified.js`.
+  3. **Tương thích ngược CDN 100%**:
+     - Tạo mới `v10_2_56_minified.js`.
+     - Đồng thời ghi đè toàn bộ các file CDN cũ từ `v10_2_55_minified.js`, `v10_2_54` ... đến `v10_2_16_minified.js` bằng mã nguồn v10.2.56 PRO. Bất kỳ sinh viên nào dùng bookmarklet cũ kéo từ ngày xưa chỉ cần bấm chạy là tự động chạy code mới nhất!
 - **Nguyên Nhân & Xử Lý Triệt Để Lỗi "Chưa Có Key Bản Quyền Hợp Lệ"**:
   1. **Nguyên nhân cốt lõi**:
      - Trong bản build trước, hàm giải mã `o(token)` bị giới hạn cứng chỉ kiểm tra `token.startsWith('FPT1.')`.
