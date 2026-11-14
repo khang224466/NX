@@ -3,9 +3,20 @@ Completed At: 2026-11-14T15:47:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.62 PRO - Admin Security PIN, Order Deletion with Instant Key Revocation, Anti-Duplicate Submission Guard, Dead Conversation Auto Recovery, and Full Teacher Feedback Parsing)
+## Current Status (v10.2.62 PRO - Admin Security PIN, Order Deletion with Instant Key Revocation, Anti-Duplicate Submission Guard, Dead Conversation Auto Recovery, Full Teacher Feedback Parsing, and Enterprise Anti-Pentest Hardening)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - Current live version: **v10.2.62 PRO**
+- **Bảo Mật Chống Tấn Công Burp Suite & Công Cụ Linux (Pentest & Anti-Tamper Hardening)**:
+  1. **Bảo vệ Endpoint Quản Trị (`/api/v1/orders`)**:
+     - Trước đây: Không có kiểm tra quyền server-side, kẻ tấn công dùng Burp Suite sửa gói tin `PUT action=approve` có thể tự cấp key miễn phí hoặc `DELETE` để xóa dữ liệu.
+     - Đã bọc giáp: Bắt buộc xác thực `isAdmin(req)` bằng header `x-admin-token` hoặc `Authorization: Bearer <pin>` trên toàn bộ các thao tác `approve`, `extend`, `revoke`, `sync_bulk`, `DELETE` và `GET` toàn bộ đơn hàng. Không có token -> server trả về **401 Unauthorized**.
+  2. **Bộ Lọc Chống Flood / DoS / Spam Rate Limiter (IP Bucket)**:
+     - `/api/v1/orders` (Tạo đơn hàng): Giới hạn tối đa 5 đơn / phút / IP. Nếu tool Linux chạy loop cURL spam đơn rác -> Server chặn với **429 Too Many Requests**.
+     - `/api/v1/ai/solve` (Giải bài AI): Giới hạn tối đa 30 request / phút / IP. Ngăn chặn việc vét cạn quota Gemini API.
+  3. **Bảo Mật Token Ký Số Mã Hóa**:
+     - License key sinh bằng thuật toán HMAC/XOR và Salt bí mật `ENX_SEC_2026_FLASH_LITE`. Burp Suite không thể tự tạo key giả mạo hợp lệ.
+  4. **Tường Lửa Vercel WAF & Edge Network**:
+     - Tự động lọc các đợt tấn công DDoS L3/L4/L7, botnet scanner và brute-force.
 - **Giải Quyết Toàn Diện 5 Vấn Đề Người Dùng Yêu Cầu**:
   1. **Thêm Lớp Bảo Mật Cho Web Admin (Admin Security PIN Barrier)**:
      - Thêm màn hình khóa xác thực Admin Passcode trước khi truy cập `/admin`.
