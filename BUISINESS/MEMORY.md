@@ -3,9 +3,19 @@ Completed At: 2026-11-14T15:47:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.62 PRO - Admin Security PIN, Order Deletion with Instant Key Revocation, Anti-Duplicate Submission Guard, Dead Conversation Auto Recovery, Full Teacher Feedback Parsing, and Enterprise Anti-Pentest Hardening)
+## Current Status (v10.2.63 PRO - Resolved Infinite Try Again Loop, Auto [+ New] Session Restart on 429 Long Cooldown, Isolated Latest Chat Turn Bubble, Admin Security PIN, and Enterprise Hardening)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.62 PRO**
+- Current live version: **v10.2.63 PRO**
+- **Sửa Triệt Để Vấn Đề Vòng Lặp Vô Tận [Try again] & Bị Phạt 429 Sau 1899 Giây**:
+  1. **Nguyên nhân gốc rễ**:
+     - Trong bản cũ, lệnh kiểm tra `deadConversation` quét toàn bộ `document.body.innerText`. Khi có một tin nhắn cũ từ trước chứa câu *"This conversation can no longer be continued"*, cờ này bị bật `true` vĩnh viễn dù bài học đã sang câu mới.
+     - Bot liên tục tìm thấy nút `[Try again]` cũ trong DOM và tự động bấm mỗi 5 giây.
+     - Nút `[Try again]` của EduNext có cơ chế gửi lại yêu cầu cũ. Khi bị bấm hơn 200 lần liên tục trong 15 phút, máy chủ EduNext đánh dấu spam và phạt Rate Limit lên tới **1899 giây (~31 phút)**!
+  2. **Giải pháp đã triển khai trên v10.2.63 PRO**:
+     - **Cô lập phạm vi quét**: Chỉ kiểm tra 3 bong bóng tin nhắn cuối cùng (`bubbles.slice(-3)`), tuyệt đối không quét toàn trang `document.body`.
+     - **Tự động bấm `[+ New]` thay vì spam `[Try again]`**: Khi phát hiện hội thoại bị nghẽn (429 dài > 30s) hoặc bị ngắt phiên: Bot tự động tìm và click nút xanh **`[+ New]`** ở góc trên cùng bên phải để mở ngay một phiên hội thoại mới cho bài học hiện tại, reset hoàn toàn trạng thái nghẽn 1899s!
+     - **Chặn click lặp lại `[Try again]`**: Áp dụng cooldown tối thiểu 30 giây giữa các lần click `[Try again]`, tuyệt đối không bao giờ click mỗi 5 giây.
+     - **Bảo toàn luồng giải câu hỏi**: Khi ô nhập liệu (`activeInput`) còn mở và có câu hỏi, bot ưu tiên giải và nộp bài bình thường, không bị ngắt bởi các thông báo lỗi cũ trong lịch sử chat.
 - **Bảo Mật Chống Tấn Công Burp Suite & Công Cụ Linux (Pentest & Anti-Tamper Hardening)**:
   1. **Bảo vệ Endpoint Quản Trị (`/api/v1/orders`)**:
      - Trước đây: Không có kiểm tra quyền server-side, kẻ tấn công dùng Burp Suite sửa gói tin `PUT action=approve` có thể tự cấp key miễn phí hoặc `DELETE` để xóa dữ liệu.
