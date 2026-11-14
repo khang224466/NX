@@ -1,11 +1,28 @@
-Created At: 2026-11-14T17:26:00+07:00
-Completed At: 2026-11-14T17:26:00+07:00
+Created At: 2026-11-14T17:41:00+07:00
+Completed At: 2026-11-14T17:41:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.64 PRO - Zero-Client Key Leak Architecture, Enterprise Server-Proxy License Migration & Universal CDN Distribution)
+## Current Status (v10.2.65 PRO - Single Submission Anti-Duplicate Fix, Vietnamese 429 Rate Limit Cooldown Detection & Anti-Spam Lock Defense)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.64 PRO**
+- Current live version: **v10.2.65 PRO**
+- **Sửa Triệt Để Lỗi EduNext Khóa Phạt 56,071 Giây ("Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau 56071 giây")**:
+  1. **Tìm ra chính xác nguyên nhân gốc rễ (Smoking Gun)**:
+     - Trong hàm nộp bài `submitEduNextAnswer`: Sau khi tìm thấy nút UI và bấm thành công `U(r)` (ví dụ nút [Nộp câu trả lời]), đoạn code tiếp theo **KHÔNG KIỂM TRA `!i`** mà tiếp tục kích hoạt luôn hàm `onSendMessage` từ React Fiber!
+     - Hệ quả: **MỖI CÂU HỎI ĐỀU BỊ GỬI 2 LẦN CÙNG MỘT MILLISECOND** (Double-submit).
+     - Máy chủ EduNext nhận được 2 yêu cầu trùng lặp tức thì, liên tiếp kích hoạt lỗi HTTP 429 và hệ thống chống spam của EduNext tự động nhân hệ số phạt: 250s $\rightarrow$ 1899s $\rightarrow$ **56,071s (~15.5 tiếng)**!
+  2. **Giải pháp đã triển khai trên v10.2.65 PRO**:
+     - **Chỉ nộp duy nhất 1 lần (Single Submission Firewall)**: Bổ sung điều kiện kiểm tra `if (!i)` trước khi kích hoạt React Fiber. Nếu nút UI đã được bấm thành công, tuyệt đối KHÔNG đụng vào React Fiber hay dispatch phím Enter.
+     - **Bắt chuẩn xác thông báo Rate Limit Tiếng Việt**: Cập nhật Regex trong [turn-tracker.js](file:///d:/BUISINESS/FPT%20service/scripts/turn-tracker.js) và [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js) để nhận diện đầy đủ:
+       + `/(?:Too\s*many\s*requests.*?after|vui\s*lòng\s*thử\s*lại\s*sau|yêu\s*cầu\s*quá\s*nhanh.*?sau)\s*(\d+)\s*(?:seconds|giây)/i`
+       + Nhận diện ngay con số `56071 giây` và chuyển trạng thái sang `need_new_chat`.
+     - **Chặn đứng vòng lặp spam khi bị khóa**: Khi phát hiện thời gian phạt > 60s, bot dừng mọi hành vi tự động submit để không làm tăng thời gian phạt, đồng thời hiện cảnh báo đỏ trên HUD nhắc học sinh: `⛔ EduNext khóa phiên (${n.rateLimitSeconds}s)! Bấm F5 hoặc chọn bài học để mở lại phiên mới`.
+     - **Throttle log 429 background**: Chặn việc EduNext tự động thăm dò nền (polling) gây ngập log "Tự động hoãn 35s" liên tục.
+  3. **Đồng Bộ & Phân Phối**:
+     - CDN mới: [v10_2_65_minified.js](file:///d:/BUISINESS/v10_2_65_minified.js).
+     - Đã cập nhật tương thích toàn bộ các bản CDN cũ (`v10_2_64`, `v10_2_63`, `v10_2_62`, `v10_2_60`,...).
+     - Đã build Next.js Turbopack 0 lỗi và đẩy code lên cả 2 repository GitHub: `fpt-studyhub` và `NX`.
+     - Đã purge cache jsDelivr toàn cầu thành công.
 - **Chiến Dịch Bảo Mật Triệt Để: Xóa Sổ Vĩnh Viễn Việc Lộ Google Gemini API Key Trên Trình Duyệt Khách (Zero-Client Key Leak Migration)**:
   1. **Vấn đề cốt lõi được phát hiện**:
      - Trước đây, token `ENC_AI_...` sử dụng thuật toán XOR hai chiều với Salt tĩnh (`ENX_SEC_2026_FLASH_LITE`). Kẻ tấn công hoặc bất kỳ ai biết JavaScript chỉ cần đọc file Bookmarklet `window.__ENX_KEY__` là giải mã ngược ra trực tiếp chuỗi Google Gemini API Key (`AQ.Ab8RN6I...`).
