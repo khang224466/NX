@@ -1,35 +1,42 @@
-Created At: 2026-11-14T12:30:00+07:00
-Completed At: 2026-11-14T12:30:00+07:00
+Created At: 2026-11-14T13:50:00+07:00
+Completed At: 2026-11-14T13:50:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.58 PRO - Fix 35s Auto Solve Freeze & English Question Recognition)
+## Current Status (v10.2.59 PRO - Remove Blocking E===u Check & Seamless 35s Auto Solve)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.58 PRO**
-- **Xử Lý Triệt Để Lỗi "Hết 35s Vẫn Đứng Yên, Chả Tự Làm Bài" & "Không Làm Tiếng Anh Được"**:
-  1. **Nguyên Nhân Gốc Rễ Đếm Ngược 35s Xong Không Tự Làm**:
-     - **Nguyên nhân 1 (Bộ phân tích lượt `readEduNextTurn` bị kẹt ở `waiting_teacher`)**:
-       Hàm `readEduNextTurn` trong `scripts/turn-tracker.js` trước đây phụ thuộc vào các CSS selector cứng nhắc (`.exercise-question-block`, `.wrap-message-view`, etc.). Trên thực tế giao diện EduNext (như bài tiếng Anh Unit 2 - The Generation Gap), thẻ bài tập và tin nhắn giáo viên không chứa các class này. Do đó, hàm không nhận diện được câu hỏi mới của giáo viên, thấy huy hiệu học sinh của lượt trước nên gán nhầm trạng thái là `waiting_teacher` ("Đang chờ EduNext phản hồi...").
-     - **Nguyên nhân 2 (`timerInterval` gọi `Q(!1)` với `e = false`)**:
-       Khi bộ đếm ngược 35s chạy về 0, nó gọi `Q(!1)` (false). Hàm `Q` kiểm tra điều kiện `if ("waiting_teacher" !== n.state || e)`. Do `e` là `false` và `n.state` bị kẹt ở `waiting_teacher`, điều kiện này trả về `false`, khiến bot bỏ qua việc giải bài và tiếp tục reset bộ đếm 35s rồi đứng yên vô tận.
-     - **Nguyên nhân 3 (Regex định dạng tiếng Anh `Answer: [your answer]` bị neo đầu chuỗi `^`)**:
-       Khi đề tiếng Anh yêu cầu `Please answer using this format: Answer: [your answer]`, biểu thức regex `/^answer\s*:\s*\[/i` bị fail vì đầu chuỗi bắt đầu bằng nhãn `Câu hỏi:`, dẫn đến việc không định dạng đúng mẫu `Answer: [đáp án]` mà EduNext yêu cầu.
-  2. **Giải Pháp Đột Phá & Toàn Diện Trong v10.2.58 PRO**:
-     - **Nâng Cấp `turn-tracker.js`**:
-       + Quét toàn bộ DOM để tìm các thẻ câu hỏi có nhãn `Câu hỏi:`, `Question:`, `Please answer using this format:`, hoặc thẻ tin nhắn chứa `Graded by AI`, `INT: ANS`, `Feedback`, `Correct!`, `Incorrect`.
-       + Nếu bất kỳ dấu hiệu phản hồi nào của giáo viên xuất hiện SAU tin nhắn của học sinh (theo thứ tự DOM `compareDocumentPosition`), trạng thái 100% là `student_turn` (lượt của học sinh), KHÔNG BAO GIỜ bị gán nhầm là `waiting_teacher`.
-       + Tự động kiểm tra ô soạn thảo `textarea`: nếu ô nhập liệu đang hiển thị và kích hoạt (enabled) cùng với câu hỏi trên màn hình, bot tự động kích hoạt `student_turn`.
-     - **Sửa Đổi Chu Kỳ Hết 35s Gọi `Q(!0, !1)` (Cưỡng Chế Quét & Giải Đề)**:
-       + Khi bộ đếm ngược 35s về 0, bot gọi `Q(!0, !1)` (`force = true, isManual = false`), bỏ qua cờ `waiting_teacher`, cưỡng chế phân tích lại toàn bộ màn hình để trích xuất đề bài, kích hoạt Gemini Flash-Lite giải và tự động nộp ngay lập tức.
-       + Cơ chế chống lặp thông minh: nếu câu hỏi cũ đã nộp và EduNext phản hồi chậm chưa kịp ra câu mới (`E === u`), bot sẽ không spam nộp lại mà lùi nhẹ 10-15s chờ EduNext render câu mới mà không bật alert làm phiền người dùng.
-     - **Xử Lý Chuẩn Mực Môn Tiếng Anh (English Lessons)**:
-       + Nhận diện toàn diện câu hỏi trắc nghiệm, điền từ, modal verbs (`which modal verb expresses a strong obligation?` -> `Answer: must`).
-       + Tự động bắt câu hỏi Yes/No (`Are you ready to move on to the next part?` -> tự động trả lời `Yes` và bấm chuyển phần).
-       + Format chuẩn `Answer: [your answer]` không phụ thuộc vào vị trí chuỗi.
-     - **Nâng Cấp Đồng Bộ Toàn Bộ Hệ Thống Lên v10.2.58 PRO**:
-       + Cập nhật tất cả các tệp: `edunext-client.js`, `turn-tracker.js`, `edunextBundle.ts`, `build_v10_cdn.js`, `generate_keo_page.js`, `Navbar.tsx`, `HeroSection.tsx`, `Footer.tsx`, `DemoVideoTrailer.tsx`, `ComparisonTable.tsx`, `FaqSection.tsx`, `ServiceCatalog.tsx`, `servicesCatalog.ts`, `ActivationSuccessModal.tsx`, `layout.tsx`, `activate/page.tsx`, `admin/page.tsx`, `api/v1/ai/solve/route.ts`, `bridge.html`, `Cai_Dat_Bookmark_EduNext.html`.
-       + Xuất bản file CDN `v10_2_58_minified.js` và ghi đè đồng bộ các phiên bản cũ `v10_2_57` đến `v10_2_16`.
-       + Next.js build kiểm thử hoàn thành với 0 lỗi TypeScript (Finished TypeScript in 21.8s).
+- Current live version: **v10.2.59 PRO**
+- **Xử Lý Triệt Để Lỗi "Có Timer Nhưng Hết Timer Thì Không Tự Làm"**:
+  1. **Nguyên Nhân Chính Xác Trực Tiếp (100% Root Cause)**:
+     - Trong phiên bản trước, ở hàm `Q()`, tồn tại đoạn mã kiểm tra:
+       ```js
+       if (E === u && !isManual && !C) {
+           L("👀 Đã nộp bài, đang chờ EduNext phản hồi câu tiếp theo...", "#38bdf8");
+           remaining = 15;
+           updateCountdownUI();
+           return;
+       }
+       ```
+     - Khi người dùng bật tính năng chia sẻ màn hình (**Auto Vision**), `fingerprint` chỉ quét DOM text (không bao gồm hash ảnh chụp màn hình). Sau khi nộp một đáp án (ví dụ `volunteer`), `u` được gán bằng `E`.
+     - Ở các chu kỳ 35s tiếp theo, ngay cả khi trên màn hình giáo viên đã đưa câu hỏi mới hoặc câu hỏi chuyển phần, chuỗi `fingerprint` của DOM không đổi (`E === u`).
+     - Đoạn code trên lập tức đánh chặn, hiển thị đúng dòng chữ mà người dùng chụp lại: `"👀 Đã nộp bài, đang chờ EduNext phản hồi câu tiếp theo..."`, rồi `return` thoát hàm và reset `remaining = 15s`.
+     - Hậu quả: Gemini Flash-Lite KHÔNG BAO GIỜ ĐƯỢC GỌI, bot liên tục reset về 15s/35s và hoàn toàn đứng yên!
+  2. **Giải Pháp Kiến Trúc Hoàn Thiện trong v10.2.59 PRO**:
+     - **Xóa bỏ hoàn toàn rào cản `if (E === u && !isManual && !C) return;`**:
+       Khi hết 35s đếm ngược, bot bắt buộc tiến hành quét ảnh màn hình và câu hỏi, gửi trực tiếp cho Gemini Flash-Lite phân tích.
+     - **Cơ Chế Chống Trùng Thông Minh Dựa Trên Đáp Án Thực Tế (`l`)**:
+       Chỉ sau khi Gemini phân tích và đưa ra đáp án `A`, bot mới so sánh:
+       + Nếu `A` trùng với đáp án vừa nộp `l` (ví dụ đều là `volunteer`) VÀ giáo viên không báo sai (`!C`): bot hiểu là EduNext đang tải chậm chưa sang câu mới -> lùi nhẹ 15s chờ tiếp.
+       + Nếu `A` khác `l` (là câu hỏi mới, đáp án mới, hoặc bài chuyển phần `Yes`): bot ngay lập tức điền vào ô soạn thảo và nộp bài!
+       + Nếu là màn hình chờ hoặc chấm điểm: Gemini trả về `__NO_QUESTION__`, bot giữ nguyên trạng thái chờ.
+     - **Cập nhật nhận diện chuyển phần tiếng Anh (`cleanMsg`)**:
+       Quét cả `questionBlockText`, `lastTeacherMsg`, và `document.body.innerText` để bắt trọn câu hỏi `Are you ready to move on to the next part?` và tự động trả lời `Yes`.
+     - **Nâng cấp `turn-tracker.js`**:
+       Tìm kiếm câu hỏi linh hoạt: ưu tiên sau tin nhắn học sinh, nhưng nếu không thấy sẽ quét toàn trang để không bao giờ bỏ sót đề bài.
+  3. **Đồng Bộ & Triển Khai CDN**:
+     - Tạo bản phân phối `v10_2_59_minified.js` và ghi đè đồng bộ các phiên bản `v10_2_58` đến `v10_2_16`.
+     - Đã build Next.js thành công 100% trong 4.2s (0 lỗi TypeScript).
+     - Commit và push cả 2 remote (`fpt-studyhub` và `NX`).
 
 ---
 
