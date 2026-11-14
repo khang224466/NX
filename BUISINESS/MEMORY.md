@@ -1,11 +1,34 @@
-Created At: 2026-11-14T15:47:00+07:00
-Completed At: 2026-11-14T15:47:00+07:00
+Created At: 2026-11-14T17:26:00+07:00
+Completed At: 2026-11-14T17:26:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.63 PRO - Resolved Infinite Try Again Loop, Auto [+ New] Session Restart on 429 Long Cooldown, Isolated Latest Chat Turn Bubble, Admin Security PIN, and Enterprise Hardening)
+## Current Status (v10.2.64 PRO - Zero-Client Key Leak Architecture, Enterprise Server-Proxy License Migration & Universal CDN Distribution)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.63 PRO**
+- Current live version: **v10.2.64 PRO**
+- **Chiến Dịch Bảo Mật Triệt Để: Xóa Sổ Vĩnh Viễn Việc Lộ Google Gemini API Key Trên Trình Duyệt Khách (Zero-Client Key Leak Migration)**:
+  1. **Vấn đề cốt lõi được phát hiện**:
+     - Trước đây, token `ENC_AI_...` sử dụng thuật toán XOR hai chiều với Salt tĩnh (`ENX_SEC_2026_FLASH_LITE`). Kẻ tấn công hoặc bất kỳ ai biết JavaScript chỉ cần đọc file Bookmarklet `window.__ENX_KEY__` là giải mã ngược ra trực tiếp chuỗi Google Gemini API Key (`AQ.Ab8RN6I...`).
+  2. **Kiến trúc Server-Proxy & Ký số mật mã FPT1 mới**:
+     - **Mã vé ký số bảo mật `FPT1.<payload>.<HMAC-SHA256>`**:
+       + Cấu trúc Token: Chứa Metadata gồm `orderId`, `expiresAt`, `plan`, `nonce` và chữ ký số SHA256 tạo bởi secret server-side `LICENSE_SIGNING_SECRET`.
+       + **TUYỆT ĐỐI KHÔNG CÒN BẤT KỲ GEMINI API KEY NÀO ĐƯỢC NHÚNG VÀO TOKEN TRÊN TRÌNH DUYỆT KHÁCH**.
+     - **Luồng Giải Bài AI 100% Qua Server Proxy (`/api/v1/ai/solve`)**:
+       + Cầu Nối AI `bridge.html` và Bookmarklet gửi request giải bài trực tiếp về Server Backend (`/api/v1/ai/solve`) cùng với License Ticket `FPT1...`.
+       + Server kiểm tra chữ ký số HMAC-SHA256, kiểm tra thời hạn và trạng thái đơn hàng trong Database/Store.
+       + Server giữ biến môi trường bí mật `GEMINI_API_KEY` (hoặc fallback server key) và đứng ra gọi Google Generative AI API rồi trả đáp án về cho Client.
+       + Client chỉ nhận được chuỗi text đáp án để nộp vào EduNext, hoàn toàn không biết và không chạm được vào Gemini API Key.
+     - **Tương thích ngược 100% (Backward Compatibility)**:
+       + Khách hàng đang dùng token cũ `ENC_AI_...` vẫn được hỗ trợ mượt mà qua hàm giải mã legacy `readLicense()` và `verifyLicense()`.
+       + Mọi đơn hàng duyệt mới từ trang Quản Trị `/admin` đều tự động cấp vé ký số chuẩn `FPT1...`.
+     - **Bảo mật Thu Hồi Key Vĩnh Viễn**:
+       + Khi Quản Trị Viên bấm Xóa Đơn / Thu Hồi Key trên Web Admin, `orderId` và `licenseKey` bị chặn ngay lập tức cả ở Server Proxy lẫn Client Bridge.
+  3. **Đồng Bộ Hoàn Toàn Hệ Thống Sang v10.2.64 PRO**:
+     - Cập nhật toàn bộ source code `FPT service` (`serverLicense.ts`, `licenseStore.ts`, `orders/route.ts`, `ai/solve/route.ts`, `bridge.html`, `edunext-client.js`, `servicesCatalog.ts`, `layout.tsx`, `Cai_Dat_Bookmark_EduNext.html`).
+     - Tự động biên dịch lại Bundle `src/lib/edunextBundle.ts`, phân phối CDN `v10_2_64_minified.js` và cập nhật tương thích toàn bộ các bản CDN cũ (`v10_2_63`, `v10_2_62`, `v10_2_60`, `v10_2_58`,...).
+     - Đã build Next.js Turbopack thành công với 0 lỗi.
+     - Đã commit & push lên cả 2 kho GitHub: `fpt-studyhub` (submodule) và `NX` (root repo).
+     - Đã purge cache jsDelivr toàn bộ các file phân phối CDN.
 - **Sửa Triệt Để Vấn Đề Vòng Lặp Vô Tận [Try again] & Bị Phạt 429 Sau 1899 Giây**:
   1. **Nguyên nhân gốc rễ**:
      - Trong bản cũ, lệnh kiểm tra `deadConversation` quét toàn bộ `document.body.innerText`. Khi có một tin nhắn cũ từ trước chứa câu *"This conversation can no longer be continued"*, cờ này bị bật `true` vĩnh viễn dù bài học đã sang câu mới.
