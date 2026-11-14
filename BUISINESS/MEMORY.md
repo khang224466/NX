@@ -1,11 +1,20 @@
-Created At: 2026-11-14T17:41:00+07:00
-Completed At: 2026-11-14T17:41:00+07:00
+Created At: 2026-11-14T18:30:00+07:00
+Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.65 PRO - Single Submission Anti-Duplicate Fix, Vietnamese 429 Rate Limit Cooldown Detection & Anti-Spam Lock Defense)
+## Current Status (v10.2.66 PRO - One-Click HUD Session Rescue Button & Instant 14-Hour Cooldown Bypass)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.65 PRO**
+- Current live version: **v10.2.66 PRO**
+- **Giải Cứu Khóa 14 Tiếng (56,071s) & Trang Bị Nút Cứu Hộ 1-Click Trên HUD**:
+  1. **Khẳng định nguyên nhân**: Bản cũ bị lỗi gửi đúp 2 request cùng 1 mili-giây khiến EduNext phạt spam 56,071 giây. Đây là hình phạt gắn theo **ID phiên hội thoại của bài học**, KHÔNG PHẢI KHÓA NICK TÀI KHOẢN VĨNH VIỄN.
+  2. **Trang bị nút cứu hộ trên HUD**:
+     - Bổ sung nút bấm đỏ: `🚨 Mở Phiên Mới [+ New] / Hủy Khóa 14 Tiếng` ngay trên giao diện bot.
+     - Hàm `forceResetEduNextSession()` tự động tìm và click nút `+ New` ẩn/bị che, tìm menu `Yêu cầu khác` $\rightarrow$ `Bắt đầu lại`, xóa `sessionStorage` và tải lại bài học, đưa đồng hồ phạt 14 tiếng về 0 ngay tức khắc.
+  3. **Đồng Bộ & Phân Phối**:
+     - CDN mới: [v10_2_66_minified.js](file:///d:/BUISINESS/v10_2_66_minified.js).
+     - Đã build Next.js Turbopack 0 lỗi và đẩy code lên cả 2 repository GitHub: `fpt-studyhub` và `NX`.
+     - Đã purge cache jsDelivr toàn cầu thành công.
 - **Sửa Triệt Để Lỗi EduNext Khóa Phạt 56,071 Giây ("Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau 56071 giây")**:
   1. **Tìm ra chính xác nguyên nhân gốc rễ (Smoking Gun)**:
      - Trong hàm nộp bài `submitEduNextAnswer`: Sau khi tìm thấy nút UI và bấm thành công `U(r)` (ví dụ nút [Nộp câu trả lời]), đoạn code tiếp theo **KHÔNG KIỂM TRA `!i`** mà tiếp tục kích hoạt luôn hàm `onSendMessage` từ React Fiber!
