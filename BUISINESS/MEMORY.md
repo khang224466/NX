@@ -1,48 +1,44 @@
-Created At: 2026-11-14T11:06:00+07:00
-Completed At: 2026-11-14T11:06:00+07:00
+Created At: 2026-11-14T12:30:00+07:00
+Completed At: 2026-11-14T12:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.57 PRO - Add Order Deletion Feature & Realtime Clean Sync)
+## Current Status (v10.2.58 PRO - Fix 35s Auto Solve Freeze & English Question Recognition)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.57 PRO**
-- **Tính Năng Mới: Quản Lý & Xóa Đơn Hàng (Admin Console)**:
-  1. **Nút Xóa Từng Đơn (Icon Thùng Rác)**:
-     - Trên mỗi hàng ở cột "Thao Tác Admin" trong bảng "Danh Sách Yêu Cầu Đăng Ký Chờ Duyệt & Cấp Key", đã bổ sung nút xóa đơn (icon thùng rác đỏ `Trash2`).
-     - Khi bấm, hiển thị hộp thoại xác nhận `Bạn có chắc chắn muốn XÓA VĨNH VIỄN đơn hàng [Mã đơn]?`.
-     - Sau khi xác nhận, đơn hàng được xóa lập tức khỏi giao diện, đồng thời ghi vào danh sách chặn xóa (`fpt_admin_deleted_orders_v10` trong `localStorage`) và gọi API `DELETE /api/v1/orders?orderId=...` xóa triệt để trên backend/Redis.
-     - Cơ chế chặn thông minh: Trong các chu kỳ tự động đồng bộ Realtime (1.5s/2s), đơn đã xóa sẽ **KHÔNG BAO GIỜ bị phục hồi/tái xuất hiện**.
-  2. **Nút Xóa Nhanh Toàn Bộ Đơn Chờ (`Xóa Đơn Chờ (N)`):**
-     - Đặt ngay trên thanh tiêu đề của bảng Đăng Ký Chờ Duyệt.
-     - Cho phép Admin dọn dẹp hàng loạt toàn bộ các đơn hàng thử nghiệm, rác, hoặc chưa thanh toán chỉ với 1 click xác nhận.
-  3. **Backend API**:
-     - Route `DELETE /api/v1/orders`: hỗ trợ xóa theo `orderId`, xóa toàn bộ đơn chờ (`action=delete_pending`), hoặc xóa trắng (`clear_all`).
-     - File `orderRepository.ts`: bổ sung hàm `deleteOrder(id)` và `deletePendingOrders()`.
-  4. **Đồng bộ toàn bộ Website**:
-     - Toàn bộ website, video trailer, kho dịch vụ, cầu nối, và mã nguồn CDN đã được nâng cấp đồng bộ lên **v10.2.57 PRO**.
-     - Xuất bản `v10_2_57_minified.js` và cập nhật ghi đè toàn bộ file CDN cũ.
-- **Nguyên Nhân & Xử Lý Triệt Để Lỗi "Chưa Có Key Bản Quyền Hợp Lệ"**:
-  1. **Nguyên nhân cốt lõi**:
-     - Trong bản build trước, hàm giải mã `o(token)` bị giới hạn cứng chỉ kiểm tra `token.startsWith('FPT1.')`.
-     - Trong khi đó, toàn bộ hệ thống cấp key Admin, trang kéo Bookmarklet, và mã key của khách hàng đều sử dụng định dạng XOR chuẩn `ENC_AI_...`.
-     - Kết quả: Khi chạy `o(token)` với key `ENC_AI_...`, hàm ném lỗi ngoại lệ, gán `valid = false`, dẫn đến cảnh báo `Chưa có Key bản quyền hợp lệ (Bắt đầu bằng ENC_AI_)` và bot từ chối giải bài.
-     - Ngoài ra, dòng lệnh `localStorage.removeItem('enx_encrypted_ai_key')` vô tình xóa sạch key đã lưu của người dùng trên trình duyệt mỗi lần mở bot.
-     - Hàm `solveOnServer` gửi nhầm cấu trúc `payload` cho Bridge thay vì các tham số `rawKey, promptText, imageBase64`.
-  2. **Giải pháp 3 lớp miễn nhiễm lỗi trong v10.2.55 PRO**:
-     - **Lớp 1 (Bộ giải mã đa năng `o(token)`)**: Khôi phục đầy đủ bộ giải mã XOR với salt `ENX_SEC_2026_FLASH_LITE`. Tự động nhận diện chuẩn xác `ENC_AI_...` (giải mã thời hạn timestamp `EXP|...`, tên gói, API key thực tế), `FPT1.`, và cả key trực tiếp `AIza...`/`AQ....`.
-     - **Lớp 2 (Cơ chế tự chữa lành Self-Healing & Default Token)**: Cung cấp token dự phòng chuẩn VIP 1 kỳ học (`ENCRYPTED_DEFAULT_TOKEN`). Nếu người dùng bấm Bookmarklet không kèm tham số hoặc chưa từng nạp key, bot tự động kích hoạt mã VIP mặc định và lưu vào `localStorage`. Tuyệt đối không bao giờ xóa `localStorage` trừ khi key thực sự hết hạn.
-     - **Lớp 3 (Cầu Nối AI Bridge 2 chiều)**: Sửa hàm `solveOnServer` và `bridge.html` để đồng bộ dữ liệu chuẩn (`rawKey`, `promptText`, `imageBase64`). Tích hợp gọi trực tiếp Gemini Studio Flash-Lite (~1s) và tự động mở Bridge nếu bị CSP chặn.
-  3. **CDN & Backward Compatibility**:
-     - Xuất bản file `v10_2_55_minified.js` lên CDN `jsdelivr`.
-     - Cập nhật đè toàn bộ các file `v10_2_54_minified.js`, `v10_2_53_minified.js`, `v10_2_52_minified.js`, `v10_2_51_minified.js`, `v10_2_50_minified.js`.
-     - Người dùng chỉ cần F5 trang EduNext bấm lại bookmarklet cũ là tự động chạy code v10.2.55 PRO đã kích hoạt key 100%.
+- Current live version: **v10.2.58 PRO**
+- **Xử Lý Triệt Để Lỗi "Hết 35s Vẫn Đứng Yên, Chả Tự Làm Bài" & "Không Làm Tiếng Anh Được"**:
+  1. **Nguyên Nhân Gốc Rễ Đếm Ngược 35s Xong Không Tự Làm**:
+     - **Nguyên nhân 1 (Bộ phân tích lượt `readEduNextTurn` bị kẹt ở `waiting_teacher`)**:
+       Hàm `readEduNextTurn` trong `scripts/turn-tracker.js` trước đây phụ thuộc vào các CSS selector cứng nhắc (`.exercise-question-block`, `.wrap-message-view`, etc.). Trên thực tế giao diện EduNext (như bài tiếng Anh Unit 2 - The Generation Gap), thẻ bài tập và tin nhắn giáo viên không chứa các class này. Do đó, hàm không nhận diện được câu hỏi mới của giáo viên, thấy huy hiệu học sinh của lượt trước nên gán nhầm trạng thái là `waiting_teacher` ("Đang chờ EduNext phản hồi...").
+     - **Nguyên nhân 2 (`timerInterval` gọi `Q(!1)` với `e = false`)**:
+       Khi bộ đếm ngược 35s chạy về 0, nó gọi `Q(!1)` (false). Hàm `Q` kiểm tra điều kiện `if ("waiting_teacher" !== n.state || e)`. Do `e` là `false` và `n.state` bị kẹt ở `waiting_teacher`, điều kiện này trả về `false`, khiến bot bỏ qua việc giải bài và tiếp tục reset bộ đếm 35s rồi đứng yên vô tận.
+     - **Nguyên nhân 3 (Regex định dạng tiếng Anh `Answer: [your answer]` bị neo đầu chuỗi `^`)**:
+       Khi đề tiếng Anh yêu cầu `Please answer using this format: Answer: [your answer]`, biểu thức regex `/^answer\s*:\s*\[/i` bị fail vì đầu chuỗi bắt đầu bằng nhãn `Câu hỏi:`, dẫn đến việc không định dạng đúng mẫu `Answer: [đáp án]` mà EduNext yêu cầu.
+  2. **Giải Pháp Đột Phá & Toàn Diện Trong v10.2.58 PRO**:
+     - **Nâng Cấp `turn-tracker.js`**:
+       + Quét toàn bộ DOM để tìm các thẻ câu hỏi có nhãn `Câu hỏi:`, `Question:`, `Please answer using this format:`, hoặc thẻ tin nhắn chứa `Graded by AI`, `INT: ANS`, `Feedback`, `Correct!`, `Incorrect`.
+       + Nếu bất kỳ dấu hiệu phản hồi nào của giáo viên xuất hiện SAU tin nhắn của học sinh (theo thứ tự DOM `compareDocumentPosition`), trạng thái 100% là `student_turn` (lượt của học sinh), KHÔNG BAO GIỜ bị gán nhầm là `waiting_teacher`.
+       + Tự động kiểm tra ô soạn thảo `textarea`: nếu ô nhập liệu đang hiển thị và kích hoạt (enabled) cùng với câu hỏi trên màn hình, bot tự động kích hoạt `student_turn`.
+     - **Sửa Đổi Chu Kỳ Hết 35s Gọi `Q(!0, !1)` (Cưỡng Chế Quét & Giải Đề)**:
+       + Khi bộ đếm ngược 35s về 0, bot gọi `Q(!0, !1)` (`force = true, isManual = false`), bỏ qua cờ `waiting_teacher`, cưỡng chế phân tích lại toàn bộ màn hình để trích xuất đề bài, kích hoạt Gemini Flash-Lite giải và tự động nộp ngay lập tức.
+       + Cơ chế chống lặp thông minh: nếu câu hỏi cũ đã nộp và EduNext phản hồi chậm chưa kịp ra câu mới (`E === u`), bot sẽ không spam nộp lại mà lùi nhẹ 10-15s chờ EduNext render câu mới mà không bật alert làm phiền người dùng.
+     - **Xử Lý Chuẩn Mực Môn Tiếng Anh (English Lessons)**:
+       + Nhận diện toàn diện câu hỏi trắc nghiệm, điền từ, modal verbs (`which modal verb expresses a strong obligation?` -> `Answer: must`).
+       + Tự động bắt câu hỏi Yes/No (`Are you ready to move on to the next part?` -> tự động trả lời `Yes` và bấm chuyển phần).
+       + Format chuẩn `Answer: [your answer]` không phụ thuộc vào vị trí chuỗi.
+     - **Nâng Cấp Đồng Bộ Toàn Bộ Hệ Thống Lên v10.2.58 PRO**:
+       + Cập nhật tất cả các tệp: `edunext-client.js`, `turn-tracker.js`, `edunextBundle.ts`, `build_v10_cdn.js`, `generate_keo_page.js`, `Navbar.tsx`, `HeroSection.tsx`, `Footer.tsx`, `DemoVideoTrailer.tsx`, `ComparisonTable.tsx`, `FaqSection.tsx`, `ServiceCatalog.tsx`, `servicesCatalog.ts`, `ActivationSuccessModal.tsx`, `layout.tsx`, `activate/page.tsx`, `admin/page.tsx`, `api/v1/ai/solve/route.ts`, `bridge.html`, `Cai_Dat_Bookmark_EduNext.html`.
+       + Xuất bản file CDN `v10_2_58_minified.js` và ghi đè đồng bộ các phiên bản cũ `v10_2_57` đến `v10_2_16`.
+       + Next.js build kiểm thử hoàn thành với 0 lỗi TypeScript (Finished TypeScript in 21.8s).
 
 ---
 
-## FPT Study Hub — Nền Tảng Hỗ Trợ Học Tập & Thi Cử FPT
-- **Directory**: `d:\BUISINESS\FPT service\`
-- **Production URL**: `https://fpt-studyhub.vercel.app` & `https://fpt-studyhub-onib.vercel.app`
-- **Admin Console**: `https://fpt-studyhub.vercel.app/admin` (Trực tiếp, không rào cản mật mã)
-- **Drag Bookmarklet URL**: `https://fpt-studyhub.vercel.app/keo_bookmark.html`
-- **Beneficiary**: **Ngân hàng Quốc Tế (VIB)** • STK: **`858709070`** • Chủ TK: **`DIEP DAI PHU`**
-- **Admin Discord**: `https://discord.com/users/888713971161505832`
+## Technical Architecture & Core Files
+- **EduNext Client Script**: `FPT service/scripts/edunext-client.js`
+- **Turn Tracker**: `FPT service/scripts/turn-tracker.js`
+- **Bundle Generator**: `FPT service/scripts/build-edunext.cjs`
+- **CDN Generator**: `FPT service/scripts/build_v10_cdn.js`
+- **AI Backend Solver**: `FPT service/src/app/api/v1/ai/solve/route.ts`
+- **Admin Management & Order Store**: `FPT service/src/app/admin/page.tsx`, `FPT service/src/lib/orderRepository.ts`
+- **Bookmarklet Drag Page**: `FPT service/public/keo_bookmark.html`, `FPT service/scripts/generate_keo_page.js`
+- **CDN Minified Distributions**: `d:\BUISINESS\v10_2_*_minified.js` (Root)
