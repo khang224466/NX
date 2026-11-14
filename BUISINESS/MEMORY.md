@@ -3,9 +3,14 @@ Completed At: 2026-11-14T11:06:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.55 PRO - Fix Key Not Activated / ENC_AI_ XOR Decoder & Auto-Heal Persistence)
+## Current Status (v10.2.55 PRO - Fix Key Not Activated, Video Trailer Overhaul & Full System Sync)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - Current live version: **v10.2.55 PRO**
+- **Nâng Cấp Toàn Diện Video Trailer Mô Phỏng (DemoVideoTrailer.tsx)**:
+  1. **Khớp 100% Câu Hỏi & Đáp Án Môn CSD201**: Câu hỏi giáo viên về độ phức tạp thuật toán Dijkstra với Priority Queue (Min-Heap) được trả lời chính xác bằng độ phức tạp `O((V + E) log V)` (hoặc `O(E log V)`), xóa bỏ triệt để đoạn text lệch về Buffer Overflow.
+  2. **Trực quan hóa kịch bản chuyển câu hỏi tiếng Anh (Step 4 ở 21s)**: Khi giáo viên hỏi "Are you ready to move on to the next part? 🚀", EduNext AI tự động điền `"Yes"` và nộp câu trả lời ngay lập tức để chuyển bài.
+  3. **Đồng bộ HUD & Đồng hồ đếm ngược**: Hiển thị nhãn **v10.2.55 PRO**, bộ đếm ngược 35s realtime (`Auto: 35s -> 7s`), badge `1 Kỳ Học (4 Tháng) - ĐÃ KÍCH HOẠT`.
+  4. **Đồng bộ toàn bộ Website**: Nâng cấp toàn bộ nhãn phiên bản cũ (`v10.2.15`, `v10.2.23`, `v10.2.50`) trên Navbar, HeroSection, Footer, ComparisonTable, FaqSection, Activate page thành **v10.2.55 PRO**.
 - **Nguyên Nhân & Xử Lý Triệt Để Lỗi "Chưa Có Key Bản Quyền Hợp Lệ"**:
   1. **Nguyên nhân cốt lõi**:
      - Trong bản build trước, hàm giải mã `o(token)` bị giới hạn cứng chỉ kiểm tra `token.startsWith('FPT1.')`.
