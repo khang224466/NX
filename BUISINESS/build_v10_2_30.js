@@ -4,7 +4,7 @@ const terser = require(path.join(__dirname, 'FPT service', 'node_modules', 'next
 
 function bookmarkletFunction(preKey) {
   try {
-    var CURRENT_VERSION = 'v10.2.41';
+    var CURRENT_VERSION = 'v10.2.50';
 
     // 1. NẾU CÙNG PHIÊN BẢN VÀ ĐÃ CÓ HUD THÌ CHỈ ẨN / HIỆN
     if (window.__ENX_PRO_HUD__ && window.__ENX_VERSION__ === CURRENT_VERSION) {
@@ -145,7 +145,7 @@ function bookmarkletFunction(preKey) {
       } catch(_) {}
     })();
 
-    // Giao Diện HUD v10.2.30
+    // Giao Diện HUD v10.2.50
     var d = document.createElement('div');
     d.id = 'enx-pro-hud';
     d.style.cssText = 'position:fixed;top:70px;right:25px;z-index:2147483647;width:370px;background:rgba(11,15,25,0.98);border:2px solid #10b981;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,0.85),0 0 25px rgba(16,185,129,0.35);padding:14px;color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;backdrop-filter:blur(16px);font-size:12px;box-sizing:border-box;transition:opacity 0.2s;';
@@ -209,18 +209,21 @@ function bookmarkletFunction(preKey) {
     titleBox.appendChild(titleText);
     hd.appendChild(titleBox);
 
-    // Auto status and countdown UI
+    // Auto status and countdown UI - embedded in subtitle for visibility
     var autoStatus = document.createElement('span');
     autoStatus.id = 'enx-auto-status';
-    autoStatus.style.cssText = 'font-size:10px;color:#10b981;font-weight:600;margin-left:12px;';
-    autoStatus.textContent = isAuto ? 'Auto: BẬT' : 'Auto: TẮT';
-    hd.appendChild(autoStatus);
+    autoStatus.style.cssText = 'color:#10b981;font-weight:700;';
+    autoStatus.textContent = isAuto ? ' ⚡ Auto: BẬT' : ' ⏸ Auto: TẮT';
 
     var countdownElem = document.createElement('span');
     countdownElem.id = 'enx-countdown';
-    countdownElem.style.cssText = 'font-size:10px;color:#fbbf24;margin-left:8px;font-weight:600;';
+    countdownElem.style.cssText = 'color:#fbbf24;font-weight:700;margin-left:4px;';
     countdownElem.textContent = '(35s)';
-    hd.appendChild(countdownElem);
+
+    tRow2.textContent = '';
+    tRow2.textContent = 'Auto Loop: Tự Động Quét & Giải Liên Tục 100% ';
+    tRow2.appendChild(autoStatus);
+    tRow2.appendChild(countdownElem);
 
     var actBox = document.createElement('div');
     actBox.style.cssText = 'display:flex;align-items:center;gap:4px;';
@@ -1416,7 +1419,7 @@ function bookmarkletFunction(preKey) {
     }
 
     // =========================================================================
-    // HÀM CHÍNH ĐIỀU PHỐI AUTO LOOP v10.2.30 (TỰ ĐỘNG THÔNG MINH THEO LƯỢT)
+    // HÀM CHÍNH ĐIỀU PHỐI AUTO LOOP v10.2.50 (TỰ ĐỘNG THÔNG MINH THEO LƯỢT)
     // =========================================================================
     async function runAutoCycle(isForced) {
       if (!isAuto && !isForced) return;
@@ -1614,26 +1617,52 @@ function bookmarkletFunction(preKey) {
     d.appendChild(bodyBox);
     renderBody();
 
-    // BỘ ĐẾM 35 GIÂY - countdown UI
+    // BỘ ĐẾM 35 GIÂY - countdown UI & Auto loop 35s
     var remaining = 35;
-    var countdownInterval = setInterval(function() {
-      remaining--;
+    function updateCountdownUI() {
+      var autoBtn = document.getElementById('hud-auto-btn');
       var cntElem = document.getElementById('enx-countdown');
       var statusElem = document.getElementById('enx-auto-status');
-      if (cntElem) cntElem.textContent = '(' + remaining + 's)';
-      if (remaining <= 0) remaining = 35;
-    }, 1000);
+      if (isAuto) {
+        if (autoBtn && autoBtn.textContent !== '✅ Hoàn thành') {
+          autoBtn.textContent = '⚡ Auto: ' + remaining + 's';
+        }
+        if (cntElem && cntElem.textContent !== '✅') {
+          cntElem.textContent = '(' + remaining + 's)';
+        }
+        if (statusElem && statusElem.textContent !== 'Auto: TẮT (Hoàn thành)') {
+          statusElem.textContent = ' ⚡ Auto: BẬT';
+        }
+      } else {
+        if (autoBtn && autoBtn.textContent !== '✅ Hoàn thành') {
+          autoBtn.textContent = '⏸ Auto: TẮT';
+        }
+        if (cntElem && cntElem.textContent !== '✅') {
+          cntElem.textContent = '(Tắt)';
+        }
+        if (statusElem && statusElem.textContent !== 'Auto: TẮT (Hoàn thành)') {
+          statusElem.textContent = ' ⏸ Auto: TẮT';
+        }
+      }
+    }
 
-    // VÒNG LẶP TỰ ĐỘNG CHẠY (MỖI 35 GIÂY)
-    var autoLoopInterval = setInterval(function() {
-      runAutoCycle(false);
-      remaining = 35; // reset countdown
-    }, 35000);
+    var timerInterval = setInterval(function() {
+      if (!isAuto) {
+        updateCountdownUI();
+        return;
+      }
+      remaining--;
+      updateCountdownUI();
+      if (remaining <= 0) {
+        remaining = 35;
+        updateCountdownUI();
+        runAutoCycle(false);
+      }
+    }, 1000);
 
     // DỌN DẸP KHI ĐÓNG HOẶC NÂNG CẤP
     d.addEventListener('enx_destroy', function() {
-      clearInterval(autoLoopInterval);
-      clearInterval(countdownInterval);
+      clearInterval(timerInterval);
       window.__ENX_PRO_HUD__ = false;
       window.__ENX_VERSION__ = null;
     });
@@ -1702,7 +1731,7 @@ export async function GET(req: NextRequest) {
 }
 `;
   fs.writeFileSync(injectRoutePath, injectContent, 'utf8');
-  console.log(`✓ Updated inject.js/route.ts to v10.2.30`);
+  console.log(`✓ Updated inject.js/route.ts to v10.2.50`);
 
   // 3. Cập nhật route edunext.user.js
   const tmRoutePath = path.join(webDir, 'src', 'app', 'edunext.user.js', 'route.ts');
@@ -1761,35 +1790,35 @@ export async function GET(req: NextRequest) {
 }
 `;
   fs.writeFileSync(tmRoutePath, tmContent, 'utf8');
-  console.log(`✓ Updated edunext.user.js/route.ts to v10.2.30`);
+  console.log(`✓ Updated edunext.user.js/route.ts to v10.2.50`);
 
   // 4. Cập nhật utils.ts: Dùng Safe Base64 Bundle chống lỗi unicode escape Turbopack
   const utilsPath = path.join(webDir, 'src', 'lib', 'utils.ts');
   const b64 = Buffer.from(minifiedCode, 'utf8').toString('base64');
   let utilsContent = fs.readFileSync(utilsPath, 'utf8');
-  utilsContent = utilsContent.replace(/v10\.2\.\d+/g, 'v10.2.30');
+  utilsContent = utilsContent.replace(/v10\.2\.\d+/g, 'v10.2.50');
   utilsContent = utilsContent.replace(/const RAW_FN_BASE64 = ".*?";/s, 'const RAW_FN_BASE64 = "' + b64 + '";');
   fs.writeFileSync(utilsPath, utilsContent, 'utf8');
-  console.log(`✓ Updated utils.ts to v10.2.30 with Safe Base64 bundle`);
+  console.log(`✓ Updated utils.ts to v10.2.50 with Safe Base64 bundle`);
 
   // 5. Cập nhật ActivationSuccessModal.tsx và layout.tsx
   const modalPath = path.join(webDir, 'src', 'components', 'checkout', 'ActivationSuccessModal.tsx');
   let modalContent = fs.readFileSync(modalPath, 'utf8');
-  modalContent = modalContent.replace(/v10\.2\.\d+/g, 'v10.2.30');
+  modalContent = modalContent.replace(/v10\.2\.\d+/g, 'v10.2.50');
   fs.writeFileSync(modalPath, modalContent, 'utf8');
-  console.log(`✓ Updated ActivationSuccessModal.tsx to v10.2.30`);
+  console.log(`✓ Updated ActivationSuccessModal.tsx to v10.2.50`);
 
   const layoutPath = path.join(webDir, 'src', 'app', 'layout.tsx');
   let layoutContent = fs.readFileSync(layoutPath, 'utf8');
-  layoutContent = layoutContent.replace(/v10\.2\.\d+/g, 'v10.2.30');
+  layoutContent = layoutContent.replace(/v10\.2\.\d+/g, 'v10.2.50');
   fs.writeFileSync(layoutPath, layoutContent, 'utf8');
-  console.log(`✓ Updated layout.tsx to v10.2.30`);
+  console.log(`✓ Updated layout.tsx to v10.2.50`);
 
   // 6. Cập nhật keo_bookmark.html
   const keoHtmlPath = path.join(webDir, 'public', 'keo_bookmark.html');
   if (fs.existsSync(keoHtmlPath)) {
     let keoHtml = fs.readFileSync(keoHtmlPath, 'utf8');
-    keoHtml = keoHtml.replace(/v10\.2\.\d+/g, 'v10.2.30');
+    keoHtml = keoHtml.replace(/v10\.2\.\d+/g, 'v10.2.50');
 
     const scriptBlock = `<script>
     const INLINE_CODE = ${JSON.stringify(bookmarkletCode)};
@@ -1832,7 +1861,7 @@ export async function GET(req: NextRequest) {
     if (mainBtn) mainBtn.setAttribute("href", finalBookmarklet);
 
     function handleBtnClick(e) {
-      alert("👉 Bạn hãy dùng chuột GIỮ VÀ KÉO NÚT NÀY THẢ LÊN THANH DẤU TRANG (Bookmarks Bar) ở phía trên trình duyệt nhé!\\n\\nSau khi kéo lên xong, sang tab EduNext bấm vô là chạy v10.2.30!");
+      alert("👉 Bạn hãy dùng chuột GIỮ VÀ KÉO NÚT NÀY THẢ LÊN THANH DẤU TRANG (Bookmarks Bar) ở phía trên trình duyệt nhé!\\n\\nSau khi kéo lên xong, sang tab EduNext bấm vô là chạy v10.2.50!");
     }
 
     function copyInlineCode() {
@@ -1848,25 +1877,25 @@ export async function GET(req: NextRequest) {
 
     keoHtml = keoHtml.replace(/<script>[\s\S]*?<\/script>/, scriptBlock);
     fs.writeFileSync(keoHtmlPath, keoHtml, 'utf8');
-    console.log(`✓ Updated public/keo_bookmark.html with baked key support in v10.2.30`);
+    console.log(`✓ Updated public/keo_bookmark.html with baked key support in v10.2.50`);
   }
 
   // 7. Cập nhật servicesCatalog.ts
   const catalogPath = path.join(webDir, 'src', 'data', 'servicesCatalog.ts');
   if (fs.existsSync(catalogPath)) {
     let cat = fs.readFileSync(catalogPath, 'utf8');
-    cat = cat.replace(/v10\.2\.\d+/g, 'v10.2.30');
+    cat = cat.replace(/v10\.2\.\d+/g, 'v10.2.50');
     fs.writeFileSync(catalogPath, cat, 'utf8');
-    console.log('✓ Updated servicesCatalog.ts to v10.2.30');
+    console.log('✓ Updated servicesCatalog.ts to v10.2.50');
   }
 
   // 8. Cập nhật admin/page.tsx
   const adminPagePath = path.join(webDir, 'src', 'app', 'admin', 'page.tsx');
   if (fs.existsSync(adminPagePath)) {
     let adm = fs.readFileSync(adminPagePath, 'utf8');
-    adm = adm.replace(/v10\.2\.\d+/g, 'v10.2.30');
+    adm = adm.replace(/v10\.2\.\d+/g, 'v10.2.50');
     fs.writeFileSync(adminPagePath, adm, 'utf8');
-    console.log('✓ Updated admin/page.tsx to v10.2.30');
+    console.log('✓ Updated admin/page.tsx to v10.2.50');
   }
 }
 
