@@ -48,13 +48,43 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         h264Encoder.delegate = self
         usbTunnel.delegate = self
         
-        // Start engine
-        cameraEngine.setupCamera()
-        h264Encoder.configure(width: 1920, height: 1080, fps: 60)
-        cameraEngine.start()
-        usbTunnel.startServer()
+        // Request Camera Permission explicitly
+        cameraEngine.requestCameraAccess { [weak self] granted in
+            guard let self = self else { return }
+            if granted {
+                self.attachPreviewLayer()
+                self.cameraEngine.start()
+                self.h264Encoder.configure(width: 1920, height: 1080, fps: 60)
+            } else {
+                DispatchQueue.main.async {
+                    self.statusLabel.text = "VUI LONG CAP QUYEN CAMERA!"
+                    self.statusDot.backgroundColor = .systemRed
+                }
+            }
+        }
         
+        usbTunnel.startServer()
         startHUDTimer()
+    }
+    
+    private func attachPreviewLayer() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let layer = AVCaptureVideoPreviewLayer(session: self.cameraEngine.previewSession)
+            layer.videoGravity = .resizeAspectFill
+            layer.frame = self.cameraPreviewView.bounds
+            if let connection = layer.connection, connection.isVideoOrientationSupported {
+                connection.videoOrientation = .landscapeRight
+            }
+            self.cameraPreviewView.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+            self.cameraPreviewView.layer.addSublayer(layer)
+            self.previewLayer = layer
+        }
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        previewLayer?.frame = cameraPreviewView.bounds
     }
     
     // MARK: - UI Setup

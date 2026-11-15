@@ -43,6 +43,34 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         super.init()
     }
     
+    public var previewSession: AVCaptureSession {
+        return captureSession
+    }
+    
+    public func requestCameraAccess(completion: @escaping (Bool) -> Void) {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            self.setupCamera()
+            DispatchQueue.main.async {
+                completion(true)
+            }
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                if granted {
+                    self?.setupCamera()
+                }
+                DispatchQueue.main.async {
+                    completion(granted)
+                }
+            }
+        default:
+            DispatchQueue.main.async {
+                completion(false)
+            }
+        }
+    }
+    
     public func setupCamera() {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
