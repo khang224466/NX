@@ -3,10 +3,19 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.78 PRO for STARK Air Mouse)
+## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.79 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.72 PRO** (Live CDN: `v10_2_72_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.78 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.79 PRO**
+
+- **Khắc Phục Hiện Tượng Không Thấy Gì / Màn Hình Xám Camo Do Hết Hạn Timeout 8 Giây (v10.2.79 PRO)**:
+  1. **Nguyên nhân chính xác từ ảnh người dùng chụp (`SOURCE: FALLBACK CAM`)**:
+     - Trong ảnh terminal/cửa sổ người dùng gửi, dòng chữ trên cùng hiện: `SOURCE: FALLBACK CAM | VR SBS FPS: 30.2`.
+     - Code cũ trong `stark_tethered_bridge.py` dùng hàm `wait_for_iphone(timeout=8)` chỉ đợi đúng 8 giây. Nếu người dùng mở file `.bat` trước rồi mới mở khóa điện thoại hoặc mở app STARK sau 8 giây, script đã bỏ cuộc (timed out) và chuyển vĩnh viễn sang webcam ảo Camo Studio (vốn phát ra màn hình xám offline có biểu tượng camera). Sau đó người dùng dù có mở app trên iPhone thì bridge cũng không bao giờ thử kết nối lại!
+  2. **Giải pháp đã triển khai triệt để**:
+     - **Cơ chế tự động kết nối liên tục 24/7 (Continuous Auto-Reconnect, Zero Timeout)**: Luồng `start_connection_manager` chạy ngầm liên tục thử kết nối mỗi 0.5s. Bất kể người dùng mở app lúc nào (sau 5s, 30s hay 5 phút), hệ thống sẽ lập tức bắt tay và truyền luồng video trong vòng 500ms mà không cần bấm gì!
+     - **Triệt tiêu hoàn toàn màn hình xám của Camo**: Mặc định hiển thị giao diện HUD Cyberpunk STARK thể hiện trạng thái chờ kết nối USB rõ ràng; chỉ dùng webcam khi người dùng chủ động bấm phím `X`.
+     - **Đã kiểm thử biên dịch và xác nhận code chạy hoàn hảo**.
 
 - **Khắc Phục Hoàn Toàn Lỗi "Cố Chấp Gửi Lại Khi Bị Từ Chối" & Bắt Trọn Phản Hồi Giáo Viên (v10.2.72 PRO)**:
   1. **Bản chất lỗi "cố chấp gửi lại thay vì quét lại phản hồi"**:
