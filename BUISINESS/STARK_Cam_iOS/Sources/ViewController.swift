@@ -13,6 +13,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     private let cameraPreviewView = UIView()
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private let vrDisplayImageView = UIImageView()
+    private let permissionButton = UIButton(type: .system)
     
     // Futuristic HUD
     private let hudOverlay = UIView()
@@ -51,13 +52,15 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         // Request Camera Permission explicitly
         cameraEngine.requestCameraAccess { [weak self] granted in
             guard let self = self else { return }
-            if granted {
-                self.attachPreviewLayer()
-                self.cameraEngine.start()
-                self.h264Encoder.configure(width: 1920, height: 1080, fps: 60)
-            } else {
-                DispatchQueue.main.async {
-                    self.statusLabel.text = "VUI LONG CAP QUYEN CAMERA!"
+            DispatchQueue.main.async {
+                if granted {
+                    self.permissionButton.isHidden = true
+                    self.attachPreviewLayer()
+                    self.cameraEngine.start()
+                    self.h264Encoder.configure(width: 1920, height: 1080, fps: 60)
+                } else {
+                    self.permissionButton.isHidden = false
+                    self.statusLabel.text = "CAN CAP QUYEN CAMERA!"
                     self.statusDot.backgroundColor = .systemRed
                 }
             }
@@ -92,6 +95,43 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         cameraPreviewView.frame = view.bounds
         cameraPreviewView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(cameraPreviewView)
+        
+        permissionButton.setTitle("📷 BẤM ĐỂ BẬT CAMERA CHO STARK", for: .normal)
+        permissionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
+        permissionButton.setTitleColor(.white, for: .normal)
+        permissionButton.backgroundColor = UIColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 0.95)
+        permissionButton.layer.cornerRadius = 14
+        permissionButton.translatesAutoresizingMaskIntoConstraints = false
+        permissionButton.addTarget(self, action: #selector(permissionButtonTapped), for: .touchUpInside)
+        view.addSubview(permissionButton)
+        
+        NSLayoutConstraint.activate([
+            permissionButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            permissionButton.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            permissionButton.widthAnchor.constraint(equalToConstant: 340),
+            permissionButton.heightAnchor.constraint(equalToConstant: 54)
+        ])
+    }
+    
+    @objc private func permissionButtonTapped() {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        if status == .denied || status == .restricted {
+            if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(settingsURL)
+            }
+        } else {
+            cameraEngine.requestCameraAccess { [weak self] granted in
+                guard let self = self else { return }
+                DispatchQueue.main.async {
+                    if granted {
+                        self.permissionButton.isHidden = true
+                        self.attachPreviewLayer()
+                        self.cameraEngine.start()
+                        self.h264Encoder.configure(width: 1920, height: 1080, fps: 60)
+                    }
+                }
+            }
+        }
     }
     
     private func setupVRDisplay() {

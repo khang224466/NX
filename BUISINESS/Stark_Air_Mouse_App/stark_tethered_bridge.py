@@ -34,6 +34,10 @@ class StarkTetheredBridge:
         self.lock = threading.Lock()
         
         self.forward_proc = None
+        self.actual_rx_fps = 0.0
+        self.rx_count = 0
+        self.last_rx_t = time.time()
+        self.use_fallback = False
 
     def start_usbmux_forward(self):
         """Khoi chay usbmux forwarder anh xa cong 23456 qua cap USB"""
@@ -53,7 +57,7 @@ class StarkTetheredBridge:
             print(f"[!] Canh bao khoi tao usbmux: {e}")
             return False
 
-    def wait_for_iphone(self, timeout=30):
+    def wait_for_iphone(self, timeout=8):
         """Doi nguoi dung mo app STARK XR Cam tren iPhone va ket noi qua cap USB"""
         print(f"[*] Dang lang nghe ket noi tu app STARK XR Cam tren iPhone (Toi da {timeout}s)...")
         print("    -> Vui long cam day cap USB va mo app STARK tren iPhone cua ban!")
@@ -63,17 +67,17 @@ class StarkTetheredBridge:
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                s.settimeout(1.5)
+                s.settimeout(2.0)
                 s.connect(("127.0.0.1", self.port))
                 self.sock = s
                 self.is_connected = True
                 print("\n[V] KET NOI THANH CONG VOI IPHONE 13 QUA CAP USB LIGHTNING!")
                 return True
             except (socket.error, ConnectionRefusedError):
-                time.sleep(1.0)
+                time.sleep(0.5)
                 print(".", end="", flush=True)
         
-        print("\n[!] Chua tim thay app tren iPhone. Chuyen sang che do du phong webcam laptop.")
+        print("\n[!] Chua bat duoc app iPhone. Chuyen sang che do camera du phong.")
         return False
 
     def start_receiver_thread(self):
@@ -85,11 +89,15 @@ class StarkTetheredBridge:
                 try:
                     header = self._recv_all(4)
                     if not header:
-                        break
+                        time.sleep(0.02)
+                        continue
                     length = struct.unpack(">I", header)[0]
+                    if length <= 0 or length > 10_000_000:
+                        continue
                     payload = self._recv_all(length)
                     if not payload:
-                        break
+                        time.sleep(0.02)
+                        continue
                     
                     packets = codec.parse(payload)
                     for pkt in packets:
@@ -98,17 +106,23 @@ class StarkTetheredBridge:
                             bgr = f.to_ndarray(format="bgr24")
                             with self.lock:
                                 self.latest_frame = bgr
+                            
+                            self.rx_count += 1
+                            now = time.time()
+                            if now - self.last_rx_t >= 1.0:
+                                self.actual_rx_fps = self.rx_count / (now - self.last_rx_t)
+                                self.rx_count = 0
+                                self.last_rx_t = now
                 except Exception as e:
-                    print(f"\n[!] Mat ket noi luong USB: {e}")
-                    break
-            self.is_connected = False
+                    print(f"\n[!] Canh bao luong nhan USB: {e}")
+                    time.sleep(0.1)
 
         t = threading.Thread(target=worker, daemon=True)
         t.start()
 
     def _recv_all(self, n):
         data = bytearray()
-        while len(data) < n and self.running:
+        while len(data) < n and self.running and self.is_connected:
             try:
                 chunk = self.sock.recv(n - len(data))
                 if not chunk:
@@ -131,33 +145,32 @@ class StarkTetheredBridge:
             pkt = struct.pack(">I", len(data)) + data
             self.sock.sendall(pkt)
         except Exception:
-            self.is_connected = False
+            pass
 
     def run(self):
         self.start_usbmux_forward()
-        connected = self.wait_for_iphone(timeout=15)
+        connected = self.wait_for_iphone(timeout=8)
         
         if connected:
             self.start_receiver_thread()
-            print("\n[+] DANG STREAMING 1080p/4K 60-120 FPS QUA CAP USB!")
+            print("\n[+] DANG CHO LUONG VIDEO 1080p/4K TU IPHONE...")
         else:
-            print("[+] Khoi chay STARK CardboardXR voi Camera du phong...")
+            self.use_fallback = True
 
-        # Chay Main Engine
+        # Khoi tao cua so OpenCV
         win_title = "STARK CARDBOARDXR // TETHERED NATIVE USB XR SUITE"
         cv2.namedWindow(win_title, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(win_title, 1280, 720)
 
-        # Neu khong co app USB, mo camera du phong (Index 2 Camo hoac Index 0 Webcam)
-        fallback_cap = None
-        if not connected:
-            fallback_cap = self.suite.init_capture(2) or self.suite.init_capture(0)
+        # Camera du phong (Camo Studio index 2 hoac Laptop index 0)
+        fallback_cap = self.suite.init_capture(2) or self.suite.init_capture(0)
 
         print("\n==================================================================")
         print("   STARK TETHERED XR // HE THONG KHONG GIAN 3D NATIVE USB")
         print("   [1] 3D Air Paint (Tilt Brush)   | [2] AR Spatial Portal")
         print("   [3] Orb Rush Rhythm Game        | [4] 3D Cube Physics & Grab")
         print("   [5] Precision 3D Caliper        | [V] Toggle Stereo VR (Shinecon G10)")
+        print("   [X] Chuyen doi Camera iPhone USB <-> Camera Du Phong")
         print("   [ESC] Thoat he thong")
         print("==================================================================\n")
 
@@ -166,19 +179,42 @@ class StarkTetheredBridge:
 
         while self.running:
             frame = None
-            if self.is_connected:
+            
+            # 1. Uu tien lay frame tu iPhone qua cap USB
+            if self.is_connected and not self.use_fallback:
                 with self.lock:
                     if self.latest_frame is not None:
                         frame = self.latest_frame.copy()
-            elif fallback_cap and fallback_cap.isOpened():
+
+            # 2. Neu chua co frame tu iPhone hoac bat che do du phong -> Lay tu webcam/Camo
+            if frame is None and fallback_cap and fallback_cap.isOpened():
                 ret, f = fallback_cap.read()
-                if ret:
+                if ret and f is not None and f.size > 0:
                     frame = f
 
+            # 3. Neu van chua co bat ky frame nao -> Hien thi HUD cho (Khong bao gio bi Not Responding)
             if frame is None:
-                time.sleep(0.01)
+                hud_loading = np.zeros((720, 1280, 3), dtype=np.uint8)
+                cv2.putText(hud_loading, "STARK CARDBOARDXR // TETHERED USB XR", (100, 260),
+                            cv2.FONT_HERSHEY_DUPLEX, 1.2, (0, 243, 255), 2, cv2.LINE_AA)
+                
+                status_text = "DANG KET NOI CAP USB..." if not self.is_connected else "DA KET NOI USB! DANG DOI CAMERA IPHONE..."
+                cv2.putText(hud_loading, status_text, (100, 330),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0) if self.is_connected else (0, 165, 255), 2, cv2.LINE_AA)
+                cv2.putText(hud_loading, "Luu y: Tren iPhone, vui long bam 'Cho phep' Camera neu co thong bao!", (100, 390),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (200, 200, 200), 1, cv2.LINE_AA)
+                cv2.putText(hud_loading, "[X] Chuyen sang Camera Laptop/Camo  |  [ESC] Thoat", (100, 450),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, (150, 150, 255), 1, cv2.LINE_AA)
+                
+                cv2.imshow(win_title, hud_loading)
+                k = cv2.waitKey(20) & 0xFF
+                if k == 27:
+                    break
+                elif k == ord('x') or k == ord('X'):
+                    self.use_fallback = not self.use_fallback
                 continue
 
+            # Xu ly FPS
             h, w, _ = frame.shape
             if w != self.suite.cam_w or h != self.suite.cam_h:
                 self.suite.cam_w, self.suite.cam_h = w, h
@@ -246,9 +282,14 @@ class StarkTetheredBridge:
             sbs_frame = np.hstack((left_view, right_view))
             cv2.line(sbs_frame, (w, 0), (w, h), (0, 0, 0), 4)
 
-            # Ban frame ve iPhone
+            # Ban frame SBS nguoc ve iPhone qua day cap USB
             if self.is_connected:
                 self.send_sbs_back_to_iphone(sbs_frame)
+
+            # Ve HUD thong so len goc man hinh
+            source_tag = "IPHONE 13 USB" if (self.is_connected and not self.use_fallback) else "FALLBACK CAM"
+            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | FPS: {fps:.1f}", (40, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 243, 255), 2, cv2.LINE_AA)
 
             # Hien thi len man hinh laptop
             cv2.imshow(win_title, sbs_frame if self.suite.stereo_vr_mode else frame)
@@ -263,6 +304,9 @@ class StarkTetheredBridge:
             elif key == ord('5'): self.suite.current_mode = 5
             elif key == ord('v') or key == ord('V'):
                 self.suite.stereo_vr_mode = not self.suite.stereo_vr_mode
+            elif key == ord('x') or key == ord('X'):
+                self.use_fallback = not self.use_fallback
+                print(f"[*] Chuyen nguon Camera: {'DU PHONG (Camo/Webcam)' if self.use_fallback else 'IPHONE USB'}")
 
         # Don dep
         self.running = False
