@@ -47,6 +47,11 @@ class StarkTetheredBridge:
         self.ipd_offset = 14       # Disparity shift in pixels
         self.vr_projection = "immersive" # "immersive" (Vision Pro center-crop) or "full_fov" (letterbox)
         
+        # Huong Camera (Orientation): Mac dinh xoay 180 do khi cam cap Lightning sang trai va KHONG lat guong chu viet
+        self.rotate_180 = True
+        self.flip_horizontal = False
+        self.flip_vertical = False
+        
         self.forward_proc = None
         self.actual_rx_fps = 0.0
         self.rx_count = 0
@@ -245,6 +250,7 @@ class StarkTetheredBridge:
         print("   [3] Orb Rush Rhythm Game        | [4] 3D Cube Physics & Grab")
         print("   [5] Precision 3D Caliper        | [V] Toggle Stereo VR (Shinecon G10)")
         print("   [[]/[]] Tang/Giam IPD 3D        | [F] Doi Che Do Crop/Full FOV")
+        print("   [R] Dao 180 do (Xoay chieu)     | [M] Lat guong ngang | [T] Lat doc")
         print("   [X] Chuyen doi Camera iPhone USB <-> Webcam Laptop (Index 0)")
         print("   [ESC] Thoat he thong")
         print("==================================================================\n")
@@ -317,8 +323,13 @@ class StarkTetheredBridge:
             last_t = now
             fps = 0.9 * fps + 0.1 * (1.0 / dt)
 
-            # Lật gương ngang để tương tác không gian tự nhiên như soi gương
-            frame = cv2.flip(frame, 1)
+            # Xu ly huong camera (Orientation: Xoay 180 do cho kinh VR & khong lat guong chu viet)
+            if self.rotate_180:
+                frame = cv2.rotate(frame, cv2.ROTATE_180)
+            if self.flip_horizontal:
+                frame = cv2.flip(frame, 1)
+            if self.flip_vertical:
+                frame = cv2.flip(frame, 0)
             h, w = frame.shape[:2]
 
             # Gui frame vao luong AI Worker bat dong bo (neu worker dang ranh)
@@ -485,8 +496,10 @@ class StarkTetheredBridge:
 
             # Ve HUD thong so len man hinh laptop
             source_tag = f"IPHONE USB ({self.actual_rx_fps:.0f} FPS)" if frame_is_iphone else "FALLBACK CAM"
-            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | VR SBS FPS: {fps:.1f} | IPD: {self.ipd_offset}px [{self.vr_projection.upper()}]",
-                        (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 243, 255), 2, cv2.LINE_AA)
+            rot_str = "ROT: 180" if self.rotate_180 else "ROT: 0"
+            mir_str = "MIRROR" if self.flip_horizontal else "NORMAL"
+            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | VR SBS FPS: {fps:.1f} | {rot_str} | {mir_str} | IPD: {self.ipd_offset}px",
+                        (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.60, (0, 243, 255), 2, cv2.LINE_AA)
 
             # Hien thi tren man hinh Laptop
             cv2.imshow(win_title, sbs_frame if self.suite.stereo_vr_mode else frame)
@@ -504,6 +517,15 @@ class StarkTetheredBridge:
             elif key == ord('f') or key == ord('F'):
                 self.vr_projection = "full_fov" if self.vr_projection == "immersive" else "immersive"
                 print(f"[STARK VR] Chuyen che do quang hoc: {self.vr_projection}")
+            elif key == ord('r') or key == ord('R'):
+                self.rotate_180 = not self.rotate_180
+                print(f"[STARK] Xoay 180 do: {'BAT (Dao chieu)' if self.rotate_180 else 'TAT (Giu nguyen)'}")
+            elif key == ord('m') or key == ord('M'):
+                self.flip_horizontal = not self.flip_horizontal
+                print(f"[STARK] Lat guong ngang: {'BAT' if self.flip_horizontal else 'TAT'}")
+            elif key == ord('t') or key == ord('T'):
+                self.flip_vertical = not self.flip_vertical
+                print(f"[STARK] Lat doc tren/duoi: {'BAT' if self.flip_vertical else 'TAT'}")
             elif key == ord('['):
                 self.ipd_offset = max(0, self.ipd_offset - 2)
                 print(f"[STARK VR] Giam IPD: {self.ipd_offset}px")
