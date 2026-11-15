@@ -19,15 +19,18 @@ import subprocess
 import numpy as np
 import cv2
 
-# Import STARK CardboardXR Engine
+# Import STARK CardboardXR Engine & In-Air Spatial UI
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from stark_cardboard_xr import StarkCardboardXRSuite, SpatialCamera
+from stark_spatial_menu import SpatialInAirMenu
 
 class StarkTetheredBridge:
     def __init__(self, port=23456):
         self.port = port
         self.suite = StarkCardboardXRSuite()
         self.suite.stereo_vr_mode = True # Mac dinh bat SBS cho kinh Shinecon G10
+        self.suite.bridge = self
+        self.spatial_menu = SpatialInAirMenu()
         
         self.sock = None
         self.is_connected = False
@@ -377,16 +380,48 @@ class StarkTetheredBridge:
                     (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2
                 )
 
-            # Cap nhat Logic cua cac Demo
-            if self.suite.current_mode == 1: # PaintDemo (3D Air Paint)
-                if is_pinched and pinch_pt_3d is not None:
-                    self.suite.paint_demo.add_point(pinch_pt_3d)
-                else:
-                    self.suite.paint_demo.finish_stroke()
-            elif self.suite.current_mode == 3: # Orb Rush
-                self.suite.rush_demo.update(now, filtered_lms_3d)
-            elif self.suite.current_mode == 4: # Cube Physics
-                self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d)
+            # Kiem tra Tuong tac Menu Khong gian 3D (Hands-Free In-Air UI)
+            consumed = False
+            hovered_btn = None
+            if filtered_lms_2d is not None:
+                # Chuyen doi sang toa do trung tam cua 1 mat (640x720)
+                crop_w_calc = int(h * (640.0 / 720.0))
+                orig_x1_c = max(0, min(w - crop_w_calc, (w // 2) - crop_w_calc // 2))
+                scale_x_c = 640.0 / float(crop_w_calc)
+                scale_y_c = 720.0 / float(h)
+
+                pts_mapped_center = []
+                for pt in filtered_lms_2d:
+                    px = int((pt[0] - orig_x1_c) * scale_x_c)
+                    py = int(pt[1] * scale_y_c)
+                    pts_mapped_center.append((px, py))
+
+                p_knuckle_c = pts_mapped_center[5]
+                p_tip_c = pts_mapped_center[8]
+                dx = p_tip_c[0] - p_knuckle_c[0]
+                dy = p_tip_c[1] - p_knuckle_c[1]
+                dist_laser = math.hypot(dx, dy)
+                laser_end_c = None
+                if dist_laser > 8:
+                    scale_l = 480.0 / dist_laser
+                    laser_end_c = (int(p_tip_c[0] + dx * scale_l), int(p_tip_c[1] + dy * scale_l))
+
+                # Cap nhat Raycast & Palm System Gate cua In-Air Menu
+                consumed, hovered_btn = self.spatial_menu.update(
+                    pts_mapped_center, p_knuckle_c, p_tip_c, laser_end_c, is_pinched, now, self.suite, self
+                )
+
+            # Cap nhat Logic cua cac Demo (Neu In-Air UI khong chiem cu chi Pinch)
+            if not consumed:
+                if self.suite.current_mode == 1: # PaintDemo (3D Air Paint)
+                    if is_pinched and pinch_pt_3d is not None:
+                        self.suite.paint_demo.add_point(pinch_pt_3d)
+                    else:
+                        self.suite.paint_demo.finish_stroke()
+                elif self.suite.current_mode == 3: # Orb Rush
+                    self.suite.rush_demo.update(now, filtered_lms_3d)
+                elif self.suite.current_mode == 4: # Cube Physics
+                    self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d)
 
             # =================================================================
             # CHUAN HOA QUANG HOC STEREO SBS CHO KINH VR SHINECON G10
@@ -485,6 +520,10 @@ class StarkTetheredBridge:
                         pinch_px = int((pinch_pt_2d[0] - orig_x1) * scale_x) + off_x
                         pinch_py = int(pinch_pt_2d[1] * scale_y)
                         self.suite.draw_spatial_reticle(target_frame, (pinch_px, pinch_py), is_pinched)
+
+                # 3. Ve In-Air Spatial Menu tren ca hai mat voi do lech Parallax 3D
+                menu_parallax = 4 if off_x < 0 else -4
+                self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax)
 
             # Ghep 2 mat thanh Frame SBS hoan hao ty le 16:9
             sbs_frame = np.hstack((left_eye, right_eye))

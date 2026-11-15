@@ -3,10 +3,45 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.80 PRO for STARK Air Mouse)
+## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.81 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.72 PRO** (Live CDN: `v10_2_72_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.80 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.81 PRO**
+
+- **Triệt Để Xóa Bỏ Phụ Thuộc Bàn Phím Laptop // Hoàn Thiện 100% In-Air Hands-Free Spatial UI Port Từ CardboardXR (v10.2.81 PRO)**:
+  1. **Giải phẫu bài toán thực tế của người dùng**:
+     - Khi đeo kính VR Shinecon G10 và đi lại trong phòng, mắt người dùng bị che kín bởi kính VR và hướng về thế giới thực qua passthrough. Việc bắt người dùng phải với tay bấm các phím số `1, 2, 3, 4, 5`, phím đổi màu `N`, phím `Z`, `C`, hay `[`, `]` trên bàn phím laptop là hoàn toàn bất hợp lý và phá vỡ trải nghiệm VR!
+  2. **Giải pháp kiến trúc không gian đã triển khai từ CardboardXR ([stark_spatial_menu.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_spatial_menu.py))**:
+     - **M3 Spatial Floating Toolbar & App Library Dock**:
+       - Bảng điều khiển kính mờ Cyberpunk lơ lửng giữa không trung ngay trong tầm mắt người dùng ở cả 2 mắt (Left Eye & Right Eye) với độ lệch hội tụ Stereo Parallax ($\pm 4\text{px}$) tạo cảm giác nổi khối 3D vật lý thật cách mắt ~70cm.
+       - **5 Demo Apps**: `[PAINT 3D]`, `[PORTAL]`, `[ORB RUSH]`, `[CUBES]`, `[CALIPER]`.
+       - **Contextual In-Air Sub-Tools**:
+         - Khi ở chế độ Paint: Hiện bảng 5 màu (`MAGENTA`, `CYAN`, `GREEN`, `ORANGE`, `WHITE`), nút `[UNDO ↩]`, nút `[CLEAR 🗑]`.
+         - Khi ở chế độ Orb Rush: Nút `[START/RESTART ⚡]`, nút `[RESET COMBO]`.
+         - Khi ở chế độ Cubes: Nút `[RESET CUBE POS 📦]`.
+         - Khi ở chế độ Portal: Nút `[RE-CENTER PORTAL 🌀]`.
+       - **Quick In-Air Settings**: Điều chỉnh trực tiếp ngay lúc đeo kính:
+         - `[IPD -]` / `[IPD +]`: Hiệu chỉnh khoảng cách đồng tử thấu kính Shinecon G10 trực tiếp trong không gian.
+         - `[ROT 180]`: Xoay ngược/xuôi chiều camera iPhone khi cần.
+         - `[FOV/IMM]`: Đổi giữa Immersive và Full-FOV.
+         - `[CAM USB]`: Đảo nguồn Camera.
+         - `[HIDE ✕]`: Thu nhỏ menu để có tầm nhìn VR 100% thoáng đãng.
+     - **Tia Chi Định Laser Không Gian (Pointing Raycast)**:
+       - Chiếu tia laser chuẩn xác từ khớp đốt ngón trỏ (`landmark 5`) qua đầu ngón trỏ (`landmark 8`) vào không gian 3D.
+       - Bất kỳ nút nào nằm trên đường đi của tia laser hoặc được ngón tay chạm trực tiếp (Direct Touch) sẽ lập tức phát sáng viền vàng Neon (Hover Glow) kèm tâm ngắm Reticle khóa mục tiêu.
+     - **Hysteresis Pinch Router (`PinchRouter.cs`)**:
+       - Khi người dùng nhúm ngón cái và ngón trỏ (`dist < 26mm`):
+         - Nếu đang trỏ vào nút: Kích hoạt nút ngay lập tức, phát hiệu ứng sóng xung kích lan tỏa (Click Ripple), phát âm thanh click không gian phản hồi (`winsound.MessageBeep`) và **TIÊU THỤ CỬ CHỈ PINCH** (không để nét vẽ hay vật lý bị vẽ bậy ra nền cảnh phía sau!).
+         - Cơ chế Debounce Lockout `0.35s` chống click kép do rung tay.
+         - Nếu trỏ ra khoảng trống: Pinch sẽ được chuyển tiếp cho Demo (vẽ nét 3D hoặc gắp khối lập phương).
+     - **Apple Vision Pro Palm System Gate (`PalmGesture.cs` & `SettingsSummoner.cs`)**:
+       - Tích hợp công thức tích có hướng vector lòng bàn tay (`PalmGesture.Facing(wrist, indexKnuckle, pinkyKnuckle)`).
+       - Khi người dùng xòe bàn tay hướng lòng bàn tay về phía mắt mình $> 0.25\text{s}$:
+         - Xuất hiện biểu tượng huy hiệu năng lượng `[⚡ MENU]` ngay tại lòng bàn tay/cổ tay.
+         - Tự động bật/tắt hiển thị toàn bộ thanh công cụ In-Air Menu!
+  3. **Kết quả kiểm thử & xác nhận**:
+     - File [test_inair_interaction.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/test_inair_interaction.py) đã xác nhận 100% các bài test: Raycast hover, Pinch click đổi sang Orb Rush, Consume gesture, và Palm facing gate đều hoạt động trơn tru 0 lỗi.
+     - Tích hợp đồng bộ vào cả [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py) và [stark_cardboard_xr.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_cardboard_xr.py). Giờ đây người dùng đeo kính VR đi lại trong phòng có thể điều khiển toàn bộ hệ thống bằng đôi bàn tay trong không khí mà không cần chạm vào laptop!
 
 - **Khắc Phục Hoàn Toàn Hiện Tượng Camera Bị Ngược Chiều / Lộn Đầu (v10.2.80 PRO)**:
   1. **Nguyên nhân chính xác từ ảnh thẻ học sinh người dùng vừa gửi**:

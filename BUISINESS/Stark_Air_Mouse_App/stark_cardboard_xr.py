@@ -37,6 +37,10 @@ user32 = ctypes.windll.user32
 INPUT_KEYBOARD = 1
 KEYEVENTF_KEYUP = 0x0002
 
+# Import In-Air Spatial Menu
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from stark_spatial_menu import SpatialInAirMenu
+
 class KEYBDINPUT(ctypes.Structure):
     _fields_ = (
         ("wVk", wintypes.WORD),
@@ -484,9 +488,10 @@ class StarkCardboardXRSuite:
         self.stereo_vr_mode = False # False: Desktop HUD, True: Stereo VR SBS cho kinh Shinecon G10
         self.stereo_offset = 14 # IPD disparity pixels
 
-        # 7. Trang thai Roamies JARVIS
+        # 7. Trang thai Roamies JARVIS & In-Air Spatial UI
         self.palm_hold_start = 0.0
         self.jarvis_cooldown = 0.0
+        self.spatial_menu = SpatialInAirMenu()
 
     def draw_spatial_reticle(self, frame, pt, is_pinched):
         """Ve tam ngam khong gian 3D"""
@@ -674,18 +679,34 @@ class StarkCardboardXRSuite:
                 # Che do 1 man hinh Desktop AR
                 views = [(frame, 0)]
 
-            # Cap nhat Logic cua cac Demo
-            if self.current_mode == 1: # PaintDemo
-                if is_pinched and pinch_pt_3d is not None:
-                    self.paint_demo.add_point(pinch_pt_3d)
-                else:
-                    self.paint_demo.finish_stroke()
+            # Kiem tra In-Air UI
+            consumed = False
+            hovered_btn = None
+            if filtered_lms_2d is not None:
+                p_knuckle = filtered_lms_2d[5]
+                p_tip = filtered_lms_2d[8]
+                dx = p_tip[0] - p_knuckle[0]
+                dy = p_tip[1] - p_knuckle[1]
+                dist_laser = math.hypot(dx, dy)
+                laser_end = None
+                if dist_laser > 8:
+                    scale_l = 480.0 / dist_laser
+                    laser_end = (int(p_tip[0] + dx * scale_l), int(p_tip[1] + dy * scale_l))
+                consumed, hovered_btn = self.spatial_menu.update(
+                    filtered_lms_2d, p_knuckle, p_tip, laser_end, is_pinched, now, self
+                )
 
-            elif self.current_mode == 3: # Orb Rush
-                self.rush_demo.update(now, filtered_lms_3d)
-
-            elif self.current_mode == 4: # Cube Physics
-                self.cube_demo.update(dt, is_pinched, pinch_pt_3d)
+            # Cap nhat Logic cua cac Demo (Neu UI khong chiem cu chi Pinch)
+            if not consumed:
+                if self.current_mode == 1: # PaintDemo
+                    if is_pinched and pinch_pt_3d is not None:
+                        self.paint_demo.add_point(pinch_pt_3d)
+                    else:
+                        self.paint_demo.finish_stroke()
+                elif self.current_mode == 3: # Orb Rush
+                    self.rush_demo.update(now, filtered_lms_3d)
+                elif self.current_mode == 4: # Cube Physics
+                    self.cube_demo.update(dt, is_pinched, pinch_pt_3d)
 
             # Ve cac Demo vao cac View (Left / Right hoac Desktop)
             for target_frame, off_x in views:
@@ -732,6 +753,10 @@ class StarkCardboardXRSuite:
                     # Tam ngam Reticle khi Pinch
                     if pinch_pt_2d is not None:
                         self.draw_spatial_reticle(target_frame, (pinch_pt_2d[0] + off_x, pinch_pt_2d[1]), is_pinched)
+
+                # Ve In-Air Spatial Menu tren view
+                menu_offset = 4 if off_x < 0 else (-4 if off_x > 0 else 0)
+                self.spatial_menu.draw(target_frame, now, self.current_mode, eye_offset_x=menu_offset)
 
             # Ket xuat ra cua so hien thi
             if self.stereo_vr_mode:
