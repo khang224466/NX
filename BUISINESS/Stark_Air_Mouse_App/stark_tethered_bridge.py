@@ -486,8 +486,15 @@ class StarkTetheredBridge:
                         self.suite.paint_demo.finish_stroke()
                 elif self.suite.current_mode == 3: # Orb Rush
                     self.suite.rush_demo.update(now, filtered_lms_3d)
-                elif self.suite.current_mode == 4: # Cube Physics
-                    self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d)
+                elif self.suite.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs)
+                    ray_orig_3d = filtered_lms_3d[8] if filtered_lms_3d is not None else None
+                    ray_dir_3d = None
+                    if filtered_lms_3d is not None:
+                        dir_v = np.array(filtered_lms_3d[8]) - np.array(filtered_lms_3d[5])
+                        norm_d = float(np.linalg.norm(dir_v))
+                        if norm_d > 1e-4:
+                            ray_dir_3d = dir_v / norm_d
+                    self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
 
             # =================================================================
             # RENDER: 1 MAN HINH DUY NHAT (SINGLE SCREEN) HOAC CHIA DOI STEREO SBS

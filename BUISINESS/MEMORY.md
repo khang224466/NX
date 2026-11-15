@@ -3,10 +3,29 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.75 PRO for EduNext AI Assistant & v10.2.85 PRO for STARK Air Mouse)
+## Current Status (v10.2.76 PRO for EduNext AI Assistant & v10.2.85 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.75 PRO** (Live CDN: `v10_2_75_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.76 PRO** (Live CDN: `v10_2_76_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.85 PRO**
+
+- **Bóc Tách Bộ Theo Dõi Độc Lập ("Track Riêng") Cho Thẻ "Làm Rõ Ý Định" & Bảo Toàn 100% Chức Năng Cũ (v10.2.76 PRO)**:
+  1. **Yêu cầu chỉ đạo từ người dùng**:
+     - `"làm một cái track riêng, chỉ khi nó hiện thì mới bấm, chức năng cũ đừng động đến"`
+     - Yêu cầu tuyệt đối không can thiệp hay làm xáo trộn luồng giải bài tập thông thường (chức năng cũ).
+     - Phải xây dựng một bộ theo dõi hoàn toàn độc lập ("track riêng"), và chỉ khi thẻ "Làm Rõ Ý Định" (Clarify Intent) thực sự đang hiển thị trên màn hình DOM thì mới kích hoạt việc chọn ngẫu nhiên 1 trong 3 và bấm xác nhận.
+  2. **Giải pháp kiến trúc đã triển khai**:
+     - *Bảo toàn 100% chức năng cũ*:
+       - Khôi phục [turn-tracker.js](file:///d:/BUISINESS/FPT%20service/scripts/turn-tracker.js) về trạng thái nguyên bản sạch sẽ: Loại bỏ `isClarifyIntent` và `state = 'clarify_intent'`, giữ nguyên vẹn 100% logic phân loại trạng thái học sinh / giáo viên / nộp bài / chờ chấm.
+       - Trong [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js): Loại bỏ hoàn toàn mọi can thiệp clarify intent ra khỏi hàm giải đề `w()`, khôi phục nguyên vẹn luồng kiểm tra input `curInput`, nộp bài `z()`, bắt câu hỏi chuyên môn và ready check.
+     - *Xây dựng bộ theo dõi riêng biệt (`checkAndHandleClarifyIntent`)*:
+       - Tách thành một module độc lập ở cấp cao nhất.
+       - Tiêu chí *"Chỉ khi nó hiện thì mới bấm"*: Kiểm tra nút xác nhận `offsetParent !== null` (đang hiển thị thực tế trên màn hình) VÀ nằm trong vùng chứa có text `Làm Rõ Ý Định` / `Clarify Intent`. Nếu không có hoặc đang ẩn -> lập tức thoát sau 0ms mà không làm bất cứ hành động nào.
+       - Khi thẻ thực sự xuất hiện: Quét nhanh các lựa chọn (`01, 02, 03...` hoặc radio/text tiếng Anh lẫn tiếng Việt), chọn ngẫu nhiên 1 phương án, click radio và thẻ lựa chọn, chờ 350ms, sau đó bấm `Xác nhận lựa chọn →` (hoặc `Confirm selection →`).
+       - Tích hợp debounce lockout 8 giây chống click lặp.
+       - Bộ theo dõi chạy độc lập thông qua `timerInterval` định kỳ mỗi 1 giây kết hợp `MutationObserver` bắt nhanh thay đổi DOM trong vòng 300ms, tự giải phóng tài nguyên khi đóng HUD qua sự kiện `enx_destroy`.
+     - *Đồng bộ phiên bản v10.2.76 PRO*:
+       - Cập nhật toàn bộ các file: [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js), [build-edunext.cjs](file:///d:/BUISINESS/FPT%20service/scripts/build-edunext.cjs), [build_v10_cdn.js](file:///d:/BUISINESS/FPT%20service/scripts/build_v10_cdn.js), [generate_keo_page.js](file:///d:/BUISINESS/FPT%20service/scripts/generate_keo_page.js), [route.ts](file:///d:/BUISINESS/FPT%20service/src/app/api/v1/ai/solve/route.ts), [bridge.html](file:///d:/BUISINESS/FPT%20service/public/bridge.html), [utils.ts](file:///d:/BUISINESS/FPT%20service/src/lib/utils.ts), [servicesCatalog.ts](file:///d:/BUISINESS/FPT%20service/src/data/servicesCatalog.ts), toàn bộ linh kiện Landing page và modal.
+       - Biên dịch thành công bundle CDN `v10_2_76_minified.js`, kiểm thử Turbopack `next build` đạt 0 lỗi (Exit Code 0).
 
 - **Triệt Để Thiết Lập 1 Màn Hình Duy Nhất Toàn Cảnh (Single Full Screen 16:9, Không Chia Đôi) (v10.2.85 PRO)**:
   1. **Giải phẫu yêu cầu của người dùng ("để 1 màn hình duy nhất, k cần phải chia đôi")**:

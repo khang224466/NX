@@ -36,28 +36,36 @@ def play_click_chime():
 
 class PalmGestureDetector:
     """
-    Port of CardboardXR PalmGesture.cs & PalmFacingState.
-    Nhan dien khi nguoi dung xoe long ban tay huong ve mat de mo menu cai dat khong gian.
+    Port of CardboardXR PalmGesture.cs & PalmFacingState (visionOS Palm System Gate).
+    Nhan dien khi nguoi dung xoe long ban tay huong ve mat de hien thi nut cai dat khong gian.
     """
-    def __init__(self, show_thresh=0.36, show_time=0.25):
+    def __init__(self, show_thresh=0.35, hide_thresh=0.18, show_time=0.20, hide_time=0.30):
         self.show_thresh = show_thresh
+        self.hide_thresh = hide_thresh
         self.show_time = show_time
+        self.hide_time = hide_time
         self.facing_start = 0.0
+        self.unfacing_start = 0.0
         self.is_facing = False
-        self.last_toggle_t = 0.0
+        self.last_facing_score = 0.0
+        self.gear_button_pos = None
 
     def update(self, lms_2d, now):
         """
         lms_2d: 21 diem khop tay tren frame (x, y)
-        Tra ve: (is_facing, facing_score, palm_center)
+        Tra ve: (is_facing, facing_score, gear_pos)
         """
         if lms_2d is None or len(lms_2d) < 21:
             self.facing_start = 0.0
+            self.unfacing_start = 0.0
             self.is_facing = False
+            self.gear_button_pos = None
             return False, 0.0, None
 
         wrist = lms_2d[0]
+        thumb_tip = lms_2d[4]
         index_knuckle = lms_2d[5]
+        index_tip = lms_2d[8]
         pinky_knuckle = lms_2d[17]
         middle_tip = lms_2d[12]
 
@@ -68,29 +76,48 @@ class PalmGestureDetector:
         if len_i * len_p < 1e-4:
             return False, 0.0, None
 
+        # Cross product 2D theo cong thuc CardboardXR PalmGesture.cs
         cross = to_index[0] * to_pinky[1] - to_index[1] * to_pinky[0]
         facing = -cross / (len_i * len_p)
+        self.last_facing_score = facing
 
-        # Kiem tra ban tay co dang xoe ngon khong
+        # Kiem tra ban tay co dang mo (khong nam dam)
         dist_wrist_mid = math.hypot(middle_tip[0] - wrist[0], middle_tip[1] - wrist[1])
-        is_open = dist_wrist_mid > (len_i * 1.05)
+        is_open = dist_wrist_mid > (len_i * 0.95)
 
-        palm_center = (
-            int((wrist[0] + index_knuckle[0] + pinky_knuckle[0]) / 3.0),
-            int((wrist[1] + index_knuckle[1] + pinky_knuckle[1]) / 3.0)
+        # Toa do nut Settings Gear: Giua ngon cai va ngon tro (k_ThumbJoint & k_IndexJoint)
+        gear_pos = (
+            int((thumb_tip[0] + index_tip[0]) * 0.5),
+            int((thumb_tip[1] + index_tip[1]) * 0.5)
         )
+        self.gear_button_pos = gear_pos
 
-        is_facing_now = is_open and (abs(facing) > self.show_thresh)
-        if is_facing_now:
-            if self.facing_start == 0.0:
-                self.facing_start = now
-            elif (now - self.facing_start) >= self.show_time:
-                self.is_facing = True
+        facing_mag = abs(facing)
+        if is_open:
+            if not self.is_facing:
+                if facing_mag > self.show_thresh:
+                    if self.facing_start == 0.0:
+                        self.facing_start = now
+                    elif (now - self.facing_start) >= self.show_time:
+                        self.is_facing = True
+                        self.unfacing_start = 0.0
+                else:
+                    self.facing_start = 0.0
+            else:
+                if facing_mag < self.hide_thresh:
+                    if self.unfacing_start == 0.0:
+                        self.unfacing_start = now
+                    elif (now - self.unfacing_start) >= self.hide_time:
+                        self.is_facing = False
+                        self.facing_start = 0.0
+                else:
+                    self.unfacing_start = 0.0
         else:
-            self.facing_start = 0.0
             self.is_facing = False
+            self.facing_start = 0.0
+            self.unfacing_start = 0.0
 
-        return self.is_facing, facing, palm_center
+        return self.is_facing, facing, gear_pos
 
 
 class SpatialButton:
@@ -170,15 +197,16 @@ class SpatialButton:
 class SpatialInAirMenu:
     """
     Thanh dieu khien khong gian 3D hoan chinh (M3 Spatial In-Air Toolbar).
-    Cho phep nguoi dung dieu khien 100% he thong ma khong can cham vao ban phim laptop.
+    Port of CardboardXR (M3Toolbar.cs, SettingsSummoner.cs, PalmGesture.cs, PinchRouter.cs).
+    Cho phep nguoi dung dieu khien 100% he thong tren khong ma khong can cham vao ban phim laptop.
     """
     def __init__(self):
         self.is_open = True
         self.last_click_t = 0.0
         self.click_lockout = 0.35 # Lockout 0.35s chong double-click nham
-        self.palm_detector = PalmGestureDetector(show_thresh=0.38, show_time=0.25)
-        self.palm_gear_center = None
-        self.last_palm_toggle_t = 0.0
+        self.palm_detector = PalmGestureDetector(show_thresh=0.35, hide_thresh=0.18, show_time=0.20, hide_time=0.30)
+        self.palm_gear_pos = None
+        self.last_pinch_toggle_t = 0.0
         self.buttons = []
         self._build_buttons()
 
@@ -238,44 +266,55 @@ class SpatialInAirMenu:
         # Mode 2 & 5 Controls
         self.buttons.append(SpatialButton("portal_reset", "RE-CENTER PORTAL 🌀", 20, y_sub, 190, sw_h, color=(0, 243, 255), category="portal"))
 
-        # Nut [HIDE X] luon o goc phai cua sub-row
-        self.buttons.append(SpatialButton("btn_hide", "HIDE X", 532, y_sub, 80, sw_h, color=(255, 100, 100), category="all"))
+        # Nut [X CLOSE] luon o goc phai cua sub-row
+        self.buttons.append(SpatialButton("btn_hide", "X CLOSE", 532, y_sub, 80, sw_h, color=(255, 100, 100), category="all"))
 
         # =====================================================================
-        # 3. HANG TOP QUICK SETTINGS BAR (y = 16, h = 30)
+        # 3. HANG TOP QUICK SETTINGS BAR (y = 16, h = 30) - 100% IN-AIR CONTROL
         # =====================================================================
         y_top = 16
-        self.buttons.append(SpatialButton("set_ipd_sub", "IPD -", 20, y_top, 58, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_ipd_add", "IPD +", 84, y_top, 58, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_flip_v", "FLIP V", 148, y_top, 74, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_flip_h", "MIRROR", 228, y_top, 78, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_rot", "ROT 180", 312, y_top, 80, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_fov", "FOV/IMM", 398, y_top, 80, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_cam", "CAM USB", 484, y_top, 82, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_view_mode", "VIEW: 1-SCR", 14, y_top, 88, 30, color=(0, 255, 128), category="settings"))
+        self.buttons.append(SpatialButton("set_ipd_sub", "IPD -", 108, y_top, 52, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_ipd_add", "IPD +", 164, y_top, 52, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_flip_v", "FLIP V", 220, y_top, 64, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_flip_h", "MIRROR", 288, y_top, 68, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_rot", "ROT 180", 360, y_top, 68, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_cam", "CAM USB", 432, y_top, 78, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("btn_hide", "X CLOSE", 516, y_top, 74, 30, color=(255, 100, 100), category="settings"))
 
     def update(self, lms_2d, p_knuckle, p_tip, laser_end, is_pinched, now, suite, bridge=None):
         """
         Kiem tra cu chi long ban tay (Palm Gate) va tia chi dinh (Raycast).
+        Thuc thi theo dung quy tac CardboardXR PinchRouter.cs:
+        1. Palm Gear showing + Pinch -> Open/Close Settings
+        2. Menu Open + Ray on Button + Pinch -> Click Button
+        3. Menu Open + Pinch elsewhere -> Consumed by Menu (Block demos from drawing)
+        4. Menu Closed -> Forward pinch to active demo
         Tra ve: (consumed, hovered_button)
         """
-        # 1. Kiem tra Palm System Gate (Vision Pro Style)
-        is_palm_facing, facing_score, palm_center = self.palm_detector.update(lms_2d, now)
-        self.palm_gear_center = palm_center
+        # 1. Kiem tra Palm System Gate (visionOS Style - SettingsSummoner.cs)
+        is_palm_facing, facing_score, gear_pos = self.palm_detector.update(lms_2d, now)
+        self.palm_gear_pos = gear_pos
 
-        if is_palm_facing and (now - self.last_palm_toggle_t > 1.2):
-            self.last_palm_toggle_t = now
-            self.is_open = not self.is_open
-            play_click_chime()
-            print(f"[SpatialMenu] >>> PALM GATE TRIGGERED! In-Air Menu is_open = {self.is_open} <<<")
+        # Quy tac 1: Khi nut Gear o long ban tay dang hien, cu chi PINCH se dong/mo menu!
+        if is_palm_facing:
+            if is_pinched and (now - self.last_pinch_toggle_t > 0.40):
+                self.last_pinch_toggle_t = now
+                self.last_click_t = now
+                self.is_open = not self.is_open
+                play_click_chime()
+                print(f"\n[SpatialMenu] >>> PALM PINCH TRIGGERED! In-Air Menu is_open = {self.is_open} <<<")
+                return True, None
 
-        # 2. Kiem tra va cham Raycast & Direct Touch
-        hovered_btn = None
-        consumed = False
-
+        # 2. Neu menu dang an, tat ca hoat dong ray tren menu bi bo qua
         if not self.is_open:
             for btn in self.buttons:
                 btn.is_hovered = False
             return False, None
+
+        # 3. Kiem tra va cham Raycast & Direct Touch khi Menu dang mo
+        hovered_btn = None
+        consumed = False
 
         if p_tip is not None and laser_end is not None:
             # Chi kiem tra cac button phu hop voi category cua mode hien tai
@@ -300,6 +339,12 @@ class SpatialInAirMenu:
                     consumed = True
                     play_click_chime()
                     self._dispatch_click(hovered_btn.btn_id, suite, bridge, now)
+            else:
+                # Quy tac 3 cua CardboardXR PinchRouter:
+                # Khi menu dang mo, bat ky cu chi pinch nao cung bi menu chiem (consumed),
+                # khong cho phep xuyen thau lam roi loan net ve 3D hay vat the dang sau menu.
+                if is_pinched:
+                    consumed = True
         else:
             for btn in self.buttons:
                 btn.is_hovered = False
@@ -307,7 +352,7 @@ class SpatialInAirMenu:
         return consumed, hovered_btn
 
     def _dispatch_click(self, btn_id, suite, bridge, now):
-        print(f"\n[SpatialMenu] >>> CLICK: {btn_id} <<<")
+        print(f"\n[SpatialMenu] >>> IN-AIR CLICK: {btn_id} <<<")
         if btn_id == "demo_1":
             suite.current_mode = 1
         elif btn_id == "demo_2":
@@ -337,6 +382,10 @@ class SpatialInAirMenu:
             suite.portal_demo.pos = np.array([0.0, -0.2, 1.4])
         elif btn_id == "btn_hide":
             self.is_open = False
+        elif btn_id == "set_view_mode" and bridge:
+            bridge.suite.stereo_vr_mode = not bridge.suite.stereo_vr_mode
+            mode_desc = "STEREO SBS (KÍNH VR)" if bridge.suite.stereo_vr_mode else "1 MÀN HÌNH DUY NHẤT"
+            print(f"[SpatialMenu] >>> CHUYEN DOI CHE DO VIEW: {mode_desc} <<<")
         elif btn_id == "set_ipd_sub" and bridge:
             bridge.ipd_offset = max(0, bridge.ipd_offset - 2)
             print(f"[SpatialMenu] IPD: {bridge.ipd_offset}px")
@@ -370,24 +419,48 @@ class SpatialInAirMenu:
                 idx = int(b.btn_id.split("_")[1])
                 b.is_active = (idx == suite.paint_demo.current_color_idx)
 
-    def draw(self, frame, now, current_mode=1, eye_offset_x=0):
+    def draw(self, frame, now, current_mode=1, eye_offset_x=0, bridge=None):
         """
         Ve toan bo giao dien len mot mat (Left Eye hoac Right Eye).
         eye_offset_x: Do lech quang hoc Parallax 3D tao cam giac noi khoi (Stereo Depth).
         """
-        # 1. Ve Palm Summoner Gear tren long ban tay neu xoe tay
-        if self.palm_gear_center is not None and self.palm_detector.is_facing:
-            cx, cy = self.palm_gear_center[0] + eye_offset_x, self.palm_gear_center[1]
+        # Dong bo nhan nut tren Top Settings Bar
+        if bridge is not None:
+            is_stereo = bridge.suite.stereo_vr_mode
+            for b in self.buttons:
+                if b.btn_id == "set_view_mode":
+                    b.label = "SBS VR" if is_stereo else "1-SCR"
+                    b.color = (255, 0, 255) if is_stereo else (0, 255, 128)
+                elif b.btn_id == "set_cam":
+                    b.label = "LAPTOP" if bridge.use_fallback else "IPHONE"
+
+        # 1. Ve Palm Summoner Gear Button giua ngon cai va ngon tro (k_ThumbJoint & k_IndexJoint)
+        if self.palm_gear_pos is not None and self.palm_detector.is_facing:
+            cx, cy = self.palm_gear_pos[0] + eye_offset_x, self.palm_gear_pos[1]
             pulse = int(127 + 127 * math.sin(now * 8.0))
             gear_col = (pulse, 243, 255)
-            cv2.circle(frame, (cx, cy), 32, gear_col, 2, cv2.LINE_AA)
-            cv2.circle(frame, (cx, cy), 22, (0, 255, 128), -1, cv2.LINE_AA)
-            cv2.putText(frame, "MENU", (cx - 18, cy + 5), cv2.FONT_HERSHEY_DUPLEX, 0.40, (0, 0, 0), 1, cv2.LINE_AA)
+
+            # Vong sang ben ngoai
+            cv2.circle(frame, (cx, cy), 30, gear_col, 2, cv2.LINE_AA)
+
+            # Nhan kinh mo ben trong
+            btn_bg = (20, 60, 35) if self.is_open else (15, 30, 45)
+            cv2.circle(frame, (cx, cy), 22, btn_bg, -1, cv2.LINE_AA)
+            cv2.circle(frame, (cx, cy), 22, (0, 255, 128), 1, cv2.LINE_AA)
+
+            label = "CLOSE" if self.is_open else "MENU"
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_DUPLEX, 0.36, 1)
+            cv2.putText(frame, label, (cx - tw // 2, cy + th // 2), cv2.FONT_HERSHEY_DUPLEX, 0.36, (255, 255, 255), 1, cv2.LINE_AA)
+
+            # Huong dan cu chi ngay duoi nut
+            hint = "CHUM DE DONG" if self.is_open else "CHUM DE MO"
+            (hw, hh), _ = cv2.getTextSize(hint, cv2.FONT_HERSHEY_SIMPLEX, 0.34, 1)
+            cv2.putText(frame, hint, (cx - hw // 2, cy + 42), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (0, 243, 255), 1, cv2.LINE_AA)
 
         if not self.is_open:
             # Neu dang an, chi hien thi goi y nhe o day
-            cv2.putText(frame, "[XOE LONG BAN TAY DE HIEN MENU 3D]", (100 + eye_offset_x, 680),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 243, 255), 1, cv2.LINE_AA)
+            cv2.putText(frame, "[XOE LONG BAN TAY & CHUM NGON DE MO MENU]", (90 + eye_offset_x, 685),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 243, 255), 1, cv2.LINE_AA)
             return
 
         # 2. Ve Background Dock Panel cho Hang Chinh & Hang Phu (In-Place ROI Blending)
@@ -402,8 +475,8 @@ class SpatialInAirMenu:
             cv2.addWeighted(np.full_like(roi_d, (12, 16, 20)), 0.75, roi_d, 0.25, 0, roi_d)
 
         # Top Settings Bar overlay
-        x1_t = max(0, min(frame.shape[1] - 1, 10 + eye_offset_x))
-        x2_t = max(0, min(frame.shape[1], 580 + eye_offset_x))
+        x1_t = max(0, min(frame.shape[1] - 1, 8 + eye_offset_x))
+        x2_t = max(0, min(frame.shape[1], 600 + eye_offset_x))
         y1_t = max(0, min(frame.shape[0] - 1, 10))
         y2_t = max(0, min(frame.shape[0], 52))
         if x2_t > x1_t and y2_t > y1_t:
@@ -412,7 +485,7 @@ class SpatialInAirMenu:
 
         # Vien neon dock
         cv2.rectangle(frame, (10 + eye_offset_x, dock_y), (630 + eye_offset_x, dock_y + dock_h), (35, 45, 55), 1, cv2.LINE_AA)
-        cv2.rectangle(frame, (10 + eye_offset_x, 10), (580 + eye_offset_x, 52), (35, 45, 55), 1, cv2.LINE_AA)
+        cv2.rectangle(frame, (8 + eye_offset_x, 10), (600 + eye_offset_x, 52), (35, 45, 55), 1, cv2.LINE_AA)
 
         # Header title
         cv2.putText(frame, "CARDBOARDXR // M3 SPATIAL IN-AIR TOOLBAR", (20 + eye_offset_x, dock_y - 6),

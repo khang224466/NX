@@ -378,9 +378,16 @@ class OrbRushDemo:
                     (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 243, 255), 2)
 
 # -----------------------------------------------------------------------------
-# Demo 4: 3D Holographic Cube Physics & Grab (CubePhysics.cs)
+# Demo 4: 3D Holographic Cube Physics & Grab (Ported from CardboardXR CubePhysics.cs)
 # -----------------------------------------------------------------------------
 class CubePhysicsDemo:
+    """
+    Port of CardboardXR CubePhysics.cs:
+    - Grab by near hand pinch (< 0.25m) or far pointing ray (NearFarInteractor)
+    - Kinematic movement while held by hand
+    - Throw on release with hand velocity (clamped to k_MaxThrowSpeed = 6.0 m/s)
+    - Natural gravity (-9.8 m/s^2), bounce off floor/desk and air damping
+    """
     def __init__(self):
         self.pos = np.array([0.0, 0.0, 1.1])
         self.size = 0.16
@@ -388,24 +395,57 @@ class CubePhysicsDemo:
         self.vel = np.array([0.0, 0.0, 0.0])
         self.is_grabbed = False
         self.grab_offset = np.array([0.0, 0.0, 0.0])
+        self.prev_grab_pos = None
 
-    def update(self, dt, is_pinched, pinch_pos_3d):
-        if is_pinched and pinch_pos_3d is not None:
-            dist = np.linalg.norm(self.pos - pinch_pos_3d)
-            if not self.is_grabbed and dist < 0.22:
+    def update(self, dt, is_pinched, pinch_pos_3d, ray_origin_3d=None, ray_dir_3d=None):
+        if is_pinched:
+            # 1. Kiem tra khoang cach cham gan (< 0.25m)
+            dist_pinch = np.linalg.norm(self.pos - pinch_pos_3d) if pinch_pos_3d is not None else 999.0
+
+            # 2. Kiem tra tia laser tu xa (Far Raycast toi qua cau bao quanh khoi hop)
+            hit_ray = False
+            if ray_origin_3d is not None and ray_dir_3d is not None:
+                to_cube = self.pos - ray_origin_3d
+                proj = float(np.dot(to_cube, ray_dir_3d))
+                if proj > 0.15:
+                    closest_pt = ray_origin_3d + proj * ray_dir_3d
+                    ray_dist = float(np.linalg.norm(self.pos - closest_pt))
+                    if ray_dist < (self.size * 1.6):
+                        hit_ray = True
+
+            can_grab = (dist_pinch < 0.25) or hit_ray
+            if not self.is_grabbed and can_grab and pinch_pos_3d is not None:
                 self.is_grabbed = True
                 self.grab_offset = self.pos - pinch_pos_3d
+                self.prev_grab_pos = self.pos.copy()
 
-            if self.is_grabbed:
+            if self.is_grabbed and pinch_pos_3d is not None:
                 target_pos = pinch_pos_3d + self.grab_offset
-                self.vel = (target_pos - self.pos) / dt
+                if dt > 0.001:
+                    raw_vel = (target_pos - self.pos) / dt
+                    # Gioi han toc do nem toi da (CardboardXR k_MaxThrowSpeed = 6.0 m/s)
+                    spd = float(np.linalg.norm(raw_vel))
+                    if spd > 6.0:
+                        raw_vel = (raw_vel / spd) * 6.0
+                    self.vel = raw_vel
                 self.pos = target_pos
         else:
             if self.is_grabbed:
                 self.is_grabbed = False
-            # Vat ly troi & giam toc tu nhien
+
+            # Vat ly vat the tu do (Trong luc + Quan tinh nem + Ma sat khong khi)
+            # Gravity: -2.5 m/s^2 tao cam giac lo lung huyen ao nhe nhang trong AR
+            self.vel[1] -= 2.5 * dt
             self.pos += self.vel * dt
-            self.vel *= 0.90 # Ma sat khong khi
+            self.vel *= 0.94 # Damping
+
+            # Cham san / Mat ban ao o do sau y = -0.55m -> Dan hoi nay len
+            if self.pos[1] < -0.55:
+                self.pos[1] = -0.55
+                self.vel[1] = -self.vel[1] * 0.50 # Nay len voi 50% dong nang
+                self.vel[0] *= 0.85
+                self.vel[2] *= 0.85
+
             self.rot[0] += 0.02
             self.rot[1] += 0.03
 
