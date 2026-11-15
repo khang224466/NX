@@ -3,10 +3,24 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.68 PRO for EduNext AI Assistant & v10.2.75 PRO for STARK Air Mouse)
+## Current Status (v10.2.69 PRO for EduNext AI Assistant & v10.2.75 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.68 PRO** (Live CDN: `v10_2_68_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.69 PRO** (Live CDN: `v10_2_69_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.75 PRO**
+
+- **Cho Phép Trả Lời "Yes" / "Ready" 100% Trong Môn Tiếng Anh (v10.2.69 PRO)**:
+  1. **Nguyên nhân chính xác từ phản hồi người dùng ("yes cho mỗi môn tiếng anh thôi")**:
+     - Trong các bài học môn Tiếng Anh trên EduNext, hệ thống liên tục hỏi chuyển phần: `"Are you ready to move on to the next part?"`.
+     - Code cũ kích hoạt cờ `hasActualExercise` do trong câu có từ `"exercise"` / `"question"`, sau đó áp dụng chặn cứng `if (hasActualExercise && /^(?:yes|sẵn sàng|ready)/)` khiến bot từ chối nộp "Yes", dẫn đến vòng lặp cảnh báo `AI trả lời nhầm 'Yes' cho bài tập`.
+     - Đồng thời hàm `isDuplicateSubmission("Yes")` chặn "Yes" vì cho rằng đáp án đã từng được nộp ở các phần trước.
+  2. **Giải pháp đã hoàn tất**:
+     - Cho phép nộp **"Yes" / "Ready" 100%** đối với môn tiếng Anh (`isEnglishContext`). Chỉ áp dụng chặn trong môn tiếng Việt nếu AI trả lời "Sẵn sàng" thay vì giải bài tập chuyên môn.
+     - Miễn trừ kiểm tra trùng lặp (`isDuplicateSubmission` & check `l`) cho các từ chuyển phần ngắn (`Yes`, `No`, `Ready`, `Ok`, `Sẵn sàng`), cho phép học sinh chuyển tiếp mượt mà qua mọi part của buổi học.
+     - Đồng bộ phiên bản toàn diện lên **v10.2.69 PRO**, build Turbopack 0 lỗi và purge CDN jsDelivr toàn cầu thành công.
+
+- **Khắc Phục Lỗi AttributeError 'tilt_brush' Trên Stark Tethered Bridge (v10.2.75 PRO)**:
+  - Trong [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py): Thay thế thuộc tính cũ `self.suite.tilt_brush` bằng `self.suite.paint_demo` tương thích 100% với `StarkCardboardXRSuite`.
+  - Đã đẩy commit lên GitHub `NX`.
 
 - **Sửa Triệt Để Vấn Đề App Bị Đen Màn Hình & Không Hiện Xin Quyền Camera (v10.2.75 PRO)**:
   1. **Tìm ra chính xác nguyên nhân gốc rễ (Smoking Gun)**:
