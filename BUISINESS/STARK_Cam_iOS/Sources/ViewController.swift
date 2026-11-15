@@ -133,7 +133,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     private func setupVRDisplay() {
         vrDisplayImageView.frame = view.bounds
         vrDisplayImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        vrDisplayImageView.contentMode = .scaleAspectFill
+        vrDisplayImageView.contentMode = .scaleToFill // Khop 100% 2 nua man hinh vao 2 thau kinh Shinecon G10
         vrDisplayImageView.backgroundColor = .black
         vrDisplayImageView.isHidden = true
         view.addSubview(vrDisplayImageView)

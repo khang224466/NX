@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>STARK Spatial VR Passthrough Client</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #fff; }
+
+        /* Khung hiển thị chia đôi 2 mắt (Stereo VR Side-by-Side) */
+        #vr-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #000;
+        }
+
+        .eye-viewport {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .eye-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Vách ngăn chia đôi 2 mắt cho thấu kính Shinecon G10 */
+        #divider {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: #000;
+            transform: translateX(-50%);
+            z-index: 50;
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        /* Tâm ngắm thấu kính (Crosshair Reticle) */
+        .reticle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(0, 243, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Giao diện khởi động & kết nối */
+        #overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 15, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            gap: 16px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .hud-title {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: #00f3ff;
+            text-transform: uppercase;
+            text-shadow: 0 0 12px rgba(0, 243, 255, 0.5);
+        }
+
+        .hud-desc {
+            font-size: 14px;
+            color: #94a3b8;
+            max-width: 380px;
+            line-height: 1.5;
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #00f3ff, #0077ff);
+            color: #000;
+            font-weight: 700;
+            font-size: 16px;
+            padding: 14px 28px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .start-btn:active { transform: scale(0.96); }
+
+        #status-pill {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            padding: 4px 14px;
+            border-radius: 12px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #00f3ff;
+            z-index: 60;
+            pointer-events: none;
+        }
+
+        /* Video ẩn dùng để bắt khung hình từ Camera sau */
+        #hidden-video {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status-pill">STARK SPATIAL LINK: SẴN SÀNG</div>
+
+    <div id="vr-container">
+        <!-- Mắt Trái -->
+        <div class="eye-viewport" id="left-eye">
+            <canvas class="eye-canvas" id="canvas-left"></canvas>
+            <div class="reticle"></div>
+        </div>
+
+        <div id="divider"></div>
+
+        <!-- Mắt Phải -->
+        <div class="eye-viewport" id="right-eye">
+            <canvas class="eye-canvas" id="canvas-right"></canvas>
+            <div class="reticle"></div>
+        </div>
+    </div>
+
+    <!-- Màn hình khởi động để cấp quyền Camera -->
+    <div id="overlay">
+        <div class="hud-title">STARK SPATIAL XR</div>
+        <div class="hud-desc">
+            Hệ thống sẽ mở <b>Camera Sau</b> của điện thoại, truyền hình ảnh về Laptop Legion (RTX 4060) xử lý AI 3D & Roamies JARVIS, rồi trả về 2 mắt kính VR siêu tốc qua cáp!
+        </div>
+        <button class="start-btn" id="btn-start">BẬT CAMERA & VÀO KÍNH VR</button>
+    </div>
+
+    <video id="hidden-video" playsinline autoplay muted></video>
+
+    <script>
+        const overlay = document.getElementById('overlay');
+        const btnStart = document.getElementById('btn-start');
+        const video = document.getElementById('hidden-video');
+        const canvasLeft = document.getElementById('canvas-left');
+        const canvasRight = document.getElementById('canvas-right');
+        const ctxL = canvasLeft.getContext('2d');
+        const ctxR = canvasRight.getContext('2d');
+        const statusPill = document.getElementById('status-pill');
+
+        // Canvas nén gửi khung hình camera lên Laptop
+        const sendCanvas = document.createElement('canvas');
+        sendCanvas.width = 640;
+        sendCanvas.height = 480;
+        const sendCtx = sendCanvas.getContext('2d');
+
+        let ws = null;
+        let isStreaming = false;
+        let fpsCounter = 0;
+        let lastFpsTime = Date.now();
+        let curFps = 60;
+
+        // Kết nối WebSocket về Laptop Legion
+        function connectWebSocket() {
+            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // Tự động kết nối đúng host & port đang mở để Safari không bao giờ chặn SSL WSS
+            const wsUrl = `${proto}//${window.location.host}/ws`;
+
+            statusPill.textContent = `ĐANG KẾT NỐI LAPTOP: ${window.location.host}...`;
+
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = 'blob';
+
+            ws.onopen = () => {
+                statusPill.textContent = `SPATIAL LINK: ĐÃ NỐI LAPTOP (60 FPS)`;
+                statusPill.style.borderColor = '#00ff88';
+                statusPill.style.color = '#00ff88';
+            };
+
+            ws.onmessage = async (event) => {
+                // Nhận khung hình 3D SBS đã được Laptop xử lý
+                if (event.data instanceof Blob) {
+                    try {
+                        const bitmap = await createImageBitmap(event.data);
+                        if (canvasLeft.width !== bitmap.width / 2) {
+                            canvasLeft.width = bitmap.width / 2;
+                            canvasLeft.height = bitmap.height;
+                            canvasRight.width = bitmap.width / 2;
+                            canvasRight.height = bitmap.height;
+                        }
+
+                        const halfW = bitmap.width / 2;
+                        const h = bitmap.height;
+
+                        ctxL.drawImage(bitmap, 0, 0, halfW, h, 0, 0, canvasLeft.width, canvasLeft.height);
+                        ctxR.drawImage(bitmap, halfW, 0, halfW, h, 0, 0, canvasRight.width, canvasRight.height);
+                        bitmap.close();
+                    } catch (e) {
+                        const url = URL.createObjectURL(event.data);
+                        const img = new Image();
+                        img.onload = () => {
+                            const halfW = img.width / 2;
+                            const h = img.height;
+                            if (canvasLeft.width !== halfW) {
+                                canvasLeft.width = halfW;
+                                canvasLeft.height = h;
+                                canvasRight.width = halfW;
+                                canvasRight.height = h;
+                            }
+                            ctxL.drawImage(img, 0, 0, halfW, h, 0, 0, canvasLeft.width, canvasLeft.height);
+                            ctxR.drawImage(img, halfW, 0, halfW, h, 0, 0, canvasRight.width, canvasRight.height);
+                            URL.revokeObjectURL(url);
+                        };
+                        img.src = url;
+                    }
+
+                    // Đếm FPS
+                    fpsCounter++;
+                    const now = Date.now();
+                    if (now - lastFpsTime >= 1000) {
+                        curFps = fpsCounter;
+                        fpsCounter = 0;
+                        lastFpsTime = now;
+                        statusPill.textContent = `SPATIAL VR: ${curFps} FPS | GPU: RTX 4060 | JARVIS ON`;
+                    }
+                }
+            };
+
+            ws.onerror = (e) => {
+                statusPill.textContent = `LỖI MẠNG: CHƯA BẬT SERVER LAPTOP`;
+                statusPill.style.borderColor = '#ff3366';
+                statusPill.style.color = '#ff3366';
+            };
+
+            ws.onclose = () => {
+                statusPill.textContent = `MẤT KẾT NỐI - ĐANG THỬ LẠI...`;
+                setTimeout(connectWebSocket, 2000);
+            };
+        }
+
+        // Vòng lặp gửi khung hình Camera lên Laptop với cơ chế chống tràn bộ đệm
+        function startCameraCaptureLoop() {
+            let isSending = false;
+            function sendFrame() {
+                if (isStreaming && ws && ws.readyState === WebSocket.OPEN && video.readyState === video.HAVE_ENOUGH_DATA) {
+                    if (!isSending) {
+                        isSending = true;
+                        sendCtx.drawImage(video, 0, 0, sendCanvas.width, sendCanvas.height);
+                        sendCanvas.toBlob((blob) => {
+                            if (blob && ws && ws.readyState === WebSocket.OPEN) {
+                                ws.send(blob);
+                            }
+                            isSending = false;
+                        }, 'image/jpeg', 0.65);
+                    }
+                }
+                requestAnimationFrame(sendFrame);
+            }
+            requestAnimationFrame(sendFrame);
+        }
+
+        // Bắt đầu khởi động hệ thống
+        btnStart.addEventListener('click', async () => {
+            try {
+                // Yêu cầu quyền mở Camera Sau (Environment)
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        frameRate: { ideal: 60, min: 30 }
+                    },
+                    audio: false
+                });
+
+                video.srcObject = stream;
+                await video.play();
+
+                // Yêu cầu toàn màn hình (Fullscreen)
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                }
+
+                // Ẩn màn hình khởi động
+                overlay.style.display = 'none';
+                isStreaming = true;
+
+                // Kết nối WebSocket và gửi camera
+                connectWebSocket();
+                startCameraCaptureLoop();
+
+            } catch (err) {
+                alert('Không thể mở Camera: ' + err.message + '\nHãy chắc chắn bạn đã cấp quyền Camera trong Cài đặt Safari!');
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>

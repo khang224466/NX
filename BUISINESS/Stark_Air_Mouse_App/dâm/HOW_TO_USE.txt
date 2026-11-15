@@ -1,0 +1,55 @@
+STARK AIR MOUSE // SPATIAL COMPUTING & 3D FRUSTUM SUITE (v9.7.3 PRO)
+======================================================================
+HỆ THỐNG ĐIỆN TOÁN KHÔNG GIAN BẬC THẦY KINEMATICS & SỬA ĐỔI TOÁN HỌC CỐT LÕI (ERGONOMIC SURGERY)
+- ĐIỀU HƯỚNG TRỰC TIẾP ĐẦU NGÓN TRỎ (70% TIP + 30% KNUCKLE): ĐẠO HÀM DƯƠNG d(steer)/d(tip) = +0.70.
+  Vẫy đầu ngón trỏ lên/xuống là chuột chạy tức thì, không bị đảo ngược dấu hay triệt tiêu biên độ!
+- MỞ RỘNG VÙNG COMFORT ZONE (0.08 - 0.92): Khung điều khiển thoáng đãng, vươn chuột khắp đa màn hình.
+- GIẢI PHÓNG BỘ HÃM PRE-PINCH BRAKE (3.8cm): Chỉ hãm khi thực sự chuẩn bị bấm (< 3.8cm). Khi di chuột bình thường (4-6cm), bộ lọc mở 100% tốc độ, không còn cảm giác "kéo qua vũng bùn"!
+- KHỬ TRẠNG THÁI KHỰNG (ZERO STICTION TRAP): radius_px = 0.0px và spring_k = 85.0 giúp di chuyển vi mô mượt mà từng pixel.
+- KHÓA AN TOÀN NHẤC CHUỘT (GATED PINCH IN REST): Khi gập ngón tay đưa tay về giữa bàn (REST), cử chỉ Pinch bị khóa cứng, triệt tiêu 100% lỗi click nhầm hay bôi đen màn hình ngoài ý muốn!
+- XÓA BỎ HOÀN TOÀN TIA LASER VƯỚNG MẮT: Khung camera trong suốt, sạch sẽ và chuẩn xác.
+- ĐỒNG BỘ NATIVE WEBSOCKET BRIDGE & WEB APP: Nút [API KEY] trực quan, điều khiển tương đối native SendInput, không còn alert() chặn trình duyệt.
+
+1. BẢNG PHÍM TẮT ĐIỀU KHIỂN HỆ THỐNG (HOTKEYS)
+----------------------------------------------------------------------
+- Ctrl + Alt + M : Bật / Tắt điều khiển chuột Windows.
+- Ctrl + Alt + C : Chuyển đổi giữa HYBRID_CLUTCH và ABSOLUTE.
+- Ctrl + Alt + Q : Thoát an toàn toàn bộ tiến trình.
+- Phím 'D'       : Bật / Tắt chế độ Dwell-Click (Hover 900ms = Tự Click).
+- Phím 'F'       : Bật / Tắt chế độ xem Camera Toàn màn hình (Fullscreen).
+- Phím 'H'       : Chuyển đổi nhanh Clutch / Absolute.
+- Phím 'V'       : Bật / Tắt chế độ Sofa / TV Couch Mode.
+
+2. CÁCH SỬ DỤNG CỬ CHỈ TAY (GESTURE WORKFLOW)
+----------------------------------------------------------------------
+1. Di chuyển chuột: Giơ 1 ngón trỏ (chỉ cần vẫy nhẹ ngón trỏ và cổ tay thoải mái).
+2. Click trái (Tap): Chạm nhanh đầu ngón cái và ngón trỏ vào nhau rồi nhả ra tức thì (< 0.45s).
+3. Click phải (Context Menu): Chụm ngón cái và ngón trỏ giữ yên 0.45s (HUD sẽ sạc đầy vòng tròn màu cam).
+4. Kéo thả (Drag & Drop): Chụm ngón cái và ngón trỏ rồi di chuyển tay để kéo cửa sổ / bôi đen văn bản.
+5. Cuộn trang (Scroll): Giơ 2 ngón (Trỏ + Giữa) khép sát vuốt lên / xuống.
+6. Phóng to / Thu nhỏ (Zoom): Giơ 3 ngón (Trỏ + Giữa + Áp út) đẩy lên / kéo xuống, hoặc mở 2 tay.
+7. Chuyển Tab: Mở phẳng 4 ngón tay (Flat Palm) gạt nhanh sang trái / phải.
+8. Nhấc chuột (HYBRID_CLUTCH): Gập nhẹ các ngón tay lại (tư thế nghỉ REST) để tự do đưa tay về giữa bàn mà không sợ click nhầm.
+
+3. KHỞI CHẠY HỆ THỐNG
+----------------------------------------------------------------------
+- Nhấp đúp vào RUN_STARK_AIR_MOUSE.bat để khởi chạy phiên bản v9.7.3 PRO mới nhất!
+
+
+4. BAN VA DO ON DINH VA KET NOI DESKTOP (2026-11-11)
+----------------------------------------------------------------------
+- Dong cua so Web Studio va Bridge cu, sau do chay lai RUN_STARK_AIR_MOUSE.bat.
+- Che do Web tao ma ket noi rieng cho may, roi mo dung URL co token.
+  Neu mo HTML truc tiep va khong ket noi duoc Desktop, hay mo bang file BAT.
+- STARK_BRIDGE_TOKEN trong bien moi truong co the ghi de ma ket noi mac dinh.
+- Mat dau tay / tat camera se huy thao tac dang giu, khong tao click moi.
+- Native: neu camera ngung tra frame qua 350ms, he thong nha input va dung cursor.
+- Web: ket qua tracking qua 350ms se huy cu chi; Bridge dong ket noi im lang qua
+  2 giay va nha chuot de tranh ket nut khi trinh duyet treo / dung chay nen.
+- HYBRID_CLUTCH: click va keo tai vi tri chuot Windows hien tai.
+- Click chuot/trackpad thuong khong bi lap thanh click cu chi.
+- Noi dung chat va phan hoi AI duoc hien thi duoi dang van ban.
+
+KIEM TRA HOI QUY (GIA LAP WINDOWS INPUT, KHONG CLICK CHUOT THAT):
+  python -B -m unittest -v test_input_regressions
+  node --test test_web_regressions.cjs

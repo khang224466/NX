@@ -1,0 +1,95 @@
+{
+  "camera": {
+    "device_index": 0,
+    "width": 640,
+    "height": 480,
+    "target_fps": 60,
+    "model_complexity": 1
+  },
+  "comfort_zone": {
+    "calibrated": false,
+    "x_min": 0.04,
+    "x_max": 0.96,
+    "y_min": 0.05,
+    "y_max": 0.95
+  },
+  "one_euro_filter": {
+    "min_cutoff": 0.95,
+    "beta": 0.015,
+    "d_cutoff": 1.0,
+    "resting_deadzone_px": 1.5
+  },
+  "interactions": {
+    "mouse_sensitivity": 1.15,
+    "pointing_mode": "ABSOLUTE",
+    "scroll_sensitivity": 2.5,
+    "pinch_enter_distance_m": 0.028,
+    "pinch_exit_distance_m": 0.038,
+    "pitch_slope_compensation": 0.0,
+    "desk_rest_bias": 0.0,
+    "drag_threshold_cam_px": 20.0,
+    "drag_grace_frames": 4,
+    "click_timeout_seconds": 0.45,
+    "secondary_click_hold_seconds": 0.45,
+    "swipe_min_velocity": 0.35,
+    "swipe_min_displacement": 0.08,
+    "tab_mode": "TAB",
+    "voice_feedback": true,
+    "desktop_halo": {
+      "enabled": true,
+      "size": 64
+    },
+    "magnetic_snapping": {
+      "enabled": true,
+      "radius_px": 36,
+      "gravity_factor": 0.72
+    },
+    "two_hand_zoom": {
+      "enabled": true,
+      "sensitivity": 2.8,
+      "deadzone": 0.006,
+      "step": 120,
+      "throttle_seconds": 0.08
+    },
+    "pre_pinch_brake": {
+      "enabled": true,
+      "approach_dist_m": 0.038,
+      "min_gain": 0.15
+    },
+    "stiction_anchor": {
+      "enabled": false,
+      "radius_px": 0.0,
+      "breakout_speed_px_s": 20.0
+    },
+    "spring_k": 85.0,
+    "clutch_ballistics": {
+      "low_gain": 0.5,
+      "high_gain": 1.95,
+      "sigmoid_midpoint": 0.1,
+      "sigmoid_steepness": 16.0
+    },
+    "bridge_token": "8nsq23KBAtKPGl4Yw2HoJYwfuwBLtqZ8sGPfzuPNP-k"
+  },
+  "adaptive_one_euro": {
+    "min_cutoff_slow": 0.85,
+    "min_cutoff_fast": 3.6,
+    "beta": 0.015,
+    "d_cutoff": 1.0,
+    "resting_deadzone_px": 1.5
+  },
+  "dwell_click": {
+    "enabled": false,
+    "dwell_seconds": 0.9,
+    "radius_px": 16.0
+  },
+  "two_hand_precision": {
+    "enabled": true,
+    "sensitivity_factor": 0.35
+  },
+  "version": "9.7.3",
+  "comment": "STARK Spatial Sensory Engine v9.7.3 PRO // ERGONOMIC & MATHEMATICAL SURGERY - True Fingertip Steering, Unchoked Pre-Pinch Brake, Zero Stiction Trap, Gated Clutch Lift",
+  "multi_display": {
+    "enabled": true,
+    "use_virtual_desktop": true
+  }
+}

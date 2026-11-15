@@ -1,0 +1,2156 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STARK INDUSTRIES // MARK LXXXV SPATIAL WORKSPACE v9.7.1 PRO</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Orbitron & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- MediaPipe Hands & Camera Utils (Pinned Versions for Stability) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.4/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.4/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --stark-cyan: #00f3ff;
+            --stark-blue: #0077ff;
+            --stark-amber: #ffaa00;
+            --stark-crimson: #ff2a55;
+            --stark-bg: #030914;
+        }
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--stark-bg);
+            color: #e0faff;
+            font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Sci-Fi Grid & Vignette Overlay */
+        .hud-grid-bg {
+            background-size: 45px 45px;
+            background-image: 
+                linear-gradient(to right, rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+            box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.9);
+        }
+
+        /* Glowing HUD Panel Styling */
+        .hud-panel {
+            background: linear-gradient(135deg, rgba(4, 18, 36, 0.82) 0%, rgba(2, 10, 22, 0.9) 100%);
+            border: 1px solid rgba(0, 243, 255, 0.35);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.1), inset 0 0 15px rgba(0, 243, 255, 0.05);
+            backdrop-filter: blur(10px);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+        }
+
+        .hud-panel:hover, .hud-panel.hud-hovered {
+            border-color: rgba(0, 243, 255, 0.85);
+            box-shadow: 0 0 28px rgba(0, 243, 255, 0.25), inset 0 0 20px rgba(0, 243, 255, 0.12);
+        }
+
+        .hud-panel.hud-grabbed {
+            border-color: var(--stark-amber);
+            box-shadow: 0 0 35px rgba(255, 170, 0, 0.4), inset 0 0 20px rgba(255, 170, 0, 0.15);
+        }
+
+        /* Corner Brackets for Stark Aesthetic */
+        .corner-bracket {
+            position: relative;
+        }
+        .corner-bracket::before,
+        .corner-bracket::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-color: var(--stark-cyan);
+            pointer-events: none;
+        }
+        .corner-bracket::before {
+            top: -1px;
+            left: -1px;
+            border-top: 2px solid var(--stark-cyan);
+            border-left: 2px solid var(--stark-cyan);
+        }
+        .corner-bracket::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 2px solid var(--stark-cyan);
+            border-right: 2px solid var(--stark-cyan);
+        }
+
+        /* Interactive Buttons for Spatial Cursor */
+        .spatial-btn {
+            position: relative;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(0, 243, 255, 0.35);
+            background: rgba(0, 243, 255, 0.07);
+        }
+        .spatial-btn:hover, .spatial-btn.spatial-hover {
+            background: rgba(0, 243, 255, 0.22);
+            border-color: var(--stark-cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+            transform: translateY(-1px);
+        }
+        .spatial-btn.spatial-active {
+            background: rgba(0, 243, 255, 0.35);
+            border-color: #ffffff;
+            box-shadow: 0 0 22px rgba(0, 243, 255, 0.7);
+        }
+
+        /* Custom Spatial Cursor / Reticle */
+        #spatial-reticle {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 48px;
+            height: 48px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9999;
+            transition: width 0.12s ease, height 0.12s ease;
+        }
+
+        #spatial-reticle.pinching {
+            width: 32px;
+            height: 32px;
+        }
+
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes spinReverse {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+        .reticle-ring-outer {
+            animation: spinSlow 8s linear infinite;
+        }
+        .reticle-ring-inner {
+            animation: spinReverse 4s linear infinite;
+        }
+
+        /* Scrollbar styling for AI console */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 20, 40, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 243, 255, 0.4);
+            border-radius: 4px;
+        }
+
+        /* Scanline subtle animation */
+        .scanline {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.4), transparent);
+            position: absolute;
+            top: 0;
+            left: 0;
+            animation: scanMove 6s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes scanMove {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+    
+        /* Magnetic Snapping & Visual Aura */
+        .magnetic-locked {
+            box-shadow: 0 0 18px rgba(0, 243, 255, 0.55), inset 0 0 8px rgba(0, 243, 255, 0.3) !important;
+            border-color: #00f3ff !important;
+            transform: scale(1.035);
+            transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.12s ease;
+        }
+        .spatial-btn.magnetic-locked {
+            color: #ffffff !important;
+            text-shadow: 0 0 8px #00f3ff;
+        }
+
+    </style>
+</head>
+<body class="hud-grid-bg relative select-none">
+
+    <!-- Scanline ambient effect -->
+    <div class="scanline z-10"></div>
+
+    <!-- THREE.JS CENTRAL 3D HOLOGRAM VIEWPORT -->
+    <div id="three-container" class="fixed inset-0 z-0 cursor-grab active:cursor-grabbing"></div>
+
+    <!-- SPATIAL RETICLE (HAND / MOUSE CURSOR) -->
+    <div id="spatial-reticle">
+        <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+            <!-- Radial Charging Progress Ring (Right-Click Hold 450ms) -->
+            <circle id="reticle-charge" cx="50" cy="50" r="34" fill="none" stroke="#ff5500" stroke-width="4.5" stroke-dasharray="213.6" stroke-dashoffset="213.6" stroke-linecap="round" class="opacity-0 transition-opacity duration-75" />
+            <!-- Outer rotating segmented ring -->
+            <circle id="reticle-outer" cx="50" cy="50" r="42" fill="none" stroke="#00f3ff" stroke-width="2.5" stroke-dasharray="28 16" class="reticle-ring-outer opacity-80" />
+            <!-- Inner counter-rotating ring -->
+            <circle id="reticle-inner" cx="50" cy="50" r="26" fill="none" stroke="#00f3ff" stroke-width="2" stroke-dasharray="15 12" class="reticle-ring-inner opacity-90" />
+            <!-- Crosshair ticks -->
+            <line x1="50" y1="0" x2="50" y2="14" stroke="#00f3ff" stroke-width="2" />
+            <line x1="50" y1="86" x2="50" y2="100" stroke="#00f3ff" stroke-width="2" />
+            <line x1="0" y1="50" x2="14" y2="50" stroke="#00f3ff" stroke-width="2" />
+            <line x1="86" y1="50" x2="100" y2="50" stroke="#00f3ff" stroke-width="2" />
+            <!-- Center core dot -->
+            <circle id="reticle-core" cx="50" cy="50" r="5" fill="#00f3ff" />
+        </svg>
+        <div id="reticle-label" class="absolute left-14 top-1/2 -translate-y-1/2 text-[10px] font-bold tracking-widest text-cyan-300 bg-slate-950/80 px-1.5 py-0.5 rounded border border-cyan-500/40 whitespace-nowrap">
+            TRACKING
+        </div>
+    </div>
+
+    <!-- TOP HUD HEADER BAR -->
+    <header class="fixed top-0 left-0 right-0 z-30 flex flex-wrap items-center justify-between px-4 py-2.5 bg-slate-950/80 border-b border-cyan-500/30 backdrop-blur-md">
+        <!-- Brand & System Status -->
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full border-2 border-cyan-400 flex items-center justify-center shadow-[0_0_15px_#00f3ff] bg-cyan-950/50">
+                <i class="fa-solid fa-atom text-cyan-300 animate-spin" style="animation-duration: 10s;"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="font-orbitron font-bold text-sm md:text-base tracking-wider text-cyan-300">
+                        STARK SPATIAL OS <span class="text-xs bg-cyan-500/20 text-cyan-200 px-1.5 py-0.5 rounded border border-cyan-400/40">MK-85</span>
+                    </h1>
+                    <span id="tracking-mode-badge" class="text-[11px] px-2 py-0.5 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300 font-semibold">
+                        <i class="fa-solid fa-computer-mouse mr-1"></i>CHẾ ĐỘ CHUỘT (SIMULATION)
+                    </span>
+                </div>
+                <p class="text-[11px] text-cyan-400/70 hidden sm:block">
+                    HỆ THỐNG TƯƠNG TÁC HOLOGRAM KHÔNG CHẠM & TRỢ LÝ J.A.R.V.I.S.
+                </p>
+            </div>
+        </div>
+
+        <!-- 3D Model Switcher Tabs -->
+        <div class="flex items-center gap-1.5 my-1 sm:my-0">
+            <button onclick="switchHologram('reactor')" id="model-btn-reactor" class="spatial-btn spatial-active px-3 py-1.5 rounded text-xs font-orbitron tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-radiation text-cyan-300"></i>
+                <span>LÕI ARC REACTOR</span>
+            </button>
+            <button onclick="switchHologram('molecule')" id="model-btn-molecule" class="spatial-btn px-3 py-1.5 rounded text-xs font-orbitron tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-diagram-project text-cyan-300"></i>
+                <span>MẠNG PHÂN TỬ</span>
+            </button>
+            <button onclick="switchHologram('torus')" id="model-btn-torus" class="spatial-btn px-3 py-1.5 rounded text-xs font-orbitron tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-infinity text-cyan-300"></i>
+                <span>LƯỚI TOPO LƯỢNG TỬ</span>
+            </button>
+        </div>
+
+        <!-- Camera & Comfort Calibration Controls -->
+        <div class="flex items-center gap-2">
+            <button id="btn-toggle-camera" onclick="toggleWebcamTracking()" class="spatial-btn px-3 py-1.5 rounded text-xs font-bold tracking-wider bg-cyan-500/20 border-cyan-400 text-cyan-200 flex items-center gap-2 shadow-[0_0_12px_rgba(0,243,255,0.3)]">
+                <i class="fa-solid fa-video"></i>
+                <span id="camera-btn-text">BẬT CAMERA NHẬN DIỆN TAY</span>
+            </button>
+
+            <button id="btn-set-api-key" onclick="promptSetApiKey()" class="spatial-btn px-2.5 py-1.5 rounded text-xs text-sky-300 flex items-center gap-1.5 border-sky-500/40" title="Cài đặt Google Gemini API Key cho J.A.R.V.I.S.">
+                <i class="fa-solid fa-key text-sky-400"></i>
+                <span id="key-btn-text">API KEY</span>
+            </button>
+
+            <button id="btn-toggle-bridge" onclick="toggleDesktopBridge()" class="spatial-btn px-2.5 py-1.5 rounded text-xs text-amber-300 flex items-center gap-1.5 border-amber-500/40" title="Đồng bộ điều khiển Windows Desktop qua Local Bridge">
+                <i class="fa-solid fa-desktop"></i>
+                <span id="bridge-btn-text">WINDOWS DESKTOP</span>
+            </button>
+
+            <button id="btn-toggle-pip" onclick="togglePictureInPicture()" class="spatial-btn px-2.5 py-1.5 rounded text-xs text-purple-300 flex items-center gap-1.5 border-purple-500/40" title="Cửa sổ nổi PiP: Giữ 60 FPS chống đơ khi thu nhỏ trình duyệt để dùng app khác">
+                <i class="fa-solid fa-clone"></i>
+                <span id="pip-btn-text">PIP NỔI</span>
+            </button>
+
+            <button id="btn-toggle-magnet" onclick="toggleMagneticSnapping()" class="spatial-btn px-2.5 py-1.5 rounded text-xs text-cyan-300 flex items-center gap-1.5 border-cyan-500/40 bg-cyan-950/40" title="Lực hút nam châm vào nút bấm (UI Target Gravity Well)">
+                <i class="fa-solid fa-magnet text-cyan-400"></i>
+                <span id="magnet-btn-text">NAM CHÂM: BẬT</span>
+            </button>
+
+            <button id="btn-toggle-mode" onclick="togglePointingMode()" class="spatial-btn px-2.5 py-1.5 rounded text-xs text-emerald-300 flex items-center gap-1.5 border-emerald-500/40" title="Chuyển đổi chế độ: Tuyệt đối (Absolute) vs Bàn di tương đối ly hợp (Hybrid Clutch)">
+                <i class="fa-solid fa-crosshairs text-emerald-400"></i>
+                <span id="mode-btn-text">CHẾ ĐỘ: TUYỆT ĐỐI</span>
+            </button>
+
+            <button id="btn-calibrate" onclick="toggleComfortZoneModal()" class="spatial-btn px-2.5 py-1.5 rounded text-xs text-cyan-300 flex items-center gap-1.5" title="Hiệu chỉnh vùng chống mỏi tay (Gorilla Arm)">
+                <i class="fa-solid fa-crop-simple"></i>
+                <span class="hidden md:inline">VÙNG CHỐNG MỎI</span>
+            </button>
+
+            <button id="btn-reset-view" onclick="resetWorkspace()" class="spatial-btn px-2.5 py-1.5 rounded text-xs text-cyan-300" title="Đặt lại góc nhìn 3D & vị trí bảng">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- LEFT FLOATING HUD PANEL 1: GESTURE MATRIX & TELEMETRY (DRAGGABLE) -->
+    <section id="panel-telemetry" data-draggable="true" class="hud-panel corner-bracket fixed left-4 top-20 w-80 rounded-lg p-3.5 z-20">
+        <div class="drag-handle flex items-center justify-between border-b border-cyan-500/30 pb-2 mb-2.5 cursor-move">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-hand-sparkles text-cyan-400 text-xs"></i>
+                <h2 class="font-orbitron text-xs font-bold tracking-widest text-cyan-300">MA TRẬN CỬ CHỈ & TỌA ĐỘ</h2>
+            </div>
+            <span class="text-[10px] text-cyan-400/60"><i class="fa-solid fa-grip-lines"></i> KÉO</span>
+        </div>
+
+        <!-- Real-Time Coordinate Readout -->
+        <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+            <div class="bg-slate-900/90 border border-cyan-500/25 rounded p-1.5">
+                <div class="text-[10px] text-cyan-400/70">TRỤC X</div>
+                <div id="coord-x" class="text-sm font-bold text-cyan-200">0.500</div>
+            </div>
+            <div class="bg-slate-900/90 border border-cyan-500/25 rounded p-1.5">
+                <div class="text-[10px] text-cyan-400/70">TRỤC Y</div>
+                <div id="coord-y" class="text-sm font-bold text-cyan-200">0.500</div>
+            </div>
+            <div class="bg-slate-900/90 border border-cyan-500/25 rounded p-1.5">
+                <div class="text-[10px] text-cyan-400/70">ĐỘ CHỤM (PINCH)</div>
+                <div id="coord-pinch" class="text-sm font-bold text-amber-300">0.120</div>
+            </div>
+        </div>
+
+        <!-- Active Gesture Status Box -->
+        <div class="bg-cyan-950/40 border border-cyan-500/30 rounded p-2.5 mb-3">
+            <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-cyan-400/80">TRẠNG THÁI TAY:</span>
+                <span id="gesture-state-text" class="font-bold text-cyan-200 tracking-wider">DI CHUYỂN CON TRỎ</span>
+            </div>
+            <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                <div id="pinch-meter-bar" class="bg-gradient-to-r from-cyan-400 to-amber-400 h-full transition-all duration-75" style="width: 25%;"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-cyan-400/60 mt-1">
+                <span>Anti-Jitter: <strong id="jitter-status" class="text-emerald-400">ON (EMA+LOCK)</strong></span>
+                <span>FPS: <strong id="fps-counter" class="text-cyan-300">60</strong></span>
+            </div>
+        </div>
+
+        <!-- Gesture Instruction Guide -->
+        <div class="space-y-1.5 text-[11px] text-cyan-100/85">
+            <div class="flex items-center gap-2 bg-slate-900/60 px-2 py-1 rounded border-l-2 border-cyan-400">
+                <i class="fa-regular fa-hand-point-up text-cyan-400 w-4 text-center"></i>
+                <span><strong>Giơ ngón trỏ:</strong> Di chuyển tâm ngắm HUD</span>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900/60 px-2 py-1 rounded border-l-2 border-amber-400">
+                <i class="fa-solid fa-hand-lizard text-amber-400 w-4 text-center"></i>
+                <span><strong>Chụm Cái + Trỏ:</strong> Bấm nút / Xoay khối 3D / Kéo bảng</span>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900/60 px-2 py-1 rounded border-l-2 border-purple-400">
+                <i class="fa-solid fa-hands-bound text-purple-400 w-4 text-center"></i>
+                <span><strong>2 tay chụm kéo giãn:</strong> Phóng to / Thu nhỏ 3D</span>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900/60 px-2 py-1 rounded border-l-2 border-rose-400">
+                <i class="fa-regular fa-hand text-rose-400 w-4 text-center"></i>
+                <span><strong>Xòe 5 ngón tay:</strong> Khóa đứng yên mô hình</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- LEFT FLOATING HUD PANEL 2: HOLOGRAM NODE INSPECTOR & SLIDE BUILDER (DRAGGABLE) -->
+    <section id="panel-inspector" data-draggable="true" class="hud-panel corner-bracket fixed left-4 bottom-4 w-80 rounded-lg p-3.5 z-20">
+        <div class="drag-handle flex items-center justify-between border-b border-cyan-500/30 pb-2 mb-2.5 cursor-move">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-microscope text-cyan-400 text-xs"></i>
+                <h2 class="font-orbitron text-xs font-bold tracking-widest text-cyan-300">PHÂN TÍCH VẬT THỂ & GHI CHÚ</h2>
+            </div>
+            <span class="text-[10px] text-cyan-400/60"><i class="fa-solid fa-grip-lines"></i> KÉO</span>
+        </div>
+
+        <div class="bg-slate-900/80 border border-cyan-500/25 rounded p-2.5 mb-2.5">
+            <div class="text-[10px] text-cyan-400/70 uppercase">ĐỐI TƯỢNG ĐANG CHỌN:</div>
+            <div id="active-node-title" class="font-orbitron text-sm font-bold text-amber-300 mt-0.5">
+                MARK-85 ARC REACTOR CORE
+            </div>
+            <p id="active-node-desc" class="text-[11px] text-cyan-100/80 mt-1 leading-relaxed">
+                Lõi Palladium thay thế bằng nguyên tố mới. Công suất phát: 8.4 Gigajoules/giây. Chụm tay vào tâm 3D và kéo để kiểm tra cấu trúc vòng từ trường.
+            </p>
+            <div class="grid grid-cols-2 gap-1.5 mt-2 pt-2 border-t border-cyan-500/20 text-[10px]">
+                <div>TỶ LỆ ZOOM: <span id="hud-scale-val" class="text-cyan-300 font-bold">1.00x</span></div>
+                <div>GÓC XOAY: <span id="hud-rot-val" class="text-cyan-300 font-bold">18°, 42°</span></div>
+            </div>
+        </div>
+
+        <!-- Pin to Presentation Deck Action -->
+        <div class="flex items-center justify-between gap-2 mb-2">
+            <button onclick="captureNodeToSlide()" class="spatial-btn flex-1 py-1.5 px-2 rounded text-xs font-semibold text-cyan-200 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-thumbtack text-amber-400"></i>
+                <span>GHIM VÀO SLIDE BÁO CÁO</span>
+            </button>
+            <button onclick="triggerExplodeView()" id="btn-explode" class="spatial-btn py-1.5 px-2.5 rounded text-xs font-semibold text-cyan-200" title="Tách lớp cấu trúc 3D (Exploded View)">
+                <i class="fa-solid fa-maximize"></i> TÁCH LỚP
+            </button>
+        </div>
+
+        <!-- Pinned Slide Deck List -->
+        <div class="text-[10px] text-cyan-400/80 mb-1 uppercase font-semibold">Thẻ Slide đã ghim (<span id="slide-count">1</span>):</div>
+        <div id="pinned-slides-container" class="space-y-1.5 max-h-28 overflow-y-auto pr-1 text-[11px]">
+            <div class="bg-cyan-950/50 border border-cyan-500/30 rounded p-1.5 flex items-start justify-between">
+                <div>
+                    <span class="text-amber-300 font-bold">#1 [Arc Core]</span>
+                    <p class="text-cyan-100/80 text-[10px]">Hiệu suất vòng plasma đạt 98.4% ở 3200K.</p>
+                </div>
+                <i class="fa-solid fa-check-circle text-emerald-400 text-xs mt-0.5"></i>
+            </div>
+        </div>
+    </section>
+
+    <!-- RIGHT FLOATING HUD PANEL: J.A.R.V.I.S. AI VOICE & TACTICAL CONSOLE (DRAGGABLE) -->
+    <section id="panel-jarvis" data-draggable="true" class="hud-panel corner-bracket fixed right-4 top-20 w-80 md:w-96 rounded-lg p-3.5 z-20 flex flex-col max-h-[58vh]">
+        <div class="drag-handle flex items-center justify-between border-b border-cyan-500/30 pb-2 mb-2 cursor-move">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                <h2 class="font-orbitron text-xs font-bold tracking-widest text-cyan-300">J.A.R.V.I.S. NEURAL INTERFACE</h2>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="btn-tts-toggle" onclick="toggleVoiceOutput()" class="spatial-btn px-2 py-0.5 rounded text-[10px] text-cyan-300" title="Bật/Tắt đọc giọng nói AI">
+                    <i class="fa-solid fa-volume-high"></i> TTS: ON
+                </button>
+                <span class="text-[10px] text-cyan-400/60"><i class="fa-solid fa-grip-lines"></i></span>
+            </div>
+        </div>
+
+        <!-- Conversation Log -->
+        <div id="jarvis-chat-log" class="flex-1 overflow-y-auto space-y-2.5 pr-1 mb-2.5 text-xs min-h-[160px] max-h-[240px]">
+            <div class="bg-cyan-950/50 border-l-2 border-cyan-400 p-2 rounded">
+                <div class="text-[10px] text-cyan-400 font-bold mb-0.5">J.A.R.V.I.S. // ONLINE</div>
+                <p class="text-cyan-100 leading-relaxed">
+                    Chào Ngài, hệ thống không gian Mark-85 đã sẵn sàng. Ngài có thể bật Camera để dùng tay xoay mô hình 3D, hoặc bấm nút Micro để ra lệnh phân tích trực tiếp.
+                </p>
+            </div>
+        </div>
+
+        <!-- Tactical Quick Prompt Chips (Easy to click with Hand Pinch) -->
+        <div class="mb-2.5">
+            <div class="text-[10px] text-cyan-400/70 mb-1 uppercase">Lệnh tác chiến nhanh (Chụm tay để kích hoạt):</div>
+            <div class="grid grid-cols-2 gap-1.5">
+                <button onclick="executeQuickCommand('Tóm tắt cấu trúc mô hình 3D đang hiển thị thành 3 ý chính để đưa vào slide thuyết trình')" class="spatial-btn text-left p-1.5 rounded text-[10px] text-cyan-200 leading-tight">
+                    <i class="fa-solid fa-bolt text-amber-400 mr-1"></i>Tóm tắt mô hình thành 3 ý Slide
+                </button>
+                <button onclick="executeQuickCommand('Phân tích thông số vật lý & toán học của cấu trúc này và đề xuất tối ưu hóa')" class="spatial-btn text-left p-1.5 rounded text-[10px] text-cyan-200 leading-tight">
+                    <i class="fa-solid fa-square-root-variable text-cyan-400 mr-1"></i>Phân tích Toán/Lý cấu trúc này
+                </button>
+                <button onclick="executeQuickCommand('Chuyển sang mô hình Mạng Phân Tử và giải thích liên kết nguyên tử')" class="spatial-btn text-left p-1.5 rounded text-[10px] text-cyan-200 leading-tight">
+                    <i class="fa-solid fa-dna text-purple-400 mr-1"></i>Mở Mạng Phân Tử & giải thích
+                </button>
+                <button onclick="executeQuickCommand('Tách lớp mô hình 3D hiện tại và kiểm tra độ ổn định năng lượng')" class="spatial-btn text-left p-1.5 rounded text-[10px] text-cyan-200 leading-tight">
+                    <i class="fa-solid fa-layer-group text-emerald-400 mr-1"></i>Tách lớp 3D & đo độ ổn định
+                </button>
+            </div>
+        </div>
+
+        <!-- Voice Input & Text Command Bar -->
+        <div class="flex items-center gap-1.5 pt-1 border-t border-cyan-500/30">
+            <button id="btn-voice-mic" onclick="toggleSpeechRecognition()" class="spatial-btn w-10 h-9 rounded flex items-center justify-center text-cyan-300 shrink-0" title="Nói trực tiếp với J.A.R.V.I.S.">
+                <i class="fa-solid fa-microphone text-sm"></i>
+            </button>
+            <input id="jarvis-input" type="text" placeholder="Ra lệnh cho J.A.R.V.I.S..." 
+                class="w-full bg-slate-900/90 border border-cyan-500/40 rounded px-2.5 py-1.5 text-xs text-cyan-100 placeholder-cyan-600 focus:outline-none focus:border-cyan-300"
+                onkeydown="if(event.key==='Enter') sendJarvisCommand()">
+            <button onclick="sendJarvisCommand()" class="spatial-btn px-3 h-9 rounded text-xs font-bold text-cyan-200 shrink-0">
+                GỬI
+            </button>
+        </div>
+    </section>
+
+    <!-- BOTTOM-RIGHT PICTURE-IN-PICTURE WEBCAM + HAND SKELETON OVERLAY -->
+    <section id="camera-panel" class="hud-panel corner-bracket fixed right-4 bottom-4 w-80 rounded-lg p-2.5 z-20 transition-all duration-300">
+        <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-1.5">
+                <span id="cam-led" class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="font-orbitron text-[10px] font-bold tracking-wider text-cyan-300">OPTICAL HAND SENSOR</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <button id="btn-expand-cam" onclick="toggleExpandCamera()" title="Mở rộng khung hình camera" class="text-[9px] text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 px-1.5 py-0.5 rounded border border-cyan-500/40 cursor-pointer">
+                    <i class="fa-solid fa-expand mr-1"></i>MỞ RỘNG
+                </button>
+                <span id="comfort-zone-indicator" class="text-[9px] text-emerald-300 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/40">
+                    DESK ZONE: ACTIVE
+                </span>
+            </div>
+        </div>
+
+        <!-- Video + Skeleton Canvas Container -->
+        <div id="camera-container" class="relative w-full h-56 bg-slate-950 rounded border border-cyan-500/30 overflow-hidden flex items-center justify-center transition-all duration-300">
+            <!-- Hidden raw video element used by MediaPipe -->
+            <video id="webcam-video" class="hidden" playsinline></video>
+            <!-- Mirrored 2D Canvas drawing video + hand skeleton + comfort zone box -->
+            <canvas id="webcam-canvas" width="640" height="480" class="w-full h-full object-cover"></canvas>
+
+            <!-- Placeholder overlay when camera is off -->
+            <div id="camera-off-overlay" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-3 text-center">
+                <i class="fa-solid fa-hand-point-up text-2xl text-cyan-400 mb-1.5 animate-bounce"></i>
+                <p class="text-[11px] text-cyan-200 font-semibold">Camera đang tắt (Chế độ Chuột)</p>
+                <p class="text-[10px] text-cyan-400/70 mt-0.5 mb-2">
+                    Bấm "Bật Camera" để điều khiển bằng ngón tay ngoài không khí như Tony Stark.
+                </p>
+                <button onclick="toggleWebcamTracking()" class="spatial-btn px-3 py-1 rounded text-[11px] font-bold text-cyan-200 border-cyan-400">
+                    <i class="fa-solid fa-power-off mr-1"></i>KÍCH HOẠT OPTICAL SENSOR
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- COMFORT ZONE CALIBRATION MODAL (ANTI-GORILLA ARM) -->
+    <div id="comfort-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        <div class="hud-panel corner-bracket max-w-md w-full rounded-lg p-5 border border-cyan-400">
+            <div class="flex items-center justify-between border-b border-cyan-500/30 pb-2.5 mb-3">
+                <h3 class="font-orbitron text-sm font-bold text-cyan-300">
+                    <i class="fa-solid fa-sliders mr-1.5"></i>HIỆU CHỈNH VÙNG CHỐNG MỎI TAY (DESK-REST)
+                </h3>
+                <button onclick="toggleComfortZoneModal()" class="text-cyan-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-cyan-100/85 leading-relaxed mb-4">
+                Để tránh mỏi vai khi giơ tay cao (hiệu ứng <em>Gorilla Arm</em>), hệ thống ánh xạ một <strong>vùng khung hình nhỏ ở phía dưới webcam</strong> ra toàn bộ màn hình. Bạn chỉ cần tì khuỷu tay lên mặt bàn và nhích nhẹ ngón trỏ.
+            </p>
+
+            <div class="space-y-3 text-xs mb-4">
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span>Độ nhạy mở rộng vùng tay (Scale Sensitivity):</span>
+                        <span id="lbl-sens" class="text-cyan-300 font-bold">1.8x (Khuyên dùng)</span>
+                    </div>
+                    <input id="slider-sensitivity" type="range" min="1.0" max="2.6" step="0.1" value="1.8" 
+                        oninput="updateComfortSettings()" class="w-full accent-cyan-400">
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span>Độ mượt chống rung (EMA Smoothing):</span>
+                        <span id="lbl-smooth" class="text-cyan-300 font-bold">0.28</span>
+                    </div>
+                    <input id="slider-smoothing" type="range" min="0.10" max="0.65" step="0.02" value="0.28" 
+                        oninput="updateComfortSettings()" class="w-full accent-cyan-400">
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span>Ngưỡng chụm ngón tay (Pinch Threshold):</span>
+                        <span id="lbl-pinch" class="text-amber-300 font-bold">0.055</span>
+                    </div>
+                    <input id="slider-pinch" type="range" min="0.035" max="0.085" step="0.005" value="0.055" 
+                        oninput="updateComfortSettings()" class="w-full accent-amber-400">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="resetComfortDefaults()" class="spatial-btn px-3 py-1.5 rounded text-xs text-cyan-300">MẶC ĐỊNH</button>
+                <button onclick="toggleComfortZoneModal()" class="spatial-btn px-4 py-1.5 rounded text-xs font-bold bg-cyan-500/30 border-cyan-300 text-white">LƯU CẤU HÌNH</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLICATION LOGIC -->
+    <script>
+        /***********************************************************************
+         * 1. GLOBAL WORKSPACE STATE & CONFIGURATION
+         ***********************************************************************/
+                function promptSetApiKey() {
+            const current = localStorage.getItem('stark_gemini_api_key') || '';
+            const key = prompt('Nhập Google Gemini API Key để kích hoạt J.A.R.V.I.S. AI:', current);
+            if (key !== null) {
+                localStorage.setItem('stark_gemini_api_key', key.trim());
+                alert('Đã lưu Gemini API Key thành công!');
+                playHudSound('lock');
+            }
+        }
+        const state = {
+            cameraActive: false,
+            currentModel: 'reactor', // 'reactor' | 'molecule' | 'torus'
+            explodedView: false,
+            workspaceLocked: false,
+            ttsEnabled: true,
+
+            // Spatial Cursor Coordinates (Screen Pixels)
+            cursorX: window.innerWidth / 2,
+            cursorY: window.innerHeight / 2,
+            prevCursorX: window.innerWidth / 2,
+            prevCursorY: window.innerHeight / 2,
+
+            // Hand Gesture Metrics
+            isPinching: false,
+            wasPinching: false,
+            pinchDistance: 0.12,
+            twoHandDistance: null,
+            gestureLabel: 'DI CHUYỂN CON TRỎ',
+
+            // Comfort Zone & Anti-Jitter Parameters (High-Velocity v9.7.1 PRO)
+            sensitivity: 1.05,    // Tăng tốc độ tay và độ nhạy màn hình lướt nhanh
+            emaAlpha: 0.35,       // Phản hồi tức thì, triệt tiêu độ trễ
+            pinchThreshold: 0.028, // Palm-normalized pinch metric, in equivalent metres.
+            pinchExitThreshold: 0.038,
+            trackingHasHand: false,
+            lastHandResultTime: 0,
+            dragTargetOffsetX: 0,
+            dragTargetOffsetY: 0,
+            clutchLifted: false,  // Trạng thái nhấc chuột khi gập ngón nghỉ
+            centerOffsetY: 0.60,  // Biases comfort box slightly lower so elbow rests on desk
+            zoomAccumulator: 0,   // Bộ tích lũy delta phóng to/thu nhỏ
+            lastZoomSendTime: 0,
+
+            // Dragging / Interaction State
+            draggedPanel: null,
+            dragOffsetX: 0,
+            dragOffsetY: 0,
+            lastHoveredElement: null,
+            lastPinchClickTime: 0,
+            slideCount: 1,
+            // Advanced Spatial v9.0 Engine Extensions
+            pointingMode: 'ABSOLUTE', // 'ABSOLUTE' or 'HYBRID_CLUTCH'
+            cursorHistory: [],        // Rolling 160ms buffer: [{ ts, x, y }]
+            pinchState: 'IDLE',       // 'IDLE', 'PINCH_PENDING', 'DRAGGING'
+            pinchStartTime: 0,
+            frozenCursorX: 0,
+            frozenCursorY: 0,
+            startPalmX: 0,
+            startPalmY: 0,
+            secondaryTriggered: false,
+            secondaryHoldMs: 450,
+            isScrolling: false,
+            lastScrollY: 0,
+            lastScrollTime: 0,
+            magneticActive: true,
+        };
+
+        let bridgeSocket = null;
+        let desktopBridgeEnabled = false;
+
+        function sendBridgeMessage(message) {
+            if (!desktopBridgeEnabled || !bridgeSocket || bridgeSocket.readyState !== WebSocket.OPEN) return false;
+            if (bridgeSocket.bufferedAmount > 65536) {
+                bridgeSocket.close();
+                return false;
+            }
+            try {
+                bridgeSocket.send(JSON.stringify(message));
+                return true;
+            } catch (err) {
+                console.warn('Desktop bridge send failed', err);
+                bridgeSocket.close();
+                return false;
+            }
+        }
+
+        function sendBridgeButton(type, x = state.cursorX, y = state.cursorY) {
+            const message = { type, pointing_mode: state.pointingMode };
+            if (type !== 'up' && type !== 'cancel' && state.pointingMode !== 'HYBRID_CLUTCH') {
+                message.norm_x = x / window.innerWidth;
+                message.norm_y = y / window.innerHeight;
+            }
+            return sendBridgeMessage(message);
+        }
+
+        function resetSpatialTracking(notifyBridge = true) {
+            if (notifyBridge) sendBridgeButton('cancel');
+            if (state.draggedPanel) state.draggedPanel.classList.remove('hud-grabbed');
+            state.draggedPanel = null;
+            state.pinchState = 'IDLE';
+            state.isPinching = false;
+            state.wasPinching = false;
+            state.secondaryTriggered = false;
+            state.cursorHistory.length = 0;
+            state.twoHandDistance = null;
+            state.zoomAccumulator = 0;
+            state.isScrolling = false;
+            state.lastScrollTime = 0;
+            state.trackingHasHand = false;
+            state.clutchLifted = true;
+            state.dragTargetOffsetX = 0;
+            state.dragTargetOffsetY = 0;
+            state._lastSentBridgeX = null;
+            state._lastSentBridgeY = null;
+            state._relativeRemainderX = 0;
+            state._relativeRemainderY = 0;
+            updateReticleVisuals();
+        }
+
+        // Release stale tracking even when the camera pipeline stops calling onResults.
+        setInterval(() => {
+            if (state.cameraActive && state.trackingHasHand && performance.now() - state.lastHandResultTime > 350) {
+                resetSpatialTracking();
+            }
+            sendBridgeMessage({ type: 'heartbeat' });
+        }, 250);
+        window.addEventListener('pagehide', () => {
+            resetSpatialTracking();
+            if (bridgeSocket) bridgeSocket.close();
+        });
+
+        function toggleDesktopBridge() {
+            desktopBridgeEnabled = !desktopBridgeEnabled;
+            const btn = document.getElementById('btn-toggle-bridge');
+            const txt = document.getElementById('bridge-btn-text');
+            if (desktopBridgeEnabled) {
+                try {
+                                        const urlParams = new URLSearchParams(window.location.search);
+                    const token = urlParams.get('token') || localStorage.getItem('stark_bridge_token');
+                    if (!token) {
+                        desktopBridgeEnabled = false;
+                        if (txt) txt.textContent = 'MỞ BẰNG RUN_STARK_AIR_MOUSE.bat';
+                        return;
+                    }
+                    resetSpatialTracking(false);
+                    const socket = new WebSocket(`ws://127.0.0.1:8765/?token=${encodeURIComponent(token)}`);
+                    bridgeSocket = socket;
+                    socket.onopen = () => {
+                        if (bridgeSocket !== socket) return;
+                        if (btn) {
+                            btn.classList.add('bg-emerald-500/30', 'border-emerald-400', 'text-emerald-200');
+                            btn.classList.remove('text-amber-300');
+                        }
+                        if (txt) txt.textContent = 'DESKTOP: SYNC ON';
+                        playHudSound('activate');
+                    };
+                    socket.onerror = () => {
+                        if (bridgeSocket !== socket) return;
+                        console.warn('Desktop bridge not running on ws://127.0.0.1:8765');
+                        desktopBridgeEnabled = false;
+                        if (txt) txt.textContent = 'BRIDGE CHƯA BẬT';
+                        if (btn) btn.className = 'spatial-btn px-2.5 py-1.5 rounded text-xs text-zinc-400 flex items-center gap-1.5 border-zinc-600/40';
+                    };
+                    socket.onclose = () => {
+                        if (bridgeSocket !== socket) return;
+                        resetSpatialTracking(false);
+                        if (btn) {
+                            btn.classList.remove('bg-emerald-500/30', 'border-emerald-400', 'text-emerald-200');
+                            btn.classList.add('text-amber-300');
+                        }
+                        if (txt) txt.textContent = 'WINDOWS DESKTOP';
+                        bridgeSocket = null;
+                        desktopBridgeEnabled = false;
+                    };
+                } catch (e) {
+                    desktopBridgeEnabled = false;
+                }
+            } else {
+                // The toggle has already disabled sends; explicitly release on
+                // the still-open connection before closing it.
+                if (bridgeSocket && bridgeSocket.readyState === WebSocket.OPEN) {
+                    bridgeSocket.send(JSON.stringify({ type: 'cancel' }));
+                }
+                resetSpatialTracking(false);
+                if (bridgeSocket) bridgeSocket.close();
+                bridgeSocket = null;
+                if (btn) {
+                    btn.classList.remove('bg-emerald-500/30', 'border-emerald-400', 'text-emerald-200');
+                    btn.classList.add('text-amber-300');
+                }
+                if (txt) txt.textContent = 'WINDOWS DESKTOP';
+            }
+        }
+
+        async function togglePictureInPicture() {
+            const video = document.getElementById('webcam-video');
+            const btn = document.getElementById('btn-toggle-pip');
+            const txt = document.getElementById('pip-btn-text');
+            if (!video) return;
+
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                    if (txt) txt.textContent = 'PIP NỔI CHỐNG ĐƠ NỀN';
+                    if (btn) {
+                        btn.classList.remove('bg-purple-500/30', 'border-purple-400', 'text-purple-200');
+                        btn.classList.add('text-purple-300');
+                    }
+                } else {
+                    if (!state.cameraActive) {
+                        await toggleWebcamTracking();
+                    }
+                    await video.requestPictureInPicture();
+                    if (txt) txt.textContent = 'PIP ACTIVE (60 FPS)';
+                    if (btn) {
+                        btn.classList.add('bg-purple-500/30', 'border-purple-400', 'text-purple-200');
+                        btn.classList.remove('text-purple-300');
+                    }
+                    playHudSound('lock');
+                }
+            } catch (err) {
+                console.warn("PiP mode error:", err);
+                alert("Trình duyệt không hỗ trợ hoặc cần bật camera trước. Chế độ PiP giúp giữ 60 FPS khi bạn thu nhỏ trình duyệt để điều khiển phần mềm khác!");
+            }
+        }
+
+        /***********************************************************************
+         * 2. SYNTHESIZED SCI-FI HUD AUDIO FEEDBACK (Web Audio API)
+         ***********************************************************************/
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playHudSound(type = 'chirp') {
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+                if (type === 'chirp') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1100, now);
+                    osc.frequency.exponentialRampToValueAtTime(1850, now + 0.06);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+                    osc.start(now);
+                    osc.stop(now + 0.07);
+                } else if (type === 'lock') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(260, now + 0.12);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+                    osc.start(now);
+                    osc.stop(now + 0.13);
+                } else if (type === 'activate') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.18);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+                    osc.start(now);
+                    osc.stop(now + 0.19);
+                }
+            } catch (e) {
+                // Ignore audio errors before user interaction
+            }
+        }
+
+        /***********************************************************************
+         * 3. THREE.JS 3D HOLOGRAPHIC WORKSPACE
+         ***********************************************************************/
+        let scene, camera, renderer, hologramGroup;
+        let childMeshes = [];
+        let targetRotationX = 0.3;
+        let targetRotationY = 0.6;
+        let targetScale = 1.0;
+
+        function initThreeHologram() {
+            const container = document.getElementById('three-container');
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 7.5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Ambient & Point Lights for Stark Cyan Glow
+            const ambientLight = new THREE.AmbientLight(0x00f3ff, 0.6);
+            scene.add(ambientLight);
+
+            const pointLight1 = new THREE.PointLight(0x00f3ff, 2.2, 30);
+            pointLight1.position.set(5, 5, 6);
+            scene.add(pointLight1);
+
+            const pointLight2 = new THREE.PointLight(0xffaa00, 1.4, 30);
+            pointLight2.position.set(-5, -4, 4);
+            scene.add(pointLight2);
+
+            hologramGroup = new THREE.Group();
+            scene.add(hologramGroup);
+
+            buildHologramGeometry('reactor');
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function clearHologramGroup() {
+            while (hologramGroup.children.length > 0) {
+                const obj = hologramGroup.children[0];
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                    else obj.material.dispose();
+                }
+                hologramGroup.remove(obj);
+            }
+            childMeshes = [];
+        }
+
+        function buildHologramGeometry(type) {
+            clearHologramGroup();
+            const cyanWire = new THREE.MeshBasicMaterial({ color: 0x00f3ff, wireframe: true, transparent: true, opacity: 0.75 });
+            const blueSolid = new THREE.MeshPhongMaterial({ color: 0x0077ff, emissive: 0x002244, transparent: true, opacity: 0.35, flatShading: true });
+            const amberWire = new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true, transparent: true, opacity: 0.85 });
+
+            if (type === 'reactor') {
+                // Core Icosahedron
+                const coreGeo = new THREE.IcosahedronGeometry(1.05, 1);
+                const coreMesh = new THREE.Mesh(coreGeo, cyanWire);
+                coreMesh.userData = { basePos: new THREE.Vector3(0, 0, 0), explodeDir: new THREE.Vector3(0, 0, 0) };
+                hologramGroup.add(coreMesh);
+                childMeshes.push(coreMesh);
+
+                // Inner glowing plasma sphere
+                const innerGeo = new THREE.OctahedronGeometry(0.75, 2);
+                const innerMesh = new THREE.Mesh(innerGeo, blueSolid);
+                innerMesh.userData = { basePos: new THREE.Vector3(0, 0, 0), explodeDir: new THREE.Vector3(0, 0, 1.2) };
+                hologramGroup.add(innerMesh);
+                childMeshes.push(innerMesh);
+
+                // Outer Torus containment rings
+                const ringGeo1 = new THREE.TorusGeometry(1.85, 0.08, 12, 48);
+                const ring1 = new THREE.Mesh(ringGeo1, cyanWire);
+                ring1.userData = { basePos: new THREE.Vector3(0, 0, 0), explodeDir: new THREE.Vector3(0, 0, -1.3) };
+                hologramGroup.add(ring1);
+                childMeshes.push(ring1);
+
+                // 8 Copper/Amber Induction Coils around the ring
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const coilGeo = new THREE.BoxGeometry(0.32, 0.32, 0.55);
+                    const coil = new THREE.Mesh(coilGeo, amberWire);
+                    const bx = Math.cos(angle) * 1.85;
+                    const by = Math.sin(angle) * 1.85;
+                    coil.position.set(bx, by, 0);
+                    coil.rotation.z = angle;
+                    coil.userData = {
+                        basePos: new THREE.Vector3(bx, by, 0),
+                        explodeDir: new THREE.Vector3(Math.cos(angle) * 1.1, Math.sin(angle) * 1.1, 0)
+                    };
+                    hologramGroup.add(coil);
+                    childMeshes.push(coil);
+                }
+
+                updateInspectorInfo(
+                    'MARK-85 ARC REACTOR CORE',
+                    'Lõi tổng hợp hạt nhân thu nhỏ. Gồm 8 cuộn cảm từ trường (vàng) bao quanh lõi Icosahedron. Chụm 2 ngón tay để xoay hoặc bấm "Tách lớp" để kiểm tra từng mô-đun.'
+                );
+            } else if (type === 'molecule') {
+                // 3D Molecular Lattice Structure
+                const atomGeo = new THREE.SphereGeometry(0.28, 16, 16);
+                const positions = [
+                    [0, 0, 0], [1.4, 1.0, 0.6], [-1.4, 1.0, -0.6],
+                    [1.4, -1.0, -0.6], [-1.4, -1.0, 0.6],
+                    [0, 1.7, -1.1], [0, -1.7, 1.1], [2.1, 0, 1.2], [-2.1, 0, -1.2]
+                ];
+
+                positions.forEach((pos, idx) => {
+                    const mat = idx === 0 ? amberWire : (idx % 2 === 0 ? cyanWire : blueSolid);
+                    const atom = new THREE.Mesh(atomGeo, mat);
+                    const v = new THREE.Vector3(pos[0], pos[1], pos[2]);
+                    atom.position.copy(v);
+                    atom.userData = { basePos: v.clone(), explodeDir: v.clone().multiplyScalar(0.65) };
+                    hologramGroup.add(atom);
+                    childMeshes.push(atom);
+
+                    // Connect bonds to center or neighbor
+                    if (idx > 0) {
+                        const bondPoints = [new THREE.Vector3(0, 0, 0), v];
+                        const bondGeo = new THREE.BufferGeometry().setFromPoints(bondPoints);
+                        const bondLine = new THREE.Line(bondGeo, new THREE.LineBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.6 }));
+                        bondLine.userData = { basePos: new THREE.Vector3(0, 0, 0), explodeDir: new THREE.Vector3(0, 0, 0) };
+                        hologramGroup.add(bondLine);
+                        childMeshes.push(bondLine);
+                    }
+                });
+
+                updateInspectorInfo(
+                    'MẠNG TINH THỂ VIBRANIUM-ISOTOPE',
+                    'Cấu trúc liên kết cộng hóa trị 9 nút không gian. Phù hợp để học Hóa/Lý không gian: xoay 3D bằng cử chỉ tay và hỏi J.A.R.V.I.S. về góc liên kết.'
+                );
+            } else if (type === 'torus') {
+                // Quantum Torus Knot + Outer Cage
+                const knotGeo = new THREE.TorusKnotGeometry(1.15, 0.34, 96, 16, 2, 3);
+                const knotMesh = new THREE.Mesh(knotGeo, cyanWire);
+                knotMesh.userData = { basePos: new THREE.Vector3(0, 0, 0), explodeDir: new THREE.Vector3(0, 0, 0.6) };
+                hologramGroup.add(knotMesh);
+                childMeshes.push(knotMesh);
+
+                const cageGeo = new THREE.DodecahedronGeometry(2.15, 0);
+                const cageMesh = new THREE.Mesh(cageGeo, amberWire);
+                cageMesh.userData = { basePos: new THREE.Vector3(0, 0, 0), explodeDir: new THREE.Vector3(0, 0, -0.9) };
+                hologramGroup.add(cageMesh);
+                childMeshes.push(cageMesh);
+
+                updateInspectorInfo(
+                    'LƯỚI TOPO LƯỢNG TỬ (TORUS KNOT)',
+                    'Mô hình đa tạp topo bậc (2,3) lồng trong khối 12 mặt đều (Dodecahedron). Dùng để mô phỏng quỹ đạo hạt và giải tích hình học không gian.'
+                );
+            }
+        }
+
+        function switchHologram(type) {
+            state.currentModel = type;
+            state.explodedView = false;
+            playHudSound('activate');
+
+            ['reactor', 'molecule', 'torus'].forEach(t => {
+                const btn = document.getElementById(`model-btn-${t}`);
+                if (t === type) btn.classList.add('spatial-active');
+                else btn.classList.remove('spatial-active');
+            });
+
+            buildHologramGeometry(type);
+        }
+
+        function triggerExplodeView() {
+            state.explodedView = !state.explodedView;
+            playHudSound('chirp');
+            const btn = document.getElementById('btn-explode');
+            btn.classList.toggle('spatial-active', state.explodedView);
+        }
+
+        function updateInspectorInfo(title, desc) {
+            document.getElementById('active-node-title').textContent = title;
+            document.getElementById('active-node-desc').textContent = desc;
+        }
+
+        // Render Loop for 3D Hologram
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+
+        function animateThree() {
+            requestAnimationFrame(animateThree);
+
+            // FPS Counter
+            frameCount++;
+            const now = performance.now();
+            if (now - lastFrameTime >= 500) {
+                const fps = Math.round((frameCount * 1000) / (now - lastFrameTime));
+                document.getElementById('fps-counter').textContent = Math.min(fps, 60);
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+
+            // Gentle idle rotation when not locked or being dragged
+            if (!state.workspaceLocked && !state.isPinching) {
+                targetRotationY += 0.0035;
+            }
+
+            // Smooth interpolation of rotation & zoom scale
+            hologramGroup.rotation.x += (targetRotationX - hologramGroup.rotation.x) * 0.12;
+            hologramGroup.rotation.y += (targetRotationY - hologramGroup.rotation.y) * 0.12;
+
+            const clampedScale = Math.max(0.5, Math.min(2.3, targetScale));
+            hologramGroup.scale.lerp(new THREE.Vector3(clampedScale, clampedScale, clampedScale), 0.12);
+
+            // Exploded View animation
+            childMeshes.forEach(mesh => {
+                if (mesh.userData && mesh.userData.basePos) {
+                    const targetPos = mesh.userData.basePos.clone();
+                    if (state.explodedView && mesh.userData.explodeDir) {
+                        targetPos.add(mesh.userData.explodeDir);
+                    }
+                    mesh.position.lerp(targetPos, 0.1);
+                }
+            });
+
+            // Update telemetry readouts
+            const degX = Math.round((hologramGroup.rotation.x * 180) / Math.PI) % 360;
+            const degY = Math.round((hologramGroup.rotation.y * 180) / Math.PI) % 360;
+            document.getElementById('hud-scale-val').textContent = `${clampedScale.toFixed(2)}x`;
+            document.getElementById('hud-rot-val').textContent = `${degX}°, ${degY}°`;
+
+            renderer.render(scene, camera);
+        }
+
+        /***********************************************************************
+         * 4. SPATIAL CURSOR ENGINE (HAND TRACKING + MOUSE FALLBACK)
+         * - UI Target Gravity / Magnetic Button Snapping (Apple Vision Pro)
+         * - 110ms Pre-Pinch Rollback Buffer & Zero-Jerk Freeze (<18px)
+         * - 450ms Radial Charging Ring & Secondary Click (Right-Click)
+         * - 2-Finger Kinetic Scroll Gesture (Index + Middle)
+         * - Hybrid Ballistics & Relative Clutching Support
+         ***********************************************************************/
+        const magneticSnapping = {
+            enabled: true,
+            radius: 36, // pixels around buttons
+            gravityFactor: 0.72,
+            activeTarget: null,
+            cachedBoxes: [],
+            lastCacheTime: 0,
+            refreshCache() {
+                const elements = document.querySelectorAll('button, input, select, a, [role="button"], .spatial-btn, .chip-btn');
+                this.cachedBoxes = [];
+                for (let i = 0; i < elements.length; i++) {
+                    const el = elements[i];
+                    const rect = el.getBoundingClientRect();
+                    if (rect.width === 0 || rect.height === 0 || rect.bottom < 0 || rect.top > window.innerHeight) continue;
+                    this.cachedBoxes.push({
+                        el,
+                        left: rect.left,
+                        right: rect.right,
+                        top: rect.top,
+                        bottom: rect.bottom,
+                        cx: rect.left + rect.width / 2,
+                        cy: rect.top + rect.height / 2
+                    });
+                }
+                this.lastCacheTime = performance.now();
+            },
+            apply(targetX, targetY) {
+                if (!this.enabled || !state.magneticActive) {
+                    if (this.activeTarget) {
+                        this.activeTarget.classList.remove('magnetic-locked');
+                        this.activeTarget = null;
+                    }
+                    return { x: targetX, y: targetY, isSnapped: false };
+                }
+
+                const now = performance.now();
+                if (this.cachedBoxes.length === 0 || (now - this.lastCacheTime > 250) || state.draggedPanel) {
+                    this.refreshCache();
+                }
+
+                let closestDist = Infinity;
+                let closestBox = null;
+
+                for (let i = 0; i < this.cachedBoxes.length; i++) {
+                    const box = this.cachedBoxes[i];
+                    const distToBox = Math.hypot(
+                        Math.max(box.left - targetX, 0, targetX - box.right),
+                        Math.max(box.top - targetY, 0, targetY - box.bottom)
+                    );
+
+                    if (distToBox < this.radius && distToBox < closestDist) {
+                        closestDist = distToBox;
+                        closestBox = box;
+                    }
+                }
+
+                if (closestBox) {
+                    const pull = Math.pow(Math.max(0, 1 - closestDist / this.radius), 1.4) * this.gravityFactor;
+                    const snappedX = targetX * (1 - pull) + closestBox.cx * pull;
+                    const snappedY = targetY * (1 - pull) + closestBox.cy * pull;
+
+                    if (this.activeTarget && this.activeTarget !== closestBox.el) {
+                        this.activeTarget.classList.remove('magnetic-locked');
+                    }
+                    this.activeTarget = closestBox.el;
+                    closestBox.el.classList.add('magnetic-locked');
+
+                    return { x: snappedX, y: snappedY, isSnapped: true, target: closestBox.el, pull: pull };
+                } else {
+                    if (this.activeTarget) {
+                        this.activeTarget.classList.remove('magnetic-locked');
+                        this.activeTarget = null;
+                    }
+                    return { x: targetX, y: targetY, isSnapped: false };
+                }
+            }
+        };
+        window.addEventListener('resize', () => magneticSnapping.refreshCache());
+        window.addEventListener('scroll', () => magneticSnapping.refreshCache(), true);
+
+        function toggleMagneticSnapping() {
+            state.magneticActive = !state.magneticActive;
+            const btn = document.getElementById('btn-toggle-magnet');
+            const txt = document.getElementById('magnet-btn-text');
+            if (state.magneticActive) {
+                if (btn) btn.classList.add('bg-cyan-950/40', 'border-cyan-500/40');
+                if (txt) txt.textContent = 'NAM CHÂM: BẬT';
+                playHudSound('activate');
+            } else {
+                if (btn) btn.classList.remove('bg-cyan-950/40', 'border-cyan-500/40');
+                if (txt) txt.textContent = 'NAM CHÂM: TẮT';
+                if (magneticSnapping.activeTarget) {
+                    magneticSnapping.activeTarget.classList.remove('magnetic-locked');
+                    magneticSnapping.activeTarget = null;
+                }
+            }
+        }
+
+        function togglePointingMode() {
+            resetSpatialTracking();
+            state.pointingMode = (state.pointingMode === 'ABSOLUTE') ? 'HYBRID_CLUTCH' : 'ABSOLUTE';
+            const txt = document.getElementById('mode-btn-text');
+            if (txt) {
+                txt.textContent = (state.pointingMode === 'ABSOLUTE') ? 'CHẾ ĐỘ: TUYỆT ĐỐI' : 'CHẾ ĐỘ: HYBRID CLUTCH';
+            }
+            playHudSound('chirp');
+        }
+
+        function updateSpatialCursor(rawNormX, rawNormY, isPinchGesture, pinchDistValue, palmNormPos, source = 'camera') {
+            const now = performance.now();
+
+            // 1. Apply Comfort Zone Remapping (Desk-Rest Anti-Gorilla Arm)
+            const mappedX = (rawNormX - 0.5) * state.sensitivity + 0.5;
+            const mappedY = (rawNormY - state.centerOffsetY) * state.sensitivity + 0.5;
+
+            const clampedNormX = Math.max(0.01, Math.min(0.99, mappedX));
+            const clampedNormY = Math.max(0.01, Math.min(0.99, mappedY));
+
+            let targetScreenX = clampedNormX * window.innerWidth;
+            let targetScreenY = clampedNormY * window.innerHeight;
+
+            // 2. Record Pre-Pinch Rollback History Buffer (160ms window)
+            state.cursorHistory.push({ ts: now, x: state.cursorX, y: state.cursorY });
+            while (state.cursorHistory.length > 0 && now - state.cursorHistory[0].ts > 160) {
+                state.cursorHistory.shift();
+            }
+
+            // 3. UI Target Gravity Well / Magnetic Snapping (Apple Vision Pro)
+            // Local UI magnets must not steer a cursor controlling another app.
+            const snapResult = desktopBridgeEnabled ? { isSnapped: false } : magneticSnapping.apply(targetScreenX, targetScreenY);
+            if (snapResult.isSnapped) {
+                targetScreenX = snapResult.x;
+                targetScreenY = snapResult.y;
+            }
+
+            // 4. Linear Unchoked Pre-Pinch Damping Brake (Đồng bộ chuẩn xác với Python v9.7.3 PRO)
+            let prePinchBrake = 1.0;
+            const approachDist = state.pinchThreshold + 0.012;
+            if (pinchDistValue < approachDist && !isPinchGesture) {
+                const approachRange = Math.max(0.004, approachDist - state.pinchThreshold);
+                const ratio = Math.max(0.0, Math.min(1.0, (pinchDistValue - state.pinchThreshold) / approachRange));
+                prePinchBrake = Math.max(0.15, ratio);
+            }
+
+            // 5. Adaptive Silk Smoothing & Resting Zero-Tremor Box
+            const distToTarget = Math.hypot(targetScreenX - state.cursorX, targetScreenY - state.cursorY);
+            let effectiveAlpha = state.emaAlpha;
+
+            if (snapResult.isSnapped) {
+                effectiveAlpha *= 0.35; // Sticky magnetic feel over buttons
+                document.getElementById('jitter-status').textContent = 'MAGNETIC LOCKED';
+                document.getElementById('jitter-status').className = 'text-cyan-300 font-bold';
+            } else if (distToTarget < 1.5) {
+                effectiveAlpha = 0.0;
+                document.getElementById('jitter-status').textContent = 'REST-LOCKED (0 JITTER)';
+                document.getElementById('jitter-status').className = 'text-cyan-400 font-bold';
+            } else if (distToTarget < 12.0) {
+                effectiveAlpha = 0.32;
+                document.getElementById('jitter-status').textContent = 'SILK FAST (0.32)';
+                document.getElementById('jitter-status').className = 'text-emerald-400 font-bold';
+            } else {
+                effectiveAlpha = Math.min(0.92, 0.45 + (distToTarget - 12.0) / 40.0);
+                document.getElementById('jitter-status').textContent = 'TURBO VELOCITY (1:1 SPEED)';
+                document.getElementById('jitter-status').className = 'text-sky-400 font-bold animate-pulse';
+            }
+            effectiveAlpha *= prePinchBrake;
+
+            state.prevCursorX = state.cursorX;
+            state.prevCursorY = state.cursorY;
+
+            // Handle Pre-Pinch Rollback Buffer & State Machine
+            const palmScreenX = palmNormPos ? palmNormPos.x * window.innerWidth : state.cursorX;
+            const palmScreenY = palmNormPos ? palmNormPos.y * window.innerHeight : state.cursorY;
+
+            if (source === 'mouse') {
+                // Physical clicks are already dispatched by the browser/OS.
+                state.pinchState = 'IDLE';
+            } else if (isPinchGesture) {
+                if (state.pinchState === 'IDLE') {
+                    state.pinchState = 'PINCH_PENDING';
+                    state.pinchStartTime = now;
+                    state.secondaryTriggered = false;
+
+                    // Tua nguoc 110ms tim toa do truoc khi 2 ngon tay co ve phia nhau
+                    const targetTs = now - 110;
+                    let rbX = state.cursorX, rbY = state.cursorY;
+                    for (let i = state.cursorHistory.length - 1; i >= 0; i--) {
+                        if (state.cursorHistory[i].ts <= targetTs) {
+                            rbX = state.cursorHistory[i].x;
+                            rbY = state.cursorHistory[i].y;
+                            break;
+                        }
+                    }
+                    state.frozenCursorX = rbX;
+                    state.frozenCursorY = rbY;
+                    state.cursorX = rbX;
+                    state.cursorY = rbY;
+                    state.startPalmX = palmScreenX;
+                    state.startPalmY = palmScreenY;
+                } else if (state.pinchState === 'PINCH_PENDING') {
+                    const holdDuration = now - state.pinchStartTime;
+                    const palmMove = Math.hypot(palmScreenX - state.startPalmX, palmScreenY - state.startPalmY);
+
+                    if (palmMove > 18 && holdDuration < state.secondaryHoldMs && !state.secondaryTriggered) {
+                        state.pinchState = 'DRAGGING';
+                        state.dragTargetOffsetX = state.frozenCursorX - targetScreenX;
+                        state.dragTargetOffsetY = state.frozenCursorY - targetScreenY;
+                        sendBridgeButton('down', state.frozenCursorX, state.frozenCursorY);
+                    } else if (holdDuration >= state.secondaryHoldMs && !state.secondaryTriggered) {
+                        state.secondaryTriggered = true;
+                        playHudSound('activate');
+                        sendBridgeButton('right_click', state.frozenCursorX, state.frozenCursorY);
+                    } else {
+                        // Dong bang con tro chuot tuyet doi tai toa do Rollback
+                        state.cursorX = state.frozenCursorX;
+                        state.cursorY = state.frozenCursorY;
+                    }
+                }
+            } else {
+                if (state.pinchState === 'PINCH_PENDING') {
+                    const holdDuration = now - state.pinchStartTime;
+                    if (!state.secondaryTriggered && holdDuration < state.secondaryHoldMs) {
+                        // Quick Primary Tap (Click trai)
+                        const elemUnderCursor = document.elementFromPoint(state.frozenCursorX, state.frozenCursorY);
+                        const interactiveBtn = desktopBridgeEnabled ? null : (elemUnderCursor ? elemUnderCursor.closest('button, input, select, a, [role="button"], .spatial-btn, .chip-btn') : null);
+                        if (interactiveBtn) {
+                            interactiveBtn.classList.add('scale-95', 'brightness-125', 'ring-2', 'ring-cyan-400');
+                            setTimeout(() => interactiveBtn.classList.remove('scale-95', 'brightness-125', 'ring-2', 'ring-cyan-400'), 180);
+                            interactiveBtn.click();
+                            interactiveBtn.focus();
+                        } else if (desktopBridgeEnabled && bridgeSocket && bridgeSocket.readyState === WebSocket.OPEN) {
+                            sendBridgeButton('click', state.frozenCursorX, state.frozenCursorY);
+                        }
+                    }
+                    state.pinchState = 'IDLE';
+                } else if (state.pinchState === 'DRAGGING') {
+                    state.pinchState = 'IDLE';
+                    sendBridgeButton('up');
+                }
+            }
+
+            // Normal pointing motion when not frozen in pinch pending
+            if (state.pinchState !== 'PINCH_PENDING') {
+                if (state.pinchState === 'DRAGGING') {
+                    targetScreenX += state.dragTargetOffsetX;
+                    targetScreenY += state.dragTargetOffsetY;
+                }
+                state.cursorX = state.cursorX + effectiveAlpha * (targetScreenX - state.cursorX);
+                state.cursorY = state.cursorY + effectiveAlpha * (targetScreenY - state.cursorY);
+            }
+
+            // Update Reticle DOM Position
+            const reticle = document.getElementById('spatial-reticle');
+            reticle.style.left = `${state.cursorX}px`;
+            reticle.style.top = `${state.cursorY}px`;
+
+            // Sync with Desktop Bridge (v9.7.1 PRO: High-Velocity & Non-Conflicting Halo)
+            if (source === 'camera' && state.cameraActive && desktopBridgeEnabled && bridgeSocket && bridgeSocket.readyState === WebSocket.OPEN && state.twoHandDistance === null && !state.isScrolling) {
+                if (state.pinchState === 'PINCH_PENDING') {
+                    const holdDuration = now - state.pinchStartTime;
+                    const prog = Math.min(1.0, holdDuration / state.secondaryHoldMs);
+                    sendBridgeMessage({
+                        type: 'state_change',
+                        state: 'PINCH_HOLD',
+                        progress: prog
+                    });
+                } else if (!state.clutchLifted) {
+                    if (state.pointingMode === 'HYBRID_CLUTCH') {
+                        const dx = (state.cursorX - state.prevCursorX) * 1.15 + (state._relativeRemainderX || 0);
+                        const dy = (state.cursorY - state.prevCursorY) * 1.15 + (state._relativeRemainderY || 0);
+                        const ix = Math.round(dx), iy = Math.round(dy);
+                        state._relativeRemainderX = dx - ix;
+                        state._relativeRemainderY = dy - iy;
+                        if (ix || iy) {
+                            sendBridgeMessage({
+                                type: 'move_relative',
+                                dx: ix,
+                                dy: iy
+                            });
+                        }
+                    } else {
+                        const nx = state.cursorX / window.innerWidth;
+                        const ny = state.cursorY / window.innerHeight;
+                        const dMove = Math.hypot(state.cursorX - (state._lastSentBridgeX || 0), state.cursorY - (state._lastSentBridgeY || 0));
+                        if (dMove >= 0.5) {
+                            state._lastSentBridgeX = state.cursorX;
+                            state._lastSentBridgeY = state.cursorY;
+                            sendBridgeMessage({
+                                type: 'move',
+                                norm_x: nx,
+                                norm_y: ny
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Telemetry UI
+            document.getElementById('coord-x').textContent = clampedNormX.toFixed(3);
+            document.getElementById('coord-y').textContent = clampedNormY.toFixed(3);
+            document.getElementById('coord-pinch').textContent = pinchDistValue.toFixed(3);
+            const pinchPct = Math.max(5, Math.min(100, (1 - pinchDistValue / 0.18) * 100));
+            document.getElementById('pinch-meter-bar').style.width = `${pinchPct}%`;
+
+            state.wasPinching = state.isPinching;
+            state.isPinching = isPinchGesture;
+
+            updateReticleVisuals();
+            processSpatialInteractions();
+        }
+
+        function updateReticleVisuals() {
+            const reticle = document.getElementById('spatial-reticle');
+            const outer = document.getElementById('reticle-outer');
+            const inner = document.getElementById('reticle-inner');
+            const core = document.getElementById('reticle-core');
+            const label = document.getElementById('reticle-label');
+            const statusText = document.getElementById('gesture-state-text');
+            const chargeCircle = document.getElementById('reticle-charge');
+
+            if (state.workspaceLocked) {
+                outer.setAttribute('stroke', '#ff2a55');
+                inner.setAttribute('stroke', '#ff2a55');
+                core.setAttribute('fill', '#ff2a55');
+                label.textContent = 'LOCKED (PALM)';
+                statusText.textContent = 'KHÓA MÔ HÌNH (XÒE TAY)';
+                statusText.className = 'font-bold text-rose-400 tracking-wider';
+                return;
+            }
+
+            if (state.twoHandDistance !== null) {
+                outer.setAttribute('stroke', '#c084fc');
+                inner.setAttribute('stroke', '#a855f7');
+                core.setAttribute('fill', '#c084fc');
+                label.textContent = `2-HAND ZOOM (${targetScale.toFixed(2)}x)`;
+                statusText.textContent = `2 TAY: PHÓNG TO / THU NHỎ (${targetScale.toFixed(2)}x)`;
+                statusText.className = 'font-bold text-purple-300 tracking-wider';
+                return;
+            }
+
+            if (state.isScrolling) {
+                outer.setAttribute('stroke', '#00e5ff');
+                inner.setAttribute('stroke', '#00e5ff');
+                core.setAttribute('fill', '#00e5ff');
+                label.textContent = 'SCROLL MODE';
+                statusText.textContent = 'CUỘN TRANG (2 NGÓN)';
+                statusText.className = 'font-bold text-cyan-300 tracking-wider';
+                return;
+            }
+
+            // Radial Charging Ring & Pinch Lock Feedback
+            if (state.pinchState === 'PINCH_PENDING') {
+                const now = performance.now();
+                const holdDuration = now - state.pinchStartTime;
+                const progress = Math.min(1.0, holdDuration / state.secondaryHoldMs);
+
+                reticle.classList.add('pinching');
+                outer.setAttribute('stroke', '#ffaa00');
+                inner.setAttribute('stroke', '#ffaa00');
+                core.setAttribute('fill', '#ffaa00');
+
+                if (chargeCircle) {
+                    chargeCircle.classList.remove('opacity-0');
+                    chargeCircle.classList.add('opacity-100');
+                    const circumference = 213.6;
+                    chargeCircle.style.strokeDashoffset = `${circumference * (1 - progress)}`;
+                }
+
+                if (state.secondaryTriggered) {
+                    label.textContent = 'RIGHT CLICK';
+                    statusText.textContent = 'CHUỘT PHẢI THÀNH CÔNG!';
+                    statusText.className = 'font-bold text-rose-400 tracking-wider';
+                } else {
+                    label.textContent = `CHARGING (${Math.round(progress * 100)}%)`;
+                    statusText.textContent = 'GIỮ ĐỂ BẤM CHUỘT PHẢI / NHẢ ĐỂ CLICK';
+                    statusText.className = 'font-bold text-amber-300 tracking-wider';
+                }
+            } else if (state.pinchState === 'DRAGGING') {
+                reticle.classList.add('pinching');
+                outer.setAttribute('stroke', '#ffcc00');
+                inner.setAttribute('stroke', '#ffcc00');
+                core.setAttribute('fill', '#ffcc00');
+                label.textContent = 'DRAGGING';
+                statusText.textContent = 'KÉO THẢ (DRAGGING)';
+                statusText.className = 'font-bold text-yellow-300 tracking-wider';
+                if (chargeCircle) {
+                    chargeCircle.classList.remove('opacity-100');
+                    chargeCircle.classList.add('opacity-0');
+                }
+            } else {
+                reticle.classList.remove('pinching');
+                outer.setAttribute('stroke', '#00f3ff');
+                inner.setAttribute('stroke', '#00f3ff');
+                core.setAttribute('fill', '#00f3ff');
+                label.textContent = state.cameraActive ? `[${Math.round(state.cursorX)}px, ${Math.round(state.cursorY)}px]` : 'MOUSE SIM';
+                statusText.textContent = 'DI CHUYỂN CON TRỎ';
+                statusText.className = 'font-bold text-cyan-200 tracking-wider';
+                if (chargeCircle) {
+                    chargeCircle.classList.remove('opacity-100');
+                    chargeCircle.classList.add('opacity-0');
+                }
+            }
+        }
+
+        function processSpatialInteractions() {
+            const dx = state.cursorX - state.prevCursorX;
+            const dy = state.cursorY - state.prevCursorY;
+
+            // Dragging floating HUD panel
+            if (state.draggedPanel) {
+                if (state.isPinching) {
+                    const newLeft = Math.max(8, Math.min(window.innerWidth - 300, state.cursorX - state.dragOffsetX));
+                    const newTop = Math.max(55, Math.min(window.innerHeight - 120, state.cursorY - state.dragOffsetY));
+                    state.draggedPanel.style.left = `${newLeft}px`;
+                    state.draggedPanel.style.top = `${newTop}px`;
+                    state.draggedPanel.style.right = 'auto';
+                    state.draggedPanel.style.bottom = 'auto';
+                    return;
+                } else {
+                    state.draggedPanel.classList.remove('hud-grabbed');
+                    state.draggedPanel = null;
+                }
+            }
+
+            const elemUnderCursor = document.elementFromPoint(state.cursorX, state.cursorY);
+            if (state.lastHoveredElement && state.lastHoveredElement !== elemUnderCursor) {
+                state.lastHoveredElement.classList.remove('spatial-hover');
+            }
+            const interactiveBtn = elemUnderCursor ? elemUnderCursor.closest('button, input, select, a, [role="button"], .spatial-btn, .chip-btn') : null;
+            if (interactiveBtn) {
+                interactiveBtn.classList.add('spatial-hover');
+                state.lastHoveredElement = interactiveBtn;
+            }
+
+            // Drag handle detection for panels
+            if (state.isPinching && !state.draggedPanel) {
+                const dragHandle = elemUnderCursor ? elemUnderCursor.closest('.drag-handle') : null;
+                if (dragHandle) {
+                    const panel = dragHandle.closest('[data-draggable="true"]');
+                    if (panel) {
+                        const rect = panel.getBoundingClientRect();
+                        state.draggedPanel = panel;
+                        state.dragOffsetX = state.cursorX - rect.left;
+                        state.dragOffsetY = state.cursorY - rect.top;
+                        panel.classList.add('hud-grabbed');
+                    }
+                }
+            }
+
+            // Rotate 3D Hologram when pinching in empty central space
+            const insideHudPanel = elemUnderCursor ? elemUnderCursor.closest('.hud-panel, header') : null;
+            if (state.isPinching && !insideHudPanel && !state.workspaceLocked && !desktopBridgeEnabled) {
+                targetRotationY += dx * 0.011;
+                targetRotationX += dy * 0.011;
+            }
+        }
+        
+        /***********************************************************************
+         * 5. MEDIAPIPE HANDS REAL-TIME WEBCAM TRACKING
+         ***********************************************************************/
+        let handsDetector = null;
+        let cameraFeed = null;
+        let cameraTransition = false;
+
+        function handDistance(hand, a, b) {
+            // Correct for the 640x480 camera aspect ratio before comparing lengths.
+            return Math.hypot((hand[a].x - hand[b].x) * 4 / 3, hand[a].y - hand[b].y);
+        }
+
+        function fingerExtended(hand, tip, pip, mcp) {
+            const palm = Math.max(1e-5, handDistance(hand, 0, 9));
+            return handDistance(hand, tip, 0) / Math.max(1e-5, handDistance(hand, pip, 0)) > 1.05 &&
+                handDistance(hand, tip, mcp) / palm > 0.41;
+        }
+
+        async function initMediaPipeHands() {
+            const videoElement = document.getElementById('webcam-video');
+            const canvasElement = document.getElementById('webcam-canvas');
+            const canvasCtx = canvasElement.getContext('2d');
+
+            handsDetector = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`
+            });
+
+            handsDetector.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.65,
+                minTrackingConfidence: 0.65
+            });
+
+            handsDetector.onResults((results) => {
+                if (!state.cameraActive) return;
+                // Draw mirrored webcam frame
+                canvasCtx.save();
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.translate(canvasElement.width, 0);
+                canvasCtx.scale(-1, 1);
+                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+                // =============================================================
+                // VẼ KHUNG TỌA ĐỘ 3D FRUSTUM THEO BẢN VẼ HỘP PHỐI CẢNH (HÌNH 1)
+                // =============================================================
+                const cw = canvasElement.width;
+                const ch = canvasElement.height;
+                const boxW = cw / state.sensitivity;
+                const boxH = ch / state.sensitivity;
+                const boxX = (cw - boxW) / 2;
+                const boxY = (ch * state.centerOffsetY) - (boxH / 2);
+
+                // 1. Khung Ngoài (Camera / Screen Outer Frame)
+                canvasCtx.strokeStyle = 'rgba(0, 180, 220, 0.4)';
+                canvasCtx.lineWidth = 1;
+                canvasCtx.strokeRect(4, 4, cw - 8, ch - 8);
+
+                // 2. Khung Trong (Inner Desktop Interaction Plane)
+                canvasCtx.strokeStyle = 'rgba(0, 243, 255, 0.85)';
+                canvasCtx.lineWidth = 1.5;
+                canvasCtx.strokeRect(boxX, boxY, boxW, boxH);
+
+                // 3. 4 Đường xiên phối cảnh 3D kết nối 4 góc (Perspective Tunnel Lines)
+                canvasCtx.strokeStyle = 'rgba(0, 170, 220, 0.5)';
+                canvasCtx.lineWidth = 1;
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(4, 4); canvasCtx.lineTo(boxX, boxY);
+                canvasCtx.moveTo(cw - 4, 4); canvasCtx.lineTo(boxX + boxW, boxY);
+                canvasCtx.moveTo(cw - 4, ch - 4); canvasCtx.lineTo(boxX + boxW, boxY + boxH);
+                canvasCtx.moveTo(4, ch - 4); canvasCtx.lineTo(boxX, boxY + boxH);
+                canvasCtx.stroke();
+
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    state.trackingHasHand = true;
+                    state.lastHandResultTime = performance.now();
+                    // Draw skeleton for all detected hands
+                    for (const landmarks of results.multiHandLandmarks) {
+                        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00f3ff', lineWidth: 1 });
+                        drawLandmarks(canvasCtx, landmarks, { color: '#ffaa00', lineWidth: 1, radius: 1.2 });
+                    }
+
+                    // Primary Hand (Hand 0) controls cursor & gestures
+                    const hand1 = results.multiHandLandmarks[0];
+                    const thumbTip = hand1[4];
+                    const indexMcp = hand1[5];
+                    const indexTip = hand1[8];
+                    const middleTip = hand1[12];
+                    const ringTip = hand1[16];
+                    const pinkyTip = hand1[20];
+                    const wrist = hand1[0];
+
+                    // Tia laser chỉ hướng từ khớp ngón tay qua đầu ngón trỏ
+                    canvasCtx.strokeStyle = 'rgba(0, 255, 255, 0.9)';
+                    canvasCtx.lineWidth = 2.5;
+                    canvasCtx.beginPath();
+                    canvasCtx.moveTo(indexMcp.x * cw, indexMcp.y * ch);
+                    canvasCtx.lineTo(indexTip.x * cw, indexTip.y * ch);
+                    canvasCtx.stroke();
+
+                    // Vòng tròn Reticle định vị chuẩn xác tại đầu ngón trỏ (Landmark 8)
+                    canvasCtx.strokeStyle = '#00f3ff';
+                    canvasCtx.lineWidth = 2;
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(indexTip.x * cw, indexTip.y * ch, 7, 0, Math.PI * 2);
+                    canvasCtx.stroke();
+
+                    // Direct High-Responsiveness Fingertip Steering with 30% Knuckle Stabilization
+                    // Đạo hàm dương d(steer)/d(tip) = +0.70: vẫy đầu ngón trỏ lên/xuống chuột phản hồi tức thì 100%!
+                    const knuckleX = 1.0 - (indexMcp.x + hand1[9].x) * 0.5;
+                    const knuckleY = (indexMcp.y + hand1[9].y) * 0.5;
+                    const mirroredTipX = 1.0 - indexTip.x;
+                    const tipY = indexTip.y;
+
+                    const steerX = 0.70 * mirroredTipX + 0.30 * knuckleX;
+                    const steerY = 0.70 * tipY + 0.30 * knuckleY;
+
+                    const mirroredIndexX = steerX;
+                    const compensatedIndexY = steerY;
+
+                    // Calculate 2D Euclidean distance between Thumb Tip (4) and Index Tip (8)
+                    const palmDist = Math.max(1e-5, handDistance(hand1, 0, 9));
+                    const pinchRatio = handDistance(hand1, 4, 8) / palmDist;
+                    const pinchDist = pinchRatio * 0.082;
+
+                    // Kiểm tra độ duỗi ngón tay để xác định tư thế Nhấc chuột (REST) & Bàn tay mở (FLAT_PALM)
+                    const indexExt = fingerExtended(hand1, 8, 6, 5);
+                    const middleExt = fingerExtended(hand1, 12, 10, 9);
+                    const ringExt = fingerExtended(hand1, 16, 14, 13);
+                    const pinkyExt = fingerExtended(hand1, 20, 18, 17);
+
+                    // Gập ngón trỏ = Nhấc chuột (Clutch Lifted trong HYBRID_CLUTCH)
+                    state.clutchLifted = !indexExt && state.pinchState === 'IDLE';
+
+                    // Cấm kích hoạt Pinch khi ngón trỏ đang gập nghỉ (REST) để triệt tiêu lỗi click nhầm khi dời tay
+                    const pinchLimit = state.pinchState === 'IDLE' ? state.pinchThreshold : state.pinchExitThreshold;
+                    const isPinch = !state.clutchLifted && pinchDist < pinchLimit;
+
+                    if (indexExt && middleExt && ringExt && pinkyExt && pinchDist > state.pinchExitThreshold) {
+                        state.workspaceLocked = true;
+                    } else {
+                        state.workspaceLocked = false;
+                    }
+
+                    // Two-Hand Pinch Zoom (if 2 hands are visible)
+                    if (results.multiHandLandmarks.length === 2) {
+                        if (state.twoHandDistance === null) {
+                            resetSpatialTracking();
+                            state.trackingHasHand = true;
+                            state.lastHandResultTime = performance.now();
+                        }
+                        const hand2 = results.multiHandLandmarks[1];
+                        const indexMcp2 = hand2[5];
+                        const indexTip2 = hand2[8];
+
+                        // Tia laser chỉ hướng từ khớp ngón tay qua đầu ngón trỏ tay thứ 2
+                        canvasCtx.strokeStyle = 'rgba(168, 85, 247, 0.9)';
+                        canvasCtx.lineWidth = 2.5;
+                        canvasCtx.beginPath();
+                        canvasCtx.moveTo(indexMcp2.x * cw, indexMcp2.y * ch);
+                        canvasCtx.lineTo(indexTip2.x * cw, indexTip2.y * ch);
+                        canvasCtx.stroke();
+
+                        // Vòng tròn Reticle tại đầu ngón trỏ tay thứ 2
+                        canvasCtx.strokeStyle = '#c084fc';
+                        canvasCtx.lineWidth = 2;
+                        canvasCtx.beginPath();
+                        canvasCtx.arc(indexTip2.x * cw, indexTip2.y * ch, 7, 0, Math.PI * 2);
+                        canvasCtx.stroke();
+
+                        // Tia năng lượng kết nối 2 đầu ngón trỏ (Holographic Energy Beam)
+                        canvasCtx.strokeStyle = 'rgba(0, 243, 255, 0.85)';
+                        canvasCtx.lineWidth = 2.5;
+                        canvasCtx.setLineDash([6, 4]);
+                        canvasCtx.beginPath();
+                        canvasCtx.moveTo(indexTip.x * cw, indexTip.y * ch);
+                        canvasCtx.lineTo(indexTip2.x * cw, indexTip2.y * ch);
+                        canvasCtx.stroke();
+                        canvasCtx.setLineDash([]);
+
+                        // Điểm trọng tâm đo khoảng cách giữa 2 tay
+                        const midX = ((indexTip.x + indexTip2.x) / 2) * cw;
+                        const midY = ((indexTip.y + indexTip2.y) / 2) * ch;
+                        canvasCtx.fillStyle = '#00f3ff';
+                        canvasCtx.beginPath();
+                        canvasCtx.arc(midX, midY, 4, 0, Math.PI * 2);
+                        canvasCtx.fill();
+
+                        const distBetweenHands = Math.hypot(hand1[8].x - hand2[8].x, hand1[8].y - hand2[8].y);
+                        if (state.twoHandDistance !== null) {
+                            const deltaDist = distBetweenHands - state.twoHandDistance;
+                            targetScale = Math.max(0.4, Math.min(3.0, targetScale + deltaDist * 2.8));
+
+                            // Tích lũy delta và gửi có throttle sang Desktop Bridge
+                            state.zoomAccumulator += deltaDist;
+                            const now = performance.now();
+                            if (Math.abs(state.zoomAccumulator) >= 0.005 && (now - state.lastZoomSendTime >= 75)) {
+                                if (bridgeSocket && bridgeSocket.readyState === WebSocket.OPEN) {
+                                    sendBridgeMessage({
+                                        type: 'zoom',
+                                        delta: state.zoomAccumulator
+                                    });
+                                }
+                                state.zoomAccumulator = 0.0;
+                                state.lastZoomSendTime = now;
+                            }
+                        }
+                        state.twoHandDistance = distBetweenHands;
+                        updateSpatialCursor(mirroredIndexX, compensatedIndexY, false, pinchDist, { x: 1.0 - hand1[9].x, y: hand1[9].y });
+                    } else {
+                        state.twoHandDistance = null;
+                        state.zoomAccumulator = 0.0;
+
+                        // 2-Finger Kinetic Scroll Detection (Index + Middle extended together, Ring + Pinky folded)
+                        const dIndexMiddle = handDistance(hand1, 8, 12) / palmDist;
+                        const isTwoFingerScroll = indexExt && middleExt && !ringExt && !pinkyExt && dIndexMiddle < 0.45 && !isPinch;
+
+                        if (isTwoFingerScroll) {
+                            if (!state.isScrolling) {
+                                resetSpatialTracking();
+                                state.trackingHasHand = true;
+                                state.lastHandResultTime = performance.now();
+                            }
+                            const scrollMidY = (indexTip.y + middleTip.y) / 2;
+                            if (state.lastScrollTime > 0) {
+                                const deltaScrollY = scrollMidY - state.lastScrollY;
+                                const now = performance.now();
+                                if (Math.abs(deltaScrollY) > 0.005 && (now - state.lastScrollTime >= 35)) {
+                                    const scrollClicks = Math.round(-deltaScrollY * 3800);
+                                    if (desktopBridgeEnabled && bridgeSocket && bridgeSocket.readyState === WebSocket.OPEN) {
+                                        sendBridgeMessage({
+                                            type: 'scroll',
+                                            delta: scrollClicks
+                                        });
+                                    }
+                                    state.lastScrollTime = now;
+                                }
+                            } else {
+                                state.lastScrollTime = performance.now();
+                            }
+                            state.lastScrollY = scrollMidY;
+                            state.isScrolling = true;
+                        } else {
+                            state.isScrolling = false;
+                            state.lastScrollTime = 0;
+                        }
+
+                        updateSpatialCursor(mirroredIndexX, compensatedIndexY, isPinch, pinchDist, { x: 1.0 - hand1[9].x, y: hand1[9].y });
+                    }
+                } else if (state.trackingHasHand || state.pinchState !== 'IDLE') {
+                    resetSpatialTracking();
+                }
+
+                canvasCtx.restore();
+            });
+
+            cameraFeed = new Camera(videoElement, {
+                onFrame: async () => {
+                    if (state.cameraActive && handsDetector) {
+                        try {
+                            await handsDetector.send({ image: videoElement });
+                        } catch (err) {
+                            resetSpatialTracking();
+                            console.warn('Hand tracking failed', err);
+                        }
+                    }
+                },
+                width: 640,
+                height: 480
+            });
+        }
+
+        async function toggleWebcamTracking() {
+            if (cameraTransition) return;
+            cameraTransition = true;
+            try {
+                const btnText = document.getElementById('camera-btn-text');
+                const overlay = document.getElementById('camera-off-overlay');
+                const badge = document.getElementById('tracking-mode-badge');
+                const led = document.getElementById('cam-led');
+
+                if (!state.cameraActive) {
+                    resetSpatialTracking();
+                    try {
+                        btnText.textContent = 'ĐANG KHỞI ĐỘNG SENSOR...';
+                        if (!handsDetector) {
+                            await initMediaPipeHands();
+                        }
+                        await cameraFeed.start();
+                        state.cameraActive = true;
+                        overlay.classList.add('hidden');
+                        btnText.textContent = 'TẮT CAMERA (DÙNG CHUỘT)';
+                        badge.innerHTML = '<i class="fa-solid fa-hand-sparkles mr-1"></i>OPTICAL HAND TRACKING: ACTIVE';
+                        badge.className = 'text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400 text-emerald-300 font-semibold';
+                        led.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+                        playHudSound('activate');
+                        appendJarvisMessage('J.A.R.V.I.S.', 'Cảm biến quang học đã kích hoạt. Ngài có thể tì khuỷu tay lên bàn, giơ ngón trỏ để di chuyển tâm ngắm và chụm ngón cái + ngón trỏ để thao tác.');
+                    } catch (err) {
+                        state.cameraActive = false;
+                        resetSpatialTracking();
+                        if (cameraFeed) cameraFeed.stop();
+                        btnText.textContent = 'BẬT CAMERA NHẬN DIỆN TAY';
+                        appendJarvisMessage('HỆ THỐNG', 'Không thể truy cập Webcam (có thể do quyền trình duyệt). Hệ thống tự động duy trì chế độ Giả lập Chuột/Trackpad.');
+                    }
+                } else {
+                    resetSpatialTracking();
+                    state.cameraActive = false;
+                    if (cameraFeed) cameraFeed.stop();
+                    overlay.classList.remove('hidden');
+                    btnText.textContent = 'BẬT CAMERA NHẬN DIỆN TAY';
+                    badge.innerHTML = '<i class="fa-solid fa-computer-mouse mr-1"></i>CHẾ ĐỘ CHUỘT (SIMULATION)';
+                    badge.className = 'text-[11px] px-2 py-0.5 rounded bg-amber-500/20 border border-amber-400/50 text-amber-300 font-semibold';
+                    led.className = 'w-2 h-2 rounded-full bg-amber-400';
+                    playHudSound('lock');
+                }
+            } finally {
+                cameraTransition = false;
+            }
+        }
+
+        /***********************************************************************
+         * 6. MOUSE / TRACKPAD SIMULATION FALLBACK (WORKS IMMEDIATELY)
+         ***********************************************************************/
+        window.addEventListener('mousemove', (e) => {
+            if (state.cameraActive) return; // Hand tracking has priority when active
+            const normX = (e.clientX / window.innerWidth - 0.5) / state.sensitivity + 0.5;
+            const normY = (e.clientY / window.innerHeight - 0.5) / state.sensitivity + state.centerOffsetY;
+            updateSpatialCursor(normX, normY, state.isPinching, state.isPinching ? 0.03 : 0.12, null, 'mouse');
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if (state.cameraActive || e.button !== 0) return;
+            state.isPinching = true;
+            const normX = (e.clientX / window.innerWidth - 0.5) / state.sensitivity + 0.5;
+            const normY = (e.clientY / window.innerHeight - 0.5) / state.sensitivity + state.centerOffsetY;
+            updateSpatialCursor(normX, normY, true, 0.03, null, 'mouse');
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (state.cameraActive) return;
+            state.isPinching = false;
+            state.pinchState = 'IDLE';
+            updateReticleVisuals();
+            if (state.draggedPanel) {
+                state.draggedPanel.classList.remove('hud-grabbed');
+                state.draggedPanel = null;
+            }
+        });
+
+        window.addEventListener('wheel', (e) => {
+            targetScale = Math.max(0.5, Math.min(2.3, targetScale - e.deltaY * 0.001));
+        });
+
+        /***********************************************************************
+         * 7. COMFORT ZONE CALIBRATION & WORKSPACE UTILITIES
+         ***********************************************************************/
+        function toggleExpandCamera() {
+            const panel = document.getElementById('camera-panel');
+            const container = document.getElementById('camera-container');
+            const btn = document.getElementById('btn-expand-cam');
+            if (!panel || !container || !btn) return;
+            if (panel.classList.contains('w-[460px]')) {
+                panel.classList.remove('w-[460px]');
+                panel.classList.add('w-80');
+                container.classList.remove('h-80');
+                container.classList.add('h-56');
+                btn.innerHTML = '<i class="fa-solid fa-expand mr-1"></i>MỞ RỘNG';
+            } else {
+                panel.classList.remove('w-80');
+                panel.classList.add('w-[460px]');
+                container.classList.remove('h-56');
+                container.classList.add('h-80');
+                btn.innerHTML = '<i class="fa-solid fa-compress mr-1"></i>THU GỌN';
+            }
+        }
+
+        function toggleComfortZoneModal() {
+            const modal = document.getElementById('comfort-modal');
+            modal.classList.toggle('hidden');
+            modal.classList.toggle('flex');
+            playHudSound('chirp');
+        }
+
+        function updateComfortSettings() {
+            state.sensitivity = parseFloat(document.getElementById('slider-sensitivity').value);
+            state.emaAlpha = parseFloat(document.getElementById('slider-smoothing').value);
+            state.pinchThreshold = parseFloat(document.getElementById('slider-pinch').value);
+
+            document.getElementById('lbl-sens').textContent = `${state.sensitivity.toFixed(1)}x`;
+            document.getElementById('lbl-smooth').textContent = state.emaAlpha.toFixed(2);
+            document.getElementById('lbl-pinch').textContent = state.pinchThreshold.toFixed(3);
+        }
+
+        function resetComfortDefaults() {
+            document.getElementById('slider-sensitivity').value = 1.8;
+            document.getElementById('slider-smoothing').value = 0.28;
+            document.getElementById('slider-pinch').value = 0.055;
+            updateComfortSettings();
+        }
+
+        function resetWorkspace() {
+            targetRotationX = 0.3;
+            targetRotationY = 0.6;
+            targetScale = 1.0;
+            state.explodedView = false;
+            state.workspaceLocked = false;
+            playHudSound('activate');
+        }
+
+        function captureNodeToSlide() {
+            state.slideCount++;
+            document.getElementById('slide-count').textContent = state.slideCount;
+            const container = document.getElementById('pinned-slides-container');
+            const title = document.getElementById('active-node-title').textContent;
+            const scale = document.getElementById('hud-scale-val').textContent;
+            const rot = document.getElementById('hud-rot-val').textContent;
+
+            const card = document.createElement('div');
+            card.className = 'bg-cyan-950/50 border border-cyan-500/30 rounded p-1.5 flex items-start justify-between animate-pulse';
+            setTimeout(() => card.classList.remove('animate-pulse'), 600);
+            card.innerHTML = `
+                <div>
+                    <span class="text-amber-300 font-bold">#${state.slideCount} [${title.slice(0, 16)}]</span>
+                    <p class="text-cyan-100/80 text-[10px]">Góc chụp 3D: ${rot} | Tỷ lệ: ${scale}</p>
+                </div>
+                <i class="fa-solid fa-check-circle text-emerald-400 text-xs mt-0.5"></i>
+            `;
+            container.prepend(card);
+            playHudSound('activate');
+        }
+
+        /***********************************************************************
+         * 8. J.A.R.V.I.S. AI VOICE & GEMINI API INTEGRATION
+         ***********************************************************************/
+        function appendJarvisMessage(sender, text) {
+            const log = document.getElementById('jarvis-chat-log');
+            const div = document.createElement('div');
+            const isJarvis = sender === 'J.A.R.V.I.S.';
+            div.className = isJarvis
+                ? 'bg-cyan-950/60 border-l-2 border-cyan-400 p-2 rounded'
+                : 'bg-slate-900/90 border-l-2 border-amber-400 p-2 rounded';
+
+            // Model replies and user messages are text, never executable markup.
+            const heading = document.createElement('div');
+            heading.className = `text-[10px] ${isJarvis ? 'text-cyan-400' : 'text-amber-300'} font-bold mb-0.5`;
+            heading.textContent = sender;
+            const body = document.createElement('p');
+            body.className = 'text-cyan-100 leading-relaxed whitespace-pre-line';
+            body.textContent = text;
+            div.appendChild(heading);
+            div.appendChild(body);
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function speakJarvisResponse(text) {
+            if (!state.ttsEnabled || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text.replace(/[*#]/g, ''));
+                utterance.lang = 'vi-VN';
+                utterance.rate = 1.08;
+                utterance.pitch = 0.95;
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {
+                // Ignore TTS errors
+            }
+        }
+
+        function toggleVoiceOutput() {
+            state.ttsEnabled = !state.ttsEnabled;
+            const btn = document.getElementById('btn-tts-toggle');
+            btn.innerHTML = state.ttsEnabled
+                ? '<i class="fa-solid fa-volume-high"></i> TTS: ON'
+                : '<i class="fa-solid fa-volume-xmark"></i> TTS: OFF';
+            if (!state.ttsEnabled && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        }
+
+        // Web Speech API (Speech-to-Text)
+        let recognition = null;
+        let isListening = false;
+
+        function toggleSpeechRecognition() {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const micBtn = document.getElementById('btn-voice-mic');
+
+            if (!SpeechRec) {
+                appendJarvisMessage('HỆ THỐNG', 'Trình duyệt của Ngài chưa hỗ trợ Web Speech API. Ngài vui lòng dùng các nút Lệnh Tác Chiến Nhanh hoặc nhập lệnh vào ô bên dưới.');
+                return;
+            }
+
+            if (!recognition) {
+                recognition = new SpeechRec();
+                recognition.lang = 'vi-VN';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    micBtn.classList.add('bg-rose-500/40', 'border-rose-400', 'animate-pulse');
+                    playHudSound('activate');
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('jarvis-input').value = transcript;
+                    sendJarvisCommand(transcript);
+                };
+
+                recognition.onend = () => {
+                    isListening = false;
+                    micBtn.classList.remove('bg-rose-500/40', 'border-rose-400', 'animate-pulse');
+                };
+            }
+
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function executeQuickCommand(cmdText) {
+            // Check if command implies switching 3D model or exploding view
+            const lower = cmdText.toLowerCase();
+            if (lower.includes('mạng phân tử')) switchHologram('molecule');
+            if (lower.includes('tách lớp') && !state.explodedView) triggerExplodeView();
+            sendJarvisCommand(cmdText);
+        }
+
+        async function callGeminiWithBackoff(userPrompt, systemPrompt) {
+                        const effectiveApiKey = localStorage.getItem('stark_gemini_api_key') || '';
+            if (!effectiveApiKey) {
+                // Phản hồi thông minh cục bộ khi chưa cài API Key
+                return `Thưa Ngài, hệ thống cục bộ đang giám sát mô hình [${document.getElementById('active-node-title').textContent}]. Để kích hoạt phân tích sâu với Gemini AI, vui lòng nhập Gemini API Key qua nút [SET API KEY] trên thanh điều khiển.`;
+            }
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${effectiveApiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            const delays = [1000, 2000, 4000];
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Đã hoàn tất phân tích dữ liệu.';
+                } catch (err) {
+                    if (attempt === delays.length) throw err;
+                    await new Promise(r => setTimeout(r, delays[attempt]));
+                }
+            }
+        }
+
+        async function sendJarvisCommand(overrideText) {
+            const inputEl = document.getElementById('jarvis-input');
+            const query = (overrideText || inputEl.value || '').trim();
+            if (!query) return;
+
+            inputEl.value = '';
+            appendJarvisMessage('STARK COMMANDER', query);
+            playHudSound('chirp');
+
+            // Local spatial action triggers based on natural language
+            const lower = query.toLowerCase();
+            if (lower.includes('phân tử') || lower.includes('molecule')) switchHologram('molecule');
+            else if (lower.includes('topo') || lower.includes('torus') || lower.includes('lượng tử')) switchHologram('torus');
+            else if (lower.includes('reactor') || lower.includes('lõi')) switchHologram('reactor');
+
+            if (lower.includes('tách lớp') || lower.includes('explode')) {
+                if (!state.explodedView) triggerExplodeView();
+            }
+            if (lower.includes('ghim') || lower.includes('slide')) {
+                captureNodeToSlide();
+            }
+
+            const activeTitle = document.getElementById('active-node-title').textContent;
+            const scaleVal = document.getElementById('hud-scale-val').textContent;
+            const rotVal = document.getElementById('hud-rot-val').textContent;
+
+            const systemPrompt = `Bạn là J.A.R.V.I.S., trí tuệ nhân tạo không gian của Tony Stark. 
+Trả lời bằng tiếng Việt ngắn gọn (tối đa 3-4 câu hoặc 3 gạch đầu dòng súc tích), thông minh, chuẩn xác về mặt khoa học/kỹ thuật, xưng "Tôi" và gọi người dùng là "Ngài" (Sir).
+Ngữ cảnh bàn làm việc Hologram hiện tại:
+- Mô hình 3D đang hiển thị: ${activeTitle} (Trạng thái tách lớp: ${state.explodedView ? 'Đang tách lớp' : 'Nguyên khối'})
+- Góc xoay không gian: ${rotVal}, Độ phóng đại: ${scaleVal}
+- Cảm biến tay: ${state.cameraActive ? 'Optical Camera Active' : 'Mouse Simulation'}`;
+
+            try {
+                const reply = await callGeminiWithBackoff(query, systemPrompt);
+                appendJarvisMessage('J.A.R.V.I.S.', reply);
+                speakJarvisResponse(reply);
+            } catch (err) {
+                const fallback = `Thưa Ngài, kết nối vệ tinh tới máy chủ phân tích đang bận. Dựa trên bộ nhớ cục bộ cho [${activeTitle}]: cấu trúc đang ổn định ở tỷ lệ ${scaleVal} (${rotVal}). Đã sẵn sàng ghim thông số vào Slide thuyết trình.`;
+                appendJarvisMessage('J.A.R.V.I.S.', fallback);
+                speakJarvisResponse(fallback);
+            }
+        }
+
+        // Start 3D Engine on Window Load
+        window.onload = function () {
+            initThreeHologram();
+            animateThree();
+        };
+    </script>
+</body>
+</html>
