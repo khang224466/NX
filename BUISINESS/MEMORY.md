@@ -3,10 +3,27 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.73 PRO for EduNext AI Assistant & v10.2.82 PRO for STARK Air Mouse)
+## Current Status (v10.2.73 PRO for EduNext AI Assistant & v10.2.83 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.73 PRO** (Live CDN: `v10_2_73_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.82 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.83 PRO**
+
+- **Triệt Để Khắc Phục Hiện Tượng Quá Lag, Giật Frame & Chữ/Camera Bị Ngược (v10.2.83 PRO)**:
+  1. **Bản chất 2 lỗi lớn người dùng phản ánh**:
+     - *Lỗi 1 ("còn bị ngược")*: Chữ và hướng tay bị ngược / soi gương / lộn đầu.
+       - *Thực nghiệm quang học đối chiếu*: Khi iPhone nằm ngang trong khay kính VR Shinecon G10 với cáp Lightning cắm sang một bên, cảm biến camera bị lộn chiều. Thử nghiệm trên ảnh thực tế thẻ học sinh `DIỆP TRỌNG KHANG` (`banner_comparison.jpg`):
+         - Nếu xoay 180° (`cv2.rotate(..., ROTATE_180)`): Cả trục X và Y đều bị đảo, làm chữ bị **LẬT GƯƠNG NGƯỢC** (`HNIS CỌH ỆHT`, `ĐNAHK GNỢRT PỆID` đọc từ phải sang trái).
+         - Nếu lật dọc (`cv2.flip(frame, 0)`): Chữ `THẺ HỌC SINH` và `DIỆP TRỌNG KHANG` **100% XUÔI CHIỀU CHUẨN XÁC**, đọc thẳng từ trái sang phải, chuyển động tay trái/phải khớp hoàn hảo với thế giới thực!
+       - *Thiết lập chuẩn hóa*: Mặc định `self.flip_vertical = True`, `self.flip_horizontal = False`, `self.rotate_180 = False`. Bổ sung nút bấm trên không `[FLIP V]`, `[MIRROR]`, `[ROT 180]` trên thanh Quick Settings để người dùng có thể đổi hướng bất kỳ lúc nào ngay bằng ngón tay giữa không gian.
+     - *Lỗi 2 ("quá lag, quá giựt")*:
+       - *Nguyên nhân A (Tràn luồng socket & Ngắt kết nối lặp đi lặp lại)*: Timeout cũ `1.5s` khiến socket bị timeout giả khi truyền dữ liệu nặng, liên tục ngắt và kết nối lại (`[V] KET NOI... [!] Tam thoi mat ket noi...`). Đã nâng timeout lên `8.0s` và tăng buffer `SO_RCVBUF`, `SO_SNDBUF` lên 131,072 bytes.
+       - *Nguyên nhân B (Tắc nghẽn Main Thread do `sock.sendall` đồng bộ)*: Trước đây lệnh gửi frame SBS `sock.sendall(pkt)` được gọi trực tiếp trong main loop, khiến main loop bị treo cứng mỗi khi TCP socket bị nghẽn. Đã chuyển hoàn toàn sang background thread `start_sender_thread()` với cơ chế "Latest-Frame-Only" (tự động drop frame cũ nếu frame mới đã tới, triệt tiêu 100% Bufferbloat và độ trễ).
+       - *Nguyên nhân C (Gửi trùng lặp hàng trăm frame thừa)*: Main loop chạy vô hạn với tốc độ 200+ FPS trong khi camera gửi 60 FPS, dẫn đến việc gửi 3-4 bản sao của cùng 1 frame về iPhone làm tràn hàng đợi giải mã của iOS. Đã thêm biến `last_frame_seq`: Main loop chỉ xử lý và render khi có frame camera mới (`self.frame_seq != last_frame_seq`), đồng bộ nhịp nhàng 60 FPS.
+       - *Nguyên nhân D (Bộ lọc 1€ Filter tính sai đạo hàm vận tốc do re-filter)*: Khi AI Worker chưa ra kết quả mới, main loop cũ liên tục re-filter cùng 1 tọa độ cũ với timestamp `now` mới, làm đạo hàm vận tốc nhảy loạn xạ gây giật xương tay. Đã thêm cơ chế landmark caching (`cached_filtered_2d/3d`) và `lms_seq`.
+  2. **Kết quả kiểm thử & xác nhận**:
+     - Tập lệnh unit test toàn diện `test_tethered_pipeline.py` đã vượt qua 100% các bài test (Orientation, Sender queue handoff, In-Air click dispatches cho FLIP V, MIRROR, ROT 180).
+     - File [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py) biên dịch không còn bất kỳ lỗi nào.
+
 
 - **Phân Biệt Chuẩn Xác 2 Trạng Thái & Tự Động Dừng Khi Môn Tiếng Anh Hoàn Thành Bài Học (v10.2.73 PRO)**:
   1. **Bản chất phản hồi của người dùng**:

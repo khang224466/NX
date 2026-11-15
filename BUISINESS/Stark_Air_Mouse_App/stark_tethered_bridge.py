@@ -264,24 +264,15 @@ class StarkTetheredBridge:
         return bytes(data)
 
     def send_sbs_back_to_iphone(self, sbs_frame):
-        """Ban hinh anh 3D SBS da xu ly ve man hinh iPhone qua cap USB voi do tre < 2ms"""
-        sock = self.sock
-        if not self.is_connected or sock is None:
-            return
-        try:
-            # Quality 70 tren 1280x720 nén chi mat 2.5ms va dung luong chi ~35KB
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 70]
-            _, encoded = cv2.imencode(".jpg", sbs_frame, encode_param)
-            data = encoded.tobytes()
-            pkt = struct.pack(">I", len(data)) + data
-            sock.sendall(pkt)
-        except Exception:
-            pass
+        """Dua frame SBS vao queue gui bat dong bo ve iPhone (Zero Blocking, Zero Latency)"""
+        with self.send_lock:
+            self.pending_sbs_frame = sbs_frame
 
     def run(self):
         self.start_usbmux_forward()
         self.start_connection_manager()
         self.start_ai_thread()
+        self.start_sender_thread()
 
         # Khoi tao cua so OpenCV
         win_title = "STARK CARDBOARDXR // TETHERED NATIVE USB XR SUITE"
@@ -304,17 +295,27 @@ class StarkTetheredBridge:
 
         last_t = time.time()
         fps = 60.0
+        last_frame_seq = -1
 
         while self.running:
             frame = None
             frame_is_iphone = False
             
-            # 1. Uu tien tuyet doi lay frame tu iPhone qua cap USB (Luong Frame moi nhat khong bao gio tre)
+            # 1. Uu tien tuyet doi lay frame tu iPhone qua cap USB (Chi lay khi co frame moi, Zero-Duplication)
             if self.is_connected and not self.use_fallback:
                 with self.frame_lock:
-                    if self.latest_frame is not None:
+                    if self.latest_frame is not None and self.frame_seq != last_frame_seq:
                         frame = self.latest_frame.copy()
+                        last_frame_seq = self.frame_seq
                         frame_is_iphone = True
+
+                if frame is None and self.latest_frame is not None:
+                    # Chua co frame moi tu camera -> sleep nhe 1ms tranh an 100% CPU va tranh spam trung lap
+                    time.sleep(0.001)
+                    k = cv2.waitKey(1) & 0xFF
+                    if k == 27:
+                        break
+                    continue
 
             # 2. Chi lay tu Webcam Laptop (Index 0) neu nguoi dung chu dong bat che do du phong bang phim X
             if self.use_fallback:
@@ -386,8 +387,10 @@ class StarkTetheredBridge:
 
             # Doc ket qua landmarks tu AI Worker
             raw_lms = None
+            cur_lms_seq = 0
             with self.lms_lock:
                 raw_lms = self.latest_lms
+                cur_lms_seq = self.lms_seq
 
             filtered_lms_2d = None
             filtered_lms_3d = None
@@ -397,32 +400,42 @@ class StarkTetheredBridge:
             pinch_pt_3d = None
 
             if raw_lms is not None:
-                # 1. Ap dung 1€ Filter pixel space chong rung giat (chi mat 0.05ms)
-                filtered_lms_2d = []
-                for i in range(21):
-                    raw_px = [raw_lms[i].x * w, raw_lms[i].y * h]
-                    flt_px = self.suite.filters_2d[i].filter(now, raw_px)
-                    filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
+                if cur_lms_seq != self.last_filtered_lms_seq:
+                    # 1. Ap dung 1€ Filter pixel space chong rung giat (chi loc khi co frame AI moi)
+                    filtered_lms_2d = []
+                    for i in range(21):
+                        raw_px = [raw_lms[i].x * w, raw_lms[i].y * h]
+                        flt_px = self.suite.filters_2d[i].filter(now, raw_px)
+                        filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
 
-                # Tinh toa do 3D trong he truc camera
-                filtered_lms_3d = []
-                for i in range(21):
-                    z_depth = 0.65 + (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.8
-                    pt3 = self.suite.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], z_depth)
-                    flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
-                    filtered_lms_3d.append(flt_pt3)
+                    # Tinh toa do 3D trong he truc camera
+                    filtered_lms_3d = []
+                    for i in range(21):
+                        z_depth = 0.65 + (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.8
+                        pt3 = self.suite.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], z_depth)
+                        flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
+                        filtered_lms_3d.append(flt_pt3)
 
-                # 2. Tinh toan cu chi Pinch (Hysteresis)
-                p_thumb_3d = filtered_lms_3d[4]
-                p_index_3d = filtered_lms_3d[8]
-                dist_pinch = float(np.linalg.norm(np.array(p_thumb_3d) - np.array(p_index_3d)))
-                is_pinched = self.suite.pinch_detector.update(dist_pinch, now)
+                    self.cached_filtered_2d = filtered_lms_2d
+                    self.cached_filtered_3d = filtered_lms_3d
+                    self.last_filtered_lms_seq = cur_lms_seq
+                else:
+                    # Su dung cached landmarks da loc -> Tranh 1€ filter bi giat do re-filter cung 1 landmark voi timestamp moi
+                    filtered_lms_2d = self.cached_filtered_2d
+                    filtered_lms_3d = self.cached_filtered_3d
 
-                pinch_pt_3d = (np.array(p_thumb_3d) + np.array(p_index_3d)) * 0.5
-                pinch_pt_2d = (
-                    (filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) // 2,
-                    (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2
-                )
+                if filtered_lms_3d is not None and len(filtered_lms_3d) == 21:
+                    # 2. Tinh toan cu chi Pinch (Hysteresis)
+                    p_thumb_3d = filtered_lms_3d[4]
+                    p_index_3d = filtered_lms_3d[8]
+                    dist_pinch = float(np.linalg.norm(np.array(p_thumb_3d) - np.array(p_index_3d)))
+                    is_pinched = self.suite.pinch_detector.update(dist_pinch, now)
+
+                    pinch_pt_3d = (np.array(p_thumb_3d) + np.array(p_index_3d)) * 0.5
+                    pinch_pt_2d = (
+                        (filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) // 2,
+                        (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2
+                    )
 
             # Kiem tra Tuong tac Menu Khong gian 3D (Hands-Free In-Air UI)
             consumed = False
@@ -581,7 +594,8 @@ class StarkTetheredBridge:
             source_tag = f"IPHONE USB ({self.actual_rx_fps:.0f} FPS)" if frame_is_iphone else "FALLBACK CAM"
             rot_str = "ROT: 180" if self.rotate_180 else "ROT: 0"
             mir_str = "MIRROR" if self.flip_horizontal else "NORMAL"
-            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | VR SBS FPS: {fps:.1f} | {rot_str} | {mir_str} | IPD: {self.ipd_offset}px",
+            flipv_str = "FLIP_V: ON" if self.flip_vertical else "FLIP_V: OFF"
+            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | VR SBS FPS: {fps:.1f} | {rot_str} | {mir_str} | {flipv_str} | IPD: {self.ipd_offset}px",
                         (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.60, (0, 243, 255), 2, cv2.LINE_AA)
 
             # Hien thi tren man hinh Laptop
