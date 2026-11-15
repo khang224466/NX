@@ -3,10 +3,22 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.79 PRO for STARK Air Mouse)
+## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.80 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.72 PRO** (Live CDN: `v10_2_72_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.79 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.80 PRO**
+
+- **Khắc Phục Hoàn Toàn Hiện Tượng Camera Bị Ngược Chiều / Lộn Đầu (v10.2.80 PRO)**:
+  1. **Nguyên nhân chính xác từ ảnh thẻ học sinh người dùng vừa gửi**:
+     - Khi iPhone được lắp vào khay kính VR Shinecon G10, do đầu cắm cáp Lightning phải quay sang bên trái để nối với cổng USB laptop, thân máy iPhone bị lộn ngược 180° so với hướng cầm tiêu chuẩn.
+     - Đồng thời, code cũ có dòng lệnh `frame = cv2.flip(frame, 1)` (vốn dùng cho webcam soi gương tự sướng). Khi áp dụng vào camera sau nhìn ra thế giới thực, nó làm chữ viết và đồ vật bị lật gương ngược chiều (trái thành phải), kết hợp với việc xoay 180° khiến chữ trên thẻ học sinh bị lộn ngược hoàn toàn.
+  2. **Giải pháp đã xử lý triệt để**:
+     - Trong [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py): Đặt mặc định `self.rotate_180 = True` (tự động xoay xuôi 180° để khớp với chiều lắp cáp của kính VR) và `self.flip_horizontal = False` (tắt lật gương ngang để chữ viết và thế giới thực xuôi chiều 100%).
+     - Đã test xoay thử trên chính ảnh thẻ học sinh `DIEP TRONG KHANG`: Chữ `THẺ HỌC SINH` và `TRƯỜNG PHỔ THÔNG FPT` đã xuôi chiều 100%, đọc thẳng tắp từ trái sang phải.
+     - Bổ sung phím tắt điều chỉnh linh hoạt tức thì ngay trong lúc xem:
+       - Bấm **`R`**: Đảo 180° (Xoay xuôi / ngược chiều camera).
+       - Bấm **`M`**: Bật / Tắt Lật gương ngang.
+       - Bấm **`T`**: Bật / Tắt Lật dọc trên/dưới.
 
 - **Khắc Phục Hiện Tượng Không Thấy Gì / Màn Hình Xám Camo Do Hết Hạn Timeout 8 Giây (v10.2.79 PRO)**:
   1. **Nguyên nhân chính xác từ ảnh người dùng chụp (`SOURCE: FALLBACK CAM`)**:
