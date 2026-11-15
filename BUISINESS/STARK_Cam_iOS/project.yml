@@ -1,0 +1,33 @@
+name: STARK_Cam_iOS
+options:
+  bundleIdPrefix: com.stark.cardboardxr
+  deploymentTarget:
+    iOS: 15.0
+targets:
+  STARK_Cam_iOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources
+      - path: Resources
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: "STARK XR Cam"
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        NSCameraUsageDescription: "STARK XR can su dung camera sau de truyen video 4K 120FPS ve laptop xu ly khong gian 3D AR."
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stark.cardboardxr.cam
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "NO"
