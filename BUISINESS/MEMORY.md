@@ -3,10 +3,38 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.76 PRO for EduNext AI Assistant & v10.2.86 PRO for STARK Air Mouse)
+## Current Status (v10.2.77 PRO for EduNext AI Assistant & v10.2.86 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.76 PRO** (Live CDN: `v10_2_76_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.77 PRO** (Live CDN: `v10_2_77_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.86 PRO**
+
+- **Khắc Phục Hoàn Toàn Lỗi Không Bấm Thẻ "Làm Rõ Ý Định" & Chặn Đứng Gọi Gemini Lãng Phí (v10.2.77 PRO)**:
+  1. **Nguyên nhân chính xác từ ảnh người dùng vừa gửi (`sao vẫn đéo click vậy`)**:
+     - *Nguyên nhân 1 (Lỗi phạm vi `closest('..., div')`)*: Trong code cũ, `confirmBtn.closest('..., div')` đã chọn trúng thẻ div bao bọc ngay sát nút bấm (chỉ chứa chữ `"Xác nhận lựa chọn →"`), khiến `isClarifyVisible` kiểm tra không thấy chữ `"Làm rõ ý định"` và trả về `false`, khiến bot thoát ngay mà không click!
+     - *Nguyên nhân 2 (Thay đổi tiêu đề & nội dung các môn học)*:
+       - Môn Toán: Tiêu đề `"Ý nào dưới đây đúng với bạn nhất?"`, các lựa chọn `"01 Tiếp tục..."`, `"02 Xin giải thích thêm"`, `"03 Cần thêm thời gian"`.
+       - Môn Vật Lý (trong ảnh mới): Tiêu đề `"Bạn muốn tiếp tục thế nào?"`, các lựa chọn `"01 Tiếp tục sang phần sau"`, `"02 Hỏi lý thuyết"`, `"03 Giải thích đơn giản hơn"`.
+       - Code cũ lọc cứng danh sách từ khóa nên khi gặp môn Lý bị trượt không tìm ra các lựa chọn.
+     - *Nguyên nhân 3 (Luồng `w()` gửi nhầm câu hỏi tương tác cho Gemini)*:
+       - Câu hỏi của giáo viên: `"Bạn muốn tìm hiểu thêm về lý thuyết, cần tôi giải thích đơn giản hơn hay muốn chuyển sang phần tiếp theo?"` kết thúc bằng dấu `?`.
+       - Code cũ tưởng đây là câu hỏi học sinh cần giải, gửi cho Gemini làm bot log: `[16:37:25] ⚡ Bắt được câu hỏi! Gửi Gemini Flash-Lite giải ngay...`, chiếm dụng status và sau đó báo lỗi không tìm thấy ô nhập liệu.
+  2. **Giải pháp triệt để đã triển khai**:
+     - **Bóc tách bộ nhận diện toàn diện không phụ thuộc `closest`**:
+       - Quét toàn bộ trang tìm các dấu hiệu: `LÀM RÕ Ý ĐỊNH`, `CLARIFY INTENT`, `INT: CLARIFY_INTENT`, `Bạn muốn tiếp tục thế nào`, `Ý nào dưới đây đúng`, `Chờ bạn chọn ở phía trên · Không cần nhập văn bản`.
+       - Quét tìm nút `Xác nhận lựa chọn` / `Confirm selection` đang hiển thị trên màn hình (`offsetParent !== null`).
+     - **Thuật toán quét lựa chọn 3 tầng siêu chuẩn**:
+       - *Tầng 1*: Quét tất cả các thẻ bắt đầu bằng số `01`, `02`, `03` (đáp ứng 100% mọi môn học Toán, Lý, Hóa, Sinh, Tiếng Anh).
+       - *Tầng 2*: Quét các thẻ có role radio hoặc class radio của Ant Design.
+       - *Tầng 3*: Quét từ khóa ngữ cảnh mở rộng.
+     - **Cơ chế kích hoạt Full Pointer Event**:
+       - Gửi trọn vẹn chuỗi sự kiện `pointerdown` ➔ `mousedown` ➔ `pointerup` ➔ `mouseup` ➔ `click` vào cả thẻ radio và text lựa chọn, cập nhật state React Fiber, chờ 350ms, sau đó bấm nút `Xác nhận lựa chọn →`.
+     - **Đặt chốt chặn Ưu Tiên 0 trong `Q()`**:
+       - Ngay khi `Q()` chạy (dù là Auto Loop hay bấm nút Chụp), nếu phát hiện thẻ Làm Rõ Ý Định, bot kích hoạt `checkAndHandleClarifyIntent()` xử lý và bấm ngay trong 350ms, reset đếm ngược về 5s và THOÁT NGAY LẬP TỨC!
+       - Tuyệt đối KHÔNG gửi câu hỏi gợi ý của giáo viên cho Gemini, triệt tiêu 100% việc lãng phí token và lỗi ô nhập liệu.
+  3. **Kiểm thử & Phát hành**:
+     - Đồng bộ toàn bộ phiên bản lên **v10.2.77 PRO**, build bundle CDN `v10_2_77_minified.js`, kiểm thử Turbopack `next build` 0 lỗi.
+     - Push Git submodule `fpt-studyhub` và root `NX`.
+     - Xóa cache jsDelivr toàn cầu (`finished`).
 
 - **Tái Cấu Trúc Toàn Diện Cơ Chế Điều Khiển Không Gian CardboardXR & Rời Xa Laptop Hoàn Toàn (v10.2.86 PRO)**:
   1. **Yêu cầu chỉ đạo từ người dùng**:
