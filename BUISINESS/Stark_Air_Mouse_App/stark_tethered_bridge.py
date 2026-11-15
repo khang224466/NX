@@ -255,29 +255,65 @@ class StarkTetheredBridge:
                     (p_thumb[2] + p_index[2]) / 2.0
                 ]
 
-            # Render 3D Demos
-            if self.suite.current_mode == 1:
-                self.suite.tilt_brush.update_and_render(frame, pinch_pt_3d, is_pinched, self.suite.spatial_cam)
-            elif self.suite.current_mode == 2:
-                self.suite.portal_demo.render(frame, self.suite.spatial_cam, now)
-            elif self.suite.current_mode == 3:
-                self.suite.rush_demo.update_and_render(frame, filtered_lms_3d, self.suite.spatial_cam, now)
-            elif self.suite.current_mode == 4:
-                self.suite.cube_demo.update_and_render(frame, pinch_pt_3d, is_pinched, self.suite.spatial_cam, dt)
-            elif self.suite.current_mode == 5:
-                self.suite.caliper_demo.update_and_render(frame, filtered_lms_3d, self.suite.spatial_cam, is_pinched)
+            # Cap nhat Logic cua cac Demo
+            if self.suite.current_mode == 1: # PaintDemo (3D Air Paint)
+                if is_pinched and pinch_pt_3d is not None:
+                    self.suite.paint_demo.add_point(pinch_pt_3d)
+                else:
+                    self.suite.paint_demo.finish_stroke()
+            elif self.suite.current_mode == 3: # Orb Rush
+                self.suite.rush_demo.update(now, filtered_lms_3d)
+            elif self.suite.current_mode == 4: # Cube Physics
+                self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d)
 
             # Stereo SBS rendering
             left_view = frame.copy()
             right_view = frame.copy()
-            shift_px = int(self.suite.ipd_mm * 1.5)
+            views = [
+                (left_view, -self.suite.stereo_offset),
+                (right_view, self.suite.stereo_offset)
+            ]
 
-            if filtered_lms_2d is not None:
-                for target_frame, off_x in [(left_view, shift_px // 2), (right_view, -shift_px // 2)]:
-                    for b1, b2 in self.suite.HAND_BONES:
+            for target_frame, off_x in views:
+                if self.suite.current_mode == 1:
+                    self.suite.paint_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                elif self.suite.current_mode == 2:
+                    self.suite.portal_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                elif self.suite.current_mode == 3:
+                    self.suite.rush_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                elif self.suite.current_mode == 4:
+                    self.suite.cube_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                elif self.suite.current_mode == 5 and filtered_lms_2d is not None:
+                    p1 = (filtered_lms_2d[4][0] + off_x, filtered_lms_2d[4][1])
+                    p2 = (filtered_lms_2d[8][0] + off_x, filtered_lms_2d[8][1])
+                    cv2.line(target_frame, p1, p2, (0, 243, 255), 2, cv2.LINE_AA)
+                    dist_mm = dist_pinch * 1000.0
+                    cv2.putText(target_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+
+                if filtered_lms_2d is not None:
+                    HAND_BONES = [
+                        (0, 1), (1, 2), (2, 3), (3, 4),
+                        (0, 5), (5, 6), (6, 7), (7, 8),
+                        (5, 9), (9, 10), (10, 11), (11, 12),
+                        (9, 13), (13, 14), (14, 15), (15, 16),
+                        (13, 17), (17, 18), (18, 19), (19, 20),
+                        (0, 17)
+                    ]
+                    for b1, b2 in HAND_BONES:
                         pt_a = (filtered_lms_2d[b1][0] + off_x, filtered_lms_2d[b1][1])
                         pt_b = (filtered_lms_2d[b2][0] + off_x, filtered_lms_2d[b2][1])
                         cv2.line(target_frame, pt_a, pt_b, (0, 243, 255), 2, cv2.LINE_AA)
+
+                    for pt in filtered_lms_2d:
+                        cv2.circle(target_frame, (pt[0] + off_x, pt[1]), 3, (0, 150, 255), -1, cv2.LINE_AA)
+
+                    p_knuckle = (filtered_lms_2d[5][0] + off_x, filtered_lms_2d[5][1])
+                    p_tip = (filtered_lms_2d[8][0] + off_x, filtered_lms_2d[8][1])
+                    self.suite.draw_pointing_ray(target_frame, p_knuckle, p_tip)
+
+                    if pinch_pt_2d is not None:
+                        self.suite.draw_spatial_reticle(target_frame, (pinch_pt_2d[0] + off_x, pinch_pt_2d[1]), is_pinched)
 
             sbs_frame = np.hstack((left_view, right_view))
             cv2.line(sbs_frame, (w, 0), (w, h), (0, 0, 0), 4)
@@ -304,6 +340,12 @@ class StarkTetheredBridge:
             elif key == ord('5'): self.suite.current_mode = 5
             elif key == ord('v') or key == ord('V'):
                 self.suite.stereo_vr_mode = not self.suite.stereo_vr_mode
+            elif key == ord('n') or key == ord('N'):
+                self.suite.paint_demo.next_color()
+            elif key == ord('z') or key == ord('Z'):
+                self.suite.paint_demo.undo()
+            elif key == ord('c') or key == ord('C'):
+                self.suite.paint_demo.clear()
             elif key == ord('x') or key == ord('X'):
                 self.use_fallback = not self.use_fallback
                 print(f"[*] Chuyen nguon Camera: {'DU PHONG (Camo/Webcam)' if self.use_fallback else 'IPHONE USB'}")

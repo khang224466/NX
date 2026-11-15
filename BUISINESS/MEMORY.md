@@ -3,10 +3,22 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.68 PRO for EduNext AI Assistant & v10.2.74 PRO for STARK Air Mouse)
+## Current Status (v10.2.68 PRO for EduNext AI Assistant & v10.2.75 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.68 PRO** (Live CDN: `v10_2_68_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.74 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.75 PRO**
+
+- **Sửa Triệt Để Vấn Đề App Bị Đen Màn Hình & Không Hiện Xin Quyền Camera (v10.2.75 PRO)**:
+  1. **Tìm ra chính xác nguyên nhân gốc rễ (Smoking Gun)**:
+     - Đã giải nén trực tiếp file `STARK_Cam_iOS.ipa`: Phát hiện file `Info.plist` bị thiếu cấu hình `UIApplicationSceneManifest`.
+     - Hệ quả: iOS 15/16/17/18 KHÔNG kích hoạt `SceneDelegate`, trong khi `AppDelegate.swift` bản cũ lại không tự khởi tạo `UIWindow`. App bị rơi vào khoảng không vô định, `ViewController.viewDidLoad()` THỰC CHẤT CHƯA TỪNG ĐƯỢC CHẠY MỘT LẦN NÀO! Đó là lý do vì sao màn hình đen kịt và không hề có thông báo hỏi gì.
+  2. **Giải pháp đã triển khai triệt để**:
+     - Trong [AppDelegate.swift](file:///d:/BUISINESS/STARK_Cam_iOS/Sources/AppDelegate.swift): Khởi tạo trực tiếp `UIWindow(frame: UIScreen.main.bounds)`, gán `rootViewController = ViewController()` và `makeKeyAndVisible()`. Bất kể iOS chạy chế độ nào cũng 100% mở giao diện!
+     - Trong [project.yml](file:///d:/BUISINESS/STARK_Cam_iOS/project.yml): Đã khai báo đầy đủ `UIApplicationSceneManifest`.
+     - Trong [ViewController.swift](file:///d:/BUISINESS/STARK_Cam_iOS/Sources/ViewController.swift): Trang bị nút bấm màu xanh nổi bật ngay giữa màn hình: **`📷 BẤM ĐỂ BẬT CAMERA CHO STARK`** giúp kích hoạt hộp thoại hệ thống ngay lập tức khi chạm vào!
+  3. **Kết quả build**:
+     - Job GitHub Actions `43675291268` hoàn tất thành công trong 51s với 0 lỗi.
+     - Đã tải bản mới nhất (51.2 KB) về: `D:\BUISINESS\STARK_Cam_iOS_IPA\STARK_Cam_iOS.ipa` lúc 11:07 AM và mở sẵn trong File Explorer.
 
 - **Khắc Phục Hoàn Toàn Lỗi "Server Proxy: AI tạm thời không khả dụng" & Kênh Trực Tiếp Google AI Studio (v10.2.68 PRO)**:
   1. **Nguyên nhân chính xác**:
