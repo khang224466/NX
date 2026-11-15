@@ -527,34 +527,38 @@ class StarkTetheredBridge:
                     cv2.putText(out_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-                # 2. Ve khung xuong ban tay 21 khop
+                # 2. Ve con tro khong gian & khung xuong tuy chon (CardboardXR HandJointsView.cs)
                 if filtered_lms_2d is not None:
-                    HAND_BONES = [
-                        (0, 1), (1, 2), (2, 3), (3, 4),
-                        (0, 5), (5, 6), (6, 7), (7, 8),
-                        (5, 9), (9, 10), (10, 11), (11, 12),
-                        (9, 13), (13, 14), (14, 15), (15, 16),
-                        (13, 17), (17, 18), (18, 19), (19, 20),
-                        (0, 17)
-                    ]
                     pts_mapped = []
                     for pt in filtered_lms_2d:
                         px = int(pt[0] * scale_x)
                         py = int(pt[1] * scale_y)
                         pts_mapped.append((px, py))
-                        cv2.circle(out_frame, (px, py), 4, (0, 150, 255), -1, cv2.LINE_AA)
 
-                    for b1, b2 in HAND_BONES:
-                        cv2.line(out_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
+                    # Neu bat che do Debug: Ve khung xuong ban tay 21 khop
+                    if self.spatial_menu.show_skeleton_debug:
+                        HAND_BONES = [
+                            (0, 1), (1, 2), (2, 3), (3, 4),
+                            (0, 5), (5, 6), (6, 7), (7, 8),
+                            (5, 9), (9, 10), (10, 11), (11, 12),
+                            (9, 13), (13, 14), (14, 15), (15, 16),
+                            (13, 17), (17, 18), (18, 19), (19, 20),
+                            (0, 17)
+                        ]
+                        for pt in pts_mapped:
+                            cv2.circle(out_frame, pt, 4, (0, 150, 255), -1, cv2.LINE_AA)
+                        for b1, b2 in HAND_BONES:
+                            cv2.line(out_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
 
                     p_knuckle = pts_mapped[5]
                     p_tip = pts_mapped[8]
                     self.suite.draw_pointing_ray(out_frame, p_knuckle, p_tip)
 
+                    # CardboardXR Reticle Con tro ngam (Chấm trắng mịn khi nhàn rỗi, biến vàng hổ phách khi Pinch)
                     if pinch_pt_2d is not None:
                         pinch_px = int(pinch_pt_2d[0] * scale_x)
                         pinch_py = int(pinch_pt_2d[1] * scale_y)
-                        self.suite.draw_spatial_reticle(out_frame, (pinch_px, pinch_py), is_pinched)
+                        self.spatial_menu.draw_cursor_reticle(out_frame, (pinch_px, pinch_py), is_pinched, is_hovering=(hovered_btn is not None))
 
                 # 3. Ve In-Air Spatial Menu can giua man hinh (offset_x = 320)
                 self.spatial_menu.draw(out_frame, now, self.suite.current_mode, eye_offset_x=320, bridge=self)
@@ -626,23 +630,26 @@ class StarkTetheredBridge:
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
                     if filtered_lms_2d is not None:
-                        HAND_BONES = [
-                            (0, 1), (1, 2), (2, 3), (3, 4),
-                            (0, 5), (5, 6), (6, 7), (7, 8),
-                            (5, 9), (9, 10), (10, 11), (11, 12),
-                            (9, 13), (13, 14), (14, 15), (15, 16),
-                            (13, 17), (17, 18), (18, 19), (19, 20),
-                            (0, 17)
-                        ]
                         pts_mapped = []
                         for pt in filtered_lms_2d:
                             px = int((pt[0] - orig_x1) * scale_x) + off_x
                             py = int(pt[1] * scale_y)
                             pts_mapped.append((px, py))
-                            cv2.circle(target_frame, (px, py), 3, (0, 150, 255), -1, cv2.LINE_AA)
 
-                        for b1, b2 in HAND_BONES:
-                            cv2.line(target_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
+                        # Neu bat che do Debug: Ve khung xuong ban tay 21 khop
+                        if self.spatial_menu.show_skeleton_debug:
+                            HAND_BONES = [
+                                (0, 1), (1, 2), (2, 3), (3, 4),
+                                (0, 5), (5, 6), (6, 7), (7, 8),
+                                (5, 9), (9, 10), (10, 11), (11, 12),
+                                (9, 13), (13, 14), (14, 15), (15, 16),
+                                (13, 17), (17, 18), (18, 19), (19, 20),
+                                (0, 17)
+                            ]
+                            for pt in pts_mapped:
+                                cv2.circle(target_frame, pt, 3, (0, 150, 255), -1, cv2.LINE_AA)
+                            for b1, b2 in HAND_BONES:
+                                cv2.line(target_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
 
                         p_knuckle = pts_mapped[5]
                         p_tip = pts_mapped[8]
@@ -651,7 +658,7 @@ class StarkTetheredBridge:
                         if pinch_pt_2d is not None:
                             pinch_px = int((pinch_pt_2d[0] - orig_x1) * scale_x) + off_x
                             pinch_py = int(pinch_pt_2d[1] * scale_y)
-                            self.suite.draw_spatial_reticle(target_frame, (pinch_px, pinch_py), is_pinched)
+                            self.spatial_menu.draw_cursor_reticle(target_frame, (pinch_px, pinch_py), is_pinched, is_hovering=(hovered_btn is not None))
 
                     menu_parallax = 4 if off_x < 0 else -4
                     self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax, bridge=self)

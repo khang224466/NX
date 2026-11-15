@@ -776,30 +776,37 @@ class StarkCardboardXRSuite:
 
                 # Ve khop tay & Tia Laser Pointing Ray
                 if filtered_lms_2d is not None:
-                    HAND_BONES = [
-                        (0, 1), (1, 2), (2, 3), (3, 4),
-                        (0, 5), (5, 6), (6, 7), (7, 8),
-                        (5, 9), (9, 10), (10, 11), (11, 12),
-                        (9, 13), (13, 14), (14, 15), (15, 16),
-                        (13, 17), (17, 18), (18, 19), (19, 20),
-                        (0, 17)
-                    ]
-                    for b1, b2 in HAND_BONES:
-                        pt_a = (filtered_lms_2d[b1][0] + off_x, filtered_lms_2d[b1][1])
-                        pt_b = (filtered_lms_2d[b2][0] + off_x, filtered_lms_2d[b2][1])
-                        cv2.line(target_frame, pt_a, pt_b, (0, 243, 255), 2, cv2.LINE_AA)
+                    # An bo xuong mac dinh trong AR Passthrough (CardboardXR HandJointsView.cs)
+                    if getattr(self.spatial_menu, 'show_skeleton_debug', False):
+                        HAND_BONES = [
+                            (0, 1), (1, 2), (2, 3), (3, 4),
+                            (0, 5), (5, 6), (6, 7), (7, 8),
+                            (5, 9), (9, 10), (10, 11), (11, 12),
+                            (9, 13), (13, 14), (14, 15), (15, 16),
+                            (13, 17), (17, 18), (18, 19), (19, 20),
+                            (0, 17)
+                        ]
+                        for b1, b2 in HAND_BONES:
+                            pt_a = (filtered_lms_2d[b1][0] + off_x, filtered_lms_2d[b1][1])
+                            pt_b = (filtered_lms_2d[b2][0] + off_x, filtered_lms_2d[b2][1])
+                            cv2.line(target_frame, pt_a, pt_b, (0, 243, 255), 2, cv2.LINE_AA)
 
-                    for pt in filtered_lms_2d:
-                        cv2.circle(target_frame, (pt[0] + off_x, pt[1]), 3, (0, 150, 255), -1, cv2.LINE_AA)
+                        for pt in filtered_lms_2d:
+                            cv2.circle(target_frame, (pt[0] + off_x, pt[1]), 3, (0, 150, 255), -1, cv2.LINE_AA)
 
                     # Pointing Ray tu ngon tro
                     p_knuckle = (filtered_lms_2d[5][0] + off_x, filtered_lms_2d[5][1])
                     p_tip = (filtered_lms_2d[8][0] + off_x, filtered_lms_2d[8][1])
                     self.draw_pointing_ray(target_frame, p_knuckle, p_tip)
 
-                    # Tam ngam Reticle khi Pinch
+                    # Tam ngam Reticle khi Pinch (CardboardXR HandRayView.cs)
                     if pinch_pt_2d is not None:
-                        self.draw_spatial_reticle(target_frame, (pinch_pt_2d[0] + off_x, pinch_pt_2d[1]), is_pinched)
+                        self.spatial_menu.draw_cursor_reticle(
+                            target_frame,
+                            (pinch_pt_2d[0] + off_x, pinch_pt_2d[1]),
+                            is_pinched,
+                            is_hovering=(hovered_btn is not None)
+                        )
 
                 # Ve In-Air Spatial Menu tren view
                 menu_offset = 4 if off_x < 0 else (-4 if off_x > 0 else 0)
