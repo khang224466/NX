@@ -3,10 +3,38 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.74 PRO for EduNext AI Assistant & v10.2.84 PRO for STARK Air Mouse)
+## Current Status (v10.2.75 PRO for EduNext AI Assistant & v10.2.84 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.74 PRO** (Live CDN: `v10_2_74_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.75 PRO** (Live CDN: `v10_2_75_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.84 PRO**
+
+- **Tự Động Chọn Ngẫu Nhiên 1 Trong 3 Lựa Chọn & Xác Nhận Thẻ "LÀM RÕ Ý ĐỊNH" / "CLARIFY INTENT" (v10.2.75 PRO)**:
+  1. **Bản chất lỗi & yêu cầu người dùng**:
+     - *Hiện tượng*: Khi giáo viên hỏi câu hỏi tương tác như `"Bạn muốn tôi giải thích thêm về phần này hay chúng ta sẽ tiếp tục sang nội dung mới?"`, EduNext xuất hiện widget tương tác:
+       - Tiêu đề: `LÀM RÕ Ý ĐỊNH` (`INT: CLARIFY_INTENT`), phụ đề `"Ý nào dưới đây đúng với bạn nhất?"`, hướng dẫn `"Tick vào mục phù hợp, rồi bấm xác nhận."`.
+       - Lựa chọn (3 phương án): `01 Tiếp tục sang phần sau`, `02 Xin giải thích thêm`, `03 Cần thêm thời gian`.
+       - Nút bấm: `Xác nhận lựa chọn →`.
+       - Chú thích chân trang: `• Chờ bạn chọn ở phía trên · Không cần nhập văn bản`.
+     - *Lỗi cũ*: Bot trước đó đọc được câu hỏi có dấu `?`, gửi cho Gemini giải, nhận về `"Trả lời: 01..."`, sau đó cố tìm ô `textarea` để điền và nộp bài, dẫn đến lỗi đỏ: `[15:35:18] Lỗi: Không tìm thấy ô nhập liệu để nộp bài.` vì EduNext đã ẩn/vô hiệu hóa ô nhập liệu thông thường.
+     - *Yêu cầu người dùng*: "khi nhận đc câu hỏi này thì chọn random 1 trong 3, nếu nó là tiếng anh thì cx vậy." (Tự động chọn ngẫu nhiên 1 trong 3 phương án và bấm xác nhận cho cả tiếng Việt lẫn tiếng Anh).
+  2. **Giải pháp kiến trúc đã triển khai**:
+     - Trong [turn-tracker.js](file:///d:/BUISINESS/FPT%20service/scripts/turn-tracker.js):
+       - Bổ sung bộ nhận diện `isClarifyIntent`: Kiểm tra các từ khóa đặc trưng `làm rõ ý định`, `clarify intent`, `int: clarify_intent`, `ý nào dưới đây đúng với bạn nhất`, `which of the following`, `chờ bạn chọn ở phía trên`, `waiting for your selection above`, `xác nhận lựa chọn`, `confirm selection`.
+       - Phân loại trạng thái: `state = 'clarify_intent'`.
+     - Trong [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js):
+       - Triển khai hàm `tryHandleClarifyIntent()`:
+         - Quét tìm card/container Làm Rõ Ý Định và nút xác nhận (`Xác nhận lựa chọn` / `Confirm selection`).
+         - Gom danh sách các lựa chọn ứng viên (theo dạng `01, 02, 03`, role `radio`, hoặc text).
+         - Chọn ngẫu nhiên 1 phương án: `Math.floor(Math.random() * candidateOptions.length)`.
+         - Kích hoạt sự kiện Pointer/Mouse click vào radio button và thẻ lựa chọn.
+         - Chờ 350ms cho React state cập nhật, sau đó tự động click nút `Xác nhận lựa chọn →`.
+         - Bỏ qua hoàn toàn việc gọi Gemini và tìm kiếm textarea (0 token, 0 độ trễ, triệt tiêu 100% lỗi không tìm thấy ô nhập liệu).
+       - Tích hợp gọi `tryHandleClarifyIntent()` ngay ở bước 0 của loop xử lý và làm chốt chặn dự phòng nếu `curInput` là null.
+       - Bổ sung chỉ thị Rule 5 trong [route.ts](file:///d:/BUISINESS/FPT%20service/src/app/api/v1/ai/solve/route.ts) và [bridge.html](file:///d:/BUISINESS/FPT%20service/public/bridge.html): Nếu chụp trúng widget Làm Rõ Ý Định, xuất mã `__CLARIFY_INTENT__` để bot kích hoạt auto-select thay vì bịa đáp án văn bản.
+  3. **Đồng bộ phiên bản v10.2.75 PRO & CDN**:
+     - Nâng cấp đồng bộ lên **v10.2.75 PRO** trên toàn bộ trang web landing, components, scripts build, bookmarklet CDN link `v10_2_75_minified.js`.
+     - Đã build thành công bundle EduNext, tạo các file CDN backward-compatible từ `v10_2_16` đến `v10_2_75`.
+     - Kiểm thử Turbopack `next build` đạt 0 lỗi (Exit Code 0).
 
 - **Đồng Bộ Tên Phiên Bản v10.2.74 PRO & Nâng Cấp Video Trailer Mô Phỏng (v10.2.74 PRO)**:
   1. **Đồng bộ hóa phiên bản 100% trên toàn bộ hệ sinh thái**:
