@@ -3,10 +3,21 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.79 PRO for EduNext AI Assistant & v10.2.86 PRO for STARK Air Mouse)
+## Current Status (v10.2.80 PRO for EduNext AI Assistant & v10.2.86 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.79 PRO** (Live CDN: `v10_2_79_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.80 PRO** (Live CDN: `v10_2_80_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.86 PRO**
+
+- **Đồng Bộ Tên Thương Hiệu, Phiên Bản & Nâng Cấp Trailer Thực Nghiệm (v10.2.80 PRO)**:
+  1. **Đồng bộ tên thương hiệu & phiên bản toàn diện**:
+     - Thống nhất tên sản phẩm: **`FPT EduNext AI Assistant Pro`** / **`EduNext AI Pro`**.
+     - Cập nhật triệt để phiên bản **`v10.2.80 PRO`** trên tất cả 21 tệp của hệ thống, bao gồm trang Kích hoạt (`src/app/activate/page.tsx`), trang Admin (`src/app/admin/page.tsx`), Navbar, Hero, Catalog, Footer, HUD client, bookmarklet script và các tệp CDN tương thích ngược từ `v10_2_16` đến `v10_2_80`.
+  2. **Nâng cấp Video Trailer Thực Nghiệm 30s (`DemoVideoTrailer.tsx`)**:
+     - Tái cấu trúc 4 chặng mô phỏng sát 100% với luồng hoạt động thực tế trên lớp EduNext:
+       - *Chặng 1 (0s - 7.5s)*: **Tự Động Quét & Giải AI**: Auto Vision quét đề bài thuật toán Dijkstra CSD201, kích hoạt Gemini 2.0 Flash-Lite giải chuẩn mẫu trong 1.1s.
+       - *Chặng 2 (7.5s - 15s)*: **Điền React Fiber & Nộp**: Tự động gõ phím theo luồng `onSendMessage`, nộp bài thành công đạt điểm 10/10.
+       - *Chặng 3 (15s - 22.5s)*: **Xử Lý Làm Rõ Ý Định (Clarify Intent)**: Mô phỏng xuất hiện thẻ tương tác *Làm Rõ Ý Định* ("Bạn muốn tiếp tục thế nào?"), bot chọn ngẫu nhiên `01 Tiếp tục sang phần sau`, kích hoạt radio circle và bấm nút `Xác nhận lựa chọn →` mà không cần ô gõ văn bản.
+       - *Chặng 4 (22.5s - 30s)*: **Tự Dừng Khi Hết Bài (Lesson Complete)**: Màn hình chuyển sang tổng kết buổi học (*Lesson Complete - Điểm 95/100*), bot tự động ngắt Auto Loop an toàn, không nộp thừa bất kỳ câu nào.
 
 - **Khắc Phục Hoàn Toàn 3 Ca Biên Trọng Điểm Từ 6 Ảnh EduNext Của Người Dùng (v10.2.79 PRO)**:
   1. **Ca 1 - Thẻ "Làm Rõ Ý Định" / Clarify Intent (Ảnh 5 & 6)**:
