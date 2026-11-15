@@ -3,10 +3,24 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.75 PRO for EduNext AI Assistant & v10.2.84 PRO for STARK Air Mouse)
+## Current Status (v10.2.75 PRO for EduNext AI Assistant & v10.2.85 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.75 PRO** (Live CDN: `v10_2_75_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.84 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.85 PRO**
+
+- **Triệt Để Thiết Lập 1 Màn Hình Duy Nhất Toàn Cảnh (Single Full Screen 16:9, Không Chia Đôi) (v10.2.85 PRO)**:
+  1. **Giải phẫu yêu cầu của người dùng ("để 1 màn hình duy nhất, k cần phải chia đôi")**:
+     - Trước đây, hệ thống luôn mặc định chế độ Stereo SBS (Side-by-Side) chia đôi màn hình thành 2 nửa (mắt trái & mắt phải) kèm đường kẻ đen ở giữa dành riêng cho kính VR hai thấu kính Shinecon G10.
+     - Khi người dùng cầm điện thoại trên tay, sử dụng kính đơn hoặc muốn góc nhìn thực tế mở rộng (AR Passthrough toàn cảnh), việc chia đôi màn hình làm thu hẹp trường nhìn và lặp hình không cần thiết.
+  2. **Giải pháp kiến trúc đã triển khai**:
+     - Trong [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py):
+       - Đặt mặc định `self.suite.stereo_vr_mode = False` (Màn hình đơn duy nhất toàn cảnh 16:9).
+       - Loại bỏ hoàn toàn việc crop và ghép đôi 2 mắt khi ở chế độ Single Screen. Toàn bộ hình ảnh camera được hiển thị trực tiếp lên $1280 \times 720$ không bị cắt góc.
+       - Tự động căn giữa toàn bộ In-Air Spatial Toolbar & Quick Settings Bar (`eye_offset_x = 320`) tạo bố cục đối xứng hoàn hảo ngay giữa màn hình iPhone (Vision Pro Glass Style).
+       - Tọa độ bàn tay, tia laser chỉ định (Raycast) và khung xương 21 khớp được ánh xạ tỷ lệ $1:1$ chuẩn xác trên toàn bộ khung hình $1280 \times 720$.
+       - Luồng ảnh ban ngược về iPhone qua USB là 1 bức ảnh toàn cảnh 16:9 duy nhất, sắc nét, không bị chia đôi và không còn vạch đen ngăn cách.
+       - Vẫn giữ phím tắt **`V`** linh hoạt: Bấm **`V`** bất kỳ lúc nào để chuyển đổi qua lại giữa `1 MÀN HÌNH DUY NHẤT` $\leftrightarrow$ `CHIA ĐÔI STEREO SBS`.
+  3. **Kiểm thử**: Đã chạy test script `test_tethered_pipeline.py` và xác nhận xuất ảnh `single_screen_preview.jpg` cân đối hoàn mỹ 100%.
 
 - **Tự Động Chọn Ngẫu Nhiên 1 Trong 3 Lựa Chọn & Xác Nhận Thẻ "LÀM RÕ Ý ĐỊNH" / "CLARIFY INTENT" (v10.2.75 PRO)**:
   1. **Bản chất lỗi & yêu cầu người dùng**:

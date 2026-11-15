@@ -29,7 +29,7 @@ class StarkTetheredBridge:
     def __init__(self, port=23456):
         self.port = port
         self.suite = StarkCardboardXRSuite()
-        self.suite.stereo_vr_mode = True # Mac dinh bat SBS cho kinh Shinecon G10
+        self.suite.stereo_vr_mode = False # Mac dinh 1 MAN HINH DUY NHAT (Single Full Screen, Khong chia doi)
         self.suite.bridge = self
         self.spatial_menu = SpatialInAirMenu()
         
@@ -285,7 +285,7 @@ class StarkTetheredBridge:
         print("   STARK TETHERED XR // HE THONG KHONG GIAN 3D NATIVE USB")
         print("   [1] 3D Air Paint (Tilt Brush)   | [2] AR Spatial Portal")
         print("   [3] Orb Rush Rhythm Game        | [4] 3D Cube Physics & Grab")
-        print("   [5] Precision 3D Caliper        | [V] Toggle Stereo VR (Shinecon G10)")
+        print("   [5] Precision 3D Caliper        | [V] Doi 1 Man Hinh Duy Nhat <-> Chia Doi Stereo VR")
         print("   [[]/[]] Tang/Giam IPD 3D        | [F] Doi Che Do Crop/Full FOV")
         print("   [R] Dao 180 do (Xoay chieu)     | [M] Lat guong ngang | [T] Lat doc")
         print("   [X] Chuyen doi Camera iPhone USB <-> Webcam Laptop (Index 0)")
@@ -440,17 +440,27 @@ class StarkTetheredBridge:
             consumed = False
             hovered_btn = None
             if filtered_lms_2d is not None:
-                # Chuyen doi sang toa do trung tam cua 1 mat (640x720)
-                crop_w_calc = int(h * (640.0 / 720.0))
-                orig_x1_c = max(0, min(w - crop_w_calc, (w // 2) - crop_w_calc // 2))
-                scale_x_c = 640.0 / float(crop_w_calc)
-                scale_y_c = 720.0 / float(h)
+                if self.suite.stereo_vr_mode:
+                    # Chuyen doi sang toa do trung tam cua 1 mat (640x720) cho kinh VR SBS
+                    crop_w_calc = int(h * (640.0 / 720.0))
+                    orig_x1_c = max(0, min(w - crop_w_calc, (w // 2) - crop_w_calc // 2))
+                    scale_x_c = 640.0 / float(crop_w_calc)
+                    scale_y_c = 720.0 / float(h)
 
-                pts_mapped_center = []
-                for pt in filtered_lms_2d:
-                    px = int((pt[0] - orig_x1_c) * scale_x_c)
-                    py = int(pt[1] * scale_y_c)
-                    pts_mapped_center.append((px, py))
+                    pts_mapped_center = []
+                    for pt in filtered_lms_2d:
+                        px = int((pt[0] - orig_x1_c) * scale_x_c)
+                        py = int(pt[1] * scale_y_c)
+                        pts_mapped_center.append((px, py))
+                else:
+                    # Che do 1 MAN HINH DUY NHAT (1280x720): Menu can giua tai offset 320px
+                    scale_x_c = 1280.0 / float(w)
+                    scale_y_c = 720.0 / float(h)
+                    pts_mapped_center = []
+                    for pt in filtered_lms_2d:
+                        px = int(pt[0] * scale_x_c) - 320
+                        py = int(pt[1] * scale_y_c)
+                        pts_mapped_center.append((px, py))
 
                 p_knuckle_c = pts_mapped_center[5]
                 p_tip_c = pts_mapped_center[8]
@@ -480,75 +490,37 @@ class StarkTetheredBridge:
                     self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d)
 
             # =================================================================
-            # CHUAN HOA QUANG HOC STEREO SBS CHO KINH VR SHINECON G10
-            # Moi mat (Left Eye & Right Eye) deu nhin vao TAM KHONG GIAN cua phong
+            # RENDER: 1 MAN HINH DUY NHAT (SINGLE SCREEN) HOAC CHIA DOI STEREO SBS
             # =================================================================
-            target_sbs_w = 1280
-            target_sbs_h = 720
-            eye_w = target_sbs_w // 2  # 640px moi mat
-            eye_h = target_sbs_h       # 720px moi mat
-
-            if self.vr_projection == "immersive":
-                # Che do Vision Pro: Crop hinh vuong tam tu camera -> Fill tron ven kinh VR khong lech goc
-                crop_h = h
-                crop_w = int(h * (eye_w / eye_h)) # 640px tren camera 720p
-                cx = w // 2
-
-                # Mat trai: Dich tam nhe sang trai (-IPD)
-                x1_l = max(0, min(w - crop_w, cx - crop_w // 2 - self.ipd_offset))
-                x2_l = x1_l + crop_w
-                left_eye = cv2.resize(frame[:, x1_l:x2_l], (eye_w, eye_h))
-
-                # Mat phai: Dich tam nhe sang phai (+IPD)
-                x1_r = max(0, min(w - crop_w, cx - crop_w // 2 + self.ipd_offset))
-                x2_r = x1_r + crop_w
-                right_eye = cv2.resize(frame[:, x1_r:x2_r], (eye_w, eye_h))
-
-                eye_crops = [
-                    (left_eye, -self.suite.stereo_offset, x1_l, crop_w),
-                    (right_eye, self.suite.stereo_offset, x1_r, crop_w)
-                ]
-            else:
-                # Che do Full FOV: Thu nho toan bo 16:9 cua camera vao giua tam moi mat
-                scaled_h = int(eye_w * (h / w))
-                pad_y = (eye_h - scaled_h) // 2
-                scaled = cv2.resize(frame, (eye_w, scaled_h))
-
-                left_eye = np.zeros((eye_h, eye_w, 3), dtype=np.uint8)
-                right_eye = np.zeros((eye_h, eye_w, 3), dtype=np.uint8)
-                left_eye[pad_y:pad_y+scaled_h, :] = scaled
-                right_eye[pad_y:pad_y+scaled_h, :] = scaled
-
-                eye_crops = [
-                    (left_eye, -self.suite.stereo_offset, 0, w),
-                    (right_eye, self.suite.stereo_offset, 0, w)
-                ]
-
-            # Ve 3D Virtual Meshes & Khop tay len CA HAI MAT voi lech tia hoi tu (Parallax Disparity)
-            for target_frame, off_x, orig_x1, orig_cw in eye_crops:
-                scale_x = eye_w / float(orig_cw)
-                scale_y = eye_h / float(h)
+            if not self.suite.stereo_vr_mode:
+                # -------------------------------------------------------------
+                # 1. CHE DO 1 MAN HINH DUY NHAT 16:9 (SINGLE FULL SCREEN)
+                # Khong chia doi man hinh, toi uu 100% dien tich iPhone
+                # -------------------------------------------------------------
+                out_frame = cv2.resize(frame, (1280, 720))
+                scale_x = 1280.0 / float(w)
+                scale_y = 720.0 / float(h)
 
                 # 1. Ve cac Demo khong gian 3D
                 if self.suite.current_mode == 1:
-                    self.suite.paint_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                    self.suite.paint_demo.draw(out_frame, self.suite.spatial_cam, 0)
                 elif self.suite.current_mode == 2:
-                    self.suite.portal_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                    self.suite.portal_demo.draw(out_frame, self.suite.spatial_cam, now, 0)
                 elif self.suite.current_mode == 3:
-                    self.suite.rush_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                    self.suite.rush_demo.draw(out_frame, self.suite.spatial_cam, now, 0)
                 elif self.suite.current_mode == 4:
-                    self.suite.cube_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                    self.suite.cube_demo.draw(out_frame, self.suite.spatial_cam, 0)
                 elif self.suite.current_mode == 5 and filtered_lms_2d is not None:
                     p1_orig = filtered_lms_2d[4]
                     p2_orig = filtered_lms_2d[8]
-                    p1 = (int((p1_orig[0] - orig_x1) * scale_x) + off_x, int(p1_orig[1] * scale_y))
-                    p2 = (int((p2_orig[0] - orig_x1) * scale_x) + off_x, int(p2_orig[1] * scale_y))
-                    cv2.line(target_frame, p1, p2, (0, 243, 255), 2, cv2.LINE_AA)
+                    p1 = (int(p1_orig[0] * scale_x), int(p1_orig[1] * scale_y))
+                    p2 = (int(p2_orig[0] * scale_x), int(p2_orig[1] * scale_y))
+                    cv2.line(out_frame, p1, p2, (0, 243, 255), 2, cv2.LINE_AA)
                     dist_mm = dist_pinch * 1000.0
-                    cv2.putText(target_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
+                    cv2.putText(out_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-                # 2. Ve khung xuong ban tay 21 khop tren ca hai mat
+                # 2. Ve khung xuong ban tay 21 khop
                 if filtered_lms_2d is not None:
                     HAND_BONES = [
                         (0, 1), (1, 2), (2, 3), (3, 4),
@@ -560,43 +532,140 @@ class StarkTetheredBridge:
                     ]
                     pts_mapped = []
                     for pt in filtered_lms_2d:
-                        px = int((pt[0] - orig_x1) * scale_x) + off_x
+                        px = int(pt[0] * scale_x)
                         py = int(pt[1] * scale_y)
                         pts_mapped.append((px, py))
-                        cv2.circle(target_frame, (px, py), 3, (0, 150, 255), -1, cv2.LINE_AA)
+                        cv2.circle(out_frame, (px, py), 4, (0, 150, 255), -1, cv2.LINE_AA)
 
                     for b1, b2 in HAND_BONES:
-                        cv2.line(target_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
+                        cv2.line(out_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
 
                     p_knuckle = pts_mapped[5]
                     p_tip = pts_mapped[8]
-                    self.suite.draw_pointing_ray(target_frame, p_knuckle, p_tip)
+                    self.suite.draw_pointing_ray(out_frame, p_knuckle, p_tip)
 
                     if pinch_pt_2d is not None:
-                        pinch_px = int((pinch_pt_2d[0] - orig_x1) * scale_x) + off_x
+                        pinch_px = int(pinch_pt_2d[0] * scale_x)
                         pinch_py = int(pinch_pt_2d[1] * scale_y)
-                        self.suite.draw_spatial_reticle(target_frame, (pinch_px, pinch_py), is_pinched)
+                        self.suite.draw_spatial_reticle(out_frame, (pinch_px, pinch_py), is_pinched)
 
-                # 3. Ve In-Air Spatial Menu tren ca hai mat voi do lech Parallax 3D
-                menu_parallax = 4 if off_x < 0 else -4
-                self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax)
+                # 3. Ve In-Air Spatial Menu can giua man hinh (offset_x = 320)
+                self.spatial_menu.draw(out_frame, now, self.suite.current_mode, eye_offset_x=320)
 
-            # Ghep 2 mat thanh Frame SBS hoan hao ty le 16:9
-            sbs_frame = np.hstack((left_eye, right_eye))
-            cv2.line(sbs_frame, (eye_w, 0), (eye_w, eye_h), (0, 0, 0), 4)
+                final_frame = out_frame
 
-            # 1. Ban frame SBS sach se ve iPhone cho kinh VR (Khong de chu debug che mat nguoi dung)
+            else:
+                # -------------------------------------------------------------
+                # 2. CHE DO CHIA DOI STEREO SBS CHO KINH VR SHINECON G10
+                # -------------------------------------------------------------
+                target_sbs_w = 1280
+                target_sbs_h = 720
+                eye_w = target_sbs_w // 2  # 640px moi mat
+                eye_h = target_sbs_h       # 720px moi mat
+
+                if self.vr_projection == "immersive":
+                    # Che do Vision Pro: Crop hinh vuong tam tu camera -> Fill tron ven kinh VR khong lech goc
+                    crop_h = h
+                    crop_w = int(h * (eye_w / eye_h))
+                    cx = w // 2
+
+                    x1_l = max(0, min(w - crop_w, cx - crop_w // 2 - self.ipd_offset))
+                    x2_l = x1_l + crop_w
+                    left_eye = cv2.resize(frame[:, x1_l:x2_l], (eye_w, eye_h))
+
+                    x1_r = max(0, min(w - crop_w, cx - crop_w // 2 + self.ipd_offset))
+                    x2_r = x1_r + crop_w
+                    right_eye = cv2.resize(frame[:, x1_r:x2_r], (eye_w, eye_h))
+
+                    eye_crops = [
+                        (left_eye, -self.suite.stereo_offset, x1_l, crop_w),
+                        (right_eye, self.suite.stereo_offset, x1_r, crop_w)
+                    ]
+                else:
+                    scaled_h = int(eye_w * (h / w))
+                    pad_y = (eye_h - scaled_h) // 2
+                    scaled = cv2.resize(frame, (eye_w, scaled_h))
+
+                    left_eye = np.zeros((eye_h, eye_w, 3), dtype=np.uint8)
+                    right_eye = np.zeros((eye_h, eye_w, 3), dtype=np.uint8)
+                    left_eye[pad_y:pad_y+scaled_h, :] = scaled
+                    right_eye[pad_y:pad_y+scaled_h, :] = scaled
+
+                    eye_crops = [
+                        (left_eye, -self.suite.stereo_offset, 0, w),
+                        (right_eye, self.suite.stereo_offset, 0, w)
+                    ]
+
+                for target_frame, off_x, orig_x1, orig_cw in eye_crops:
+                    scale_x = eye_w / float(orig_cw)
+                    scale_y = eye_h / float(h)
+
+                    if self.suite.current_mode == 1:
+                        self.suite.paint_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                    elif self.suite.current_mode == 2:
+                        self.suite.portal_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                    elif self.suite.current_mode == 3:
+                        self.suite.rush_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                    elif self.suite.current_mode == 4:
+                        self.suite.cube_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                    elif self.suite.current_mode == 5 and filtered_lms_2d is not None:
+                        p1_orig = filtered_lms_2d[4]
+                        p2_orig = filtered_lms_2d[8]
+                        p1 = (int((p1_orig[0] - orig_x1) * scale_x) + off_x, int(p1_orig[1] * scale_y))
+                        p2 = (int((p2_orig[0] - orig_x1) * scale_x) + off_x, int(p2_orig[1] * scale_y))
+                        cv2.line(target_frame, p1, p2, (0, 243, 255), 2, cv2.LINE_AA)
+                        dist_mm = dist_pinch * 1000.0
+                        cv2.putText(target_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+
+                    if filtered_lms_2d is not None:
+                        HAND_BONES = [
+                            (0, 1), (1, 2), (2, 3), (3, 4),
+                            (0, 5), (5, 6), (6, 7), (7, 8),
+                            (5, 9), (9, 10), (10, 11), (11, 12),
+                            (9, 13), (13, 14), (14, 15), (15, 16),
+                            (13, 17), (17, 18), (18, 19), (19, 20),
+                            (0, 17)
+                        ]
+                        pts_mapped = []
+                        for pt in filtered_lms_2d:
+                            px = int((pt[0] - orig_x1) * scale_x) + off_x
+                            py = int(pt[1] * scale_y)
+                            pts_mapped.append((px, py))
+                            cv2.circle(target_frame, (px, py), 3, (0, 150, 255), -1, cv2.LINE_AA)
+
+                        for b1, b2 in HAND_BONES:
+                            cv2.line(target_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
+
+                        p_knuckle = pts_mapped[5]
+                        p_tip = pts_mapped[8]
+                        self.suite.draw_pointing_ray(target_frame, p_knuckle, p_tip)
+
+                        if pinch_pt_2d is not None:
+                            pinch_px = int((pinch_pt_2d[0] - orig_x1) * scale_x) + off_x
+                            pinch_py = int(pinch_pt_2d[1] * scale_y)
+                            self.suite.draw_spatial_reticle(target_frame, (pinch_px, pinch_py), is_pinched)
+
+                    menu_parallax = 4 if off_x < 0 else -4
+                    self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax)
+
+                sbs_frame = np.hstack((left_eye, right_eye))
+                cv2.line(sbs_frame, (eye_w, 0), (eye_w, eye_h), (0, 0, 0), 4)
+                final_frame = sbs_frame
+
+            # 1. Ban frame sach se ve iPhone (Khong bi de chu debug che mat nguoi dung)
             if self.is_connected:
-                self.send_sbs_back_to_iphone(sbs_frame.copy())
+                self.send_sbs_back_to_iphone(final_frame.copy())
 
             # 2. Ve HUD thong so ky thuat chi tren man hinh Laptop
-            laptop_display = sbs_frame if self.suite.stereo_vr_mode else frame
+            laptop_display = final_frame.copy()
             source_tag = f"IPHONE USB ({self.actual_rx_fps:.0f} FPS)" if frame_is_iphone else "FALLBACK CAM"
+            mode_tag = "STEREO SBS (VR)" if self.suite.stereo_vr_mode else "1 SCREEN (FULL)"
             rot_str = "ROT: 180" if self.rotate_180 else "ROT: 0"
             mir_str = "MIRROR" if self.flip_horizontal else "NORMAL"
             flipv_str = "FLIP_V: ON" if self.flip_vertical else "FLIP_V: OFF"
             cv2.rectangle(laptop_display, (10, 5), (630, 32), (0, 0, 0), -1)
-            cv2.putText(laptop_display, f"IPHONE USB {self.actual_rx_fps:.0f}FPS | SBS {fps:.1f}FPS | {rot_str} {mir_str} {flipv_str} | IPD:{self.ipd_offset}px",
+            cv2.putText(laptop_display, f"{mode_tag} | {source_tag} | FPS: {fps:.1f} | {rot_str} {mir_str} {flipv_str}",
                         (15, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 243, 255), 1, cv2.LINE_AA)
 
             # Hien thi tren man hinh Laptop

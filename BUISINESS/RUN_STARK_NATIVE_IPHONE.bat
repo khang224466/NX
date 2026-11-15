@@ -8,7 +8,7 @@ echo ======================================================================
 echo  - Che do: Truyen dan truc tiep qua day cap Lightning (usbmuxd 480Mbps)
 echo  - Do phan giai: 1080p HD / 4K UHD @ 60-120 FPS
 echo  - AI: MediaPipe 21 khop tay + 1-Euro Filter tren RTX 4060 GPU
-echo  - Output: Stereo SBS ban nguoc ve man hinh iPhone (Kinh Shinecon G10)
+echo  - Output: 1 Man Hinh Duy Nhat Full 16:9 (Bam V de doi sang Chia Doi Stereo VR)
 echo ======================================================================
 echo.
 
