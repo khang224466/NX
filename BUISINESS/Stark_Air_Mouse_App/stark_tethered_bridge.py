@@ -62,10 +62,9 @@ class StarkTetheredBridge:
         self.vr_projection = "immersive" # "immersive" (Vision Pro center-crop) or "full_fov" (letterbox)
         
         # Huong Camera (Orientation):
-        # 1. flip_vertical = True: Dao nguoc chieu doc giup the gioi thuc xuoi chieu khi iPhone nam ngang trong kinh VR
-        # 2. flip_horizontal = False: KHONG lat guong ngang de chu viet va the gioi khong bi nguoc
-        # 3. rotate_180 = False: KHONG xoay 180 (vi xoay 180 se lam lat ca X khien chu bi doc nguoc tu phai sang trai!)
-        self.flip_vertical = True
+        # 1. Mac dinh: Giu nguyen ban xuoi chieu tu iPhone (Zero-Flip)
+        # 2. Ho tro [FLIP V], [MIRROR], [ROT 180] truc tiep tren In-Air Menu va phim T, M, R
+        self.flip_vertical = False
         self.flip_horizontal = False
         self.rotate_180 = False
         
@@ -460,7 +459,7 @@ class StarkTetheredBridge:
                 dist_laser = math.hypot(dx, dy)
                 laser_end_c = None
                 if dist_laser > 8:
-                    scale_l = 480.0 / dist_laser
+                    scale_l = 750.0 / dist_laser
                     laser_end_c = (int(p_tip_c[0] + dx * scale_l), int(p_tip_c[1] + dy * scale_l))
 
                 # Cap nhat Raycast & Palm System Gate cua In-Air Menu
@@ -586,20 +585,22 @@ class StarkTetheredBridge:
             sbs_frame = np.hstack((left_eye, right_eye))
             cv2.line(sbs_frame, (eye_w, 0), (eye_w, eye_h), (0, 0, 0), 4)
 
-            # Ban frame SBS nguoc ve iPhone qua day cap USB (Do tre < 2ms)
+            # 1. Ban frame SBS sach se ve iPhone cho kinh VR (Khong de chu debug che mat nguoi dung)
             if self.is_connected:
-                self.send_sbs_back_to_iphone(sbs_frame)
+                self.send_sbs_back_to_iphone(sbs_frame.copy())
 
-            # Ve HUD thong so len man hinh laptop
+            # 2. Ve HUD thong so ky thuat chi tren man hinh Laptop
+            laptop_display = sbs_frame if self.suite.stereo_vr_mode else frame
             source_tag = f"IPHONE USB ({self.actual_rx_fps:.0f} FPS)" if frame_is_iphone else "FALLBACK CAM"
             rot_str = "ROT: 180" if self.rotate_180 else "ROT: 0"
             mir_str = "MIRROR" if self.flip_horizontal else "NORMAL"
             flipv_str = "FLIP_V: ON" if self.flip_vertical else "FLIP_V: OFF"
-            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | VR SBS FPS: {fps:.1f} | {rot_str} | {mir_str} | {flipv_str} | IPD: {self.ipd_offset}px",
-                        (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.60, (0, 243, 255), 2, cv2.LINE_AA)
+            cv2.rectangle(laptop_display, (10, 5), (630, 32), (0, 0, 0), -1)
+            cv2.putText(laptop_display, f"IPHONE USB {self.actual_rx_fps:.0f}FPS | SBS {fps:.1f}FPS | {rot_str} {mir_str} {flipv_str} | IPD:{self.ipd_offset}px",
+                        (15, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 243, 255), 1, cv2.LINE_AA)
 
             # Hien thi tren man hinh Laptop
-            cv2.imshow(win_title, sbs_frame if self.suite.stereo_vr_mode else frame)
+            cv2.imshow(win_title, laptop_display)
 
             key = cv2.waitKey(1) & 0xFF
             if key == 27:

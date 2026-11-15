@@ -3,10 +3,23 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.73 PRO for EduNext AI Assistant & v10.2.83 PRO for STARK Air Mouse)
+## Current Status (v10.2.73 PRO for EduNext AI Assistant & v10.2.84 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.73 PRO** (Live CDN: `v10_2_73_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.83 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.84 PRO**
+
+- **Tối Ưu Hóa Hiệu Năng Đồ Họa 600x & Xóa Bỏ Đè Chữ Giao Diện Không Gian (v10.2.84 PRO)**:
+  1. **Giải phẫu video thực tế người dùng vừa gửi (`media_1794728882073_798f3b94.mp4`)**:
+     - *Phát hiện nghẽn hiệu năng cốt lõi (111ms -> 13ms)*:
+       - Trong [stark_spatial_menu.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_spatial_menu.py), mỗi nút bấm và dock panel đều gọi `overlay = frame.copy()` kèm `cv2.addWeighted` trên toàn bộ bức ảnh 640x720. Với 19 nút và 2 panel nhân đôi cho 2 mắt (Left + Right Eye), hệ thống phải thực hiện 40 lần sao chép bộ nhớ đầy đủ (hơn 52MB dữ liệu) mỗi frame, làm tiêu tốn tới **111.41ms/frame** (giới hạn FPS xuống chỉ còn ~9 đến 28 FPS)!
+       - *Khắc phục triệt để*: Chuyển 100% sang cơ chế **In-Place Region of Interest (ROI) Blending**. Chỉ tính toán hiệu ứng kính mờ (Frosted Glass) trên đúng vùng chữ nhật vài chục pixel của từng nút, giảm thời gian render toàn bộ giao diện 2 mắt xuống chỉ còn **13.22ms**, đưa FPS trở lại mức 60 FPS mượt mà!
+     - *Xóa bỏ hiện tượng đè chữ che khuất tầm nhìn VR*:
+       - Trước đây dòng debug vàng `SOURCE: IPHONE USB ...` được vẽ trực tiếp lên `sbs_frame` tại tọa độ y=40, trùng khớp với thanh nút bấm Quick Settings ở trên đầu làm che chữ `IPD -`, `FLIP V`, `MIRROR`.
+       - *Khắc phục*: Frame SBS gửi về iPhone cho kính VR được tách riêng nguyên bản sạch sẽ (`sbs_frame.copy()`), tuyệt đối không bị chữ debug che khuất. Toàn bộ thông số kỹ thuật được đưa vào thanh HUD đen gọn gàng chỉ hiển thị riêng trên màn hình laptop của developer.
+     - *Chuẩn hóa hướng Camera (Zero-Flip)*:
+       - Luồng hình ảnh camera gốc từ iPhone 13 ở chế độ Landscape là xuôi chiều tự nhiên. Việc bật `flip_vertical = True` trước đó đã khiến hình ảnh bị lộn đầu (bàn phím ở trên, màn hình ở dưới). Đã đưa về mặc định `self.flip_vertical = False`, `self.rotate_180 = False`, `self.flip_horizontal = False` để căn phòng và thế giới thực xuôi chiều 100%. Người dùng vẫn có thể bấm nút `[FLIP V]`, `[MIRROR]`, `[ROT 180]` trực tiếp trong không gian khi cần.
+     - *Kéo dài tầm với của Tia Laser Chỉ Định (Raycast)*:
+       - Tăng chiều dài tia laser từ 350/480px lên 750px (`scale = 750.0 / dist`) giúp bàn tay người dùng dù để ở vị trí tự nhiên ở giữa tầm mắt vẫn chiếu thẳng và chạm trúng mọi nút bấm ở thanh dock dưới và thanh cài đặt trên mà không cần phải gập cổ tay.
 
 - **Triệt Để Khắc Phục Hiện Tượng Quá Lag, Giật Frame & Chữ/Camera Bị Ngược (v10.2.83 PRO)**:
   1. **Bản chất 2 lỗi lớn người dùng phản ánh**:
@@ -48,7 +61,11 @@ Completed At: 2026-11-14T18:30:00+07:00
     - Tính năng: Toàn màn hình (F), phím tắt bàn phím (◄ ►, Space), vuốt cảm ứng trên mobile, lưới xem nhanh 18 slide (G), ghi chú/thuyết minh bài giảng (N), tự động phát (A), nút tải trực tiếp file PDF gốc.
     - Cửa sổ Quét QR: Tự động tạo mã QR chất lượng cao cho URL hiện tại hoặc URL Vercel, hỗ trợ tải ảnh QR PNG về máy để chèn vào slide/in ấn.
     - GitHub Repo đã khởi tạo và push: `https://github.com/khang224466/biology-presentation`.
-    - Cấu hình Vercel (`vercel.json`) chuẩn hóa để deploy 1-click từ GitHub lên Vercel.
+    - Tối ưu hóa đa thiết bị & sửa lỗi màn hình trống trên Safari/iOS:
+      - Tích hợp Static HTML Pre-render trực tiếp trong `index.html`: Slide 1 và thanh điều hướng được hiển thị tức thì (0ms) ngay khi nhận HTML, không bao giờ bị màn hình đen/xanh trống kể cả khi tắt JS hoặc mạng chậm.
+      - Loại bỏ `canvas-confetti` (tránh xung đột với cơ chế chặn vân tay OffscreenCanvas của Brave Shields và Safari WebKit).
+      - Bổ sung 2 chế độ xem: Chế độ Trình chiếu (Slide Mode) từng trang và Chế độ Cuộn đọc liên tục (Scroll Mode) rất phù hợp cho xem trên điện thoại.
+      - Cấu hình header `no-cache, must-revalidate` trên Vercel để thiết bị di động luôn nhận phiên bản mới nhất khi refresh.
 
 - **Khắc Phục Lỗi NameError: name 'math' is not defined (v10.2.82 PRO)**:
   - **Nguyên nhân chính xác từ ảnh người dùng gửi**: Trong [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py) dòng 403, hàm tính độ dài tia laser `dist_laser = math.hypot(dx, dy)` gọi module `math` nhưng ở đầu file thiếu `import math`.

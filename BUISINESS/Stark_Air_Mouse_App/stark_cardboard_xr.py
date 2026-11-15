@@ -506,7 +506,7 @@ class StarkCardboardXRSuite:
         dy = p_tip[1] - p_knuckle[1]
         dist = math.hypot(dx, dy)
         if dist > 8:
-            scale = 350.0 / dist
+            scale = 750.0 / dist
             end_x = int(p_tip[0] + dx * scale)
             end_y = int(p_tip[1] + dy * scale)
             cv2.line(frame, p_tip, (end_x, end_y), (0, 255, 200), 2, cv2.LINE_AA)

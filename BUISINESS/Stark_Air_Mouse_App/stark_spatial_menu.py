@@ -129,16 +129,19 @@ class SpatialButton:
         bw = self.w
         bh = self.h
 
-        # Nen kinh mo (Frosted Glass)
-        overlay = frame.copy()
-        bg_col = (20, 26, 32)
-        if self.is_active:
-            bg_col = (15, 75, 45) # Active Green
-        if self.is_hovered:
-            bg_col = (45, 95, 125) if not self.is_active else (25, 120, 70)
-
-        cv2.rectangle(overlay, (bx, by), (bx + bw, by + bh), bg_col, -1)
-        cv2.addWeighted(overlay, 0.72, frame, 0.28, 0, frame)
+        # Nen kinh mo (Frosted Glass) - High-Performance In-Place ROI Blending (Zero Frame Copy)
+        x1 = max(0, min(frame.shape[1] - 1, bx))
+        y1 = max(0, min(frame.shape[0] - 1, by))
+        x2 = max(0, min(frame.shape[1], bx + bw))
+        y2 = max(0, min(frame.shape[0], by + bh))
+        if x2 > x1 and y2 > y1:
+            bg_col = (20, 26, 32)
+            if self.is_active:
+                bg_col = (15, 75, 45) # Active Green
+            if self.is_hovered:
+                bg_col = (45, 95, 125) if not self.is_active else (25, 120, 70)
+            roi = frame[y1:y2, x1:x2]
+            cv2.addWeighted(np.full_like(roi, bg_col), 0.72, roi, 0.28, 0, roi)
 
         # Vien phat sang Neon
         border_col = (0, 255, 128) if self.is_active else self.color
@@ -387,14 +390,25 @@ class SpatialInAirMenu:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 243, 255), 1, cv2.LINE_AA)
             return
 
-        # 2. Ve Background Dock Panel cho Hang Chinh & Hang Phu
+        # 2. Ve Background Dock Panel cho Hang Chinh & Hang Phu (In-Place ROI Blending)
         dock_y = 538
         dock_h = 114
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (10 + eye_offset_x, dock_y), (630 + eye_offset_x, dock_y + dock_h), (12, 16, 20), -1)
+        x1_d = max(0, min(frame.shape[1] - 1, 10 + eye_offset_x))
+        x2_d = max(0, min(frame.shape[1], 630 + eye_offset_x))
+        y1_d = max(0, min(frame.shape[0] - 1, dock_y))
+        y2_d = max(0, min(frame.shape[0], dock_y + dock_h))
+        if x2_d > x1_d and y2_d > y1_d:
+            roi_d = frame[y1_d:y2_d, x1_d:x2_d]
+            cv2.addWeighted(np.full_like(roi_d, (12, 16, 20)), 0.75, roi_d, 0.25, 0, roi_d)
+
         # Top Settings Bar overlay
-        cv2.rectangle(overlay, (10 + eye_offset_x, 10), (580 + eye_offset_x, 52), (12, 16, 20), -1)
-        cv2.addWeighted(overlay, 0.72, frame, 0.28, 0, frame)
+        x1_t = max(0, min(frame.shape[1] - 1, 10 + eye_offset_x))
+        x2_t = max(0, min(frame.shape[1], 580 + eye_offset_x))
+        y1_t = max(0, min(frame.shape[0] - 1, 10))
+        y2_t = max(0, min(frame.shape[0], 52))
+        if x2_t > x1_t and y2_t > y1_t:
+            roi_t = frame[y1_t:y2_t, x1_t:x2_t]
+            cv2.addWeighted(np.full_like(roi_t, (12, 16, 20)), 0.75, roi_t, 0.25, 0, roi_t)
 
         # Vien neon dock
         cv2.rectangle(frame, (10 + eye_offset_x, dock_y), (630 + eye_offset_x, dock_y + dock_h), (35, 45, 55), 1, cv2.LINE_AA)
