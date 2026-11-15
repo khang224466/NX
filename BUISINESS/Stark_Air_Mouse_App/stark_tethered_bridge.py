@@ -179,18 +179,21 @@ class StarkTetheredBridge:
 
         while self.running:
             frame = None
+            frame_is_iphone = False
             
             # 1. Uu tien lay frame tu iPhone qua cap USB
             if self.is_connected and not self.use_fallback:
                 with self.lock:
                     if self.latest_frame is not None:
                         frame = self.latest_frame.copy()
+                        frame_is_iphone = True
 
             # 2. Neu chua co frame tu iPhone hoac bat che do du phong -> Lay tu webcam/Camo
             if frame is None and fallback_cap and fallback_cap.isOpened():
                 ret, f = fallback_cap.read()
                 if ret and f is not None and f.size > 0:
                     frame = f
+                    frame_is_iphone = False
 
             # 3. Neu van chua co bat ky frame nao -> Hien thi HUD cho (Khong bao gio bi Not Responding)
             if frame is None:
@@ -323,8 +326,8 @@ class StarkTetheredBridge:
                 self.send_sbs_back_to_iphone(sbs_frame)
 
             # Ve HUD thong so len goc man hinh
-            source_tag = "IPHONE 13 USB" if (self.is_connected and not self.use_fallback) else "FALLBACK CAM"
-            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | FPS: {fps:.1f}", (40, 50),
+            source_tag = f"IPHONE 13 USB (RX: {self.actual_rx_fps:.0f} FPS)" if frame_is_iphone else "FALLBACK CAM"
+            cv2.putText(sbs_frame, f"SOURCE: {source_tag} | DISPLAY FPS: {fps:.1f}", (40, 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 243, 255), 2, cv2.LINE_AA)
 
             # Hien thi len man hinh laptop
