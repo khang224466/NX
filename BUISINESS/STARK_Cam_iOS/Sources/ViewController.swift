@@ -1,5 +1,6 @@
 import UIKit
 import AVFoundation
+import Network
 
 class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegate, USBTunnelDelegate {
     
@@ -263,5 +264,5 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         }
     }
     
-    func usbTunnel(_ tunnel: USBTunnel, didChangeState state: Foundation.NWListener.State) {}
+    func usbTunnel(_ tunnel: USBTunnel, didChangeState state: NWListener.State) {}
 }
