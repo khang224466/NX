@@ -3,10 +3,19 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.71 PRO for EduNext AI Assistant & v10.2.78 PRO for STARK Air Mouse)
+## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.78 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.71 PRO** (Live CDN: `v10_2_71_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.72 PRO** (Live CDN: `v10_2_72_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.78 PRO**
+
+- **Khắc Phục Hoàn Toàn Lỗi "Cố Chấp Gửi Lại Khi Bị Từ Chối" & Bắt Trọn Phản Hồi Giáo Viên (v10.2.72 PRO)**:
+  1. **Bản chất lỗi "cố chấp gửi lại thay vì quét lại phản hồi"**:
+     - **Nguyên nhân 1 (Bộ bóc tách DOM bỏ sót toàn bộ nhận xét sau khi học sinh nộp)**: Trong [turn-tracker.js](file:///d:/BUISINESS/FPT%20service/scripts/turn-tracker.js), hàm `readEduNextTurn` dùng selector `.closest('... , div')` khiến `studentMessage` chỉ là một thẻ div nhỏ `user-info`, và hàm `findQuestion` chỉ cắt từ chữ `Câu hỏi:`, làm biến mất hoàn toàn đoạn nhận xét giải thích của giáo viên nằm ở phía trên câu hỏi (ví dụ: *"Good effort putting together four pairs... aren't yet the most accurate..."*).
+     - **Nguyên nhân 2 (Cơ chế nộp cố chấp khi bị từ chối)**: Trong [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js), khi giáo viên từ chối đáp án (`C` là true), điều kiện `!C` bị bỏ qua khiến bot tiếp tục thực thi lệnh `z(A)` nộp lại đúng chuỗi đáp án cũ vừa bị chấm sai.
+  2. **Giải pháp triệt để đã triển khai**:
+     - **Thu thập 100% nội dung sau tin nhắn học sinh (`teacherAfterStudent`)**: Trong [turn-tracker.js](file:///d:/BUISINESS/FPT%20service/scripts/turn-tracker.js), bóc tách toàn bộ các khối tin nhắn xuất hiện sau `studentBadge` để lấy trọn vẹn cả nhận xét, phân tích, đề bài làm lại và gợi ý Hint.
+     - **Tường lửa chống nộp lại đáp án vừa bị từ chối**: Nếu giáo viên đã từ chối (`C = true`) mà AI vẫn đề xuất lại đáp án cũ trùng với `l`, bot lập tức chặn lại, gửi cảnh báo khẩn cấp cho Gemini để đổi 4 cặp từ khác. Nếu không có đáp án mới hợp lệ, bot chủ động dừng lại chờ EduNext cập nhật chứ TUYỆT ĐỐI KHÔNG CỐ CHẤP GỬI LẠI!
+     - **Đáp án chuẩn SGK Unit 8**: `Answer: folk singing, cultural heritage, beautiful landscape, ancient architecture`.
 
 - **Tối Ưu Triệt Để Hiện Tượng Lag 120 FPS & Chuẩn Hóa Hình Học Quang Học 3D Cho Kính Shinecon G10 (v10.2.78 PRO)**:
   1. **Giải phẫu nguyên nhân kỹ thuật chính xác 100%**:
