@@ -35,7 +35,7 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     public private(set) var currentFPS: Int = 60
     public private(set) var isRunning: Bool = false
     
-    // FPS counter
+    // FPS measurement
     private var frameCount = 0
     private var lastFPSCheckTime = CFAbsoluteTimeGetCurrent()
     
@@ -80,10 +80,9 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     
     private func configureSession() {
         captureSession.beginConfiguration()
-        captureSession.sessionPreset = .inputPriority // Let activeFormat control resolution & FPS
         
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-            print("[STARK Camera] Khong tim thay Back Camera tren iPhone")
+            print("[STARK Camera] Khong tim thay Back Wide Camera tren iPhone")
             captureSession.commitConfiguration()
             return
         }
@@ -101,17 +100,20 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             return
         }
         
-        videoOutput.videoSettings = [
-            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)
-        ]
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.setSampleBufferDelegate(self, queue: sessionQueue)
+        
+        // Choose best supported pixel format (BiPlanar Full or Video range)
+        if videoOutput.availableVideoPixelFormatTypes.contains(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
+            videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)]
+        } else if videoOutput.availableVideoPixelFormatTypes.contains(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) {
+            videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)]
+        }
         
         if captureSession.canAddOutput(videoOutput) {
             captureSession.addOutput(videoOutput)
         }
         
-        // Orientation
         if let connection = videoOutput.connection(with: .video) {
             if connection.isVideoOrientationSupported {
                 connection.videoOrientation = .landscapeRight
@@ -155,42 +157,40 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     
     private func applyFormat(resolution: STARKResolution, fps: Int) {
         guard let device = self.videoDevice else { return }
-        
         let targetDims = resolution.dimensions
-        var selectedFormat: AVCaptureDevice.Format?
-        var maxSupportedFPS: Double = 30.0
         
-        // Search through available formats on this iPhone sensor
+        var bestFormat: AVCaptureDevice.Format?
+        var bestRange: AVFrameRateRange?
+        
+        // Match exact resolution and supported FPS range
         for format in device.formats {
-            let desc = format.formatDescription
-            let dims = CMVideoFormatDescriptionGetDimensions(desc)
-            
-            // Match dimensions
+            let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             if dims.width == targetDims.width && dims.height == targetDims.height {
                 for range in format.videoSupportedFrameRateRanges {
                     if Double(fps) <= range.maxFrameRate && Double(fps) >= range.minFrameRate {
-                        selectedFormat = format
-                        maxSupportedFPS = range.maxFrameRate
+                        bestFormat = format
+                        bestRange = range
                         break
                     }
                 }
-                if selectedFormat != nil { break }
+                if bestFormat != nil { break }
             }
         }
         
-        // Fallback: if exact 120fps is not supported for 4K (iPhone 13 4K max is 60fps), pick best match
-        if selectedFormat == nil {
+        // Fallback: match resolution with highest available frame rate
+        if bestFormat == nil {
             for format in device.formats {
                 let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
                 if dims.width == targetDims.width && dims.height == targetDims.height {
-                    selectedFormat = format
+                    bestFormat = format
+                    bestRange = format.videoSupportedFrameRateRanges.first
                     break
                 }
             }
         }
         
-        guard let format = selectedFormat else {
-            print("[STARK Camera] Khong tim thay format phu hop cho \(resolution.rawValue) @ \(fps) FPS")
+        guard let format = bestFormat else {
+            print("[STARK Camera] Khong tim thay format phu hop cho \(resolution.rawValue)")
             return
         }
         
@@ -198,11 +198,12 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             try device.lockForConfiguration()
             device.activeFormat = format
             
-            let targetFrameDuration = CMTime(value: 1, timescale: CMTimeScale(min(fps, Int(maxSupportedFPS))))
-            device.activeVideoMinFrameDuration = targetFrameDuration
-            device.activeVideoMaxFrameDuration = targetFrameDuration
+            let maxFps = bestRange?.maxFrameRate ?? 30.0
+            let targetFps = min(Double(fps), maxFps)
+            let duration = CMTime(value: 1, timescale: CMTimeScale(targetFps))
+            device.activeVideoMinFrameDuration = duration
+            device.activeVideoMaxFrameDuration = duration
             
-            // Enable continuous autofocus & auto exposure
             if device.isFocusModeSupported(.continuousAutoFocus) {
                 device.focusMode = .continuousAutoFocus
             }
@@ -214,7 +215,7 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             }
             
             device.unlockForConfiguration()
-            print("[STARK Camera] Thiet lap thanh cong: \(targetDims.width)x\(targetDims.height) @ \(min(fps, Int(maxSupportedFPS))) FPS (Sensor Max: \(maxSupportedFPS) FPS)")
+            print("[STARK Camera] Thiet lap thanh cong: \(targetDims.width)x\(targetDims.height) @ \(Int(targetFps)) FPS")
         } catch {
             print("[STARK Camera] Loi khoa thiet bi: \(error)")
         }

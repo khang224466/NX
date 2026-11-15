@@ -4,7 +4,7 @@ import Network
 
 class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegate, USBTunnelDelegate {
     
-    // Components
+    // Core Modules
     private let cameraEngine = CameraEngine()
     private let h264Encoder = H264Encoder()
     private let usbTunnel = USBTunnel()
@@ -49,7 +49,15 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         h264Encoder.delegate = self
         usbTunnel.delegate = self
         
-        // Request Camera Permission explicitly
+        // Request Camera Permission & Init pipeline
+        checkAndRequestCamera()
+        
+        // Start USB Tunnel Server on Port 23456
+        usbTunnel.startServer()
+        startHUDTimer()
+    }
+    
+    private func checkAndRequestCamera() {
         cameraEngine.requestCameraAccess { [weak self] granted in
             guard let self = self else { return }
             DispatchQueue.main.async {
@@ -65,9 +73,6 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
                 }
             }
         }
-        
-        usbTunnel.startServer()
-        startHUDTimer()
     }
     
     private func attachPreviewLayer() {
@@ -103,6 +108,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         permissionButton.layer.cornerRadius = 14
         permissionButton.translatesAutoresizingMaskIntoConstraints = false
         permissionButton.addTarget(self, action: #selector(permissionButtonTapped), for: .touchUpInside)
+        permissionButton.isHidden = true // hidden initially until permission check completes
         view.addSubview(permissionButton)
         
         NSLayoutConstraint.activate([
@@ -120,17 +126,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
                 UIApplication.shared.open(settingsURL)
             }
         } else {
-            cameraEngine.requestCameraAccess { [weak self] granted in
-                guard let self = self else { return }
-                DispatchQueue.main.async {
-                    if granted {
-                        self.permissionButton.isHidden = true
-                        self.attachPreviewLayer()
-                        self.cameraEngine.start()
-                        self.h264Encoder.configure(width: 1920, height: 1080, fps: 60)
-                    }
-                }
-            }
+            checkAndRequestCamera()
         }
     }
     
@@ -138,6 +134,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         vrDisplayImageView.frame = view.bounds
         vrDisplayImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         vrDisplayImageView.contentMode = .scaleAspectFill
+        vrDisplayImageView.backgroundColor = .black
         vrDisplayImageView.isHidden = true
         view.addSubview(vrDisplayImageView)
     }
@@ -327,7 +324,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     func usbTunnel(_ tunnel: USBTunnel, didReceiveReturnFrame data: Data) {
         // Render 3D Stereo SBS frame sent back from Laptop RTX 4060
         DispatchQueue.main.async { [weak self] in
-            guard let self = self, self.modeSegment.selectedSegmentIndex == 1 else { return }
+            guard let self = self else { return }
             if let image = UIImage(data: data) {
                 self.vrDisplayImageView.image = image
             }

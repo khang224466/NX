@@ -57,13 +57,13 @@ public class H264Encoder {
             return
         }
         
-        // Configure low-latency real-time video streaming
+        // Configure low-latency real-time video streaming (Baseline profile = 0 B-frames, instant decode)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_High_AutoLevel)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_Baseline_AutoLevel)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: bitrate as CFTypeRef)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: fps as CFTypeRef)
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: (fps * 2) as CFTypeRef) // Keyframe every 2 seconds
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse) // Zero B-frames for minimal latency
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: fps as CFTypeRef) // Keyframe every 1 second
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse) // Zero B-frames for zero latency
         
         VTCompressionSessionPrepareToEncodeFrames(session)
         print("[STARK Encoder] VideoToolbox Hardware H.264 San sang: \(width)x\(height) @ \(fps) FPS, Bitrate: \(bitrate / 1_000_000) Mbps")

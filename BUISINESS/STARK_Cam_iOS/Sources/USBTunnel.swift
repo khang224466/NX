@@ -18,6 +18,9 @@ public class USBTunnel {
     private let tunnelQueue = DispatchQueue(label: "com.stark.usb.tunnel", qos: .userInteractive)
     public private(set) var isClientConnected: Bool = false
     
+    // Accumulation buffer for incoming TCP stream chunks
+    private var incomingBuffer = Data()
+    
     public init() {}
     
     public func startServer() {
@@ -25,7 +28,7 @@ public class USBTunnel {
             let parameters = NWParameters.tcp
             parameters.allowLocalEndpointReuse = true
             
-            // Prefer wired USB interface
+            // Prefer IPv4 for local usbmuxd tunnel
             let tcpOptions = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options
             tcpOptions?.version = .v4
             
@@ -62,6 +65,8 @@ public class USBTunnel {
         }
         
         activeConnection = connection
+        incomingBuffer.removeAll(keepingCapacity: true)
+        
         connection.stateUpdateHandler = { [weak self] state in
             guard let self = self else { return }
             switch state {
@@ -69,7 +74,7 @@ public class USBTunnel {
                 print("[STARK USB Tunnel] PC Laptop Legion RTX 4060 da ket noi qua cap USB!")
                 self.isClientConnected = true
                 self.delegate?.usbTunnelDidConnectClient(self)
-                self.receiveNextPacket()
+                self.startReceiving()
             case .failed(let err):
                 print("[STARK USB Tunnel] Ket noi bi ngat: \(err)")
                 self.isClientConnected = false
@@ -101,37 +106,52 @@ public class USBTunnel {
         }))
     }
     
-    // Receive return stream (SBS Stereo VR render) from PC Laptop
-    private func receiveNextPacket() {
+    // Continuous TCP Stream chunk receiver (solves partial chunk delivery & fragmentation)
+    private func startReceiving() {
         guard let connection = activeConnection, isClientConnected else { return }
         
-        // Read 4-byte length prefix
-        connection.receive(minimumIncompleteLength: 4, maximumLength: 4) { [weak self] content, _, isComplete, error in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] content, _, isComplete, error in
             guard let self = self else { return }
             
-            if let data = content, data.count == 4 {
-                let length = data.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-                self.receivePayload(length: Int(length))
-            } else if isComplete || error != nil {
+            if let data = content, !data.isEmpty {
+                self.incomingBuffer.append(data)
+                self.processIncomingBuffer()
+            }
+            
+            if isComplete || error != nil {
+                print("[STARK USB Tunnel] Client ngat ket noi hoac co loi: \(String(describing: error))")
                 self.isClientConnected = false
                 self.delegate?.usbTunnelDidDisconnectClient(self)
+                return
             }
+            
+            // Loop for next chunk in TCP stream
+            self.startReceiving()
         }
     }
     
-    private func receivePayload(length: Int) {
-        guard let connection = activeConnection, isClientConnected else { return }
-        
-        connection.receive(minimumIncompleteLength: length, maximumLength: length) { [weak self] content, _, isComplete, error in
-            guard let self = self else { return }
+    private func processIncomingBuffer() {
+        // TCP Stream Framing: [4 bytes BigEndian Length] + [Payload Data (JPEG SBS frame)]
+        while incomingBuffer.count >= 4 {
+            let length = incomingBuffer.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+            let totalFrameSize = 4 + Int(length)
             
-            if let payload = content, payload.count == length {
-                self.delegate?.usbTunnel(self, didReceiveReturnFrame: payload)
-                // Continue reading next incoming SBS frame
-                self.receiveNextPacket()
-            } else if isComplete || error != nil {
-                self.isClientConnected = false
-                self.delegate?.usbTunnelDidDisconnectClient(self)
+            // Safeguard against corrupted headers
+            if length <= 0 || length > 10_000_000 {
+                print("[STARK USB Tunnel] Goi tin khong hop le (\(length) bytes), xoa buffer")
+                incomingBuffer.removeAll(keepingCapacity: false)
+                break
+            }
+            
+            if incomingBuffer.count >= totalFrameSize {
+                let frameData = incomingBuffer.subdata(in: 4..<totalFrameSize)
+                incomingBuffer.removeSubrange(0..<totalFrameSize)
+                
+                // Deliver full frame to UI
+                self.delegate?.usbTunnel(self, didReceiveReturnFrame: frameData)
+            } else {
+                // Incomplete frame, wait for remaining chunks to arrive over USB
+                break
             }
         }
     }
@@ -142,6 +162,7 @@ public class USBTunnel {
         listener?.cancel()
         listener = nil
         isClientConnected = false
+        incomingBuffer.removeAll(keepingCapacity: false)
     }
     
     deinit {
