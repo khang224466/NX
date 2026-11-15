@@ -557,7 +557,7 @@ class StarkTetheredBridge:
                         self.suite.draw_spatial_reticle(out_frame, (pinch_px, pinch_py), is_pinched)
 
                 # 3. Ve In-Air Spatial Menu can giua man hinh (offset_x = 320)
-                self.spatial_menu.draw(out_frame, now, self.suite.current_mode, eye_offset_x=320)
+                self.spatial_menu.draw(out_frame, now, self.suite.current_mode, eye_offset_x=320, bridge=self)
 
                 final_frame = out_frame
 
@@ -654,7 +654,7 @@ class StarkTetheredBridge:
                             self.suite.draw_spatial_reticle(target_frame, (pinch_px, pinch_py), is_pinched)
 
                     menu_parallax = 4 if off_x < 0 else -4
-                    self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax)
+                    self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax, bridge=self)
 
                 sbs_frame = np.hstack((left_eye, right_eye))
                 cv2.line(sbs_frame, (eye_w, 0), (eye_w, eye_h), (0, 0, 0), 4)

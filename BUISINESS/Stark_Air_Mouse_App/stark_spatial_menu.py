@@ -296,18 +296,17 @@ class SpatialInAirMenu:
         is_palm_facing, facing_score, gear_pos = self.palm_detector.update(lms_2d, now)
         self.palm_gear_pos = gear_pos
 
-        # Quy tac 1: Khi nut Gear o long ban tay dang hien, cu chi PINCH se dong/mo menu!
-        if is_palm_facing:
-            if is_pinched and (now - self.last_pinch_toggle_t > 0.40):
+        # Quy tac CardboardXR SettingsSummoner.cs:
+        # Nut Gear o long ban tay chi xuat hien va nhan Pinch de MO MENU khi Menu dang DONG!
+        # Khi Menu da mo, nut [X CLOSE] tren thanh toolbar se dung de dong menu.
+        if not self.is_open:
+            if is_palm_facing and is_pinched and (now - self.last_pinch_toggle_t > 0.40):
                 self.last_pinch_toggle_t = now
                 self.last_click_t = now
-                self.is_open = not self.is_open
+                self.is_open = True
                 play_click_chime()
-                print(f"\n[SpatialMenu] >>> PALM PINCH TRIGGERED! In-Air Menu is_open = {self.is_open} <<<")
+                print(f"\n[SpatialMenu] >>> PALM PINCH TRIGGERED! In-Air Menu is_open = True <<<")
                 return True, None
-
-        # 2. Neu menu dang an, tat ca hoat dong ray tren menu bi bo qua
-        if not self.is_open:
             for btn in self.buttons:
                 btn.is_hovered = False
             return False, None
@@ -435,7 +434,8 @@ class SpatialInAirMenu:
                     b.label = "LAPTOP" if bridge.use_fallback else "IPHONE"
 
         # 1. Ve Palm Summoner Gear Button giua ngon cai va ngon tro (k_ThumbJoint & k_IndexJoint)
-        if self.palm_gear_pos is not None and self.palm_detector.is_facing:
+        # Chi ve khi Menu dang DONG de moi nguoi dung mo menu (giong het visionOS & CardboardXR)
+        if not self.is_open and self.palm_gear_pos is not None and self.palm_detector.is_facing:
             cx, cy = self.palm_gear_pos[0] + eye_offset_x, self.palm_gear_pos[1]
             pulse = int(127 + 127 * math.sin(now * 8.0))
             gear_col = (pulse, 243, 255)

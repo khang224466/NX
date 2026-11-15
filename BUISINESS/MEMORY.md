@@ -3,10 +3,47 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.76 PRO for EduNext AI Assistant & v10.2.85 PRO for STARK Air Mouse)
+## Current Status (v10.2.76 PRO for EduNext AI Assistant & v10.2.86 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.76 PRO** (Live CDN: `v10_2_76_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.85 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.86 PRO**
+
+- **Tái Cấu Trúc Toàn Diện Cơ Chế Điều Khiển Không Gian CardboardXR & Rời Xa Laptop Hoàn Toàn (v10.2.86 PRO)**:
+  1. **Yêu cầu chỉ đạo từ người dùng**:
+     - `"cơ bản là oke rồi, giờ ĂN CẮP MỌI THỨ CỦA VỀ, MỌI THAO TÁC RỜI XA KHỎI LAPTOP, KÍNH 3D ĐI VÒNG VÒNG SAO LẠI CẦN CÁI LAPTOP ĐỂ BẤM CHẾ ĐỘ?"`
+     - `"rồi ăn cắp cơ chế điều khiển i chang trong này"` kèm ảnh chụp thư mục mã nguồn gốc `CardboardXR-main`.
+     - Người dùng đeo kính hoặc cầm điện thoại đi lại trong phòng phải điều khiển được 100% bằng cử chỉ tay trên không trung: Đổi Demo, đổi chế độ hiển thị 1 màn hình / SBS, chỉnh camera, mở/đóng menu mà tuyệt đối không cần chạm vào laptop!
+  2. **Giải mã kiến trúc điều khiển gốc của CardboardXR (macOS/Unity) & Triển khai vào STARK**:
+     - **Cổng cử chỉ Lòng bàn tay (visionOS Palm System Gate - `SettingsSummoner.cs` & `PalmGesture.cs`)**:
+       - *Nguyên lý gốc*: Khi người dùng ngửa lòng bàn tay hướng về mắt (`PalmGesture.Facing(wrist, indexKnuckle, pinkyKnuckle) > 0.35` trong $> 0.20$s):
+       - Một nút tròn bánh răng **Settings Gear (`MENU`)** nổi lơ lửng ngay giữa ngón cái và ngón trỏ (`lms_2d[4]` & `lms_2d[8]`).
+       - Khi nút Gear này đang hiện: Người dùng chỉ cần **CHỤM NGÓN TAY (Pinch)** ➔ Menu Không gian (M3 Spatial Toolbar) lập tức mở ra ngay trước mắt (`SettingsSummoner.TryConsumePinch()`)!
+       - Khi Menu đang mở, nút Gear ở lòng bàn tay tự động ẩn đi để không gây cản trở khi bấm các nút trên Menu.
+       - Khi Menu đang đóng, dưới đáy màn hình hiển thị hướng dẫn tinh tế: `[XÒE LÒNG BÀN TAY & CHỤM NGÓN ĐỂ MỞ MENU]`.
+     - **Bộ định tuyến cử chỉ Pinch theo thứ tự ưu tiên (`PinchRouter.cs`)**:
+       - *Quy tắc 1*: Lòng bàn tay ngửa + Hiện nút Gear + Pinch ➔ Mở Menu.
+       - *Quy tắc 2*: Menu đang mở + Tia Laser / Chạm trúng Nút bấm + Pinch ➔ Kích hoạt Nút bấm (`_dispatch_click`) và phát âm thanh phản hồi xúc giác `play_click_chime()`.
+       - *Quy tắc 3*: Menu đang mở + Pinch vào khoảng không ➔ Menu chiếm dụng Pinch (`consumed = True`), ngăn chặn triệt để hiện tượng vô tình vẽ lung tung hoặc cầm nhầm vật thể ở phía sau menu.
+       - *Quy tắc 4*: Menu đóng ➔ Toàn bộ cử chỉ Pinch được chuyển giao trọn vẹn cho Demo đang chơi.
+     - **Đổi Chế Độ Hiển Thị Ngay Trên Không (`VIEW: 1-SCR` $\leftrightarrow$ `SBS VR`)**:
+       - Bổ sung nút bấm **`[VIEW: 1-SCR]`** (màu xanh lá) / **`[VIEW: SBS VR]`** (màu tím neon) trực tiếp trên thanh Quick Settings trên đỉnh đầu.
+       - Người dùng đang đeo kính Shinecon G10 hoặc cầm điện thoại chỉ cần trỏ tay và Pinch ➔ Lập tức chuyển đổi qua lại giữa `1 Màn hình 16:9 toàn cảnh` $\leftrightarrow$ `Chia đôi Stereo SBS 3D` mà không cần chạm vào phím `V` trên laptop!
+     - **Nút Thoát Nhanh `[X CLOSE]`**:
+       - Bổ sung nút đỏ `[X CLOSE]` trên thanh công cụ để người dùng đóng Menu bất kỳ lúc nào và quay trở lại không gian chơi demo.
+     - **Cơ chế Cầm & Ném Vật Thể Tầm Gần & Tầm Xa (`CubePhysics.cs` & `NearFarInteractor`)**:
+       - Cầm gần: Chụm ngón tay cách khối hộp $< 0.25$m ➔ Khối hộp bám theo vị trí ngón tay.
+       - Cầm xa bằng tia Laser: Tia laser chỉ vào khối hộp ở xa $> 1$m rồi Pinch ➔ Khối hộp bị bắt lấy và di chuyển theo hướng tay.
+       - Vung tay và nhả ngón: Khối hộp được ném đi với gia tốc tay thực tế (`vel = (target_pos - pos) / dt`), giới hạn an toàn tối đa $6.0$ m/s (`k_MaxThrowSpeed`), rơi dưới tác dụng trọng lực và nảy đàn hồi khi chạm mặt bàn/sàn nhà!
+  3. **Kết quả kiểm thử & Xác minh chất lượng**:
+     - Đã biên dịch toàn bộ các file: [stark_spatial_menu.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_spatial_menu.py), [stark_cardboard_xr.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_cardboard_xr.py), [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py) đạt 0 lỗi biên dịch.
+     - Bộ kiểm thử tự động `unit tests` mô phỏng đầy đủ luồng tương tác:
+       + Nhận diện lòng bàn tay ngửa (`score = 0.49`, vị trí nút Gear nằm chuẩn xác giữa ngón cái và ngón trỏ).
+       + Chụm ngón khi ngửa tay mở thành công Menu không gian.
+       + Bấm nút `VIEW: 1-SCR` trên không chuyển đổi mượt mà sang `SBS VR` và ngược lại.
+       + Bấm nút `DEMO 4 (CUBES)` chuyển mode thành công.
+       + Bấm `[X CLOSE]` đóng menu thành công.
+       + Far Ray Grab và ném khối hộp CubePhysics hoạt động hoàn mỹ.
+     - Đã xuất và kiểm tra trực quan các ảnh minh chứng: [clean_menu_open_preview.jpg](file:///C:/Users/LEGION/.gemini/antigravity/brain/281fdb41-0518-4836-a07a-64d9fac38b21/clean_menu_open_preview.jpg) và [clean_palm_gear_preview.jpg](file:///C:/Users/LEGION/.gemini/antigravity/brain/281fdb41-0518-4836-a07a-64d9fac38b21/clean_palm_gear_preview.jpg).
 
 - **Bóc Tách Bộ Theo Dõi Độc Lập ("Track Riêng") Cho Thẻ "Làm Rõ Ý Định" & Bảo Toàn 100% Chức Năng Cũ (v10.2.76 PRO)**:
   1. **Yêu cầu chỉ đạo từ người dùng**:

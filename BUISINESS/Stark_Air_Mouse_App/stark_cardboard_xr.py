@@ -745,8 +745,15 @@ class StarkCardboardXRSuite:
                         self.paint_demo.finish_stroke()
                 elif self.current_mode == 3: # Orb Rush
                     self.rush_demo.update(now, filtered_lms_3d)
-                elif self.current_mode == 4: # Cube Physics
-                    self.cube_demo.update(dt, is_pinched, pinch_pt_3d)
+                elif self.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs)
+                    ray_orig_3d = filtered_lms_3d[8] if filtered_lms_3d is not None else None
+                    ray_dir_3d = None
+                    if filtered_lms_3d is not None:
+                        dir_v = np.array(filtered_lms_3d[8]) - np.array(filtered_lms_3d[5])
+                        norm_d = float(np.linalg.norm(dir_v))
+                        if norm_d > 1e-4:
+                            ray_dir_3d = dir_v / norm_d
+                    self.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
 
             # Ve cac Demo vao cac View (Left / Right hoac Desktop)
             for target_frame, off_x in views:
@@ -796,7 +803,7 @@ class StarkCardboardXRSuite:
 
                 # Ve In-Air Spatial Menu tren view
                 menu_offset = 4 if off_x < 0 else (-4 if off_x > 0 else 0)
-                self.spatial_menu.draw(target_frame, now, self.current_mode, eye_offset_x=menu_offset)
+                self.spatial_menu.draw(target_frame, now, self.current_mode, eye_offset_x=menu_offset, bridge=getattr(self, 'bridge', None))
 
             # Ket xuat ra cua so hien thi
             if self.stereo_vr_mode:
