@@ -39,22 +39,35 @@ class StarkTetheredBridge:
         
         # Frame pipeline
         self.latest_frame = None
+        self.frame_seq = 0
         self.frame_lock = threading.Lock()
+        
+        # Async Sender Pipeline (Zero Blocking & Zero Bufferbloat)
+        self.pending_sbs_frame = None
+        self.send_lock = threading.Lock()
         
         # AI Asynchronous Pipeline
         self.ai_frame = None
         self.ai_lock = threading.Lock()
         self.latest_lms = None
+        self.lms_seq = 0
         self.lms_lock = threading.Lock()
+        
+        self.cached_filtered_2d = None
+        self.cached_filtered_3d = None
+        self.last_filtered_lms_seq = -1
         
         # VR SBS Geometry settings for Shinecon G10 (64mm IPD, 42mm lenses)
         self.ipd_offset = 14       # Disparity shift in pixels
         self.vr_projection = "immersive" # "immersive" (Vision Pro center-crop) or "full_fov" (letterbox)
         
-        # Huong Camera (Orientation): Mac dinh xoay 180 do khi cam cap Lightning sang trai va KHONG lat guong chu viet
-        self.rotate_180 = True
+        # Huong Camera (Orientation):
+        # 1. flip_vertical = True: Dao nguoc chieu doc giup the gioi thuc xuoi chieu khi iPhone nam ngang trong kinh VR
+        # 2. flip_horizontal = False: KHONG lat guong ngang de chu viet va the gioi khong bi nguoc
+        # 3. rotate_180 = False: KHONG xoay 180 (vi xoay 180 se lam lat ca X khien chu bi doc nguoc tu phai sang trai!)
+        self.flip_vertical = True
         self.flip_horizontal = False
-        self.flip_vertical = False
+        self.rotate_180 = False
         
         self.forward_proc = None
         self.actual_rx_fps = 0.0
@@ -99,9 +112,11 @@ class StarkTetheredBridge:
                     try:
                         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                        s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
-                        s.settimeout(1.5)
+                        s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 131072)
+                        s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 131072)
+                        s.settimeout(2.0)
                         s.connect(("127.0.0.1", self.port))
+                        s.settimeout(8.0) # Khong de timeout 1.5s gay ngat ket noi nham khi truyen tai nang
                         
                         self.sock = s
                         self.is_connected = True
@@ -148,6 +163,7 @@ class StarkTetheredBridge:
                                 bgr = f.to_ndarray(format="bgr24")
                                 with self.frame_lock:
                                     self.latest_frame = bgr
+                                    self.frame_seq += 1
                                 
                                 self.rx_count += 1
                                 now = time.time()
@@ -200,10 +216,37 @@ class StarkTetheredBridge:
                             self.latest_lms = results.hand_landmarks[0]
                         else:
                             self.latest_lms = None
+                        self.lms_seq += 1
                 except Exception:
                     pass
 
         t = threading.Thread(target=ai_worker, daemon=True)
+        t.start()
+
+    def start_sender_thread(self):
+        """Luong ban hinh anh SBS ve iPhone doc lap khong lam nghen main thread (Zero Blocking)"""
+        def send_worker():
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 65]
+            while self.running:
+                frame_to_send = None
+                with self.send_lock:
+                    if self.pending_sbs_frame is not None:
+                        frame_to_send = self.pending_sbs_frame
+                        self.pending_sbs_frame = None
+
+                if frame_to_send is None or not self.is_connected or self.sock is None:
+                    time.sleep(0.003)
+                    continue
+
+                try:
+                    _, encoded = cv2.imencode(".jpg", frame_to_send, encode_param)
+                    data = encoded.tobytes()
+                    pkt = struct.pack(">I", len(data)) + data
+                    self.sock.sendall(pkt)
+                except Exception:
+                    pass
+
+        t = threading.Thread(target=send_worker, daemon=True)
         t.start()
 
     def _recv_all(self, sock, n):

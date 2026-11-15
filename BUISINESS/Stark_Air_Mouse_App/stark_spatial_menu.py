@@ -242,11 +242,13 @@ class SpatialInAirMenu:
         # 3. HANG TOP QUICK SETTINGS BAR (y = 16, h = 30)
         # =====================================================================
         y_top = 16
-        self.buttons.append(SpatialButton("set_ipd_sub", "IPD -", 20, y_top, 64, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_ipd_add", "IPD +", 90, y_top, 64, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_rot", "ROT 180", 160, y_top, 88, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_fov", "FOV/IMM", 254, y_top, 82, 30, color=(0, 243, 255), category="settings"))
-        self.buttons.append(SpatialButton("set_cam", "CAM USB", 342, y_top, 88, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_ipd_sub", "IPD -", 20, y_top, 58, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_ipd_add", "IPD +", 84, y_top, 58, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_flip_v", "FLIP V", 148, y_top, 74, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_flip_h", "MIRROR", 228, y_top, 78, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_rot", "ROT 180", 312, y_top, 80, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_fov", "FOV/IMM", 398, y_top, 80, 30, color=(0, 243, 255), category="settings"))
+        self.buttons.append(SpatialButton("set_cam", "CAM USB", 484, y_top, 82, 30, color=(0, 243, 255), category="settings"))
 
     def update(self, lms_2d, p_knuckle, p_tip, laser_end, is_pinched, now, suite, bridge=None):
         """
@@ -341,6 +343,12 @@ class SpatialInAirMenu:
         elif btn_id == "set_rot" and bridge:
             bridge.rotate_180 = not bridge.rotate_180
             print(f"[SpatialMenu] Xoay 180 do: {'BAT' if bridge.rotate_180 else 'TAT'}")
+        elif btn_id == "set_flip_v" and bridge:
+            bridge.flip_vertical = not bridge.flip_vertical
+            print(f"[SpatialMenu] Lat doc: {'BAT' if bridge.flip_vertical else 'TAT'}")
+        elif btn_id == "set_flip_h" and bridge:
+            bridge.flip_horizontal = not bridge.flip_horizontal
+            print(f"[SpatialMenu] Lat guong ngang: {'BAT' if bridge.flip_horizontal else 'TAT'}")
         elif btn_id == "set_fov" and bridge:
             bridge.vr_projection = "full_fov" if bridge.vr_projection == "immersive" else "immersive"
             print(f"[SpatialMenu] Quang hoc: {bridge.vr_projection}")
@@ -385,12 +393,12 @@ class SpatialInAirMenu:
         overlay = frame.copy()
         cv2.rectangle(overlay, (10 + eye_offset_x, dock_y), (630 + eye_offset_x, dock_y + dock_h), (12, 16, 20), -1)
         # Top Settings Bar overlay
-        cv2.rectangle(overlay, (10 + eye_offset_x, 10), (440 + eye_offset_x, 52), (12, 16, 20), -1)
+        cv2.rectangle(overlay, (10 + eye_offset_x, 10), (580 + eye_offset_x, 52), (12, 16, 20), -1)
         cv2.addWeighted(overlay, 0.72, frame, 0.28, 0, frame)
 
         # Vien neon dock
         cv2.rectangle(frame, (10 + eye_offset_x, dock_y), (630 + eye_offset_x, dock_y + dock_h), (35, 45, 55), 1, cv2.LINE_AA)
-        cv2.rectangle(frame, (10 + eye_offset_x, 10), (440 + eye_offset_x, 52), (35, 45, 55), 1, cv2.LINE_AA)
+        cv2.rectangle(frame, (10 + eye_offset_x, 10), (580 + eye_offset_x, 52), (35, 45, 55), 1, cv2.LINE_AA)
 
         # Header title
         cv2.putText(frame, "CARDBOARDXR // M3 SPATIAL IN-AIR TOOLBAR", (20 + eye_offset_x, dock_y - 6),

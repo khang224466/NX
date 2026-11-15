@@ -3,10 +3,35 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.72 PRO for EduNext AI Assistant & v10.2.82 PRO for STARK Air Mouse)
+## Current Status (v10.2.73 PRO for EduNext AI Assistant & v10.2.82 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.72 PRO** (Live CDN: `v10_2_72_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.73 PRO** (Live CDN: `v10_2_73_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.82 PRO**
+
+- **Phân Biệt Chuẩn Xác 2 Trạng Thái & Tự Động Dừng Khi Môn Tiếng Anh Hoàn Thành Bài Học (v10.2.73 PRO)**:
+  1. **Bản chất phản hồi của người dùng**:
+     - *Chuyển phần (Transitions)*: Tiếng Việt là "Sẵn sàng", Tiếng Anh là "Yes" / "Ready".
+     - *Hoàn thành bài học (Lesson Complete)*: Tiếng Việt là "Chúc mừng em hoàn thành buổi học" / "Điểm buổi học", còn Tiếng Anh là màn hình tổng kết như trong ảnh:
+       - Tiêu đề: `Lesson Complete` (e.g. `VII COMMUNICATION AND CULTURE / CLIL - Lesson Complete`).
+       - Bảng điểm: `Lesson score: .../100`, `Correct answers:`, `Incorrect answers:`.
+       - Lời chào kết bài: `See you in the next lesson!`.
+       - Bảng phân tích: `Strengths`, `Areas to Improve`, `Review Suggestions & Message`, `CONTENT SUMMARY`.
+     - *Hiện tượng lỗi cũ*: Code cũ ép điều kiện `!activeInput` (trong khi ô chat textarea luôn tồn tại ở chân trang EduNext) và regex cũ chặn nếu có từ "question", khiến bot không nhận diện được màn hình kết bài, tưởng là câu hỏi đọc hiểu rồi tự bịa `Answer: Study this lesson again` nộp tiếp và auto loop không dừng.
+  2. **Giải pháp triệt để đã triển khai**:
+     - Trong [turn-tracker.js](file:///d:/BUISINESS/FPT%20service/scripts/turn-tracker.js): Thêm bộ nhận diện `isLessonComplete` và chuyển trạng thái `state = 'completed'` ngay khi phát hiện `Lesson Complete`, `Lesson score: .../100`, `See you in the next lesson!`, bảng `Strengths/Areas to Improve`.
+     - Trong [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js): Loại bỏ ràng buộc `!activeInput`. Khi phát hiện màn hình kết bài hoặc AI Vision trả về `__LESSON_COMPLETE__`, bot lập tức gọi `markLessonComplete()`, tắt Auto Mode (`d = false`), chuyển nút sang `✅ Hoàn thành`, dừng timer và dừng nộp bài vĩnh viễn!
+     - Trong [route.ts](file:///d:/BUISINESS/FPT%20service/src/app/api/v1/ai/solve/route.ts) và [bridge.html](file:///d:/BUISINESS/FPT%20service/public/bridge.html): Bổ sung chỉ thị Vision: gặp màn hình `Lesson Complete` / điểm số / `See you in the next lesson` bắt buộc xuất `__LESSON_COMPLETE__`, cấm bịa đáp án "Study this lesson again".
+
+
+- **Dự Án Web Trình Chiếu Sinh Học & Chia Sẻ QR Code (v1.0.0)**:
+  - **Mục tiêu**: Người dùng yêu cầu chuyển đổi bài thuyết trình PDF Sinh học nhóm 1 ("Green Cute Biology Illustration Group Project Presentation", 18 slide về Tế bào Thực vật) thành web presentation app, đẩy lên GitHub (`khang224466/biology-presentation`) và sẵn sàng deploy lên Vercel để quét QR mở trực tiếp trên điện thoại.
+  - **Triển khai kỹ thuật**:
+    - Trích xuất 18 slide vector sang định dạng ảnh WebP độ phân giải 2K (2400x1350) bằng PyMuPDF, tối ưu kích thước ~150KB/slide (tổng bộ slide chỉ ~2.5MB), đảm bảo siêu nét và nạp tức thì trên 3G/4G di động.
+    - Xây dựng web presentation chuyên nghiệp bằng React 19 + Vite 8 + TypeScript + Tailwind CSS v4 + `qrcode.react` + `canvas-confetti`.
+    - Tính năng: Toàn màn hình (F), phím tắt bàn phím (◄ ►, Space), vuốt cảm ứng trên mobile, lưới xem nhanh 18 slide (G), ghi chú/thuyết minh bài giảng (N), tự động phát (A), nút tải trực tiếp file PDF gốc.
+    - Cửa sổ Quét QR: Tự động tạo mã QR chất lượng cao cho URL hiện tại hoặc URL Vercel, hỗ trợ tải ảnh QR PNG về máy để chèn vào slide/in ấn.
+    - GitHub Repo đã khởi tạo và push: `https://github.com/khang224466/biology-presentation`.
+    - Cấu hình Vercel (`vercel.json`) chuẩn hóa để deploy 1-click từ GitHub lên Vercel.
 
 - **Khắc Phục Lỗi NameError: name 'math' is not defined (v10.2.82 PRO)**:
   - **Nguyên nhân chính xác từ ảnh người dùng gửi**: Trong [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py) dòng 403, hàm tính độ dài tia laser `dist_laser = math.hypot(dx, dy)` gọi module `math` nhưng ở đầu file thiếu `import math`.
