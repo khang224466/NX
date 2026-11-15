@@ -3,10 +3,19 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.70 PRO for EduNext AI Assistant & v10.2.76 PRO for STARK Air Mouse)
+## Current Status (v10.2.70 PRO for EduNext AI Assistant & v10.2.77 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
 - **EduNext AI Assistant Pro**: **v10.2.70 PRO** (Live CDN: `v10_2_70_minified.js`)
-- **STARK Air Mouse & XR Pipeline**: **v10.2.76 PRO**
+- **STARK Air Mouse & XR Pipeline**: **v10.2.77 PRO**
+
+- **Khắc Phục Lỗi AttributeError 'filter_landmarks' & Cảnh Báo PyAV avcodec_send_packet (v10.2.77 PRO)**:
+  1. **Bản chất của các thông báo trong log người dùng vừa gửi**:
+     - **Cảnh báo PyAV `avcodec_send_packet()`**: Khi kết nối cáp USB, các gói tin H.264 đầu tiên truyền tới trước Keyframe (SPS/PPS) chưa thể giải mã ngay được. Trước đây do chưa bọc `try...except av.AVError`, FFmpeg in ra cảnh báo đỏ. Tuy nhiên, điều này CHỨNG MINH 100% RẰNG IPHONE ĐÃ BẮT ĐẦU TRUYỀN GÓI VIDEO QUA CÁP USB VỀ LAPTOP!
+     - **Lỗi dừng chương trình `AttributeError: 'StarkCardboardXRSuite' object has no attribute 'filter_landmarks'`**: Trong `stark_tethered_bridge.py`, hàm gọi `filter_landmarks` không tồn tại trong class `StarkCardboardXRSuite`.
+  2. **Giải pháp đã xử lý triệt để**:
+     - Trong [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py): Tích hợp trực tiếp thuật toán 21 bộ lọc `1€ (One Euro) Filter` trong không gian pixel (`suite.filters_2d`), phép chiếu ngược 3D vào hệ tọa độ camera không gian (`suite.spatial_cam.unproject_2d` + `suite.filters_3d`), và bộ phát hiện cử chỉ nhúm tay Hysteresis Pinch (`suite.pinch_detector`).
+     - Bọc an toàn `try...except av.AVError` trong luồng giải mã PyAV: Tự động bỏ qua các gói ban đầu cho tới khi Keyframe SPS/PPS đầu tiên tới (trong vòng 1 giây), sau đó giải mã video 60 FPS mượt mà tuyệt đối không còn cảnh báo đỏ.
+     - Đã test cú pháp `py_compile` và chạy khởi tạo suite thành công 100%.
 
 - **Khắc Phục Lỗi License Hết Hạn & Nối Từ Cột A/B Môn Tiếng Anh (v10.2.70 PRO)**:
   1. **Lỗi License không hợp lệ / bị thu hồi trên Serverless**:

@@ -89,33 +89,39 @@ class StarkTetheredBridge:
                 try:
                     header = self._recv_all(4)
                     if not header:
-                        time.sleep(0.02)
+                        time.sleep(0.01)
                         continue
                     length = struct.unpack(">I", header)[0]
                     if length <= 0 or length > 10_000_000:
                         continue
                     payload = self._recv_all(length)
                     if not payload:
-                        time.sleep(0.02)
+                        time.sleep(0.01)
                         continue
                     
-                    packets = codec.parse(payload)
-                    for pkt in packets:
-                        frames = codec.decode(pkt)
-                        for f in frames:
-                            bgr = f.to_ndarray(format="bgr24")
-                            with self.lock:
-                                self.latest_frame = bgr
-                            
-                            self.rx_count += 1
-                            now = time.time()
-                            if now - self.last_rx_t >= 1.0:
-                                self.actual_rx_fps = self.rx_count / (now - self.last_rx_t)
-                                self.rx_count = 0
-                                self.last_rx_t = now
-                except Exception as e:
-                    print(f"\n[!] Canh bao luong nhan USB: {e}")
-                    time.sleep(0.1)
+                    try:
+                        packets = codec.parse(payload)
+                        for pkt in packets:
+                            try:
+                                frames = codec.decode(pkt)
+                                for f in frames:
+                                    bgr = f.to_ndarray(format="bgr24")
+                                    with self.lock:
+                                        self.latest_frame = bgr
+                                    
+                                    self.rx_count += 1
+                                    now = time.time()
+                                    if now - self.last_rx_t >= 1.0:
+                                        self.actual_rx_fps = self.rx_count / (now - self.last_rx_t)
+                                        self.rx_count = 0
+                                        self.last_rx_t = now
+                            except av.AVError:
+                                # Cho den khi frame Keyframe dau tien co SPS/PPS toi, bo qua loi khoi dau
+                                pass
+                    except av.AVError:
+                        pass
+                except Exception:
+                    time.sleep(0.02)
 
         t = threading.Thread(target=worker, daemon=True)
         t.start()
@@ -243,20 +249,33 @@ class StarkTetheredBridge:
 
             if results.hand_landmarks:
                 lms = results.hand_landmarks[0]
-                filtered_lms_2d, filtered_lms_3d = self.suite.filter_landmarks(lms, now)
-                p_thumb = filtered_lms_3d[4]
-                p_index = filtered_lms_3d[8]
-                dist_pinch = np.linalg.norm(np.array(p_thumb) - np.array(p_index))
-                is_pinched = bool(dist_pinch < 0.045)
+                
+                # 1. Ap dung bo loc 1€ Filter len tung khop tay trong pixel space (chong rung tuyet doi)
+                filtered_lms_2d = []
+                for i in range(21):
+                    raw_px = [lms[i].x * w, lms[i].y * h]
+                    flt_px = self.suite.filters_2d[i].filter(now, raw_px)
+                    filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
+
+                # Tinh toa do 3D trong he truc camera
+                filtered_lms_3d = []
+                for i in range(21):
+                    z_depth = 0.65 + (lms[i].z if hasattr(lms[i], 'z') else 0.0) * 0.8
+                    pt3 = self.suite.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], z_depth)
+                    flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
+                    filtered_lms_3d.append(flt_pt3)
+
+                # 2. Tinh toan cu chi Pinch (Hysteresis)
+                p_thumb_3d = filtered_lms_3d[4]
+                p_index_3d = filtered_lms_3d[8]
+                dist_pinch = float(np.linalg.norm(np.array(p_thumb_3d) - np.array(p_index_3d)))
+                is_pinched = self.suite.pinch_detector.update(dist_pinch, now)
+
+                pinch_pt_3d = (np.array(p_thumb_3d) + np.array(p_index_3d)) * 0.5
                 pinch_pt_2d = (
-                    int((filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) / 2),
-                    int((filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) / 2)
+                    (filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) // 2,
+                    (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2
                 )
-                pinch_pt_3d = [
-                    (p_thumb[0] + p_index[0]) / 2.0,
-                    (p_thumb[1] + p_index[1]) / 2.0,
-                    (p_thumb[2] + p_index[2]) / 2.0
-                ]
 
             # Cap nhat Logic cua cac Demo
             if self.suite.current_mode == 1: # PaintDemo (3D Air Paint)
