@@ -3,9 +3,40 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.71 PRO - Native iOS 4K 60-120FPS USB App & Tethered Spatial XR Bridge)
+## Current Status (v10.2.67 PRO for EduNext AI Assistant & v10.2.73 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.71 PRO**
+- **EduNext AI Assistant Pro**: **v10.2.67 PRO** (Live CDN: `v10_2_67_minified.js`)
+- **STARK Air Mouse & XR Pipeline**: **v10.2.73 PRO**
+
+- **Khắc Phục Triệt Để Lỗi Crash "Cannot read properties of null (reading 'trim')" & Timeout Cầu Nối AI Bridge (v10.2.67 PRO)**:
+  1. **Nguyên nhân gốc rễ (Root Cause)**:
+     - Trong [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js): Khi `solveOnServer` trả về `null` (do mạng lag hoặc Cầu Nối Bridge quá hạn 25s), biến `A` nhận giá trị `null`.
+     - Code cũ đặt đoạn kiểm tra `hasActualExercise && /^(?:yes|sẵn\s*sàng|ready)[!.]?$/i.test(A.trim())` ở phía TRƯỚC điều kiện `if (!A || ...)`. Việc gọi `.trim()` trên `null` làm ném ngoại lệ JavaScript `TypeError: Cannot read properties of null (reading 'trim')` và văng vòng lặp giải bài.
+     - Hàm `async function z(e)` cũng gọi `e.trim()` mà chưa kiểm tra `if (!e || typeof e !== "string")`.
+     - Thời gian timeout cũ của Bridge là 25s, quá sát với độ trễ cold-start serverless khi upload screenshot phân giải cao.
+  2. **Giải pháp triệt để đã triển khai**:
+     - Đặt chốt chặn an toàn `if (!A || typeof A !== "string" || !A.trim() || /_{0,2}\s*NO_QUESTION\s*_{0,2}/i.test(A))` ngay từ đầu vòng lặp. Tuyệt đối không bao giờ dereference `null`.
+     - Thêm bảo vệ cho `z(e)`: Kiểm tra kiểu dữ liệu chuỗi hợp lệ trước khi gọi `.trim()`.
+     - Tăng timeout phản hồi của Cầu Nối AI Bridge lên **35 giây**, bổ sung `AbortController` 24s bên trong [bridge.html](file:///d:/BUISINESS/FPT%20service/public/bridge.html) để server trả về lỗi kịp thời thay vì treo chờ.
+     - Đồng bộ phiên bản toàn diện **v10.2.67 PRO**, biên dịch Turbopack 0 lỗi, đẩy code lên GitHub `fpt-studyhub` & `NX`, purge cache jsDelivr toàn cầu thành công.
+- **Khắc Phục Triệt Để Hiện Tượng Cửa Sổ Bị Đơ Xám "(Not Responding)" Trên [stark_tethered_bridge.py](file:///d:/BUISINESS/Stark_Air_Mouse_App/stark_tethered_bridge.py)**:
+  1. **Nguyên nhân**:
+     - Khi vừa mở cửa sổ OpenCV `namedWindow()`, nếu luồng frame từ camera iPhone đang khởi tạo hoặc người dùng chưa bấm nút cấp quyền Camera trên iPhone, biến `frame is None`.
+     - Vòng lặp cũ thực hiện `time.sleep(0.01)` và `continue` mà KHÔNG gọi `cv2.waitKey(1)`. Việc thiếu lệnh bơm thông điệp cửa sổ của Windows khiến hệ điều hành đánh dấu cửa sổ là `(Not Responding)` và phủ màu xám.
+  2. **Giải pháp đã triển khai**:
+     - Bổ sung màn hình HUD tải trạng thái thời gian thực với `cv2.waitKey(20)`: Tuyệt đối không bao giờ bị treo hay đơ xám.
+     - Tự động hiển thị trạng thái kết nối cáp USB, độ trễ và hướng dẫn cấp quyền.
+     - Tự động bắt luồng camera dự phòng (Camo Studio index 2 / Laptop webcam index 0) nếu luồng USB chưa gửi frame, hoặc người dùng có thể bấm phím **`X`** để đảo nguồn camera tức thì!
+- **Build Thành Công 100% Ứng Dụng Native iOS "STARK XR Cam" Trên Cloud Mac Runner (Xcode 16 / macOS-latest)**:
+  1. **Kết quả biên dịch**:
+     - Tiến trình GitHub Actions `Build STARK Native iOS App (IPA)` (ID `43670206937`) đã hoàn thành thành công rực rỡ trong 34 giây với **0 LỖI**.
+     - Mã nguồn Swift gốc (`CameraEngine`, `H264Encoder` A15 Bionic, `USBTunnel`, `ViewController`) đã được đóng gói thành công thành file cài đặt: **`STARK_Cam_iOS.ipa`**.
+  2. **Tự động tải về máy tính**:
+     - File IPA đã được tải sẵn về thư mục: `D:\BUISINESS\STARK_Cam_iOS_IPA\STARK_Cam_iOS.ipa`.
+     - Đã bật sẵn cửa sổ Explorer thư mục chứa file IPA trên màn hình cho người dùng.
+  3. **Sideloadly sẵn sàng nạp vào iPhone**:
+     - Ứng dụng `sideloadly.exe` đã được cài đặt và đang chạy sẵn trên máy (PID 6720).
+     - Người dùng chỉ cần kéo file `STARK_Cam_iOS.ipa` vào Sideloadly và bấm Start là xong 100%!
 - **Xây Dựng Hoàn Chỉnh Ứng Dụng Native iOS "STARK XR Cam" & Cầu Nối Cáp USB 2 Chiều (Zero Web / Zero License / 4K 60-120 FPS)**:
   1. **Khắc phục toàn bộ bức xúc của người dùng**:
      - Loại bỏ triệt để việc phụ thuộc vào Camo Pro (đòi tiền khóa 1080p60/4K), DroidCam Pro (đòi tiền), hay Iriun (báo lỗi trên App Store).
