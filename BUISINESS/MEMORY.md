@@ -3,10 +3,26 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.73 PRO for EduNext AI Assistant & v10.2.84 PRO for STARK Air Mouse)
+## Current Status (v10.2.74 PRO for EduNext AI Assistant & v10.2.84 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.73 PRO** (Live CDN: `v10_2_73_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.74 PRO** (Live CDN: `v10_2_74_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.84 PRO**
+
+- **Đồng Bộ Tên Phiên Bản v10.2.74 PRO & Nâng Cấp Video Trailer Mô Phỏng (v10.2.74 PRO)**:
+  1. **Đồng bộ hóa phiên bản 100% trên toàn bộ hệ sinh thái**:
+     - Cập nhật đồng nhất lên **v10.2.74 PRO** trên tất cả các trang và linh kiện: [Navbar.tsx](file:///d:/BUISINESS/FPT%20service/src/components/landing/Navbar.tsx), [HeroSection.tsx](file:///d:/BUISINESS/FPT%20service/src/components/landing/HeroSection.tsx), [ServiceCatalog.tsx](file:///d:/BUISINESS/FPT%20service/src/components/landing/ServiceCatalog.tsx), [ComparisonTable.tsx](file:///d:/BUISINESS/FPT%20service/src/components/landing/ComparisonTable.tsx), [FaqSection.tsx](file:///d:/BUISINESS/FPT%20service/src/components/landing/FaqSection.tsx), [Footer.tsx](file:///d:/BUISINESS/FPT%20service/src/components/landing/Footer.tsx), [ActivationSuccessModal.tsx](file:///d:/BUISINESS/FPT%20service/src/components/checkout/ActivationSuccessModal.tsx), [servicesCatalog.ts](file:///d:/BUISINESS/FPT%20service/src/data/servicesCatalog.ts), [layout.tsx](file:///d:/BUISINESS/FPT%20service/src/app/layout.tsx), [utils.ts](file:///d:/BUISINESS/FPT%20service/src/lib/utils.ts).
+     - Khối core và proxy: [edunext-client.js](file:///d:/BUISINESS/FPT%20service/scripts/edunext-client.js), [route.ts](file:///d:/BUISINESS/FPT%20service/src/app/api/v1/ai/solve/route.ts), [bridge.html](file:///d:/BUISINESS/FPT%20service/public/bridge.html), [Cai_Dat_Bookmark_EduNext.html](file:///d:/BUISINESS/FPT%20service/public/Cai_Dat_Bookmark_EduNext.html), [generate_keo_page.js](file:///d:/BUISINESS/FPT%20service/scripts/generate_keo_page.js).
+  2. **Nâng cấp trực quan Video Trailer mô phỏng ([DemoVideoTrailer.tsx](file:///d:/BUISINESS/FPT%20service/src/components/landing/DemoVideoTrailer.tsx))**:
+     - Đồng bộ huy hiệu `Live Simulation (v10.2.74 PRO)` trên thanh duyệt web và tiêu đề HUD.
+     - Nâng cấp kịch bản mô phỏng 4 bước:
+       + *Bước 1 (0s-7s)*: Quét đề bài CSD201 bằng Auto Vision.
+       + *Bước 2 (7s-14s)*: Gemini 2.0 Flash-Lite phân tích và giải theo mẫu `Trả lời: [đáp án]`.
+       + *Bước 3 (14s-21s)*: Điền trực tiếp qua React Fiber 5 tầng và nộp thành công 10/10 điểm.
+       + *Bước 4 (21s-28s)*: Tự động bắt câu hỏi chuyển phần ("Are you ready to move on?") ➔ Tự động gõ & nộp "Yes". Ngay khi xuất hiện màn hình tổng kết tiếng Anh **Lesson Complete** (`Lesson score: 95/100`, `Correct: 35`, `See you in the next lesson!`), HUD lập tức chuyển sang nút xanh **`✅ Hoàn thành`**, badge hiển thị **`✅`**, ghi nhận log `🎉 PHÁT HIỆN KẾT BÀI: Lesson Complete... Tự động dừng bot 100%`, thể hiện trực quan tính năng tự ngắt thông minh bảo vệ tài khoản sinh viên.
+  3. **Phát hành CDN jsDelivr & Kiểm thử Turbopack**:
+     - Đã biên dịch bundle `edunextBundle.ts`, tạo file CDN `v10_2_74_minified.js` và đồng bộ toàn bộ file tương thích ngược.
+     - Đã kiểm thử `next build` Turbopack: Vượt qua với 0 lỗi (Exit Code 0).
+     - Đã xóa sạch cache biên jsDelivr qua API purge (`Purged BUISINESS/v10_2_74_minified.js: finished`).
 
 - **Tối Ưu Hóa Hiệu Năng Đồ Họa 600x & Xóa Bỏ Đè Chữ Giao Diện Không Gian (v10.2.84 PRO)**:
   1. **Giải phẫu video thực tế người dùng vừa gửi (`media_1794728882073_798f3b94.mp4`)**:
