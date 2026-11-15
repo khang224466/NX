@@ -3,38 +3,25 @@ Completed At: 2026-11-14T18:30:00+07:00
 
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.77 PRO for EduNext AI Assistant & v10.2.86 PRO for STARK Air Mouse)
+## Current Status (v10.2.79 PRO for EduNext AI Assistant & v10.2.86 PRO for STARK Air Mouse)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- **EduNext AI Assistant Pro**: **v10.2.77 PRO** (Live CDN: `v10_2_77_minified.js`)
+- **EduNext AI Assistant Pro**: **v10.2.79 PRO** (Live CDN: `v10_2_79_minified.js`)
 - **STARK Air Mouse & XR Pipeline**: **v10.2.86 PRO**
 
-- **Khắc Phục Hoàn Toàn Lỗi Không Bấm Thẻ "Làm Rõ Ý Định" & Chặn Đứng Gọi Gemini Lãng Phí (v10.2.77 PRO)**:
-  1. **Nguyên nhân chính xác từ ảnh người dùng vừa gửi (`sao vẫn đéo click vậy`)**:
-     - *Nguyên nhân 1 (Lỗi phạm vi `closest('..., div')`)*: Trong code cũ, `confirmBtn.closest('..., div')` đã chọn trúng thẻ div bao bọc ngay sát nút bấm (chỉ chứa chữ `"Xác nhận lựa chọn →"`), khiến `isClarifyVisible` kiểm tra không thấy chữ `"Làm rõ ý định"` và trả về `false`, khiến bot thoát ngay mà không click!
-     - *Nguyên nhân 2 (Thay đổi tiêu đề & nội dung các môn học)*:
-       - Môn Toán: Tiêu đề `"Ý nào dưới đây đúng với bạn nhất?"`, các lựa chọn `"01 Tiếp tục..."`, `"02 Xin giải thích thêm"`, `"03 Cần thêm thời gian"`.
-       - Môn Vật Lý (trong ảnh mới): Tiêu đề `"Bạn muốn tiếp tục thế nào?"`, các lựa chọn `"01 Tiếp tục sang phần sau"`, `"02 Hỏi lý thuyết"`, `"03 Giải thích đơn giản hơn"`.
-       - Code cũ lọc cứng danh sách từ khóa nên khi gặp môn Lý bị trượt không tìm ra các lựa chọn.
-     - *Nguyên nhân 3 (Luồng `w()` gửi nhầm câu hỏi tương tác cho Gemini)*:
-       - Câu hỏi của giáo viên: `"Bạn muốn tìm hiểu thêm về lý thuyết, cần tôi giải thích đơn giản hơn hay muốn chuyển sang phần tiếp theo?"` kết thúc bằng dấu `?`.
-       - Code cũ tưởng đây là câu hỏi học sinh cần giải, gửi cho Gemini làm bot log: `[16:37:25] ⚡ Bắt được câu hỏi! Gửi Gemini Flash-Lite giải ngay...`, chiếm dụng status và sau đó báo lỗi không tìm thấy ô nhập liệu.
-  2. **Giải pháp triệt để đã triển khai**:
-     - **Bóc tách bộ nhận diện toàn diện không phụ thuộc `closest`**:
-       - Quét toàn bộ trang tìm các dấu hiệu: `LÀM RÕ Ý ĐỊNH`, `CLARIFY INTENT`, `INT: CLARIFY_INTENT`, `Bạn muốn tiếp tục thế nào`, `Ý nào dưới đây đúng`, `Chờ bạn chọn ở phía trên · Không cần nhập văn bản`.
-       - Quét tìm nút `Xác nhận lựa chọn` / `Confirm selection` đang hiển thị trên màn hình (`offsetParent !== null`).
-     - **Thuật toán quét lựa chọn 3 tầng siêu chuẩn**:
-       - *Tầng 1*: Quét tất cả các thẻ bắt đầu bằng số `01`, `02`, `03` (đáp ứng 100% mọi môn học Toán, Lý, Hóa, Sinh, Tiếng Anh).
-       - *Tầng 2*: Quét các thẻ có role radio hoặc class radio của Ant Design.
-       - *Tầng 3*: Quét từ khóa ngữ cảnh mở rộng.
-     - **Cơ chế kích hoạt Full Pointer Event**:
-       - Gửi trọn vẹn chuỗi sự kiện `pointerdown` ➔ `mousedown` ➔ `pointerup` ➔ `mouseup` ➔ `click` vào cả thẻ radio và text lựa chọn, cập nhật state React Fiber, chờ 350ms, sau đó bấm nút `Xác nhận lựa chọn →`.
-     - **Đặt chốt chặn Ưu Tiên 0 trong `Q()`**:
-       - Ngay khi `Q()` chạy (dù là Auto Loop hay bấm nút Chụp), nếu phát hiện thẻ Làm Rõ Ý Định, bot kích hoạt `checkAndHandleClarifyIntent()` xử lý và bấm ngay trong 350ms, reset đếm ngược về 5s và THOÁT NGAY LẬP TỨC!
-       - Tuyệt đối KHÔNG gửi câu hỏi gợi ý của giáo viên cho Gemini, triệt tiêu 100% việc lãng phí token và lỗi ô nhập liệu.
-  3. **Kiểm thử & Phát hành**:
-     - Đồng bộ toàn bộ phiên bản lên **v10.2.77 PRO**, build bundle CDN `v10_2_77_minified.js`, kiểm thử Turbopack `next build` 0 lỗi.
-     - Push Git submodule `fpt-studyhub` và root `NX`.
-     - Xóa cache jsDelivr toàn cầu (`finished`).
+- **Khắc Phục Hoàn Toàn 3 Ca Biên Trọng Điểm Từ 6 Ảnh EduNext Của Người Dùng (v10.2.79 PRO)**:
+  1. **Ca 1 - Thẻ "Làm Rõ Ý Định" / Clarify Intent (Ảnh 5 & 6)**:
+     - *Hiện tượng*: EduNext hiển thị khung `LÀM RÕ Ý ĐỊNH` với 3 lựa chọn (Ví dụ: `01 Tiếp tục sang phần sau`, `02 Xin giải thích thêm / Hỏi lý thuyết`, `03 Cần thêm thời gian / Giải thích đơn giản hơn`) và nút `Xác nhận lựa chọn →`, kèm chú thích `* Chờ bạn chọn ở phía trên - Không cần nhập văn bản`. Bot cũ tưởng là câu hỏi tự luận, gửi qua Gemini, Gemini trả lời `Trả lời: 01...`, rồi bot báo lỗi `Lỗi: Không tìm thấy ô nhập liệu để nộp bài`.
+     - *Khắc phục chuẩn xác (Khoanh vùng thẻ sâu nhất + Kích hoạt React Radio)*:
+       - Thuật toán `getClarifyIntentCard()` tìm đúng container sâu nhất chứa đủ 3 dấu hiệu: Tiêu đề `LÀM RÕ Ý ĐỊNH` / `CLARIFY INTENT`, nút `Xác nhận lựa chọn` / `Confirm selection`, và các lựa chọn `01... 02...`. Tuyệt đối không ăn nhầm toàn trang hay câu hỏi khác.
+       - Tự động bắt đúng các ô lựa chọn, kích hoạt đầy đủ: React `checked` native setter + `input` + `change` event trên `input[type="radio"]`, kèm `dispatchFullClick` lên thẻ radio, label và container lựa chọn.
+       - Chờ 400ms để React state render kích hoạt nút Xác nhận, rồi bấm nút `Xác nhận lựa chọn →` (loại bỏ thuộc tính `disabled`, click và retry click nếu cần).
+       - Hoàn toàn KHÔNG gửi văn bản qua Gemini và KHÔNG tìm ô nhập liệu khi thẻ này đang hiện.
+  2. **Ca 2 - Kết thúc bài học "Lesson Complete" (Ảnh 4)**:
+     - *Hiện tượng*: Khi học xong buổi học, EduNext hiển thị màn hình tổng kết: `VII COMMUNICATION AND CULTURE / CLIL - Lesson Complete`, `Lesson score: ...`, `See you in the next lesson!`. Bot cũ không dừng mà tiếp tục gửi qua Gemini và nộp nội dung: `Answer: Study this lesson again`.
+     - *Khắc phục*: Thêm chốt chặn hoàn thành buổi học ngay đầu hàm `Q()`: Quét tìm `Lesson Complete`, `See you in the next lesson!`, `Review Suggestions & Message`, `Hoàn thành buổi học`. Khi phát hiện, lập tức tắt Auto Loop (`d = false`), dừng đếm ngược, hiển thị thông báo xanh: `🎉 ĐÃ HOÀN THÀNH BÀI HỌC (Lesson Complete)! Tự động dừng.` và dừng nộp 100%.
+  3. **Ca 3 - Dạng bài Nối từ / Matching Column A & B (Ảnh 1, 2, 3)**:
+     - *Hiện tượng*: Câu hỏi `Match words from Column A with words from Column B to create 4 phrases (Column A: folk, cultural, beautiful, ancient / Column B: architecture, landscape, singing, heritage)`. Bot đoán mò các từ không có trong cột (như 'music') hoặc trả lời địa danh ('My Son Sanctuary').
+     - *Khắc phục*: Tích hợp quy tắc bắt buộc cho bài tập Matching: Chỉ dùng đúng từ trong cột đề bài, ghép chuẩn collocations SGK (`folk singing, cultural heritage, beautiful landscape, ancient architecture`), và truyền đầy đủ nhận xét từ chối/gợi ý của giáo viên để Gemini sửa lỗi chuẩn xác.
 
 - **Tái Cấu Trúc Toàn Diện Cơ Chế Điều Khiển Không Gian CardboardXR & Rời Xa Laptop Hoàn Toàn (v10.2.86 PRO)**:
   1. **Yêu cầu chỉ đạo từ người dùng**:
