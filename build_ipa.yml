@@ -1,0 +1,51 @@
+name: Build STARK Native iOS App (IPA)
+
+on:
+  push:
+    paths:
+      - 'BUISINESS/STARK_Cam_iOS/**'
+      - '.github/workflows/build_ipa.yml'
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        working-directory: BUISINESS/STARK_Cam_iOS
+        run: xcodegen generate
+
+      - name: Build iOS App Archive
+        working-directory: BUISINESS/STARK_Cam_iOS
+        run: |
+          xcodebuild archive \
+            -project STARK_Cam_iOS.xcodeproj \
+            -scheme STARK_Cam_iOS \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/STARK_Cam_iOS.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package IPA
+        working-directory: BUISINESS/STARK_Cam_iOS
+        run: |
+          mkdir -p build/Payload
+          cp -r build/STARK_Cam_iOS.xcarchive/Products/Applications/STARK_Cam_iOS.app build/Payload/
+          cd build
+          zip -r STARK_Cam_iOS.ipa Payload
+          echo "IPA build completed successfully!"
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: STARK_Cam_iOS_IPA
+          path: BUISINESS/STARK_Cam_iOS/build/STARK_Cam_iOS.ipa
+          retention-days: 30
