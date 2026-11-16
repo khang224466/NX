@@ -497,6 +497,8 @@ class StarkTetheredBridge:
                     self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
                 elif self.suite.current_mode == 6:
                     self.suite.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
+                elif self.suite.current_mode == 7:
+                    self.suite.video_demo.update(dt)
 
             # =================================================================
             # RENDER: 1 MAN HINH DUY NHAT (SINGLE SCREEN) HOAC CHIA DOI STEREO SBS
@@ -530,6 +532,8 @@ class StarkTetheredBridge:
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
                 elif self.suite.current_mode == 6:
                     self.suite.spatial_sim_demo.draw(out_frame, self.suite.spatial_cam, now, 0)
+                elif self.suite.current_mode == 7:
+                    self.suite.video_demo.draw(out_frame, is_stereo=False, eye_idx=0, off_x=0)
 
                 # 2. Ve con tro khong gian & khung xuong tuy chon (CardboardXR HandJointsView.cs)
                 if filtered_lms_2d is not None:
@@ -631,6 +635,9 @@ class StarkTetheredBridge:
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
                     elif self.suite.current_mode == 6:
                         self.suite.spatial_sim_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                    elif self.suite.current_mode == 7:
+                        eye_idx = 0 if off_x <= 0 else 1
+                        self.suite.video_demo.draw(target_frame, is_stereo=True, eye_idx=eye_idx, off_x=off_x)
 
                     if filtered_lms_2d is not None:
                         pts_mapped = []
@@ -664,6 +671,9 @@ class StarkTetheredBridge:
                     menu_parallax = 4 if off_x < 0 else -4
                     self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax, bridge=self)
 
+                if getattr(self.suite, 'enable_distortion', False):
+                    left_eye = self.suite.radial_distortion.apply(left_eye)
+                    right_eye = self.suite.radial_distortion.apply(right_eye)
                 sbs_frame = np.hstack((left_eye, right_eye))
                 cv2.line(sbs_frame, (eye_w, 0), (eye_w, eye_h), (0, 0, 0), 4)
                 final_frame = sbs_frame
@@ -695,6 +705,10 @@ class StarkTetheredBridge:
             elif key == ord('4'): self.suite.current_mode = 4
             elif key == ord('5'): self.suite.current_mode = 5
             elif key == ord('6'): self.suite.current_mode = 6
+            elif key == ord('7'): self.suite.current_mode = 7; print("[*] Chuyen sang: Video VR (360/180 Player)")
+            elif key == ord('d') or key == ord('D'):
+                self.suite.enable_distortion = not getattr(self.suite, 'enable_distortion', False)
+                print(f"[STARK] Cardboard Lens Distortion: {'BAT' if self.suite.enable_distortion else 'TAT'}")
             elif key == ord('v') or key == ord('V'):
                 self.suite.stereo_vr_mode = not self.suite.stereo_vr_mode
             elif key == ord('f') or key == ord('F'):

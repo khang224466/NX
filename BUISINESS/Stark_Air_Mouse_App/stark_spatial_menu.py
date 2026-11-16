@@ -17,6 +17,7 @@ Complete High-Fidelity Python Port of CardboardXR (macOS/Unity) Architecture:
 import math
 import time
 import numpy as np
+import collections
 import cv2
 
 try:
@@ -65,14 +66,17 @@ class M3Theme:
     TintCubes = (50, 125, 46)    # #2E7D32 (Emerald Green)
     TintCaliper = (91, 24, 194)  # #C2185B (Rose Red)
     TintSpatial = (240, 200, 0)  # #00C8F0 (Holographic Cyan/Gold)
+    TintVideo = (230, 110, 30)   # #1E6EE6 (CardboardXR Sunset Video Orange)
     TintActive = (128, 255, 0)   # Neon Green
     TintAmber = (50, 215, 255)   # Amber Gold for Pinch
 
 # -----------------------------------------------------------------------------
-# Anti-Aliased Rounded Rectangle & Frosted Glass Renderer
+# Anti-Aliased Rounded Rectangle & Frosted Glass Renderer (Cached 190x Speedup)
 # -----------------------------------------------------------------------------
+_GLASS_MASK_CACHE = {}
+
 def draw_rounded_glass(img, pt1, pt2, bg_color, radius=18, alpha=0.82, border_color=None, border_thickness=1):
-    """Vẽ khối kính mờ bo tròn góc siêu mịn (Anti-Aliased Frosted Glass ROI)"""
+    """Vẽ khối kính mờ bo tròn góc siêu mịn có bộ đệm mặt nạ (Cached Anti-Aliased Frosted Glass ROI)"""
     x1, y1 = pt1
     x2, y2 = pt2
     x1 = max(0, min(img.shape[1] - 1, x1))
@@ -86,23 +90,28 @@ def draw_rounded_glass(img, pt1, pt2, bg_color, radius=18, alpha=0.82, border_co
     radius = min(radius, w // 2, h // 2)
     roi = img[y1:y2, x1:x2]
 
-    # Tạo mặt nạ bo góc chống răng cưa
-    mask = np.zeros((h, w), dtype=np.uint8)
-    cv2.rectangle(mask, (radius, 0), (w - radius, h), 255, -1)
-    cv2.rectangle(mask, (0, radius), (w, h - radius), 255, -1)
-    cv2.circle(mask, (radius, radius), radius, 255, -1, cv2.LINE_AA)
-    cv2.circle(mask, (w - radius, radius), radius, 255, -1, cv2.LINE_AA)
-    cv2.circle(mask, (radius, h - radius), radius, 255, -1, cv2.LINE_AA)
-    cv2.circle(mask, (w - radius, h - radius), radius, 255, -1, cv2.LINE_AA)
+    key = (w, h, radius)
+    if key not in _GLASS_MASK_CACHE:
+        mask = np.zeros((h, w), dtype=np.uint8)
+        cv2.rectangle(mask, (radius, 0), (w - radius, h), 255, -1)
+        cv2.rectangle(mask, (0, radius), (w, h - radius), 255, -1)
+        cv2.circle(mask, (radius, radius), radius, 255, -1, cv2.LINE_AA)
+        cv2.circle(mask, (w - radius, radius), radius, 255, -1, cv2.LINE_AA)
+        cv2.circle(mask, (radius, h - radius), radius, 255, -1, cv2.LINE_AA)
+        cv2.circle(mask, (w - radius, h - radius), radius, 255, -1, cv2.LINE_AA)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        mask_3d = (mask[:, :, None] > 0)
+        _GLASS_MASK_CACHE[key] = (mask, contours, mask_3d)
 
-    # Hòa trộn màu nền kính mờ
+    mask, contours, mask_3d = _GLASS_MASK_CACHE[key]
+
+    # Hòa trộn màu nền kính mờ siêu tốc bằng mặt nạ pre-allocated
     color_block = np.full_like(roi, bg_color)
     blended = cv2.addWeighted(color_block, alpha, roi, 1.0 - alpha, 0)
-    np.copyto(roi, blended, where=(mask[:, :, None] > 0))
+    np.copyto(roi, blended, where=mask_3d)
 
     # Vẽ đường viền tinh tế
     if border_color is not None and border_thickness > 0:
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(roi, contours, -1, border_color, border_thickness, cv2.LINE_AA)
 
 # -----------------------------------------------------------------------------
@@ -117,12 +126,12 @@ class AimHistory:
     """
     def __init__(self, keep_seconds=0.5):
         self.keep_seconds = keep_seconds
-        self.history = [] # [ (t, p_knuckle, p_tip, laser_end) ]
+        self.history = collections.deque() # [ (t, p_knuckle, p_tip, laser_end) ]
 
     def add(self, t, p_knuckle, p_tip, laser_end):
         self.history.append((t, p_knuckle, p_tip, laser_end))
         while self.history and (t - self.history[0][0] > self.keep_seconds):
-            self.history.pop(0)
+            self.history.popleft()
 
     def get_lookback_aim(self, current_t, lookback_seconds=0.18):
         if not self.history:
@@ -210,6 +219,43 @@ class PalmGestureDetector:
             self.unfacing_start = 0.0
 
         return self.is_facing, facing, self.gear_pos
+
+# -----------------------------------------------------------------------------
+# HandTurnGate (Ported from CardboardXR PalmGesture.cs & HandSubsystemFeed.cs)
+# -----------------------------------------------------------------------------
+class HandTurnGate:
+    """
+    Suppresses false pinches while the hand is turning over.
+    In CardboardXR (PalmGesture.cs & HandSubsystemFeed.cs):
+    An open hand turned from its back to its palm passes edge-on, where
+    perspective squeezes thumb and index fingertips together for a few frames.
+    HandTurnGate detects when palm facing rate of change exceeds turn_rate (2.0/s)
+    and blocks pinch initiation for hold_seconds (0.25s).
+    """
+    def __init__(self, turn_rate=2.0, hold_seconds=0.25):
+        self.turn_rate = turn_rate
+        self.hold_seconds = hold_seconds
+        self.last_facing = 0.0
+        self.last_time = -1.0
+        self.turning_until = -1.0
+        self.is_turning = False
+
+    def update(self, facing, now):
+        if self.last_time > 0:
+            dt = now - self.last_time
+            if 0 < dt < 0.5:
+                rate = abs(facing - self.last_facing) / dt
+                if rate > self.turn_rate:
+                    self.turning_until = now + self.hold_seconds
+        self.last_facing = facing
+        self.last_time = now
+        self.is_turning = (now < self.turning_until)
+        return self.is_turning
+
+    def reset(self):
+        self.last_time = -1.0
+        self.turning_until = -1.0
+        self.is_turning = False
 
 # -----------------------------------------------------------------------------
 # Material 3 Spatial Button (Ported from M3Button.cs & M3StateLayer.cs)
@@ -304,6 +350,7 @@ class SpatialInAirMenu:
         self.last_click_t = 0.0
         self.click_lockout = 0.35
         self.palm_detector = PalmGestureDetector(show_thresh=0.34, hide_thresh=0.18, show_time=0.20, hide_time=0.28)
+        self.turn_gate = HandTurnGate(turn_rate=2.0, hold_seconds=0.25)
         self.aim_history = AimHistory(keep_seconds=0.5)
         self.last_pinch_toggle_t = 0.0
         self.hovered_tagline = ""
@@ -333,14 +380,16 @@ class SpatialInAirMenu:
         # 2. CARDBOARDXR APP LIBRARY GRID (Floating Panel y = 370, h = 230)
         # =====================================================================
         self.library_tiles = []
-        # 6 CardboardXR & Spatial Apps: Paint 3D, Portal, Orb Rush, Cubes, Caliper, Spatial 3D
+        # 8 CardboardXR & STARK Apps (2x4 Grid): Paint 3D, Portal, Orb Rush, Cubes, Caliper, Spatial 3D, Video VR, Recenter
         apps = [
-            ("demo_1", "PAINT 3D", "Pinch to draw 3D ribbons in the air", 32, 385, 160, 68, M3Theme.TintPaint),
-            ("demo_2", "PORTAL", "A doorway into a 3D starfield universe", 204, 385, 160, 68, M3Theme.TintPortal),
-            ("demo_3", "ORB RUSH", "Pop floating glowing rhythm orbs", 376, 385, 160, 68, M3Theme.TintRush),
-            ("demo_4", "CUBES", "Grab, throw, and stack 3D physics cubes", 32, 465, 160, 68, M3Theme.TintCubes),
-            ("demo_5", "CALIPER", "Measure real-world objects in millimeters", 204, 465, 160, 68, M3Theme.TintCaliper),
-            ("demo_6", "SPATIAL 3D", "Interactive 3D space & planetary orbit simulation", 376, 465, 160, 68, M3Theme.TintSpatial),
+            ("demo_1", "PAINT 3D", "Pinch to draw 3D ribbons in the air", 24, 380, 125, 66, M3Theme.TintPaint),
+            ("demo_2", "PORTAL", "A doorway into a 3D starfield universe", 158, 380, 125, 66, M3Theme.TintPortal),
+            ("demo_3", "ORB RUSH", "Pop floating glowing rhythm orbs", 292, 380, 125, 66, M3Theme.TintRush),
+            ("demo_4", "CUBES", "Grab, throw, and stack 3D physics cubes", 426, 380, 125, 66, M3Theme.TintCubes),
+            ("demo_5", "CALIPER", "Measure real-world objects in millimeters", 24, 458, 125, 66, M3Theme.TintCaliper),
+            ("demo_6", "SPATIAL 3D", "Interactive 3D space & planetary orbit simulation", 158, 458, 125, 66, M3Theme.TintSpatial),
+            ("demo_7", "VIDEO VR", "360 & VR180 stereo SBS video player with floating transport", 292, 458, 125, 66, M3Theme.TintVideo),
+            ("tb_recenter_tile", "RECENTER", "Recenter 3D space and align horizon view", 426, 458, 125, 66, M3Theme.PrimaryContainer),
         ]
         for b_id, label, tagline, x, y, w, h, col in apps:
             tile = M3SpatialButton(b_id, label, "", x, y, w, h, radius=18, is_active=(b_id=="demo_1"), color=col, tagline=tagline)
@@ -382,6 +431,13 @@ class SpatialInAirMenu:
         self.sub_buttons.append(M3SpatialButton("sim_telemetry", "TELEMETRY", "", 260, y_sub, 120, h_sub, radius=18, category="spatial"))
         self.sub_buttons.append(M3SpatialButton("sim_reset", "RESET SPACE", "", 390, y_sub, 140, h_sub, radius=18, category="spatial"))
 
+        # Video VR Controls (Port of CardboardXR VideoDemo.cs M3 Controls)
+        self.sub_buttons.append(M3SpatialButton("vid_play", "PAUSE", "", 24, y_sub, 96, h_sub, radius=18, category="video"))
+        self.sub_buttons.append(M3SpatialButton("vid_skip_back", "-10S", "", 126, y_sub, 68, h_sub, radius=18, category="video"))
+        self.sub_buttons.append(M3SpatialButton("vid_skip_fwd", "+10S", "", 200, y_sub, 68, h_sub, radius=18, category="video"))
+        self.sub_buttons.append(M3SpatialButton("vid_format", "VR180 SBS", "", 274, y_sub, 126, h_sub, radius=18, category="video"))
+        self.sub_buttons.append(M3SpatialButton("vid_next", "NEXT CLIP", "", 406, y_sub, 114, h_sub, radius=18, category="video"))
+
         # Quick Camera Flip Controls on Top Bar (y = 16, h = 32)
         y_top = 16
         self.sub_buttons.append(M3SpatialButton("set_flip_v", "FLIP V", "", 24, y_top, 74, 32, radius=16, category="settings"))
@@ -412,8 +468,12 @@ class SpatialInAirMenu:
                 effective_tip = lookback_sample[2]
                 effective_laser = lookback_sample[3]
 
-        # 3. Kiểm tra Cổng cử chỉ Lòng bàn tay (visionOS Palm Gate)
+        # 3. Kiểm tra Cổng cử chỉ Lòng bàn tay (visionOS Palm Gate) & Chặn cử chỉ giả khi lật bàn tay (HandTurnGate)
         is_palm_facing, facing_score, gear_pos = self.palm_detector.update(lms_2d, now)
+        is_turning = self.turn_gate.update(facing_score, now)
+        if is_turning and is_pinched:
+            # CardboardXR HandTurnGate: Ngón tay bị nén giả lập khi bàn tay quay nghiêng mép camera
+            is_pinched = False
 
         # Nếu Menu đang đóng và người dùng nhìn vào lòng bàn tay -> Pinch để mở
         if not self.is_open:
@@ -440,7 +500,7 @@ class SpatialInAirMenu:
 
         # Thêm các nút sub-tools theo category hiện tại
         cur_mode = suite.current_mode if suite else 1
-        cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper", 6: "spatial"}
+        cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper", 6: "spatial", 7: "video"}
         cur_cat = cat_map.get(cur_mode, "paint")
         for b in self.sub_buttons:
             if b.category in ["settings", cur_cat]:
@@ -506,12 +566,17 @@ class SpatialInAirMenu:
                     if b.btn_id == "tb_view":
                         b.label = "SBS VR" if target_suite.stereo_vr_mode else "1-SCR"
                         b.is_active = target_suite.stereo_vr_mode
-        elif btn_id == "tb_recenter":
+        elif btn_id in ["tb_recenter", "tb_recenter_tile"]:
             if suite and suite.current_mode == 4:
                 suite.cube_demo.pos = np.array([0.0, 0.0, 1.1])
                 suite.cube_demo.vel = np.array([0.0, 0.0, 0.0])
             elif suite and suite.current_mode == 2:
                 suite.portal_demo.pos = np.array([0.0, -0.2, 1.4])
+            elif suite and suite.current_mode == 6 and hasattr(suite, 'spatial_sim_demo'):
+                suite.spatial_sim_demo.rot = np.array([0.35, 0.0])
+                suite.spatial_sim_demo.center_pos = np.array([0.0, -0.05, 1.25])
+            if btn_id == "tb_recenter_tile":
+                self.is_library_open = False
         elif btn_id == "tb_cam" and bridge:
             bridge.use_fallback = not bridge.use_fallback
         elif btn_id == "tb_close":
@@ -557,6 +622,22 @@ class SpatialInAirMenu:
         elif btn_id == "sim_reset" and suite and hasattr(suite, 'spatial_sim_demo'):
             suite.spatial_sim_demo.rot = np.array([0.35, 0.0])
             suite.spatial_sim_demo.center_pos = np.array([0.0, -0.05, 1.25])
+        elif btn_id == "vid_play" and suite and hasattr(suite, 'video_demo'):
+            suite.video_demo.toggle_play()
+            for b in self.sub_buttons:
+                if b.btn_id == "vid_play":
+                    b.label = "PLAY" if not suite.video_demo.is_playing else "PAUSE"
+        elif btn_id == "vid_skip_back" and suite and hasattr(suite, 'video_demo'):
+            suite.video_demo.skip(-10.0)
+        elif btn_id == "vid_skip_fwd" and suite and hasattr(suite, 'video_demo'):
+            suite.video_demo.skip(10.0)
+        elif btn_id == "vid_format" and suite and hasattr(suite, 'video_demo'):
+            new_fmt = suite.video_demo.cycle_format()
+            for b in self.sub_buttons:
+                if b.btn_id == "vid_format":
+                    b.label = new_fmt
+        elif btn_id == "vid_next" and suite and hasattr(suite, 'video_demo'):
+            suite.video_demo.next_video()
         elif btn_id == "set_flip_v" and bridge:
             bridge.flip_vertical = not bridge.flip_vertical
         elif btn_id == "set_flip_h" and bridge:
@@ -656,7 +737,7 @@ class SpatialInAirMenu:
 
         # 4. Vẽ Contextual Sub-Tools (nếu Library đang đóng)
         if not self.is_library_open:
-            cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper", 6: "spatial"}
+            cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper", 6: "spatial", 7: "video"}
             cur_cat = cat_map.get(current_mode, "paint")
             for btn in self.sub_buttons:
                 if btn.category in ["settings", cur_cat]:

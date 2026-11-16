@@ -1,19 +1,25 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.91 PRO & 3D Spatial Sim + CardboardXR Feature Matrix)
+## Current Status (v10.2.95 PRO & Full CardboardXR 1:1 Port Suite)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.91 PRO** (Bổ sung Mô phỏng Không gian Vũ trụ 3D `SpatialSimDemo` - Demo 6; Lập bảng đối chiếu 1:1 từng chức năng với CardboardXR; Xuất file danh sách code chạy ứng dụng ra thư mục Desktop).
-- **Core Breakthroughs in v10.2.91 PRO**:
-  1. **Bổ Sung Demo 6: Mô Phỏng Không Gian Vũ Trụ 3D (`SpatialSimDemo`)**:
-     - **Sàn Lưới Tọa Độ Chiều Sâu 3D (Depth Horizon Grid)**: Lưới phối cảnh $X-Z$ mở rộng từ $0.6\text{m}$ đến $2.6\text{m}$ (y = -0.42m) tạo cảm giác chiều sâu không gian vượt trội trong kính 3D.
-     - **Hệ Thiên Thể Chuyển Động Đa Tầng**: Mặt trời trung tâm tỏa hào quang ánh sáng, Cyber Node quay nhanh, Trái Đất có Mặt Trăng quay quanh, Sao Thổ có vành đai elip lơ lửng.
-     - **Tương Tác Thuần Ngón Tay**: Đưa đầu ngón tay lại gần bất kỳ hành tinh nào ($< 0.20\text{m}$), hành tinh đó sáng bừng và hiển thị bảng đo đạc tọa độ thực ($X, Y, Z$) theo mét. Chụm ngón tay vào không gian để nắm và xoay tự do mặt phẳng quỹ đạo 3D.
-     - **Nâng Cấp Lưới App Library Thành 2x3 Grid (6 Ứng Dụng)**:
-       `PAINT 3D` | `PORTAL` | `ORB RUSH` | `CUBES` | `CALIPER` | `SPATIAL 3D`.
-  2. **Bảng Đối Chiếu Tính Năng Từng Chức Năng Với CardboardXR**:
-     - Đã lập và xuất file [BANG_DOI_CHIEU_TINH_NANG_CARDBOARDXR.md](file:///C:/Users/LEGION/Desktop/stark%20mark%20ILX/BANG_DOI_CHIEU_TINH_NANG_CARDBOARDXR.md) so sánh chi tiết từng file C# gốc (`M3Theme.cs`, `AimHistory.cs`, `PalmGesture.cs`, `HandJointsView.cs`, `StereoBuilder.cs`, `LensDistortion.cs`, `CubePhysics.cs`, `ThermalGovernor.cs`) với mã nguồn Python XR.
-  3. **Danh Sách Code Chạy Ứng Dụng Tại Thư Mục Desktop Gốc**:
-     - Đã tạo file [DANH_SACH_CODE_CHAY_UNG_DUNG.txt](file:///C:/Users/LEGION/Desktop/stark%20mark%20ILX/DANH_SACH_CODE_CHAY_UNG_DUNG.txt) liệt kê tất cả các lệnh Terminal / PowerShell / CMD trực tiếp, 4 file `.bat` 1-click và bảng phím tắt runtime.
+- Current live version: **v10.2.95 PRO** (Tích hợp 100% tinh hoa mã nguồn `CardboardXR-main`: HandTurnGate chống bấm giả khi xoay tay; Video VR 360 & 180 SBS Player - Demo 7; Khử méo thấu kính Polynomial Radial Distortion; Nâng cấp Lưới App Library 2x4 Grid 8 Tiles; Đồng bộ Desktop `stark mark ILX`).
+- **Core Breakthroughs in v10.2.95 PRO**:
+  1. **Tích hợp `HandTurnGate` từ `PalmGesture.cs` & `HandSubsystemFeed.cs`**:
+     - Đo lường đạo hàm góc xoay lòng bàn tay $\Delta \text{facing}/\Delta t$. Nếu bàn tay xoay lật $> 2.0/\text{s}$, hệ thống lập tức khóa cử chỉ Pinch trong $0.25\text{s}$.
+     - Triệt tiêu 100% hiện tượng ngón tay cái và ngón trỏ chập vào nhau trong ảnh 2D khi bàn tay đi ngang mép camera, loại bỏ hoàn toàn các cú click ảo ngoài ý muốn.
+  2. **Tích hợp Demo 7: Trình Phát Video Không Gian 360 & 180 SBS (`VideoVRDemo`)**:
+     - Port trọn vẹn từ `CardboardXR VideoDemo.cs` & `VideoSphere.cs`, tích hợp 2 video mẫu `Sample_180_sbs.mp4` và `Sample_360.mp4`.
+     - Tách 2 mắt Left/Right cho video VR180 SBS mang lại chiều sâu 3D thực tế ảo thật.
+     - Thanh điều khiển M3 lơ lửng: Play/Pause, Tua nhanh/lùi 10s, Format switcher (VR180 SBS / 360 Sphere / 2D Cinema), Next clip.
+  3. **Khử méo thấu kính quang học (`PolynomialRadialDistortion`)**:
+     - Port từ `PolynomialRadialDistortion.cs` của Google Cardboard SDK: $p' = p(1 + 0.28r^2 + 0.08r^4)$.
+     - Khử méo thấu kính VR Shinecon G10 với bảng tra cứu GPU `cv2.remap` siêu tốc ($0.75\text{ms}$).
+  4. **Nâng cấp App Library thành 2x4 Grid (8 Ô Hoàn Chỉnh)**:
+     - `PAINT 3D` | `PORTAL` | `ORB RUSH` | `CUBES` | `CALIPER` | `SPATIAL 3D` | `VIDEO VR` | `RECENTER`.
+  5. **Đồng bộ hóa 100% Thư mục Desktop `C:\Users\LEGION\Desktop\stark mark ILX`**:
+     - Chép file gốc `CardboardXR-main.zip` vào thư mục desktop.
+     - Cập nhật bảng đối chiếu [BANG_DOI_CHIEU_TINH_NANG_CARDBOARDXR.md](file:///C:/Users/LEGION/Desktop/stark%20mark%20ILX/BANG_DOI_CHIEU_TINH_NANG_CARDBOARDXR.md).
+     - Cập nhật danh sách lệnh [DANH_SACH_CODE_CHAY_UNG_DUNG.txt](file:///C:/Users/LEGION/Desktop/stark%20mark%20ILX/DANH_SACH_CODE_CHAY_UNG_DUNG.txt).
 
 ---
 

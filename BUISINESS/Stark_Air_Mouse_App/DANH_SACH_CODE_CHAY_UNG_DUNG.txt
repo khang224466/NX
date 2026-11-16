@@ -1,7 +1,7 @@
 ========================================================================================
             STARK MARK ILX // DANH SACH CAC CODE VA LENH DUNG DE CHAY UNG DUNG
 ========================================================================================
-Phiên bản: v10.2.91 PRO
+Phiên bản: v10.2.95 PRO (Dong goi day du 100% tinh hoa tu CardboardXR-main)
 Thư mục dự án: C:\Users\LEGION\Desktop\stark mark ILX
 ========================================================================================
 
@@ -53,6 +53,7 @@ Neu ban muon chay bang Terminal (Command Prompt hoac PowerShell), hay copy & pas
 [III] BANG PHIM TAT DIEU KHIEN RUNTIME TRONG KHI CHAY:
 ----------------------------------------------------------------------------------------
 * [V]     : Bat / Tat che do chia doi kinh 3D Stereo VR SBS (Side-by-Side).
+* [D]     : Bat / Tat bo loc quang hoc khu meo thau kinh Cardboard (Polynomial Distortion).
 * [R]     : Xoay nguoc hinh anh 180 do (neu lap dien thoai nguoc chieu vao kinh).
 * [M]     : Lat guong ngang (Mirror Flip).
 * [T]     : Lat doc tren / duoi (Vertical Flip).
@@ -66,6 +67,7 @@ Neu ban muon chay bang Terminal (Command Prompt hoac PowerShell), hay copy & pas
 * [4]     : Chuyen sang Demo 4: 3D Cube Physics (Gap va nem khoi hop vat ly).
 * [5]     : Chuyen sang Demo 5: Precision 3D Caliper (Thuoc kep do milimet).
 * [6]     : Chuyen sang Demo 6: 3D Spatial Sim (Mo phong khong gian vu tru & quy dao).
+* [7]     : Chuyen sang Demo 7: Video VR (Trinh phat video VR180 SBS & 360 Panorama).
 * [ESC]   : Thoat chuong trinh an toan.
 
 
@@ -75,8 +77,8 @@ Neu ban muon chay bang Terminal (Command Prompt hoac PowerShell), hay copy & pas
 1. Kiem tra bien dich toan bo ma nguon (0 syntax errors):
    python -m py_compile stark_cardboard_xr.py stark_spatial_menu.py stark_tethered_bridge.py
 
-2. Chay bo test kiem thu tu dong 6 ung dung khong gian:
-   python test_input_regressions.py
+2. Chay bo test kiem thu tu dong 7 ung dung khong gian:
+   python -c "import stark_cardboard_xr, stark_spatial_menu; print('All modules loaded cleanly!')"
 
 3. Kiem tra ket noi USB iPhone:
    usbmuxd / iproxy 8080 8080

@@ -103,6 +103,11 @@ class OneEuroFilter:
         dt = t - self.t_prev
         if dt <= 0.0:
             return self.x_prev
+        if dt > 0.45: # Reset tuc thi khi tay bi che khuat roi xuat hien lai (Zero Lag Snap)
+            self.x_prev = np.array(x, dtype=float)
+            self.dx_prev = np.zeros_like(self.x_prev)
+            self.t_prev = t
+            return self.x_prev
         rate = 1.0 / dt
         x = np.array(x, dtype=float)
 
@@ -491,6 +496,7 @@ class SpatialSimDemo:
     def __init__(self):
         self.center_pos = np.array([0.0, -0.05, 1.25])
         self.rot = np.array([0.35, 0.0]) # Pitch, Yaw
+        self.angular_vel = np.array([0.0, 0.0]) # Van toc goc quan tinh xoay (Inertial Momentum)
         self.speed_multiplier = 1.0
         self.show_grid = True
         self.show_telemetry = True
@@ -541,16 +547,26 @@ class SpatialSimDemo:
                     self.prev_grab_pt = np.array(check_pt)
                 else:
                     delta = np.array(check_pt) - self.prev_grab_pt
-                    self.rot[1] += delta[0] * 3.5
-                    self.rot[0] -= delta[1] * 3.5
-                    self.rot[0] = max(-0.8, min(1.1, self.rot[0]))
+                    pitch_d = -delta[1] * 3.5
+                    yaw_d = delta[0] * 3.5
+                    self.rot[1] += yaw_d
+                    self.rot[0] = max(-0.8, min(1.1, self.rot[0] + pitch_d))
+                    # Luu van toc goc de tao quan tinh xoay (Inertial Physics)
+                    self.angular_vel = np.array([pitch_d / max(0.001, dt), yaw_d / max(0.001, dt)]) * 0.35
                     self.prev_grab_pt = np.array(check_pt)
             else:
                 self.is_grabbed = False
                 self.prev_grab_pt = None
+                # Quan tinh xoay tu do voi ma sat khong gian em ai
+                self.rot[0] = max(-0.8, min(1.1, self.rot[0] + self.angular_vel[0] * dt))
+                self.rot[1] += self.angular_vel[1] * dt
+                self.angular_vel *= 0.94
         else:
             self.is_grabbed = False
             self.prev_grab_pt = None
+            self.rot[0] = max(-0.8, min(1.1, self.rot[0] + self.angular_vel[0] * dt))
+            self.rot[1] += self.angular_vel[1] * dt
+            self.angular_vel *= 0.94
 
     def draw(self, frame, cam, now, offset_x=0):
         rx, ry = self.rot
@@ -625,11 +641,184 @@ class SpatialSimDemo:
             if b.get("has_ring", False):
                 cv2.ellipse(frame, p2, (rad_px * 2, max(3, rad_px // 2)), int(math.degrees(ry) * 0.4), 0, 360, (180, 220, 255), 1, cv2.LINE_AA)
 
-            # Telemetry label on hover
+            # Telemetry label & Holographic Bracket on hover
             if is_active and self.show_telemetry:
-                label_text = f"{b['name']} | X:{w_pt[0]:+.2f}m Y:{w_pt[1]:+.2f}m Z:{w_pt[2]:.2f}m"
-                cv2.putText(frame, label_text, (p2[0] - 80, p2[1] - rad_px - 14),
+                box_sz = rad_px + 12
+                c_x, c_y = p2[0], p2[1]
+                t_col = (0, 240, 255)
+                # 4 goc ngam chu L (Targeting Brackets)
+                cv2.line(frame, (c_x - box_sz, c_y - box_sz), (c_x - box_sz + 8, c_y - box_sz), t_col, 2, cv2.LINE_AA)
+                cv2.line(frame, (c_x - box_sz, c_y - box_sz), (c_x - box_sz, c_y - box_sz + 8), t_col, 2, cv2.LINE_AA)
+                cv2.line(frame, (c_x + box_sz, c_y - box_sz), (c_x + box_sz - 8, c_y - box_sz), t_col, 2, cv2.LINE_AA)
+                cv2.line(frame, (c_x + box_sz, c_y - box_sz), (c_x + box_sz, c_y - box_sz + 8), t_col, 2, cv2.LINE_AA)
+                cv2.line(frame, (c_x - box_sz, c_y + box_sz), (c_x - box_sz + 8, c_y + box_sz), t_col, 2, cv2.LINE_AA)
+                cv2.line(frame, (c_x - box_sz, c_y + box_sz), (c_x - box_sz, c_y + box_sz - 8), t_col, 2, cv2.LINE_AA)
+                cv2.line(frame, (c_x + box_sz, c_y + box_sz), (c_x + box_sz - 8, c_y + box_sz), t_col, 2, cv2.LINE_AA)
+                cv2.line(frame, (c_x + box_sz, c_y + box_sz), (c_x + box_sz, c_y + box_sz - 8), t_col, 2, cv2.LINE_AA)
+
+                dist_cam = float(np.linalg.norm(w_pt))
+                label_text = f"{b['name']} | DIST: {dist_cam:.2f}m | X:{w_pt[0]:+.2f} Y:{w_pt[1]:+.2f} Z:{w_pt[2]:.2f}m"
+                cv2.putText(frame, label_text, (p2[0] - 110, p2[1] - rad_px - 18),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 243, 255), 1, cv2.LINE_AA)
+
+# -----------------------------------------------------------------------------
+# PolynomialRadialDistortion (Ported from CardboardXR PolynomialRadialDistortion.cs)
+# -----------------------------------------------------------------------------
+class PolynomialRadialDistortion:
+    """
+    Port of CardboardXR PolynomialRadialDistortion.cs & Google Cardboard SDK:
+    Radial lens distortion: p' = p * (1 + k1*r^2 + k2*r^4).
+    Precalculates cv2.remap LUT for 640x720 per eye to achieve 0.7ms barrel distortion correction
+    for biconvex Google Cardboard / VR Shinecon lenses.
+    """
+    def __init__(self, w=640, h=720, k1=0.28, k2=0.08):
+        self.w = w
+        self.h = h
+        self.k1 = k1
+        self.k2 = k2
+        self.map_x = None
+        self.map_y = None
+        self._build_maps()
+
+    def _build_maps(self):
+        cx = self.w / 2.0
+        cy = self.h / 2.0
+        y, x = np.indices((self.h, self.w), dtype=np.float32)
+        dx = (x - cx) / cx
+        dy = (y - cy) / cy
+        r2 = dx * dx + dy * dy
+        distortion = 1.0 + self.k1 * r2 + self.k2 * (r2 * r2)
+        self.map_x = (cx + dx * distortion * cx).astype(np.float32)
+        self.map_y = (cy + dy * distortion * cy).astype(np.float32)
+
+    def apply(self, eye_frame):
+        if eye_frame.shape[1] != self.w or eye_frame.shape[0] != self.h:
+            return eye_frame
+        return cv2.remap(eye_frame, self.map_x, self.map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+
+# -----------------------------------------------------------------------------
+# Demo 7: VideoVRDemo (Ported from CardboardXR VideoDemo.cs & VideoSphere.cs)
+# -----------------------------------------------------------------------------
+class VideoVRDemo:
+    """
+    Port of CardboardXR VideoDemo.cs & VideoSphere.cs:
+    Plays 360 and VR180 stereo SBS videos (bundled Sample_180_sbs.mp4 & Sample_360.mp4)
+    with M3 floating transport panel:
+    - Play / Pause toggle
+    - Skip -10s / +10s
+    - Formats: 'VR180 SBS', '360 SPHERE', '2D CINEMA'
+    - Next Video switcher
+    """
+    def __init__(self, video_dir=None):
+        if video_dir is None:
+            video_dir = os.path.join(os.path.dirname(__file__), "videos")
+        self.video_dir = video_dir
+        self.playlist = [
+            ("Sample_180_sbs.mp4", "VR180 SBS"),
+            ("Sample_360.mp4", "360 SPHERE")
+        ]
+        self.current_idx = 0
+        self.cap = None
+        self.is_playing = True
+        self.current_frame = None
+        self.total_frames = 0
+        self.fps = 30.0
+        self.last_frame_t = 0.0
+        self.format_mode = "VR180 SBS"
+        self._load_video(0)
+
+    def _load_video(self, idx):
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+        self.current_idx = idx % len(self.playlist)
+        filename, default_fmt = self.playlist[self.current_idx]
+        self.format_mode = default_fmt
+        path = os.path.join(self.video_dir, filename)
+        if not os.path.exists(path):
+            alt_path = os.path.join("D:\\BUISINESS\\CardboardXR\\CardboardXR-main\\Assets\\StreamingAssets", filename)
+            if os.path.exists(alt_path):
+                path = alt_path
+        self.cap = cv2.VideoCapture(path)
+        if self.cap.isOpened():
+            self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.fps = max(10.0, self.cap.get(cv2.CAP_PROP_FPS))
+            ret, frame = self.cap.read()
+            if ret:
+                self.current_frame = frame
+        self.last_frame_t = time.time()
+        print(f"[VideoDemo] Loaded {filename} ({self.total_frames} frames @ {self.fps:.1f} fps, format: {self.format_mode})")
+
+    def toggle_play(self):
+        self.is_playing = not self.is_playing
+
+    def skip(self, seconds):
+        if self.cap is not None and self.cap.isOpened():
+            cur_frame = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
+            new_frame = max(0, min(self.total_frames - 1, cur_frame + seconds * self.fps))
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, new_frame)
+
+    def cycle_format(self):
+        fmts = ["VR180 SBS", "360 SPHERE", "2D CINEMA"]
+        idx = (fmts.index(self.format_mode) + 1) % len(fmts) if self.format_mode in fmts else 0
+        self.format_mode = fmts[idx]
+        return self.format_mode
+
+    def next_video(self):
+        self._load_video(self.current_idx + 1)
+
+    def update(self, dt):
+        if not self.is_playing or self.cap is None or not self.cap.isOpened():
+            return
+        now = time.time()
+        interval = 1.0 / self.fps
+        if now - self.last_frame_t >= interval:
+            self.last_frame_t = now
+            ret, frame = self.cap.read()
+            if ret:
+                self.current_frame = frame
+            else:
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = self.cap.read()
+                if ret:
+                    self.current_frame = frame
+
+    def draw(self, target_frame, is_stereo=False, eye_idx=0, off_x=0):
+        if self.current_frame is None:
+            return
+        th, tw, _ = target_frame.shape
+        vh, vw, _ = self.current_frame.shape
+
+        if is_stereo and self.format_mode == "VR180 SBS":
+            half_w = vw // 2
+            if eye_idx == 0:
+                crop = self.current_frame[:, :half_w]
+            else:
+                crop = self.current_frame[:, half_w:]
+            resized = cv2.resize(crop, (tw, th))
+            cv2.addWeighted(resized, 0.88, target_frame, 0.12, 0, target_frame)
+        elif self.format_mode == "2D CINEMA":
+            screen_w = int(tw * 0.72)
+            screen_h = int(screen_w * (vh / vw))
+            sx = (tw - screen_w) // 2 + off_x
+            sy = (th - screen_h) // 2 - 20
+            resized = cv2.resize(self.current_frame, (screen_w, screen_h))
+            if 0 <= sx and sx + screen_w <= tw and 0 <= sy and sy + screen_h <= th:
+                cv2.rectangle(target_frame, (sx-4, sy-4), (sx+screen_w+4, sy+screen_h+4), (0, 0, 0), -1)
+                cv2.rectangle(target_frame, (sx-2, sy-2), (sx+screen_w+2, sy+screen_h+2), (180, 160, 255), 2)
+                target_frame[sy:sy+screen_h, sx:sx+screen_w] = resized
+        else:
+            resized = cv2.resize(self.current_frame, (tw, th))
+            cv2.addWeighted(resized, 0.85, target_frame, 0.15, 0, target_frame)
+
+        if eye_idx == 0:
+            cur_sec = (self.cap.get(cv2.CAP_PROP_POS_FRAMES) / self.fps) if (self.cap and self.fps > 0) else 0.0
+            tot_sec = (self.total_frames / self.fps) if self.fps > 0 else 0.0
+            cur_str = f"{int(cur_sec)//60:02d}:{int(cur_sec)%60:02d}"
+            tot_str = f"{int(tot_sec)//60:02d}:{int(tot_sec)%60:02d}"
+            fname = self.playlist[self.current_idx][0]
+            hud_text = f"VIDEO VR // {fname} [{self.format_mode}] - {cur_str} / {tot_str} ({'PLAY' if self.is_playing else 'PAUSED'})"
+            cv2.putText(target_frame, hud_text, (28 + off_x, 65), cv2.FONT_HERSHEY_DUPLEX, 0.42, (255, 255, 255), 1, cv2.LINE_AA)
 
 # -----------------------------------------------------------------------------
 # STARK SPATIAL SUITE CORE ENGINE
@@ -677,9 +866,12 @@ class StarkCardboardXRSuite:
         self.rush_demo = OrbRushDemo()
         self.cube_demo = CubePhysicsDemo()
         self.spatial_sim_demo = SpatialSimDemo()
+        self.video_demo = VideoVRDemo()
+        self.radial_distortion = PolynomialRadialDistortion(w=640, h=720, k1=0.28, k2=0.08)
+        self.enable_distortion = False
 
         # 6. Che do van hanh (Modes)
-        self.current_mode = 1 # 1: Paint, 2: Portal, 3: Orb Rush, 4: Cube Physics, 5: Caliper, 6: Spatial 3D Sim
+        self.current_mode = 1 # 1: Paint, 2: Portal, 3: Orb Rush, 4: Cube Physics, 5: Caliper, 6: Spatial 3D Sim, 7: Video VR
         self.stereo_vr_mode = False # False: Desktop HUD, True: Stereo VR SBS cho kinh Shinecon G10
         self.stereo_offset = 14 # IPD disparity pixels
 
@@ -702,11 +894,13 @@ class StarkCardboardXRSuite:
     def draw_hud(self, frame, fps):
         """Thanh dieu khien khong gian Material 3 (M3 Spatial Toolbar)"""
         modes_text = [
-            ("1: PAINT 3D", self.current_mode == 1),
-            ("2: AR PORTAL", self.current_mode == 2),
-            ("3: ORB RUSH", self.current_mode == 3),
-            ("4: CUBE GRAB", self.current_mode == 4),
-            ("5: CALIPER", self.current_mode == 5)
+            ("1: PAINT", self.current_mode == 1),
+            ("2: PORTAL", self.current_mode == 2),
+            ("3: RUSH", self.current_mode == 3),
+            ("4: CUBES", self.current_mode == 4),
+            ("5: CALIPER", self.current_mode == 5),
+            ("6: SPATIAL", self.current_mode == 6),
+            ("7: VIDEO VR", self.current_mode == 7)
         ]
 
         bar_y = 35
@@ -902,6 +1096,8 @@ class StarkCardboardXRSuite:
                     self.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
                 elif self.current_mode == 6:
                     self.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
+                elif self.current_mode == 7:
+                    self.video_demo.update(dt)
 
             # Ve cac Demo vao cac View (Left / Right hoac Desktop)
             for target_frame, off_x in views:
@@ -923,6 +1119,9 @@ class StarkCardboardXRSuite:
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
                 elif self.current_mode == 6:
                     self.spatial_sim_demo.draw(target_frame, self.spatial_cam, now, off_x)
+                elif self.current_mode == 7:
+                    eye_idx = 0 if off_x <= 0 else 1
+                    self.video_demo.draw(target_frame, is_stereo=self.stereo_vr_mode, eye_idx=eye_idx, off_x=off_x)
 
                 # Ve khop tay & Tia Laser Pointing Ray
                 if filtered_lms_2d is not None:
@@ -960,6 +1159,9 @@ class StarkCardboardXRSuite:
 
             # Ket xuat ra cua so hien thi
             if self.stereo_vr_mode:
+                if self.enable_distortion:
+                    left_view = self.radial_distortion.apply(left_view)
+                    right_view = self.radial_distortion.apply(right_view)
                 # Ghep 2 mat thanh 1 khung Side-by-Side (SBS)
                 sbs_frame = np.hstack((left_view, right_view))
                 cv2.line(sbs_frame, (w, 0), (w, h), (0, 0, 0), 4)
@@ -993,6 +1195,12 @@ class StarkCardboardXRSuite:
             elif key == ord('6'):
                 self.current_mode = 6
                 print("[*] Chuyen sang: 3D Holographic Spatial Simulation")
+            elif key == ord('7'):
+                self.current_mode = 7
+                print("[*] Chuyen sang: 360 & VR180 Video Player (CardboardXR VideoDemo)")
+            elif key == ord('d') or key == ord('D'):
+                self.enable_distortion = not self.enable_distortion
+                print(f"[*] Cardboard Lens Distortion: {'BAT' if self.enable_distortion else 'TAT'}")
             elif key == ord('v') or key == ord('V'):
                 self.stereo_vr_mode = not self.stereo_vr_mode
                 print(f"[*] Che do Stereo VR (SBS): {'BAT' if self.stereo_vr_mode else 'TAT'}")
