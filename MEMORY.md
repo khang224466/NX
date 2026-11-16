@@ -1,17 +1,19 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.90 PRO & Pure Fingertip In-Air Interaction)
+## Current Status (v10.2.91 PRO & 3D Spatial Sim + CardboardXR Feature Matrix)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.90 PRO** (Xóa bỏ hoàn toàn đường kẻ tia laser vướng tầm nhìn; chuyển 100% sang tương tác thuần ngón tay: Direct Fingertip Touch + Pinch Amber Haptic Ring).
-- **Core Breakthroughs in v10.2.90 PRO (Pure Fingertip Interaction)**:
-  1. **Xóa Bỏ Hoàn Toàn Tia Laser (Zero Laser Visuals)**:
-     - Xóa bỏ triệt để hàm vẽ `draw_pointing_ray`: Không còn bất kỳ đường kẻ tia laser dài nào phóng ra từ ngón tay gây vướng mắt hoặc làm mất tính chân thực của AR Passthrough.
-  2. **Tương Tác Thuần Bằng Ngón Tay (Direct In-Air Fingertip Touch)**:
-     - **Khi di chuyển ngón tay (Idle)**: Con trỏ chấm tròn trắng tinh tế bám trực tiếp tại đầu ngón tay trỏ (`p_tip`), đi theo ngón tay 1:1.
-     - **Khi lướt qua nút bấm (Direct Hover)**: Bán kính vùng chạm ngón tay được mở rộng tự nhiên (`margin = 16px`), chỉ cần đầu ngón tay chạm nhẹ vào nút là nút phát sáng tím (`M3Theme.Primary`).
-     - **Khi chụm ngón (Pinch)**: Con trỏ chuyển ngay sang màu vàng hổ phách (`Golden Amber #FFD732`) kèm vòng sóng xúc giác Haptic Ripple (`r = 14px`) ngay tại điểm tiếp xúc giữa ngón cái và ngón trỏ để kích hoạt nút bấm.
-  3. **Đồng Bộ Trọn Gói Về Desktop `stark mark ILX`**:
-     - Cập nhật đồng bộ toàn bộ file mã nguồn mới nhất vào thư mục `C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App`.
+- Current live version: **v10.2.91 PRO** (Bổ sung Mô phỏng Không gian Vũ trụ 3D `SpatialSimDemo` - Demo 6; Lập bảng đối chiếu 1:1 từng chức năng với CardboardXR; Xuất file danh sách code chạy ứng dụng ra thư mục Desktop).
+- **Core Breakthroughs in v10.2.91 PRO**:
+  1. **Bổ Sung Demo 6: Mô Phỏng Không Gian Vũ Trụ 3D (`SpatialSimDemo`)**:
+     - **Sàn Lưới Tọa Độ Chiều Sâu 3D (Depth Horizon Grid)**: Lưới phối cảnh $X-Z$ mở rộng từ $0.6\text{m}$ đến $2.6\text{m}$ (y = -0.42m) tạo cảm giác chiều sâu không gian vượt trội trong kính 3D.
+     - **Hệ Thiên Thể Chuyển Động Đa Tầng**: Mặt trời trung tâm tỏa hào quang ánh sáng, Cyber Node quay nhanh, Trái Đất có Mặt Trăng quay quanh, Sao Thổ có vành đai elip lơ lửng.
+     - **Tương Tác Thuần Ngón Tay**: Đưa đầu ngón tay lại gần bất kỳ hành tinh nào ($< 0.20\text{m}$), hành tinh đó sáng bừng và hiển thị bảng đo đạc tọa độ thực ($X, Y, Z$) theo mét. Chụm ngón tay vào không gian để nắm và xoay tự do mặt phẳng quỹ đạo 3D.
+     - **Nâng Cấp Lưới App Library Thành 2x3 Grid (6 Ứng Dụng)**:
+       `PAINT 3D` | `PORTAL` | `ORB RUSH` | `CUBES` | `CALIPER` | `SPATIAL 3D`.
+  2. **Bảng Đối Chiếu Tính Năng Từng Chức Năng Với CardboardXR**:
+     - Đã lập và xuất file [BANG_DOI_CHIEU_TINH_NANG_CARDBOARDXR.md](file:///C:/Users/LEGION/Desktop/stark%20mark%20ILX/BANG_DOI_CHIEU_TINH_NANG_CARDBOARDXR.md) so sánh chi tiết từng file C# gốc (`M3Theme.cs`, `AimHistory.cs`, `PalmGesture.cs`, `HandJointsView.cs`, `StereoBuilder.cs`, `LensDistortion.cs`, `CubePhysics.cs`, `ThermalGovernor.cs`) với mã nguồn Python XR.
+  3. **Danh Sách Code Chạy Ứng Dụng Tại Thư Mục Desktop Gốc**:
+     - Đã tạo file [DANH_SACH_CODE_CHAY_UNG_DUNG.txt](file:///C:/Users/LEGION/Desktop/stark%20mark%20ILX/DANH_SACH_CODE_CHAY_UNG_DUNG.txt) liệt kê tất cả các lệnh Terminal / PowerShell / CMD trực tiếp, 4 file `.bat` 1-click và bảng phím tắt runtime.
 
 ---
 

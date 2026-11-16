@@ -1,0 +1,86 @@
+========================================================================================
+            STARK MARK ILX // DANH SACH CAC CODE VA LENH DUNG DE CHAY UNG DUNG
+========================================================================================
+Phiên bản: v10.2.91 PRO
+Thư mục dự án: C:\Users\LEGION\Desktop\stark mark ILX
+========================================================================================
+
+----------------------------------------------------------------------------------------
+[I] CAC FILE KHOI DONG NHANH 1-CLICK (CHAY TRUC TIEP TU DESKTOP):
+----------------------------------------------------------------------------------------
+Ban chi can nhap dup (double-click) vao mot trong cac file sau:
+
+1. [1]_KHOI_DONG_STARK_XR_IPHONE_120FPS.bat
+   -> CHAY CHE DO KET NOI IPHONE QUA CAP USB LIGHTNING (Khuyen dung - 120 FPS).
+   -> Do tre sieu thap (~8-12ms), Passthrough AR sach se, AimHistory chong truot nut.
+
+2. [2]_KHOI_DONG_STARK_XR_LAPTOP_WEBCAM.bat
+   -> CHAY TRUC TIEP BANG WEBCAM LAPTOP (Standalone OpenCV khong can cam iPhone).
+
+3. [3]_KHOI_DONG_ROAMIES_JARVIS_VOICE.bat
+   -> KHOI DONG TRO LY GIONG NOI AI ROAMIES JARVIS (Dam thoai ranh tay khi deo kinh).
+
+4. [4]_KHOI_DONG_AIR_MOUSE_DESKTOP.bat
+   -> BIEN NGON TAY THANH CHUOT MAY TINH WINDOWS DIEU KHIEN DESKTOP.
+
+
+----------------------------------------------------------------------------------------
+[II] DANH SACH CAC LENH TERMINAL / CMD / POWERSHELL CHAY TRUC TIEP:
+----------------------------------------------------------------------------------------
+Neu ban muon chay bang Terminal (Command Prompt hoac PowerShell), hay copy & paste cac lenh sau:
+
+1. CHAY HE THONG SPATIAL XR QUA CAP USB LIGHTNING IPHONE:
+   cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App"
+   python stark_tethered_bridge.py
+
+2. CHAY CHE DO STANDALONE CARDBOARDXR (WEBCAM LAPTOP):
+   cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App"
+   python stark_cardboard_xr.py
+
+3. CHAY CHUOT KHONG GIAN AIR MOUSE WINDOWS:
+   cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App"
+   python stark_air_mouse.py
+
+4. CHAY WEBSOCKET STREAM SERVER (CHO THIET BI KHONG DAY):
+   cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App"
+   python stark_spatial_stream_server.py --port 8080
+
+5. KHOI DONG TRO LY GIONG NOI ROAMIES JARVIS DAEMON:
+   "%LOCALAPPDATA%\Roamies\roamies.exe"
+
+
+----------------------------------------------------------------------------------------
+[III] BANG PHIM TAT DIEU KHIEN RUNTIME TRONG KHI CHAY:
+----------------------------------------------------------------------------------------
+* [V]     : Bat / Tat che do chia doi kinh 3D Stereo VR SBS (Side-by-Side).
+* [R]     : Xoay nguoc hinh anh 180 do (neu lap dien thoai nguoc chieu vao kinh).
+* [M]     : Lat guong ngang (Mirror Flip).
+* [T]     : Lat doc tren / duoi (Vertical Flip).
+* [ [ ]   : Giam khoang cach dong tu IPD (-2px).
+* [ ] ]   : Tang khoang cach dong tu IPD (+2px).
+* [F]     : Chuyen doi goc nhin quang hoc (Immersive Zoom <-> Full FOV).
+* [X]     : Chuyen doi qua lai giua cac Camera (Webcam Laptop <-> iPhone USB).
+* [1]     : Chuyen sang Demo 1: 3D Air Paint (Ve net neon trong khong gian).
+* [2]     : Chuyen sang Demo 2: AR Spatial Portal (Canh cua Cyberpunk).
+* [3]     : Chuyen sang Demo 3: Orb Rush (Game chem cau nang luong theo nhip).
+* [4]     : Chuyen sang Demo 4: 3D Cube Physics (Gap va nem khoi hop vat ly).
+* [5]     : Chuyen sang Demo 5: Precision 3D Caliper (Thuoc kep do milimet).
+* [6]     : Chuyen sang Demo 6: 3D Spatial Sim (Mo phong khong gian vu tru & quy dao).
+* [ESC]   : Thoat chuong trinh an toan.
+
+
+----------------------------------------------------------------------------------------
+[IV] CAC LENH KIEM TRA & XAC MINH HE THONG (DIAGNOSTICS & TEST):
+----------------------------------------------------------------------------------------
+1. Kiem tra bien dich toan bo ma nguon (0 syntax errors):
+   python -m py_compile stark_cardboard_xr.py stark_spatial_menu.py stark_tethered_bridge.py
+
+2. Chay bo test kiem thu tu dong 6 ung dung khong gian:
+   python test_input_regressions.py
+
+3. Kiem tra ket noi USB iPhone:
+   usbmuxd / iproxy 8080 8080
+
+========================================================================================
+STARK MARK ILX - NATIVE SPATIAL COMPUTING FOR WINDOWS & IPHONE
+========================================================================================

@@ -64,6 +64,7 @@ class M3Theme:
     TintRush = (0, 81, 230)      # #E65100 (Energy Orange)
     TintCubes = (50, 125, 46)    # #2E7D32 (Emerald Green)
     TintCaliper = (91, 24, 194)  # #C2185B (Rose Red)
+    TintSpatial = (240, 200, 0)  # #00C8F0 (Holographic Cyan/Gold)
     TintActive = (128, 255, 0)   # Neon Green
     TintAmber = (50, 215, 255)   # Amber Gold for Pinch
 
@@ -332,13 +333,14 @@ class SpatialInAirMenu:
         # 2. CARDBOARDXR APP LIBRARY GRID (Floating Panel y = 370, h = 230)
         # =====================================================================
         self.library_tiles = []
-        # 5 CardboardXR Apps: Paint 3D, Portal, Orb Rush, Cubes, Caliper
+        # 6 CardboardXR & Spatial Apps: Paint 3D, Portal, Orb Rush, Cubes, Caliper, Spatial 3D
         apps = [
             ("demo_1", "PAINT 3D", "Pinch to draw 3D ribbons in the air", 32, 385, 160, 68, M3Theme.TintPaint),
             ("demo_2", "PORTAL", "A doorway into a 3D starfield universe", 204, 385, 160, 68, M3Theme.TintPortal),
             ("demo_3", "ORB RUSH", "Pop floating glowing rhythm orbs", 376, 385, 160, 68, M3Theme.TintRush),
-            ("demo_4", "CUBES", "Grab, throw, and stack 3D physics cubes", 118, 465, 160, 68, M3Theme.TintCubes),
-            ("demo_5", "CALIPER", "Measure real-world objects in millimeters", 290, 465, 160, 68, M3Theme.TintCaliper),
+            ("demo_4", "CUBES", "Grab, throw, and stack 3D physics cubes", 32, 465, 160, 68, M3Theme.TintCubes),
+            ("demo_5", "CALIPER", "Measure real-world objects in millimeters", 204, 465, 160, 68, M3Theme.TintCaliper),
+            ("demo_6", "SPATIAL 3D", "Interactive 3D space & planetary orbit simulation", 376, 465, 160, 68, M3Theme.TintSpatial),
         ]
         for b_id, label, tagline, x, y, w, h, col in apps:
             tile = M3SpatialButton(b_id, label, "", x, y, w, h, radius=18, is_active=(b_id=="demo_1"), color=col, tagline=tagline)
@@ -373,6 +375,12 @@ class SpatialInAirMenu:
 
         # Portal Controls
         self.sub_buttons.append(M3SpatialButton("portal_reset", "RE-CENTER PORTAL", "", 30, y_sub, 180, h_sub, radius=18, category="portal"))
+
+        # Spatial 3D Controls
+        self.sub_buttons.append(M3SpatialButton("sim_speed", "SPEED 1X", "", 30, y_sub, 110, h_sub, radius=18, category="spatial"))
+        self.sub_buttons.append(M3SpatialButton("sim_grid", "GRID ON", "", 150, y_sub, 100, h_sub, radius=18, category="spatial"))
+        self.sub_buttons.append(M3SpatialButton("sim_telemetry", "TELEMETRY", "", 260, y_sub, 120, h_sub, radius=18, category="spatial"))
+        self.sub_buttons.append(M3SpatialButton("sim_reset", "RESET SPACE", "", 390, y_sub, 140, h_sub, radius=18, category="spatial"))
 
         # Quick Camera Flip Controls on Top Bar (y = 16, h = 32)
         y_top = 16
@@ -432,7 +440,7 @@ class SpatialInAirMenu:
 
         # Thêm các nút sub-tools theo category hiện tại
         cur_mode = suite.current_mode if suite else 1
-        cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper"}
+        cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper", 6: "spatial"}
         cur_cat = cat_map.get(cur_mode, "paint")
         for b in self.sub_buttons:
             if b.category in ["settings", cur_cat]:
@@ -531,6 +539,24 @@ class SpatialInAirMenu:
             suite.cube_demo.vel = np.array([0.0, 0.0, 0.0])
         elif btn_id == "portal_reset":
             suite.portal_demo.pos = np.array([0.0, -0.2, 1.4])
+        elif btn_id == "sim_speed" and suite and hasattr(suite, 'spatial_sim_demo'):
+            speeds = [1.0, 2.0, 0.0, 0.5]
+            cur_s = suite.spatial_sim_demo.speed_multiplier
+            next_s = speeds[(speeds.index(cur_s) + 1) % len(speeds)] if cur_s in speeds else 1.0
+            suite.spatial_sim_demo.speed_multiplier = next_s
+            for b in self.sub_buttons:
+                if b.btn_id == "sim_speed":
+                    b.label = f"SPEED {next_s:.1f}X" if next_s > 0 else "PAUSED"
+        elif btn_id == "sim_grid" and suite and hasattr(suite, 'spatial_sim_demo'):
+            suite.spatial_sim_demo.show_grid = not suite.spatial_sim_demo.show_grid
+            for b in self.sub_buttons:
+                if b.btn_id == "sim_grid":
+                    b.label = "GRID ON" if suite.spatial_sim_demo.show_grid else "GRID OFF"
+        elif btn_id == "sim_telemetry" and suite and hasattr(suite, 'spatial_sim_demo'):
+            suite.spatial_sim_demo.show_telemetry = not suite.spatial_sim_demo.show_telemetry
+        elif btn_id == "sim_reset" and suite and hasattr(suite, 'spatial_sim_demo'):
+            suite.spatial_sim_demo.rot = np.array([0.35, 0.0])
+            suite.spatial_sim_demo.center_pos = np.array([0.0, -0.05, 1.25])
         elif btn_id == "set_flip_v" and bridge:
             bridge.flip_vertical = not bridge.flip_vertical
         elif btn_id == "set_flip_h" and bridge:
@@ -630,7 +656,7 @@ class SpatialInAirMenu:
 
         # 4. Vẽ Contextual Sub-Tools (nếu Library đang đóng)
         if not self.is_library_open:
-            cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper"}
+            cat_map = {1: "paint", 2: "portal", 3: "rush", 4: "cube", 5: "caliper", 6: "spatial"}
             cur_cat = cat_map.get(current_mode, "paint")
             for btn in self.sub_buttons:
                 if btn.category in ["settings", cur_cat]:

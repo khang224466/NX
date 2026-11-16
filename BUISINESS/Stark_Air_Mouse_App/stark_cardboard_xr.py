@@ -478,6 +478,160 @@ class CubePhysicsDemo:
             cv2.circle(frame, pt, 4, (255, 0, 255), -1, cv2.LINE_AA)
 
 # -----------------------------------------------------------------------------
+# Demo 6: 3D Holographic Spatial Simulation (Solar System & Depth Grid)
+# -----------------------------------------------------------------------------
+class SpatialSimDemo:
+    """
+    Demo 6: 3D Holographic Spatial Room & Planetary Simulation
+    - 3D Perspective Depth Horizon Grid Floor (x: -1.2..1.2m, z: 0.6..2.6m, y: -0.42m)
+    - 3D Holographic Celestial Bodies (Solar Core, Cyber Node, Terra & Moon, Saturn Ring)
+    - Interactive 3D Hand Proximity: Hovering fingertip highlights orbit and displays 3D telemetry
+    - Direct Fingertip Pinch: Grab and tilt/rotate orbit plane in 3D space
+    """
+    def __init__(self):
+        self.center_pos = np.array([0.0, -0.05, 1.25])
+        self.rot = np.array([0.35, 0.0]) # Pitch, Yaw
+        self.speed_multiplier = 1.0
+        self.show_grid = True
+        self.show_telemetry = True
+        self.is_grabbed = False
+        self.prev_grab_pt = None
+        self.hovered_body = None
+
+        self.bodies = [
+            {"id": "core", "name": "SOLAR CORE", "radius": 0.0, "speed": 0.0, "size": 0.055, "color": (50, 215, 255), "angle": 0.0},
+            {"id": "cyber", "name": "CYBER NODE", "radius": 0.22, "speed": 1.4, "size": 0.024, "color": (255, 240, 0), "angle": 0.5},
+            {"id": "terra", "name": "TERRA & MOON", "radius": 0.40, "speed": 0.8, "size": 0.034, "color": (220, 150, 0), "angle": 2.1, "has_moon": True},
+            {"id": "saturn", "name": "SATURNUS", "radius": 0.62, "speed": 0.45, "size": 0.042, "color": (100, 200, 255), "angle": 4.3, "has_ring": True},
+        ]
+
+    def update(self, dt, is_pinched, pinch_pt_3d, hand_lms_3d=None):
+        # Cap nhat goc quay cac hanh tinh
+        for b in self.bodies:
+            b["angle"] += b["speed"] * dt * self.speed_multiplier
+
+        rx, ry = self.rot
+        Rx = np.array([[1, 0, 0], [0, math.cos(rx), -math.sin(rx)], [0, math.sin(rx), math.cos(rx)]])
+        Ry = np.array([[math.cos(ry), 0, math.sin(ry)], [0, 1, 0], [-math.sin(ry), 0, math.cos(ry)]])
+        R = Ry @ Rx
+
+        self.hovered_body = None
+        check_pt = pinch_pt_3d if pinch_pt_3d is not None else (hand_lms_3d[8] if hand_lms_3d is not None else None)
+
+        if check_pt is not None:
+            # 1. Kiem tra khoang cach toi tung hanh tinh (Proximity Hover)
+            closest_dist = 999.0
+            closest_b = None
+            for b in self.bodies:
+                r = b["radius"]
+                ang = b["angle"]
+                loc = np.array([r * math.cos(ang), 0.0, r * math.sin(ang)])
+                w_pt = self.center_pos + R @ loc
+                d = float(np.linalg.norm(np.array(check_pt) - w_pt))
+                if d < 0.20 and d < closest_dist:
+                    closest_dist = d
+                    closest_b = b
+
+            self.hovered_body = closest_b
+
+            # 2. Xoay he quy dao khi Pinch (Direct In-Air Rotation)
+            if is_pinched:
+                if not self.is_grabbed:
+                    self.is_grabbed = True
+                    self.prev_grab_pt = np.array(check_pt)
+                else:
+                    delta = np.array(check_pt) - self.prev_grab_pt
+                    self.rot[1] += delta[0] * 3.5
+                    self.rot[0] -= delta[1] * 3.5
+                    self.rot[0] = max(-0.8, min(1.1, self.rot[0]))
+                    self.prev_grab_pt = np.array(check_pt)
+            else:
+                self.is_grabbed = False
+                self.prev_grab_pt = None
+        else:
+            self.is_grabbed = False
+            self.prev_grab_pt = None
+
+    def draw(self, frame, cam, now, offset_x=0):
+        rx, ry = self.rot
+        Rx = np.array([[1, 0, 0], [0, math.cos(rx), -math.sin(rx)], [0, math.sin(rx), math.cos(rx)]])
+        Ry = np.array([[math.cos(ry), 0, math.sin(ry)], [0, 1, 0], [-math.sin(ry), 0, math.cos(ry)]])
+        R = Ry @ Rx
+
+        # 1. Ve San Luoi Khong Gian 3D (Perspective Depth Horizon Grid Floor)
+        if self.show_grid:
+            grid_y = -0.42
+            for gx in np.linspace(-1.2, 1.2, 7):
+                p_start, _ = cam.project_3d(np.array([gx, grid_y, 0.6]), offset_x)
+                p_end, _ = cam.project_3d(np.array([gx, grid_y, 2.6]), offset_x)
+                cv2.line(frame, p_start, p_end, (35, 45, 60), 1, cv2.LINE_AA)
+            for gz in np.linspace(0.6, 2.6, 6):
+                p_start, _ = cam.project_3d(np.array([-1.2, grid_y, gz]), offset_x)
+                p_end, _ = cam.project_3d(np.array([1.2, grid_y, gz]), offset_x)
+                alpha_z = int(60 * (1.0 - (gz - 0.6) / 2.0))
+                cv2.line(frame, p_start, p_end, (alpha_z, alpha_z + 10, alpha_z + 20), 1, cv2.LINE_AA)
+
+        # 2. Ve Cac Duong Vanh Dai Quy Dao 3D (Orbit Rings)
+        for b in self.bodies:
+            r = b["radius"]
+            if r <= 0.01:
+                continue
+            is_active = (self.hovered_body and self.hovered_body["id"] == b["id"])
+            ring_col = (0, 240, 255) if is_active else (55, 65, 80)
+            ring_thick = 2 if is_active else 1
+
+            ring_pts = []
+            for a in np.linspace(0, 2 * math.pi, 36):
+                loc = np.array([r * math.cos(a), 0.0, r * math.sin(a)])
+                w_pt = self.center_pos + R @ loc
+                p2, _ = cam.project_3d(w_pt, offset_x)
+                ring_pts.append(p2)
+
+            for i in range(len(ring_pts) - 1):
+                cv2.line(frame, ring_pts[i], ring_pts[i+1], ring_col, ring_thick, cv2.LINE_AA)
+            cv2.line(frame, ring_pts[-1], ring_pts[0], ring_col, ring_thick, cv2.LINE_AA)
+
+        # 3. Ve Cac Thien The 3D (Planets & Core)
+        for b in self.bodies:
+            r = b["radius"]
+            ang = b["angle"]
+            loc = np.array([r * math.cos(ang), 0.0, r * math.sin(ang)])
+            w_pt = self.center_pos + R @ loc
+            p2, z_depth = cam.project_3d(w_pt, offset_x)
+
+            is_active = (self.hovered_body and self.hovered_body["id"] == b["id"])
+            rad_px = max(4, int((b["size"] * 240.0) / max(0.2, z_depth)))
+
+            # Glow aura
+            if b["id"] == "core":
+                pulse = int(12 + 6 * math.sin(now * 5.0))
+                cv2.circle(frame, p2, rad_px + pulse, (20, 100, 160), -1, cv2.LINE_AA)
+            elif is_active:
+                cv2.circle(frame, p2, rad_px + 8, (255, 188, 208), 2, cv2.LINE_AA)
+
+            # Planet Body
+            cv2.circle(frame, p2, rad_px, b["color"], -1, cv2.LINE_AA)
+            cv2.circle(frame, p2, rad_px, (255, 255, 255), 1, cv2.LINE_AA)
+
+            # Moon for Terra
+            if b.get("has_moon", False):
+                m_ang = now * 3.2
+                m_loc = loc + np.array([0.06 * math.cos(m_ang), 0.02 * math.sin(m_ang), 0.06 * math.sin(m_ang)])
+                m_wpt = self.center_pos + R @ m_loc
+                mp2, _ = cam.project_3d(m_wpt, offset_x)
+                cv2.circle(frame, mp2, max(2, rad_px // 3), (220, 220, 220), -1, cv2.LINE_AA)
+
+            # Saturn Ring
+            if b.get("has_ring", False):
+                cv2.ellipse(frame, p2, (rad_px * 2, max(3, rad_px // 2)), int(math.degrees(ry) * 0.4), 0, 360, (180, 220, 255), 1, cv2.LINE_AA)
+
+            # Telemetry label on hover
+            if is_active and self.show_telemetry:
+                label_text = f"{b['name']} | X:{w_pt[0]:+.2f}m Y:{w_pt[1]:+.2f}m Z:{w_pt[2]:.2f}m"
+                cv2.putText(frame, label_text, (p2[0] - 80, p2[1] - rad_px - 14),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 243, 255), 1, cv2.LINE_AA)
+
+# -----------------------------------------------------------------------------
 # STARK SPATIAL SUITE CORE ENGINE
 # -----------------------------------------------------------------------------
 class StarkCardboardXRSuite:
@@ -517,14 +671,15 @@ class StarkCardboardXRSuite:
         # 4. Hysteresis Pinch Detector & Ray
         self.pinch_detector = PinchDetector(close_dist=0.026, open_dist=0.045)
 
-        # 5. Tich hop tat ca 4 Demo tu CardboardXR goc
+        # 5. Tich hop tat ca cac Demo tu CardboardXR goc & Mo phong khong gian 3D
         self.paint_demo = PaintDemo()
         self.portal_demo = PortalDemo()
         self.rush_demo = OrbRushDemo()
         self.cube_demo = CubePhysicsDemo()
+        self.spatial_sim_demo = SpatialSimDemo()
 
         # 6. Che do van hanh (Modes)
-        self.current_mode = 1 # 1: Paint, 2: Portal, 3: Orb Rush, 4: Cube Physics, 5: Caliper
+        self.current_mode = 1 # 1: Paint, 2: Portal, 3: Orb Rush, 4: Cube Physics, 5: Caliper, 6: Spatial 3D Sim
         self.stereo_vr_mode = False # False: Desktop HUD, True: Stereo VR SBS cho kinh Shinecon G10
         self.stereo_offset = 14 # IPD disparity pixels
 
@@ -745,6 +900,8 @@ class StarkCardboardXRSuite:
                         if norm_d > 1e-4:
                             ray_dir_3d = dir_v / norm_d
                     self.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
+                elif self.current_mode == 6:
+                    self.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
 
             # Ve cac Demo vao cac View (Left / Right hoac Desktop)
             for target_frame, off_x in views:
@@ -764,6 +921,8 @@ class StarkCardboardXRSuite:
                     dist_mm = dist_m * 1000.0
                     cv2.putText(target_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                elif self.current_mode == 6:
+                    self.spatial_sim_demo.draw(target_frame, self.spatial_cam, now, off_x)
 
                 # Ve khop tay & Tia Laser Pointing Ray
                 if filtered_lms_2d is not None:
@@ -831,6 +990,9 @@ class StarkCardboardXRSuite:
             elif key == ord('5'):
                 self.current_mode = 5
                 print("[*] Chuyen sang: Precision 3D Caliper")
+            elif key == ord('6'):
+                self.current_mode = 6
+                print("[*] Chuyen sang: 3D Holographic Spatial Simulation")
             elif key == ord('v') or key == ord('V'):
                 self.stereo_vr_mode = not self.stereo_vr_mode
                 print(f"[*] Che do Stereo VR (SBS): {'BAT' if self.stereo_vr_mode else 'TAT'}")

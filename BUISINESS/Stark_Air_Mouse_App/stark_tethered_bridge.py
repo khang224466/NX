@@ -495,6 +495,8 @@ class StarkTetheredBridge:
                         if norm_d > 1e-4:
                             ray_dir_3d = dir_v / norm_d
                     self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
+                elif self.suite.current_mode == 6:
+                    self.suite.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
 
             # =================================================================
             # RENDER: 1 MAN HINH DUY NHAT (SINGLE SCREEN) HOAC CHIA DOI STEREO SBS
@@ -526,6 +528,8 @@ class StarkTetheredBridge:
                     dist_mm = dist_pinch * 1000.0
                     cv2.putText(out_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                elif self.suite.current_mode == 6:
+                    self.suite.spatial_sim_demo.draw(out_frame, self.suite.spatial_cam, now, 0)
 
                 # 2. Ve con tro khong gian & khung xuong tuy chon (CardboardXR HandJointsView.cs)
                 if filtered_lms_2d is not None:
@@ -625,6 +629,8 @@ class StarkTetheredBridge:
                         dist_mm = dist_pinch * 1000.0
                         cv2.putText(target_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                    elif self.suite.current_mode == 6:
+                        self.suite.spatial_sim_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
 
                     if filtered_lms_2d is not None:
                         pts_mapped = []
@@ -688,6 +694,7 @@ class StarkTetheredBridge:
             elif key == ord('3'): self.suite.current_mode = 3; self.suite.rush_demo.start(now)
             elif key == ord('4'): self.suite.current_mode = 4
             elif key == ord('5'): self.suite.current_mode = 5
+            elif key == ord('6'): self.suite.current_mode = 6
             elif key == ord('v') or key == ord('V'):
                 self.suite.stereo_vr_mode = not self.suite.stereo_vr_mode
             elif key == ord('f') or key == ord('F'):
