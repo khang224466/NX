@@ -88,6 +88,9 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     }
     
     public func setupCamera() {
+        if useARKit && ARWorldTrackingConfiguration.isSupported {
+            return
+        }
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             self.configureSession()

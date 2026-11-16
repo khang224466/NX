@@ -165,6 +165,7 @@ class SpatialCamera:
     def __init__(self, w=1280, h=720, fov=65.0):
         self.w = w
         self.h = h
+        self.fov = fov
         self.focal = (w / 2.0) / math.tan(math.radians(fov / 2.0))
         self.cx = w / 2.0
         self.cy = h / 2.0
@@ -172,26 +173,73 @@ class SpatialCamera:
         self.convergence_dist = 1.35  # Mat phang hoi tu quang hoc 1.35m
 
         # 6DoF Head Pose Tracking (Kien truc Lai Offloaded Tethered XR)
+        self.raw_head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+        self.raw_head_rot = np.eye(3, dtype=float)
+        self.origin_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+        self.origin_rot_inv = np.eye(3, dtype=float)
         self.head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
         self.head_rot = np.eye(3, dtype=float)
         self.has_6dof = False
 
-    def set_head_pose(self, position=None, rotation_quat=None, rotation_mat=None):
-        """Cap nhat vi tri & huong quay 6DoF cua dau tu ARKit iPhone qua cap USB"""
+    def set_head_pose(self, position=None, rotation_quat=None, rotation_mat=None, from_arkit=False):
+        """
+        Cap nhat vi tri & huong quay 6DoF cua dau tu ARKit iPhone qua cap USB.
+        Neu from_arkit=True: tu dong chuyen tu he toa do ARKit Right-Handed (-Z forward)
+        sang STARK Left-Handed (+Z forward):
+          P_stark = (X, Y, -Z), Q_stark = (-Qx, -Qy, Qz, Qw)  [S * R * S voi S = diag(1, 1, -1)]
+        """
         if position is not None:
-            self.head_pos = np.array(position, dtype=float)
+            p = np.array(position, dtype=float)
+            if from_arkit:
+                p = np.array([p[0], p[1], -p[2]], dtype=float)
+            self.raw_head_pos = p
+            self.has_6dof = True
+
         if rotation_mat is not None:
-            self.head_rot = np.array(rotation_mat, dtype=float)
+            r = np.array(rotation_mat, dtype=float)
+            if from_arkit:
+                s = np.diag([1.0, 1.0, -1.0])
+                r = s @ r @ s
+            self.raw_head_rot = r
             self.has_6dof = True
         elif rotation_quat is not None:
-            self.head_rot = quat_to_rot_mat(rotation_quat)
+            q = rotation_quat
+            if from_arkit:
+                q = [-float(q[0]), -float(q[1]), float(q[2]), float(q[3])]
+            self.raw_head_rot = quat_to_rot_mat(q)
             self.has_6dof = True
 
-    def reset_head_pose(self):
-        """Reset vi tri dau ve goc toa do (Recenter)"""
-        self.head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
-        self.head_rot = np.eye(3, dtype=float)
-        self.has_6dof = False
+        self.head_pos = self.origin_rot_inv @ (self.raw_head_pos - self.origin_pos)
+        self.head_rot = self.origin_rot_inv @ self.raw_head_rot
+
+    def reset_head_pose(self, clear_6dof=False):
+        """
+        Dat lai tam toa do 6DoF hien tai ve goc (0, 0, 0) va huong nhin thang (Recenter).
+        Giu nguyen trang thai 6DoF de cac goi tin tiep theo tu iPhone tinh tu goc moi.
+        """
+        if clear_6dof:
+            self.raw_head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+            self.raw_head_rot = np.eye(3, dtype=float)
+            self.origin_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+            self.origin_rot_inv = np.eye(3, dtype=float)
+            self.head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+            self.head_rot = np.eye(3, dtype=float)
+            self.has_6dof = False
+        else:
+            self.origin_pos = self.raw_head_pos.copy()
+            self.origin_rot_inv = self.raw_head_rot.T.copy()
+            self.head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+            self.head_rot = np.eye(3, dtype=float)
+
+    def get_eye_camera(self, eye_w=640, eye_h=720, fov=60.0):
+        """Tao camera quang hoc cho tung mat trong che do Stereo SBS (cx=320, cy=360)"""
+        eye_cam = SpatialCamera(w=eye_w, h=eye_h, fov=fov)
+        eye_cam.ipd_m = self.ipd_m
+        eye_cam.convergence_dist = self.convergence_dist
+        eye_cam.head_pos = self.head_pos
+        eye_cam.head_rot = self.head_rot
+        eye_cam.has_6dof = self.has_6dof
+        return eye_cam
 
     def project_3d(self, pt_3d, offset_eye=0):
         """
@@ -815,7 +863,9 @@ class PolynomialRadialDistortion:
 
     def apply(self, eye_frame):
         if eye_frame.shape[1] != self.w or eye_frame.shape[0] != self.h:
-            return eye_frame
+            self.w = eye_frame.shape[1]
+            self.h = eye_frame.shape[0]
+            self._build_maps()
         return cv2.remap(eye_frame, self.map_x, self.map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
 
 # -----------------------------------------------------------------------------
@@ -1104,7 +1154,11 @@ class StarkCardboardXRSuite:
             h, w, _ = frame.shape
             if w != self.cam_w or h != self.cam_h:
                 self.cam_w, self.cam_h = w, h
-                self.spatial_cam = SpatialCamera(self.cam_w, self.cam_h, fov=65.0)
+                self.spatial_cam.w = w
+                self.spatial_cam.h = h
+                self.spatial_cam.cx = w / 2.0
+                self.spatial_cam.cy = h / 2.0
+                self.spatial_cam.focal = (w / 2.0) / math.tan(math.radians(self.spatial_cam.fov / 2.0))
 
             now = time.time()
             dt = max(0.001, now - last_t)
@@ -1188,17 +1242,23 @@ class StarkCardboardXRSuite:
             # Render Logic: Ho tro ca Desktop HUD lan Stereo VR (SBS)
             # -----------------------------------------------------------------
             if self.stereo_vr_mode:
-                # Che do 2 mat Side-by-Side cho kinh Shinecon G10
-                left_view = frame.copy()
-                right_view = frame.copy()
+                # Che do 2 mat Side-by-Side (640x720 moi mat -> tong 1280x720) cho kinh Shinecon G10
+                eye_w, eye_h = 640, 720
+                crop_w = int(h * (eye_w / float(eye_h)))
+                cx_frame = w // 2
+                x1_l = max(0, min(w - crop_w, cx_frame - crop_w // 2 - self.stereo_offset))
+                x1_r = max(0, min(w - crop_w, cx_frame - crop_w // 2 + self.stereo_offset))
+                left_view = cv2.resize(frame[:, x1_l:x1_l + crop_w], (eye_w, eye_h))
+                right_view = cv2.resize(frame[:, x1_r:x1_r + crop_w], (eye_w, eye_h))
+                eye_cam = self.spatial_cam.get_eye_camera(eye_w, eye_h, fov=60.0)
 
                 views = [
-                    (left_view, -self.stereo_offset),
-                    (right_view, self.stereo_offset)
+                    (left_view, -self.stereo_offset, eye_cam, x1_l, crop_w, eye_w, eye_h),
+                    (right_view, self.stereo_offset, eye_cam, x1_r, crop_w, eye_w, eye_h)
                 ]
             else:
                 # Che do 1 man hinh Desktop AR
-                views = [(frame, 0)]
+                views = [(frame, 0, self.spatial_cam, 0, w, w, h)]
 
             # Kiem tra In-Air UI
             consumed = False
@@ -1241,25 +1301,27 @@ class StarkCardboardXRSuite:
                     self.video_demo.update(dt)
 
             # Ve cac Demo vao cac View (Left / Right hoac Desktop)
-            for target_frame, off_x in views:
+            for target_frame, off_x, view_cam, orig_x1, orig_cw, vw_t, vh_t in views:
+                sx_v = vw_t / float(max(1, orig_cw))
+                sy_v = vh_t / float(max(1, h))
                 if self.current_mode == 1:
-                    self.paint_demo.draw(target_frame, self.spatial_cam, off_x)
+                    self.paint_demo.draw(target_frame, view_cam, off_x)
                 elif self.current_mode == 2:
-                    self.portal_demo.draw(target_frame, self.spatial_cam, now, off_x)
+                    self.portal_demo.draw(target_frame, view_cam, now, off_x)
                 elif self.current_mode == 3:
-                    self.rush_demo.draw(target_frame, self.spatial_cam, now, off_x)
+                    self.rush_demo.draw(target_frame, view_cam, now, off_x)
                 elif self.current_mode == 4:
-                    self.cube_demo.draw(target_frame, self.spatial_cam, off_x)
+                    self.cube_demo.draw(target_frame, view_cam, off_x)
                 elif self.current_mode == 5 and filtered_lms_2d is not None:
                     # Caliper mode
-                    p1 = (filtered_lms_2d[4][0] + off_x, filtered_lms_2d[4][1])
-                    p2 = (filtered_lms_2d[8][0] + off_x, filtered_lms_2d[8][1])
+                    p1 = (int((filtered_lms_2d[4][0] - orig_x1) * sx_v) + off_x, int(filtered_lms_2d[4][1] * sy_v))
+                    p2 = (int((filtered_lms_2d[8][0] - orig_x1) * sx_v) + off_x, int(filtered_lms_2d[8][1] * sy_v))
                     cv2.line(target_frame, p1, p2, (0, 243, 255), 2, cv2.LINE_AA)
                     dist_mm = dist_m * 1000.0
                     cv2.putText(target_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
                 elif self.current_mode == 6:
-                    self.spatial_sim_demo.draw(target_frame, self.spatial_cam, now, off_x)
+                    self.spatial_sim_demo.draw(target_frame, view_cam, now, off_x)
                 elif self.current_mode == 7:
                     eye_idx = 0 if off_x <= 0 else 1
                     self.video_demo.draw(target_frame, is_stereo=self.stereo_vr_mode, eye_idx=eye_idx, off_x=off_x)
@@ -1277,19 +1339,19 @@ class StarkCardboardXRSuite:
                             (0, 17)
                         ]
                         for b1, b2 in HAND_BONES:
-                            pt_a = (filtered_lms_2d[b1][0] + off_x, filtered_lms_2d[b1][1])
-                            pt_b = (filtered_lms_2d[b2][0] + off_x, filtered_lms_2d[b2][1])
+                            pt_a = (int((filtered_lms_2d[b1][0] - orig_x1) * sx_v) + off_x, int(filtered_lms_2d[b1][1] * sy_v))
+                            pt_b = (int((filtered_lms_2d[b2][0] - orig_x1) * sx_v) + off_x, int(filtered_lms_2d[b2][1] * sy_v))
                             cv2.line(target_frame, pt_a, pt_b, (0, 243, 255), 2, cv2.LINE_AA)
 
                         for pt in filtered_lms_2d:
-                            cv2.circle(target_frame, (pt[0] + off_x, pt[1]), 3, (0, 150, 255), -1, cv2.LINE_AA)
+                            cv2.circle(target_frame, (int((pt[0] - orig_x1) * sx_v) + off_x, int(pt[1] * sy_v)), 3, (0, 150, 255), -1, cv2.LINE_AA)
 
                     # Con tro ngon tay thuan tuy (Pure Fingertip Reticle - Khong con tia laser vuong mat)
                     cursor_pos = pinch_pt_2d if (is_pinched and pinch_pt_2d is not None) else filtered_lms_2d[8]
                     if cursor_pos is not None:
                         self.spatial_menu.draw_cursor_reticle(
                             target_frame,
-                            (cursor_pos[0] + off_x, cursor_pos[1]),
+                            (int((cursor_pos[0] - orig_x1) * sx_v) + off_x, int(cursor_pos[1] * sy_v)),
                             is_pinched,
                             is_hovering=(hovered_btn is not None)
                         )
@@ -1303,9 +1365,9 @@ class StarkCardboardXRSuite:
                 if self.enable_distortion:
                     left_view = self.radial_distortion.apply(left_view)
                     right_view = self.radial_distortion.apply(right_view)
-                # Ghep 2 mat thanh 1 khung Side-by-Side (SBS)
+                # Ghep 2 mat thanh 1 khung Side-by-Side (SBS 1280x720)
                 sbs_frame = np.hstack((left_view, right_view))
-                cv2.line(sbs_frame, (w, 0), (w, h), (0, 0, 0), 4)
+                cv2.line(sbs_frame, (640, 0), (640, 720), (0, 0, 0), 4)
                 display_frame = sbs_frame
             else:
                 self.draw_hud(frame, fps)
@@ -1317,6 +1379,9 @@ class StarkCardboardXRSuite:
             key = cv2.waitKey(1) & 0xFF
             if key == 27: # ESC
                 break
+            elif key == ord('r') or key == ord('R'):
+                self.spatial_cam.reset_head_pose()
+                print("[*] Da Recenter goc toa do khong gian 6DoF!")
             elif key == ord('1'):
                 self.current_mode = 1
                 print("[*] Chuyen sang: 3D Air Paint (Tilt Brush)")

@@ -567,6 +567,8 @@ class SpatialInAirMenu:
                         b.label = "SBS VR" if target_suite.stereo_vr_mode else "1-SCR"
                         b.is_active = target_suite.stereo_vr_mode
         elif btn_id in ["tb_recenter", "tb_recenter_tile"]:
+            if suite and hasattr(suite, 'spatial_cam'):
+                suite.spatial_cam.reset_head_pose()
             if suite and suite.current_mode == 4:
                 suite.cube_demo.pos = np.array([0.0, 0.0, 1.1])
                 suite.cube_demo.vel = np.array([0.0, 0.0, 0.0])

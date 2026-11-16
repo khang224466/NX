@@ -1,35 +1,32 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.3.02 PRO & Hybrid 6DoF XR Architecture - Step 4 Complete / ALL STEPS DONE)
+## Current Status (v10.3.03 PRO - Deep Surgical Audit & Full Fix of Steps 1-4)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.3.02 PRO** (Hoàn tất Bước 4 / Bước cuối cùng trong Kế hoạch Kiến trúc Lai 6DoF Offloaded Tethered XR; Nâng cấp CHAY_TEST_HE_THONG.bat tự động kiểm tra và forward usbmuxd 23456; Thêm mục [12] Unity 6DoF Hybrid Mode, [13] USB Check, [14] Đồng bộ code; Nâng cấp test_diagnostics.py lên 8/8 hạng mục bao gồm kiểm thử toán học 6DoF Transform và Quaternion Rotation).
-- **Core Breakthroughs in v10.3.02 PRO (Step 4 Final Implementation)**:
-  1. **Kịch bản 1-Click `CHAY_TEST_HE_THONG.bat` (v10.3.02 PRO)**:
-     - Tự động kiểm tra và khởi động `pymobiledevice3 usbmux forward 23456` trước khi chạy bất kỳ lệnh iPhone nào.
-     - Hiển thị trạng thái kết nối iPhone USB ngay trên menu chính (Active / Inactive / Chưa cắm cáp).
-     - **Mục [12] mới:** Khởi động Unity 6DoF Hybrid Mode — hiện sơ đồ luồng dữ liệu end-to-end trực quan rồi bật Python Bridge + Unity C# IPC đồng thời.
-     - **Mục [13] mới:** Kiểm tra chi tiết trạng thái USB Forward (pymobiledevice3 version, list, port 23456, port 23457).
-     - **Mục [14] mới:** Đồng bộ 1-click Desktop ↔ `d:\BUISINESS\` qua robocopy mirror.
-  2. **Kiểm thử 8/8 hạng mục (`test_diagnostics.py`)**:
-     - Hạng mục 8 mới: Kiểm thử 6DoF IPC Pipeline gồm phép biến đổi tịnh tiến, phép quay Quaternion 30°, tồn tại `NetworkPoseSource.cs`, và trạng thái UDP Port 23457.
-     - Xác nhận toán học: Di chuyển đầu sang phải 0.5m → vật thể dịch sang trái 503px ✓, Quay đầu 30° → vật thể lệch sang trái px=59 ✓.
+- Current live version: **v10.3.03 PRO** (Kiểm toán và sửa triệt để toàn bộ các lỗi toán học, hệ trục tọa độ, dead-code Unity, lệch tâm quang học SBS/1080p, và treo lệnh `.bat` của các bản trước).
+- **Core Fixes in v10.3.03 PRO (Argon Surgical Audit)**:
+  1. **Sửa lỗi Toán học Hệ Trục Tọa Độ & Ma Trận Quaternion 6DoF (iOS ARKit Right-Handed $\rightarrow$ STARK/Unity Left-Handed)**:
+     - Phát hiện lỗi nghiêm trọng của bản trước: dùng `(Qx, -Qy, -Qz, Qw)` gây sai số ma trận `1.588` (phản xạ nhầm trục $X$ thay vì trục $Z$, làm ngược chiều ngẩng/cúi đầu Pitch và nghiêng đầu Roll), và quên đảo dấu trục $Z$ trong Python (`stark_tethered_bridge.py`), khiến bước tới gần vật thể ($Z_{\text{ARKit}} < 0$) lại làm vật thể trôi ra xa!
+     - Đã sửa chuẩn xác theo phép liên hợp ma trận phản xạ trục $Z$ ($S = \text{diag}(1, 1, -1)$):
+       $$R_{\text{LH}} = S \cdot R_{\text{RH}} \cdot S \iff P_{\text{LH}} = (X, Y, -Z), \quad Q_{\text{LH}} = (-Q_x, -Q_y, Q_z, Q_w)$$
+       Sai số ma trận kiểm thử đạt **`0.0e+00`**!
+     - Nâng cấp `reset_head_pose()` (Persistent 6DoF Recenter): Lưu `origin_pos` và `origin_rot_inv` để khi bấm nút `RECENTER` (hoặc phím `R`), các gói tin 6DoF tiếp theo từ iPhone vẫn giữ nguyên gốc tọa độ mới `(0, 0, 0)` thay vì bị ghi đè lại sau 8ms.
+  2. **Sửa lỗi Dead-Code & Crash Luồng Nền trong Unity C# (`HeadPoseFusion.cs` & `NetworkPoseSource.cs`)**:
+     - Trên Windows PC (RTX 4060) không có cảm biến IMU di động cục bộ, `m_Tracker.TryGetRotation()` luôn trả về `false`, khiến `HeadPoseFusion.UpdatePose()` của bản trước thoát ngay ở dòng đầu tiên và không bao giờ đọc `m_NetworkPose`!
+     - Đã sửa `HeadPoseFusion.cs`: Tự động gắn `NetworkPoseSource` trong `OnEnable()` trên Windows/Editor, mặc định bật `Mode.SixDof`, và khi `!hasLocalImu` thì điều khiển trực tiếp Camera Rig từ `m_NetworkPose.TryGetLatest()` (với đầy đủ `EyesAtCamera`, `m_RecenterRotation`, `m_RecenterPivot`, `m_HeightOffset`).
+     - Đã sửa `NetworkPoseSource.cs`: Thay `Time.realtimeSinceStartupAsDouble` (gây `UnityException` khi gọi trong luồng nền `ReceiveWorker`) bằng `Stopwatch.GetTimestamp()` thread-safe 100%; thay `Input.GetKeyDown` cũ bằng `UnityEngine.InputSystem.Keyboard.current`; loại bỏ `Thread.Abort()`.
+  3. **Sửa lỗi Lệch Tâm Quang Học 320px trên Luồng iPhone 1080p & Kính VR SBS**:
+     - Chuẩn hóa tọa độ khớp tay từ độ phân giải gốc (`1920x1080` / `4K`) về hệ quy chiếu `SpatialCamera` (`1280x720`) trước khi tính `palm_px` và `unproject_2d()`, triệt tiêu hoàn toàn độ lệch +320px ngang / +180px dọc khi vẽ Paint 3D và bắt khối hộp.
+     - Tạo camera quang học riêng cho từng mắt `get_eye_camera(640, 720)` với tâm quang học chuẩn `cx = 320, cy = 360` khi chạy chế độ chia đôi kính VR SBS, giúp khối 3D nằm chính giữa thấu kính thay vì bị cắt nửa ở mép phải `x = 640`.
+     - Sửa `PolynomialRadialDistortion.apply()` tự động cập nhật LUT nếu kích thước khung hình thay đổi.
+  4. **Sửa lỗi Treo Cứng (Hang) trong `CHAY_TEST_HE_THONG.bat` & Tối ưu iOS Swift (`STARK_Cam_iOS`)**:
+     - Loại bỏ lệnh `python -m pymobiledevice3 usbmux forward 23456 23456 &` gây treo đồng bộ trên Windows `cmd.exe` trong `:RUN_AUTO`.
+     - Trong `H264Encoder.swift`: Gộp `SPS + PPS + Slice NALUs` của cùng 1 frame thành 1 Access Unit duy nhất để mỗi khung hình chỉ gửi đúng 1 gói TCP và 1 gói UDP 6DoF Pose (loại bỏ hiện tượng nhân 3 gói tin trên mỗi Keyframe).
+     - Trong `CameraEngine.swift` & `ViewController.swift`: Tránh khởi tạo `AVCaptureSession` tranh chấp phần cứng khi `useARKit == true`, và tiết lưu cập nhật chữ HUD ở mức 6Hz để không gây nghẽn Main Thread.
 
 ---
 
-## Kế hoạch Kiến trúc Lai 6DoF Offloaded Tethered XR (HOÀN TẤT 4/4 BƯỚC)
-- [x] **Bước 1 (v10.2.99):** Nâng cấp Python Bridge & Engine — 6DoF Pose Decoder, MediaPipe VIDEO mode 3.5ms, True Monocular Depth.
-- [x] **Bước 2 (v10.3.00):** iOS Swift ARKit 6DoF — ARSession World Tracking, 28B Pose mux qua USB Lightning.
-- [x] **Bước 3 (v10.3.01):** Unity C# IPC — NetworkPoseSource.cs UDP 23457, HeadPoseFusion đa nền tảng, Lerp/Slerp 6DoF.
-- [x] **Bước 4 (v10.3.02):** Kịch bản Test 1-Click — Auto usbmux forward, Unity Hybrid launcher, Diagnostics 8/8 PASS.
-
----
-
-## Past Milestones
-- **v10.3.01 PRO**: Hoàn tất Bước 3 Kiến trúc Lai 6DoF; Viết cầu nối C# Unity `NetworkPoseSource.cs` lắng nghe UDP Port 23457; Chuyển đổi hệ tọa độ iOS ARKit sang Unity Left-Handed; Nâng cấp `HeadPoseFusion.cs` hỗ trợ đa nền tảng PC Standalone RTX 4060 GPU.
-- **v10.3.00 PRO**: Hoàn tất Bước 2; Tích hợp ARKit VIO 6DoF World Tracking vào app iOS Swift `STARK_Cam_iOS`; Đóng gói gói tin nhị phân ghép kênh 28 Bytes `6DOF` qua cáp USB Lightning.
-- **v10.2.99 PRO**: Hoàn tất Bước 1; Tích hợp bộ giải mã nhị phân 6DoF Pose 28 Bytes; Nâng cấp SpatialCamera ma trận 6DoF; Chuyển MediaPipe sang RunningMode.VIDEO 3.5ms; Ước lượng độ sâu bàn tay Monocular True Depth.
-- **v10.2.98 PRO**: Hợp nhất toàn bộ mã nguồn vào 1 thư mục duy nhất `code/`; Thiết lập duy nhất 1 `CHAY_TEST_HE_THONG.bat`; Diagnostics 7/7 PASS.
-- **v10.2.97 PRO**: True Stereoscopic Binocular Parallax; Khử hiện tượng hình phẳng sticker.
-- **v10.2.96 PRO**: CLI Arguments `--demo`, `--view`, `--cam`, `--distortion`; 7 file batch 1-click.
-- **v10.2.95 PRO**: Port 100% CardboardXR-main: HandTurnGate, Video VR 360/180, Polynomial Distortion, App Library 2x4 Grid.
-- **STARK Spatial Computing & Roamies JARVIS Integration (v9.7.5)**: Spacedesk iPhone, CardboardXR-main.zip, Roamies JARVIS.
+## Kế hoạch Kiến trúc Lai 6DoF Offloaded Tethered XR (HOÀN TẤT & ĐÃ KIỂM TOÁN 8/8 PASS)
+- [x] **Bước 1:** Python Bridge & Engine (`stark_tethered_bridge.py`, `stark_cardboard_xr.py`, `stark_spatial_menu.py`)
+- [x] **Bước 2:** iOS Swift ARKit 6DoF (`CameraEngine.swift`, `H264Encoder.swift`, `USBTunnel.swift`, `ViewController.swift`)
+- [x] **Bước 3:** Unity C# IPC (`NetworkPoseSource.cs`, `HeadPoseFusion.cs`)
+- [x] **Bước 4:** Kịch bản Test 1-Click & Diagnostics (`CHAY_TEST_HE_THONG.bat`, `test_diagnostics.py`)

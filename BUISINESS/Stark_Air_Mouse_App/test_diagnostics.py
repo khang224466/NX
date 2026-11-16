@@ -158,54 +158,67 @@ def run_diagnostics():
 
     passed += 1
 
-    # 8. 6DoF IPC Pipeline Test (USB Forward 23456 + Unity UDP 23457)
-    print("\n[8/8] Kiem tra Luong du lieu 6DoF IPC Pipeline (USB 23456 + Unity UDP 23457)...")
+    # 8. 6DoF IPC Pipeline Test (USB Forward 23456 + Unity UDP 23457 + ARKit RH->LH + SBS Eye Center)
+    print("\n[8/8] Kiem tra Luong du lieu 6DoF IPC Pipeline & Chuan Toan hoc ARKit -> STARK/Unity...")
     ipc_ok = True
 
-    # 8a. Kiem tra SpatialCamera 6DoF Transform co dung phep bien doi P_cam = R^T * (P - T)
     from stark_cardboard_xr import SpatialCamera, quat_to_rot_mat
-    cam6 = SpatialCamera(w=1280, h=720, fov=65.0)
-    cam6.set_head_pose(position=[0.5, 0.0, 0.0], rotation_quat=[0, 0, 0, 1])  # Di chuyen dau sang phai 0.5m
-    pt_world = [0.0, 0.0, 1.0]  # Vat the phia truoc 1m
-    (px_6dof, py_6dof), z_6dof = cam6.project_3d(pt_world, offset_eye=0)
-    
-    cam_no6 = SpatialCamera(w=1280, h=720, fov=65.0)
-    (px_no6, py_no6), z_no6 = cam_no6.project_3d(pt_world, offset_eye=0)
-    
-    # Khi dich dau sang phai 0.5m, vat the phai tro nen lech sang trai tren man hinh
-    if px_6dof < px_no6:
-        print(f"  [OK] 6DoF Transform: Di chuyen dau sang phai 0.5m -> Vat the dich sang trai {px_no6 - px_6dof}px (Dung!)")
+    import math as _m8
+
+    # 8a. Kiem tra ARKit Right-Handed (-Z forward) -> STARK Left-Handed (+Z forward)
+    cam_arkit = SpatialCamera(w=1280, h=720, fov=65.0)
+    # Trong ARKit: buoc toi phia truoc 0.4m la Z = -0.4m
+    cam_arkit.set_head_pose(position=[0.0, 0.0, -0.4], rotation_quat=[0, 0, 0, 1], from_arkit=True)
+    (_, _), z_after_step = cam_arkit.project_3d([0.0, 0.0, 1.1], offset_eye=0)
+    if abs(z_after_step - 0.7) < 1e-4:
+        print(f"  [OK] ARKit RH -> STARK LH Depth: Buoc toi 0.4m (ARKit Z=-0.4) -> Khoang cach den vat the giam tu 1.1m xuong {z_after_step:.2f}m (Dung!)")
     else:
-        print(f"  [FAIL] 6DoF Transform sai: px_6dof={px_6dof} khong nho hon px_no6={px_no6}")
+        print(f"  [FAIL] Loi truc Z ARKit: z_after_step={z_after_step} (ky vong 0.7m)")
         ipc_ok = False
 
-    # 8b. Kiem tra Quaternion Rotation
-    import math as _m8
-    cam6r = SpatialCamera(w=1280, h=720, fov=65.0)
-    # Quay dau 30 do sang phai (quanh truc Y)
-    angle_rad = _m8.radians(30)
-    qy_rot = [0, _m8.sin(angle_rad/2), 0, _m8.cos(angle_rad/2)]
-    cam6r.set_head_pose(position=[0, 0, 0], rotation_quat=qy_rot)
-    (px_rot, py_rot), z_rot = cam6r.project_3d([0.0, 0.0, 1.0], offset_eye=0)
-    # Quay dau sang phai 30 do -> vat the phia truoc phai lech sang trai man hinh
-    if px_rot < 640:
-        print(f"  [OK] Quaternion Rotation: Quay dau 30 do sang phai -> Vat the lech sang trai px={px_rot} (Dung!)")
+    # 8b. Kiem tra Phep lien hop Ma tran Quaternion S*R*S voi S = diag(1, 1, -1) -> Q_lh = (-Qx, -Qy, Qz, Qw)
+    q_test = [0.2, 0.3, 0.4, _m8.sqrt(1.0 - 0.04 - 0.09 - 0.16)]
+    S_mat = np.diag([1.0, 1.0, -1.0])
+    R_expected = S_mat @ quat_to_rot_mat(q_test) @ S_mat
+    cam_arkit.set_head_pose(position=[0, 0, 0], rotation_quat=q_test, from_arkit=True)
+    rot_err = float(np.max(np.abs(cam_arkit.head_rot - R_expected)))
+    if rot_err < 1e-6:
+        print(f"  [OK] Quaternion Handedness S*R*S (-Qx, -Qy, Qz, Qw): Sai so ma tran = {rot_err:.1e} (Chinh xac tuyet doi!)")
     else:
-        print(f"  [FAIL] Quaternion rotation sai: px={px_rot} (ky vong < 640)")
+        print(f"  [FAIL] Quaternion Handedness sai: rot_err={rot_err}")
         ipc_ok = False
-    
-    # 8c. Kiem tra NetworkPoseSource.cs ton tai tren dia
+
+    # 8c. Kiem tra Persistent 6DoF Recenter (reset_head_pose giu goc moi khi goi tin ARKit tiep tuc den)
+    cam_arkit.set_head_pose(position=[0.5, 0.2, -0.3], rotation_quat=q_test, from_arkit=True)
+    cam_arkit.reset_head_pose()
+    # Goi tin tiep theo tu iPhone van o vi tri cu [0.5, 0.2, -0.3] -> Sau Recenter phai bang (0, 0, 0)
+    cam_arkit.set_head_pose(position=[0.5, 0.2, -0.3], rotation_quat=q_test, from_arkit=True)
+    recenter_err = float(np.linalg.norm(cam_arkit.head_pos))
+    if recenter_err < 1e-6:
+        print(f"  [OK] Persistent 6DoF Recenter: Giu vung goc toa do moi (0,0,0) khi stream ARKit lien tuc (err={recenter_err:.1e})")
+    else:
+        print(f"  [FAIL] Recenter bi ghi de boi goi tin tiep theo: err={recenter_err}")
+        ipc_ok = False
+
+    # 8d. Kiem tra Stereo SBS Eye Viewport Center (640x720 moi mat phai co tam tai px=320)
+    eye_cam = cam_arkit.get_eye_camera(eye_w=640, eye_h=720, fov=60.0)
+    (eye_px, eye_py), _ = eye_cam.project_3d([0.0, 0.0, 1.35], offset_eye=0)
+    if eye_px == 320 and eye_py == 360:
+        print(f"  [OK] Stereo SBS Per-Eye Camera (640x720): Tam quang hoc chuan xac tai ({eye_px}, {eye_py})!")
+    else:
+        print(f"  [FAIL] Stereo SBS Eye Center sai: ({eye_px}, {eye_py}) thay vi (320, 360)")
+        ipc_ok = False
+
+    # 8e. Kiem tra NetworkPoseSource.cs ton tai tren dia & UDP Port 23457
     nps_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CardboardXR", "CardboardXR-main", "Assets", "_Project", "Scripts", "Stereo", "NetworkPoseSource.cs")
     if not os.path.exists(nps_path):
-        # Thu tim o thu muc BUISINESS
         nps_path = os.path.join("d:\\", "BUISINESS", "CardboardXR", "CardboardXR-main", "Assets", "_Project", "Scripts", "Stereo", "NetworkPoseSource.cs")
     if os.path.exists(nps_path):
         size_kb = os.path.getsize(nps_path) / 1024
         print(f"  [OK] NetworkPoseSource.cs ton tai ({size_kb:.1f} KB) - San sang nhan 6DoF qua UDP 23457")
     else:
-        print(f"  [INFO] NetworkPoseSource.cs chua tim thay (Chi can khi chay Unity 6DoF Mode)")
+        print(f"  [INFO] NetworkPoseSource.cs chua tim thay")
 
-    # 8d. Kiem tra UDP Port 23457 co san sang khong
     import socket as _s8
     try:
         u = _s8.socket(_s8.AF_INET, _s8.SOCK_DGRAM)

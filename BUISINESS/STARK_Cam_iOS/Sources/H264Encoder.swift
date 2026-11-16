@@ -153,6 +153,10 @@ private func compressionCallback(
         isKeyFrame = !dependsOnOthers
     }
     
+    // Combine all NALUs of this Access Unit (SPS + PPS + Slices) into a single buffer
+    // so that each video frame emits exactly ONE multiplexed 6DoF + H.264 packet over USB.
+    var frameNALUData = Data()
+
     // If keyframe, extract SPS and PPS parameters first
     if isKeyFrame {
         if let formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer) {
@@ -170,9 +174,8 @@ private func compressionCallback(
             )
             
             if status == noErr, let sps = spsPointer {
-                var spsData = Data([0x00, 0x00, 0x00, 0x01])
-                spsData.append(sps, count: spsSize)
-                encoder.delegate?.h264Encoder(encoder, didEncodeNALU: spsData, isKeyFrame: true, pose: framePose)
+                frameNALUData.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+                frameNALUData.append(sps, count: spsSize)
             }
             
             var ppsSize: Int = 0
@@ -187,9 +190,8 @@ private func compressionCallback(
             )
             
             if status == noErr, let pps = ppsPointer {
-                var ppsData = Data([0x00, 0x00, 0x00, 0x01])
-                ppsData.append(pps, count: ppsSize)
-                encoder.delegate?.h264Encoder(encoder, didEncodeNALU: ppsData, isKeyFrame: true, pose: framePose)
+                frameNALUData.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+                frameNALUData.append(pps, count: ppsSize)
             }
         }
     }
@@ -212,10 +214,13 @@ private func compressionCallback(
         naluLength = CFSwapInt32BigToHost(naluLength)
         
         let slicePointer = rawBytes + bufferOffset + avccHeaderLength
-        var naluData = Data([0x00, 0x00, 0x00, 0x01])
-        naluData.append(UnsafePointer<UInt8>(OpaquePointer(slicePointer)), count: Int(naluLength))
+        frameNALUData.append(contentsOf: [0x00, 0x00, 0x00, 0x01])
+        frameNALUData.append(UnsafePointer<UInt8>(OpaquePointer(slicePointer)), count: Int(naluLength))
         
-        encoder.delegate?.h264Encoder(encoder, didEncodeNALU: naluData, isKeyFrame: isKeyFrame, pose: framePose)
         bufferOffset += avccHeaderLength + Int(naluLength)
+    }
+
+    if !frameNALUData.isEmpty {
+        encoder.delegate?.h264Encoder(encoder, didEncodeNALU: frameNALUData, isKeyFrame: isKeyFrame, pose: framePose)
     }
 }

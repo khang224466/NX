@@ -172,10 +172,11 @@ class StarkTetheredBridge:
                             "quat": np.array([qx, qy, qz, qw], dtype=float),
                             "time": time.time()
                         }
-                        # Dong bo ma tran 6DoF vao SpatialCamera de di chuyen Camera Rig
+                        # Dong bo ma tran 6DoF vao SpatialCamera de di chuyen Camera Rig (Chuyen ARKit RH -> STARK LH)
                         self.suite.spatial_cam.set_head_pose(
                             position=self.latest_pose["pos"],
-                            rotation_quat=self.latest_pose["quat"]
+                            rotation_quat=self.latest_pose["quat"],
+                            from_arkit=True
                         )
                         h264_payload = payload[36:]
 
@@ -447,10 +448,12 @@ class StarkTetheredBridge:
                         flt_px = self.suite.filters_2d[i].filter(now, raw_px)
                         filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
 
-                    # Tinh khoang cach thuc Monocular Depth tu chieu dai long ban tay (wrist 0 -> mcp 9, ~0.085m)
+                    # Chuan hoa toa do ban tay ve he quy chieu SpatialCamera (1280x720) truoc khi tinh do sau & unproject 3D
+                    sx_cam = self.suite.spatial_cam.w / float(max(1, w))
+                    sy_cam = self.suite.spatial_cam.h / float(max(1, h))
                     palm_px = math.hypot(
-                        filtered_lms_2d[0][0] - filtered_lms_2d[9][0],
-                        filtered_lms_2d[0][1] - filtered_lms_2d[9][1]
+                        (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_cam,
+                        (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_cam
                     )
                     base_z = float(np.clip((0.085 * self.suite.spatial_cam.focal) / max(20.0, palm_px), 0.25, 1.40))
 
@@ -458,7 +461,9 @@ class StarkTetheredBridge:
                     filtered_lms_3d = []
                     for i in range(21):
                         rel_z = (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.8
-                        pt3 = self.suite.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], base_z + rel_z)
+                        cam_px = filtered_lms_2d[i][0] * sx_cam
+                        cam_py = filtered_lms_2d[i][1] * sy_cam
+                        pt3 = self.suite.spatial_cam.unproject_2d(cam_px, cam_py, base_z + rel_z)
                         flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
                         filtered_lms_3d.append(flt_pt3)
 
@@ -659,18 +664,19 @@ class StarkTetheredBridge:
                         (right_eye, self.suite.stereo_offset, 0, w)
                     ]
 
+                eye_cam = self.suite.spatial_cam.get_eye_camera(eye_w, eye_h, fov=60.0)
                 for target_frame, off_x, orig_x1, orig_cw in eye_crops:
                     scale_x = eye_w / float(orig_cw)
                     scale_y = eye_h / float(h)
 
                     if self.suite.current_mode == 1:
-                        self.suite.paint_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                        self.suite.paint_demo.draw(target_frame, eye_cam, off_x)
                     elif self.suite.current_mode == 2:
-                        self.suite.portal_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                        self.suite.portal_demo.draw(target_frame, eye_cam, now, off_x)
                     elif self.suite.current_mode == 3:
-                        self.suite.rush_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                        self.suite.rush_demo.draw(target_frame, eye_cam, now, off_x)
                     elif self.suite.current_mode == 4:
-                        self.suite.cube_demo.draw(target_frame, self.suite.spatial_cam, off_x)
+                        self.suite.cube_demo.draw(target_frame, eye_cam, off_x)
                     elif self.suite.current_mode == 5 and filtered_lms_2d is not None:
                         p1_orig = filtered_lms_2d[4]
                         p2_orig = filtered_lms_2d[8]
@@ -681,7 +687,7 @@ class StarkTetheredBridge:
                         cv2.putText(target_frame, f"{dist_mm:.1f} mm", ((p1[0]+p2[0])//2, (p1[1]+p2[1])//2 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
                     elif self.suite.current_mode == 6:
-                        self.suite.spatial_sim_demo.draw(target_frame, self.suite.spatial_cam, now, off_x)
+                        self.suite.spatial_sim_demo.draw(target_frame, eye_cam, now, off_x)
                     elif self.suite.current_mode == 7:
                         eye_idx = 0 if off_x <= 0 else 1
                         self.suite.video_demo.draw(target_frame, is_stereo=True, eye_idx=eye_idx, off_x=off_x)

@@ -143,17 +143,32 @@ namespace CardboardXR.Stereo
 
         void OnEnable()
         {
-            m_Tracker.LinearAccelerationSampled += OnLinearAcceleration;
+            if (m_NetworkPose == null)
+            {
+                m_NetworkPose = GetComponent<NetworkPoseSource>();
+                #if UNITY_EDITOR || UNITY_STANDALONE_WIN
+                if (m_NetworkPose == null)
+                    m_NetworkPose = gameObject.AddComponent<NetworkPoseSource>();
+                #endif
+            }
+            if (m_Tracker != null)
+                m_Tracker.LinearAccelerationSampled += OnLinearAcceleration;
             Application.onBeforeRender += UpdatePose;
             m_StatsStart = Time.unscaledTime;
             m_UseAccelerometer = LaunchOptions.GetInt("imuPosition", 1) != 0;
-            var sixDof = LaunchOptions.GetInt("dof", m_Mode == Mode.SixDof ? 6 : 3) == 6;
+            #if UNITY_EDITOR || UNITY_STANDALONE_WIN
+            int defaultDof = 6;
+            #else
+            int defaultDof = m_Mode == Mode.SixDof ? 6 : 3;
+            #endif
+            var sixDof = LaunchOptions.GetInt("dof", defaultDof) == 6;
             SetMode(sixDof ? Mode.SixDof : Mode.ThreeDof, force: true);
         }
 
         void OnDisable()
         {
-            m_Tracker.LinearAccelerationSampled -= OnLinearAcceleration;
+            if (m_Tracker != null)
+                m_Tracker.LinearAccelerationSampled -= OnLinearAcceleration;
             Application.onBeforeRender -= UpdatePose;
         }
 
@@ -170,7 +185,11 @@ namespace CardboardXR.Stereo
             m_Mode = mode;
             var sixDof = mode == Mode.SixDof;
             if (m_ArPose != null) m_ArPose.enabled = sixDof;
-            if (m_NetworkPose != null) m_NetworkPose.enabled = sixDof;
+            if (m_NetworkPose != null)
+            {
+                m_NetworkPose.enabled = sixDof;
+                m_NetworkPose.DrivesTransform = false;
+            }
             if (m_Tracker != null) m_Tracker.DrivesTransform = !sixDof;
             m_Filter.Reset();
             m_Yaw.Reset();
@@ -192,13 +211,13 @@ namespace CardboardXR.Stereo
             if (!sixDof)
             {
                 transform.localPosition = Vector3.zero;
-                m_Tracker.Recenter();
+                if (m_Tracker != null) m_Tracker.Recenter();
             }
 
             if (m_ModeToggle != null)
                 m_ModeToggle.Selected = sixDof;
             Debug.Log(sixDof
-                ? "[Pose] 6DoF: ARCore on. Android limits the display to 60 Hz while the camera runs."
+                ? "[Pose] 6DoF: ARCore/NetworkPose on."
                 : "[Pose] 3DoF: ARCore off");
         }
 
@@ -207,9 +226,13 @@ namespace CardboardXR.Stereo
         public void Recenter()
         {
             if (m_Mode == Mode.ThreeDof)
-                m_Tracker.Recenter();
+            {
+                if (m_Tracker != null) m_Tracker.Recenter();
+            }
             else
+            {
                 m_RecenterPending = true;
+            }
         }
 
         void Update()
@@ -220,9 +243,45 @@ namespace CardboardXR.Stereo
 
         void UpdatePose()
         {
-            // Reading the rotation also feeds the tracker's new samples, and their accelerations, in.
-            if (m_Mode != Mode.SixDof || !m_Tracker.TryGetRotation(out var trackerRotation))
+            if (m_Mode != Mode.SixDof)
                 return;
+
+            bool hasLocalImu = m_Tracker != null && m_Tracker.TryGetRotation(out var trackerRotation);
+
+            // Chế độ Hybrid 6DoF trên PC Standalone (RTX 4060):
+            // Khi không có cảm biến IMU di động cục bộ (hasLocalImu == false) nhưng có luồng 6DoF VIO
+            // đã hợp nhất sẵn từ iPhone ARKit qua NetworkPoseSource (UDP 23457), điều khiển trực tiếp Camera Rig.
+            if (!hasLocalImu)
+            {
+                if (m_NetworkPose != null && m_NetworkPose.TryGetLatest(out var netSample))
+                {
+                    m_Tracking = true;
+                    m_EyesAtCameraAmount = Mathf.MoveTowards(m_EyesAtCameraAmount, EyesAtCamera ? 1f : 0f,
+                        Time.unscaledDeltaTime / Mathf.Max(0.01f, m_EyeShiftSeconds));
+                    var netRot = netSample.rotation;
+                    var netEyes = netSample.position + netRot * CameraToEyes;
+                    m_LastEyes = netEyes;
+
+                    if (m_RecenterPending)
+                    {
+                        m_RecenterPending = false;
+                        m_RecenterRotation = Quaternion.Euler(0f, -netRot.eulerAngles.y, 0f);
+                        m_RecenterPivot = new Vector3(netEyes.x, 0f, netEyes.z);
+                    }
+
+                    UpdateHeightOffset();
+                    transform.SetPositionAndRotation(
+                        m_RecenterRotation * (netEyes - m_RecenterPivot) + Vector3.up * m_HeightOffset,
+                        m_RecenterRotation * netRot);
+                    if (FollowPose != null && IsArTracking)
+                        transform.SetPositionAndRotation(FollowPose.position, FollowPose.rotation);
+                }
+                else if (m_Tracking)
+                {
+                    LoseTracking();
+                }
+                return;
+            }
 
             var nowNs = m_Tracker.NowNs;
             ConsumeArPose(nowNs);

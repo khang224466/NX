@@ -31,6 +31,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     
     private var isHUDHidden = false
     private var hudDismissTimer: Timer?
+    private var hudFrameCounter: Int = 0
     
     override var prefersStatusBarHidden: Bool { true }
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscapeRight }
@@ -287,9 +288,11 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         // Feed frame to Apple A15 Bionic hardware H.264 encoder with 6DoF Pose
         h264Encoder.encode(pixelBuffer: pixelBuffer, presentationTimeStamp: timestamp, pose: pose)
         
-        if let p = pose {
+        hudFrameCounter &+= 1
+        if let p = pose, !isHUDHidden, (hudFrameCounter % 10 == 0) {
             DispatchQueue.main.async { [weak self] in
-                self?.statsLabel.text = String(format: "6DoF (%.2f, %.2f, %.2f) // A15 HW", p.position.x, p.position.y, p.position.z)
+                guard let self = self, !self.isHUDHidden else { return }
+                self.statsLabel.text = String(format: "6DoF (%.2f, %.2f, %.2f) // A15 HW", p.position.x, p.position.y, p.position.z)
             }
         }
     }
