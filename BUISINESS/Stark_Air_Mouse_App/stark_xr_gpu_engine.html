@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>STARK CardboardXR // RTX 4060 WebGL2 + MediaPipe GPU Engine (v10.4.00 PRO)</title>
+  <script src="/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #05070b; color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #stage {
+      position: relative; width: 100vw; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #000;
+    }
+    #composite-canvas {
+      width: 100%; height: 100%; object-fit: contain;
+      display: block;
+    }
+    #hud-top {
+      position: fixed; top: 10px; left: 14px; z-index: 20;
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(14, 17, 24, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      backdrop-filter: blur(12px);
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.4px;
+      pointer-events: none;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e; box-shadow: 0 0 8px #22c55e;
+    }
+    .dot.warn { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+    #quick-keys {
+      position: fixed; top: 10px; right: 14px; z-index: 20;
+      background: rgba(14, 17, 24, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: 6px 12px; border-radius: 999px;
+      font-size: 11px; color: #94a3b8;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="composite-canvas" width="1280" height="720"></canvas>
+  </div>
+
+  <div id="hud-top">
+    <span class="dot" id="status-dot"></span>
+    <span id="status-text">GPU ENGINE INITIALIZING...</span>
+  </div>
+  <div id="quick-keys">
+    [1-7] Chuyển App | [V] 1-SCR / SBS VR | [R] Recenter 6DoF | [X] Đổi Camera | [M] Mirror
+  </div>
+
+  <!-- Hidden Video Elements for Local Webcam & VR Video Demo -->
+  <video id="webcam-video" playsinline autoplay muted style="display:none"></video>
+  <video id="demo-video" src="/videos/Sample_180_sbs.mp4" loop playsinline muted crossorigin="anonymous" style="display:none"></video>
+
+  <script type="module">
+    // =========================================================================
+    // 1. 1€ (ONE EURO) FILTER & CRITICALLY DAMPED SPRING (Casiez et al. + Kowalski)
+    // =========================================================================
+    class ScalarOneEuroFilter {
+      constructor(minCutoff = 1.35, beta = 0.015, dCutoff = 1.0) {
+        this.minCutoff = minCutoff;
+        this.beta = beta;
+        this.dCutoff = dCutoff;
+        this.xPrev = null;
+        this.dxPrev = 0;
+        this.tPrev = null;
+      }
+      reset() { this.xPrev = null; this.dxPrev = 0; this.tPrev = null; }
+      alpha(dt, cutoff) {
+        const tau = 1.0 / (2.0 * Math.PI * cutoff);
+        return 1.0 / (1.0 + tau / Math.max(0.0001, dt));
+      }
+      filter(t, x) {
+        if (this.tPrev === null || this.xPrev === null) {
+          this.xPrev = x; this.tPrev = t; return x;
+        }
+        const dt = Math.max(0.001, t - this.tPrev);
+        this.tPrev = t;
+        const dx = (x - this.xPrev) / dt;
+        const edx = this.dxPrev + this.alpha(dt, this.dCutoff) * (dx - this.dxPrev);
+        this.dxPrev = edx;
+        const cutoff = this.minCutoff + this.beta * Math.abs(edx);
+        const out = this.xPrev + this.alpha(dt, cutoff) * (x - this.xPrev);
+        this.xPrev = out;
+        return out;
+      }
+    }
+
+    class Point3DOneEuroFilter {
+      constructor(minCutoff = 1.4, beta = 0.018, dCutoff = 1.0) {
+        this.fx = new ScalarOneEuroFilter(minCutoff, beta, dCutoff);
+        this.fy = new ScalarOneEuroFilter(minCutoff, beta, dCutoff);
+        this.fz = new ScalarOneEuroFilter(minCutoff, beta, dCutoff);
+      }
+      reset() { this.fx.reset(); this.fy.reset(); this.fz.reset(); }
+      filter(t, v) {
+        return new THREE.Vector3(
+          this.fx.filter(t, v.x),
+          this.fy.filter(t, v.y),
+          this.fz.filter(t, v.z)
+        );
+      }
+    }
+
+    // Emil Kowalski Spring Physics 3D (stiffness: 480, damping: 36, mass: 1)
+    class Spring3D {
+      constructor(stiffness = 480, damping = 36) {
+        this.stiffness = stiffness;
+        this.damping = damping;
+        this.pos = new THREE.Vector3();
+        this.vel = new THREE.Vector3();
+        this.initialized = false;
+      }
+      snap(v) {
+        this.pos.copy(v);
+        this.vel.set(0, 0, 0);
+        this.initialized = true;
+      }
+       step(target, dt) {
+        if (!this.initialized) { this.snap(target); return this.pos; }
+        const clampedDt = Math.min(dt, 0.033);
+        const fx = (target.x - this.pos.x) * this.stiffness - this.vel.x * this.damping;
+        const fy = (target.y - this.pos.y) * this.stiffness - this.vel.y * this.damping;
+        const fz = (target.z - this.pos.z) * this.stiffness - this.vel.z * this.damping;
+        this.vel.x += fx * clampedDt;
+        this.vel.y += fy * clampedDt;
+        this.vel.z += fz * clampedDt;
+        this.pos.x += this.vel.x * clampedDt;
+        this.pos.y += this.vel.y * clampedDt;
+        this.pos.z += this.vel.z * clampedDt;
+        return this.pos;
+      }
+    }
+
+    // =========================================================================
+    // 2. CARDBOARDXR PINCH DETECTOR, AIM HISTORY & PALM GATE (HandTracker.cs)
+    // =========================================================================
+    class CardboardPinchDetector {
+      constructor() {
+        this.isPinched = false;
+        this.openCount = 0;
+        this.lastTrackedTime = 0;
+        this.k_OpenResults = 2;
+        this.k_PinchKeptSeconds = 0.30;
+      }
+      update(lms2d, worldLms, nowSec) {
+        this.lastTrackedTime = nowSec;
+        const d2 = (a, b) => Math.hypot(lms2d[a].x - lms2d[b].x, lms2d[a].y - lms2d[b].y);
+        const pinchPx = d2(4, 8);
+        const tipPad = 0.5 * (d2(7, 8) + d2(3, 4));
+        const knuckleW = 0.5 * (d2(5, 9) + d2(9, 13));
+        const palmSpan = Math.max(knuckleW * 3.1, d2(0, 9), tipPad * 3.4, 24.0);
+
+        const padRatio = pinchPx / Math.max(8.0, tipPad);
+        const palmRatio = pinchPx / palmSpan;
+
+        let worldPinchM = null;
+        if (worldLms && worldLms.length >= 21) {
+          const d3 = (a, b) => Math.hypot(
+            worldLms[a].x - worldLms[b].x,
+            worldLms[a].y - worldLms[b].y,
+            worldLms[a].z - worldLms[b].z
+          );
+          const pairs = [[0,5],[0,9],[0,13],[0,17],[5,9],[5,13],[5,17],[9,13],[9,17],[13,17]];
+          let sum = 0;
+          for (const [i, j] of pairs) sum += d3(i, j);
+          const rawPalm = sum / 10.0;
+          if (rawPalm > 0.01) {
+            const scale = 0.055 / rawPalm;
+            worldPinchM = d3(4, 8) * scale;
+          }
+        }
+
+        if (!this.isPinched) {
+          const close2d = (padRatio < 1.18) || (palmRatio < 0.30);
+          const close3d = (worldPinchM === null) || (worldPinchM < 0.030);
+          if (close2d && (close3d || padRatio < 0.92)) {
+            this.isPinched = true;
+            this.openCount = 0;
+          }
+        } else {
+          const open2d = (padRatio > 1.62) && (palmRatio > 0.42);
+          const open3d = (worldPinchM !== null) && (worldPinchM > 0.040);
+          if (open2d || (open3d && padRatio > 1.38)) {
+            this.openCount++;
+            if (this.openCount >= this.k_OpenResults) {
+              this.isPinched = false;
+              this.openCount = 0;
+            }
+          } else {
+            this.openCount = 0;
+          }
+        }
+        return this.isPinched;
+      }
+      holdOnHandLost(nowSec) {
+        if (this.isPinched && (nowSec - this.lastTrackedTime) <= this.k_PinchKeptSeconds) {
+          return true;
+        }
+        this.isPinched = false;
+        this.openCount = 0;
+        return false;
+      }
+    }
+
+    class AimHistory {
+      constructor(lookbackSec = 0.14) {
+        this.lookbackSec = lookbackSec;
+        this.samples = [];
+      }
+      record(pt, t) {
+        this.samples.push({ x: pt.x, y: pt.y, t });
+        while (this.samples.length > 24) this.samples.shift();
+      }
+      sample(t) {
+        if (this.samples.length === 0) return null;
+        const targetT = t - this.lookbackSec;
+        for (let i = this.samples.length - 1; i >= 0; i--) {
+          if (this.samples[i].t <= targetT) return this.samples[i];
+        }
+        return this.samples[0];
+      }
+      clear() { this.samples.length = 0; }
+    }
+
+    // =========================================================================
+    // 3. MULTI-ZONE DESK 6DoF VISUAL TRACKER (Hand & Monitor Masked + Slerp)
+    // =========================================================================
+    class SmoothSpatialTracker6DoF {
+      constructor() {
+        this.w = 160;
+        this.h = 90;
+        this.canvas = document.createElement("canvas");
+        this.canvas.width = this.w;
+        this.canvas.height = this.h;
+        this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
+
+        this.prevGray = null;
+        this.refGray = null;
+        this.refYaw = 0;
+        this.refPitch = 0;
+        this.needsRef = true;
+
+        this.targetYaw = 0;
+        this.targetPitch = 0;
+        this.targetRoll = 0;
+        this.smoothYaw = 0;
+        this.smoothPitch = 0;
+        this.smoothRoll = 0;
+
+        this.handHoldFrames = 0;
+        this.lastHandBox = null;
+        this.hasHardwarePose = false;
+        this.hwPos = new THREE.Vector3();
+        this.hwQuat = new THREE.Quaternion();
+        this.originPos = new THREE.Vector3();
+        this.originQuatInv = new THREE.Quaternion();
+      }
+
+      reset() {
+        this.prevGray = null;
+        this.refGray = null;
+        this.needsRef = true;
+        this.targetYaw = 0; this.targetPitch = 0; this.targetRoll = 0;
+        this.smoothYaw = 0; this.smoothPitch = 0; this.smoothRoll = 0;
+        this.originPos.copy(this.hwPos);
+        this.originQuatInv.copy(this.hwQuat).invert();
+      }
+
+      requestAnchorRefresh() {
+        this.needsRef = true;
+      }
+
+      setHardwarePose(px, py, pz, qx, qy, qz, qw) {
+        this.hasHardwarePose = true;
+        // ARKit Right-Handed (-Z forward) -> Left-Handed / Three.js camera
+        this.hwPos.set(px, py, -pz);
+        this.hwQuat.set(-qx, -qy, qz, qw).normalize();
+      }
+
+      updateFromVideo(videoSource, lms2d, origW, origH, dt) {
+        if (this.hasHardwarePose) return;
+        if (!videoSource) return;
+
+        try {
+          this.ctx.drawImage(videoSource, 0, 0, this.w, this.h);
+        } catch {
+          return;
+        }
+        const rgba = this.ctx.getImageData(0, 0, this.w, this.h).data;
+        const gray = new Uint8Array(this.w * this.h);
+        for (let i = 0, j = 0; i < rgba.length; i += 4, j++) {
+          gray[j] = (rgba[i] * 77 + rgba[i + 1] * 150 + rgba[i + 2] * 29) >> 8;
+        }
+
+        // Build hand exclusion box (with 8-frame exit persistence)
+        let hBox = null;
+        if (lms2d && lms2d.length >= 21) {
+          const sx = this.w / Math.max(1, origW);
+          const sy = this.h / Math.max(1, origH);
+          let minX = this.w, minY = this.h, maxX = 0;
+          for (const p of lms2d) {
+            const x = p.x * sx, y = p.y * sy;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+          }
+          hBox = {
+            x1: Math.max(0, Math.floor(minX - 18)),
+            y1: Math.max(0, Math.floor(minY - 16)),
+            x2: Math.min(this.w, Math.ceil(maxX + 18)),
+            y2: this.h
+          };
+          this.lastHandBox = hBox;
+          this.handHoldFrames = 8;
+        } else if (this.lastHandBox && this.handHoldFrames > 0) {
+          this.handHoldFrames--;
+          hBox = this.lastHandBox;
+        }
+
+        const inHand = (x, y) => hBox && x >= hBox.x1 && x <= hBox.x2 && y >= hBox.y1 && y <= hBox.y2;
+
+        // Track 12x12 high-gradient background blocks (excluding hand & over-exposed monitor regions)
+        if (this.prevGray) {
+          const shiftsX = [];
+          const shiftsY = [];
+          const step = 12;
+          const search = 10;
+
+          for (let by = 14; by < this.h - 18; by += step) {
+            for (let bx = 14; bx < this.w - 18; bx += step) {
+              if (inHand(bx, by) || inHand(bx + 8, by + 8)) continue;
+
+              // Check gradient contrast & avoid saturated white monitor pixels (> 235)
+              let sumGrad = 0, brightCount = 0;
+              for (let dy = 0; dy < 8; dy += 2) {
+                for (let dx = 0; dx < 8; dx += 2) {
+                  const idx = (by + dy) * this.w + (bx + dx);
+                  const val = this.prevGray[idx];
+                  if (val > 232) brightCount++;
+                  sumGrad += Math.abs(val - this.prevGray[idx + 1]) + Math.abs(val - this.prevGray[idx + this.w]);
+                }
+              }
+              if (brightCount > 6 || sumGrad < 110) continue;
+
+              // Block match in current gray
+              let bestSad = 999999, bestDx = 0, bestDy = 0;
+              for (let sy = -search; sy <= search; sy += 2) {
+                for (let sx = -search; sx <= search; sx += 2) {
+                  if (inHand(bx + sx, by + sy)) continue;
+                  let sad = 0;
+                  for (let py = 0; py < 8; py += 2) {
+                    const r1 = (by + py) * this.w + bx;
+                    const r2 = (by + sy + py) * this.w + (bx + sx);
+                    sad += Math.abs(this.prevGray[r1] - gray[r2]) +
+                           Math.abs(this.prevGray[r1 + 2] - gray[r2 + 2]) +
+                           Math.abs(this.prevGray[r1 + 4] - gray[r2 + 4]) +
+                           Math.abs(this.prevGray[r1 + 6] - gray[r2 + 6]);
+                  }
+                  if (sad < bestSad) {
+                    bestSad = sad; bestDx = sx; bestDy = sy;
+                  }
+                }
+              }
+              // Sub-pixel refinement around (bestDx, bestDy)
+              for (let sy = bestDy - 1; sy <= bestDy + 1; sy++) {
+                for (let sx = bestDx - 1; sx <= bestDx + 1; sx++) {
+                  let sad = 0;
+                  for (let py = 0; py < 8; py += 2) {
+                    const r1 = (by + py) * this.w + bx;
+                    const r2 = (by + sy + py) * this.w + (bx + sx);
+                    sad += Math.abs(this.prevGray[r1] - gray[r2]) +
+                           Math.abs(this.prevGray[r1 + 2] - gray[r2 + 2]) +
+                           Math.abs(this.prevGray[r1 + 4] - gray[r2 + 4]) +
+                           Math.abs(this.prevGray[r1 + 6] - gray[r2 + 6]);
+                  }
+                  if (sad < bestSad) {
+                    bestSad = sad; bestDx = sx; bestDy = sy;
+                  }
+                }
+              }
+
+              if (bestSad < 320) {
+                shiftsX.push(bestDx);
+                shiftsY.push(bestDy);
+              }
+            }
+          }
+
+          if (shiftsX.length >= 4) {
+            shiftsX.sort((a, b) => a - b);
+            shiftsY.sort((a, b) => a - b);
+            const medDx = shiftsX[shiftsX.length >> 1];
+            const medDy = shiftsY[shiftsY.length >> 1];
+            const focalSlam = 125.0;
+            if (Math.abs(medDx) > 0.2 || Math.abs(medDy) > 0.2) {
+              this.targetYaw -= Math.atan2(medDx, focalSlam);
+              this.targetPitch = Math.max(-1.35, Math.min(1.35, this.targetPitch + Math.atan2(medDy, focalSlam)));
+            }
+          }
+        }
+
+        this.prevGray = gray;
+
+        // Smooth 120Hz exponential interpolation so camera rotation is 100% butter-smooth
+        const blend = 1.0 - Math.exp(-dt * 28.0);
+        this.smoothYaw += (this.targetYaw - this.smoothYaw) * blend;
+        this.smoothPitch += (this.targetPitch - this.smoothPitch) * blend;
+        this.smoothRoll += (this.targetRoll - this.smoothRoll) * blend;
+      }
+
+      applyToCamera(cam) {
+        if (this.hasHardwarePose) {
+          const relPos = this.hwPos.clone().sub(this.originPos).applyQuaternion(this.originQuatInv);
+          const relQuat = this.originQuatInv.clone().multiply(this.hwQuat);
+          cam.position.lerp(relPos, 0.45);
+          cam.quaternion.slerp(relQuat, 0.45);
+        } else {
+          cam.position.set(0, 0, 0);
+          // Three.js camera looks down -Z: yaw around Y, pitch around X
+          const euler = new THREE.Euler(-this.smoothPitch, -this.smoothYaw, -this.smoothRoll, "YXZ");
+          cam.quaternion.setFromEuler(euler);
+        }
+        cam.updateMatrixWorld();
+      }
+    }
+
+    // =========================================================================
+    // 4. THREE.JS 3D SCENE & ALL 7 CARDBOARDXR SPATIAL APPS (GPU SHADERS)
+    // =========================================================================
+    const W = 1280, H = 720;
+    const compCanvas = document.getElementById("composite-canvas");
+    const compCtx = compCanvas.getContext("2d", { alpha: false });
+
+    // Offscreen WebGL2 Renderer for 3D Holograms & CardboardXR Meshes
+    const glCanvas = document.createElement("canvas");
+    glCanvas.width = W;
+    glCanvas.height = H;
+    const renderer = new THREE.WebGLRenderer({
+      canvas: glCanvas,
+      alpha: true,
+      antialias: true,
+      powerPreference: "high-performance"
+    });
+    renderer.setSize(W, H, false);
+    renderer.setPixelRatio(1);
+    renderer.shadowMap.enabled = true;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, W / H, 0.08, 60.0);
+    camera.position.set(0, 0, 0);
+
+    // Studio & Cyberpunk 3-Point Lighting
+    const ambLight = new THREE.AmbientLight(0xdbeafe, 0.85);
+    scene.add(ambLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.45);
+    dirLight.position.set(1.2, 2.4, 1.5);
+    scene.add(dirLight);
+    const rimLight = new THREE.PointLight(0x00f3ff, 1.2, 6.0);
+    rimLight.position.set(-1.0, 0.8, -0.5);
+    scene.add(rimLight);
+
+    // Groups for each of the 7 Spatial Apps
+    const appGroups = {
+      1: new THREE.Group(), // 3D Air Paint (StrokeMesh.cs)
+      2: new THREE.Group(), // AR Spatial Portal (PortalDemo.cs)
+      3: new THREE.Group(), // Orb Rush (RushDemo.cs)
+      4: new THREE.Group(), // 3D Cube Sandbox (CubePhysics.cs + RotateWithHand.cs)
+      5: new THREE.Group(), // 3D Precision Caliper
+      6: new THREE.Group(), // Spatial 3D Solar System
+      7: new THREE.Group()  // VR180/360 Video Sphere (VideoSphere.cs)
+    };
+    for (let i = 1; i <= 7; i++) {
+      appGroups[i].visible = (i === 4);
+      scene.add(appGroups[i]);
+    }
+
+    // -------------------------------------------------------------------------
+    // APP 1: 3D AIR PAINT (Port of PaintDemo.cs + StrokeMesh.cs 3D Tubes)
+    // -------------------------------------------------------------------------
+    const paintColors = [0xd0bcff, 0x00f3ff, 0x22c55e, 0xf97316, 0xffffff];
+    const paintState = {
+      colorIdx: 1,
+      strokes: [],
+      curPts: [],
+      curMesh: null,
+      cursorBall: null,
+      addPoint(pt3) {
+        if (this.curPts.length > 0) {
+          const last = this.curPts[this.curPts.length - 1];
+          const jump = pt3.distanceTo(last);
+          if (jump > 0.14) {
+            this.finishStroke();
+          } else if (jump < 0.004) {
+            return;
+          }
+        }
+        this.curPts.push(pt3.clone());
+        this.rebuildActiveStroke();
+      },
+      rebuildActiveStroke() {
+        if (this.curPts.length < 2) return;
+        if (this.curMesh) {
+          appGroups[1].remove(this.curMesh);
+          this.curMesh.geometry.dispose();
+        }
+        const curve = new THREE.CatmullRomCurve3(this.curPts);
+        const segs = Math.min(240, Math.max(8, this.curPts.length * 3));
+        const geom = new THREE.TubeGeometry(curve, segs, 0.009, 8, false);
+        const col = paintColors[this.colorIdx];
+        const mat = new THREE.MeshStandardMaterial({
+          color: col,
+          emissive: col,
+          emissiveIntensity: 0.45,
+          roughness: 0.25,
+          metalness: 0.3
+        });
+        this.curMesh = new THREE.Mesh(geom, mat);
+        appGroups[1].add(this.curMesh);
+      },
+      finishStroke() {
+        if (this.curMesh && this.curPts.length >= 2) {
+          this.strokes.push(this.curMesh);
+        } else if (this.curMesh) {
+          appGroups[1].remove(this.curMesh);
+        }
+        this.curMesh = null;
+        this.curPts = [];
+      },
+      undo() {
+        const last = this.strokes.pop();
+        if (last) {
+          appGroups[1].remove(last);
+          last.geometry.dispose();
+        }
+      },
+      clear() {
+        this.finishStroke();
+        while (this.strokes.length > 0) this.undo();
+      }
+    };
+    {
+      const ballGeom = new THREE.SphereGeometry(0.011, 16, 16);
+      const ballMat = new THREE.MeshStandardMaterial({
+        color: paintColors[1], emissive: paintColors[1], emissiveIntensity: 0.6
+      });
+      paintState.cursorBall = new THREE.Mesh(ballGeom, ballMat);
+      paintState.cursorBall.visible = false;
+      appGroups[1].add(paintState.cursorBall);
+    }
+
+    // -------------------------------------------------------------------------
+    // APP 2: AR SPATIAL PORTAL (Port of PortalDemo.cs + PortalWorld.cs)
+    // -------------------------------------------------------------------------
+    const portalState = {
+      root: new THREE.Group(),
+      rings: [],
+      stars: null
+    };
+    {
+      portalState.root.position.set(0, -0.05, -1.45);
+      appGroups[2].add(portalState.root);
+
+      // Glowing Outer Frame Arch
+      const frameGeom = new THREE.TorusGeometry(0.42, 0.022, 16, 64);
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x00f3ff, emissive: 0x00f3ff, emissiveIntensity: 0.85, roughness: 0.15, metalness: 0.8
+      });
+      const frameMesh = new THREE.Mesh(frameGeom, frameMat);
+      portalState.root.add(frameMesh);
+
+      // Inner Dark Dimension Disc
+      const discGeom = new THREE.CircleGeometry(0.40, 48);
+      const discMat = new THREE.MeshBasicMaterial({
+        color: 0x090418, transparent: true, opacity: 0.86, side: THREE.DoubleSide
+      });
+      portalState.root.add(new THREE.Mesh(discGeom, discMat));
+
+      // Concentric Vortex Depth Rings inside the Portal
+      for (let i = 1; i <= 5; i++) {
+        const rg = new THREE.RingGeometry(0.38 - i * 0.055, 0.39 - i * 0.055, 48);
+        const rm = new THREE.MeshBasicMaterial({
+          color: i % 2 === 0 ? 0xd946ef : 0x00f3ff, side: THREE.DoubleSide, transparent: true, opacity: 0.75
+        });
+        const rMesh = new THREE.Mesh(rg, rm);
+        rMesh.position.z = -i * 0.18;
+        portalState.rings.push(rMesh);
+        portalState.root.add(rMesh);
+      }
+
+      // 3D Starfield inside Portal
+      const starGeo = new THREE.BufferGeometry();
+      const starPos = new Float32Array(120 * 3);
+      for (let i = 0; i < 120; i++) {
+        const r = Math.random() * 0.35;
+        const a = Math.random() * Math.PI * 2;
+        starPos[i * 3] = Math.cos(a) * r;
+        starPos[i * 3 + 1] = Math.sin(a) * r;
+        starPos[i * 3 + 2] = -0.1 - Math.random() * 1.2;
+      }
+      starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+      portalState.stars = new THREE.Points(
+        starGeo,
+        new THREE.PointsMaterial({ color: 0xffffff, size: 0.018 })
+      );
+      portalState.root.add(portalState.stars);
+    }
+
+    // -------------------------------------------------------------------------
+    // APP 3: ORB RUSH RHYTHM GAME (Port of RushDemo.cs)
+    // -------------------------------------------------------------------------
+    const rushState = {
+      orbs: [],
+      score: 0,
+      combo: 0,
+      lastSpawn: 0,
+      ringMesh: null,
+      update(nowSec, dt, handPt3d) {
+        if (nowSec - this.lastSpawn > 1.15) {
+          this.lastSpawn = nowSec;
+          const lanesX = [-0.24, -0.08, 0.08, 0.24];
+          const lanesY = [-0.10, 0.04, 0.18];
+          const cols = [0x00f3ff, 0xf43f5e, 0x22c55e, 0xeab308];
+          const col = cols[Math.floor(Math.random() * cols.length)];
+          const mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.055, 24, 24),
+            new THREE.MeshStandardMaterial({
+              color: col, emissive: col, emissiveIntensity: 0.65, roughness: 0.2, metalness: 0.4
+            })
+          );
+          mesh.position.set(
+            lanesX[Math.floor(Math.random() * lanesX.length)],
+            lanesY[Math.floor(Math.random() * lanesY.length)],
+            -2.6
+          );
+          appGroups[3].add(mesh);
+          this.orbs.push({ mesh, speed: 1.15 + Math.random() * 0.35, hit: false });
+        }
+
+        for (let i = this.orbs.length - 1; i >= 0; i--) {
+          const o = this.orbs[i];
+          o.mesh.position.z += o.speed * dt;
+          if (handPt3d && o.mesh.position.z >= -1.25 && o.mesh.position.z <= -0.30) {
+            const d = o.mesh.position.distanceTo(handPt3d);
+            // Also check ray alignment from eye (0,0,0) through handPt3d
+            const scaleZ = o.mesh.position.z / Math.min(-0.20, handPt3d.z);
+            const projX = handPt3d.x * scaleZ;
+            const projY = handPt3d.y * scaleZ;
+            const dRay = Math.hypot(o.mesh.position.x - projX, o.mesh.position.y - projY);
+            if (d < 0.18 || dRay < 0.15) {
+              this.combo++;
+              this.score += 100 * this.combo;
+              appGroups[3].remove(o.mesh);
+              o.mesh.geometry.dispose();
+              this.orbs.splice(i, 1);
+              continue;
+            }
+          }
+          if (o.mesh.position.z > -0.22) {
+            this.combo = 0;
+            appGroups[3].remove(o.mesh);
+            o.mesh.geometry.dispose();
+            this.orbs.splice(i, 1);
+          }
+        }
+      }
+    };
+    {
+      const ringGeo = new THREE.RingGeometry(0.18, 0.20, 48);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+      rushState.ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      rushState.ringMesh.position.set(0, 0.04, -0.75);
+      appGroups[3].add(rushState.ringMesh);
+    }
+
+    // -------------------------------------------------------------------------
+    // APP 4: 3D CUBE SANDBOX (Authentic Port of CubePhysics.cs + RotateWithHand.cs + GrabCue.cs)
+    // -------------------------------------------------------------------------
+    const cubeState = {
+      group: new THREE.Group(),
+      solidMesh: null,
+      edgeMesh: null,
+      targetDot: null,
+      shadowRing: null,
+      springPos: new Spring3D(480, 36),
+      pos: new THREE.Vector3(0, 0.02, -0.95),
+      vel: new THREE.Vector3(0, 0, 0),
+      quat: new THREE.Quaternion(),
+      targetQuat: new THREE.Quaternion(),
+      isHovered: false,
+      isGrabbed: false,
+      isFloating: true,
+      wasPinched: false,
+      grabDist: 0.95,
+      grabOffset: new THREE.Vector3(),
+      lastFingerAngle: null,
+      size: 0.13, // 13cm authentic CardboardXR solid cube (not huge 32cm wireframe!)
+
+      init() {
+        const s = this.size;
+        const boxGeo = new THREE.BoxGeometry(s, s, s);
+        const boxMat = new THREE.MeshStandardMaterial({
+          color: 0x1e293b,
+          emissive: 0x0284c7,
+          emissiveIntensity: 0.28,
+          roughness: 0.22,
+          metalness: 0.75,
+          transparent: true,
+          opacity: 0.92
+        });
+        this.solidMesh = new THREE.Mesh(boxGeo, boxMat);
+        this.group.add(this.solidMesh);
+
+        // Glowing Bevel Wireframe Edges (GrabCue.cs highlight)
+        const edgesGeo = new THREE.EdgesGeometry(boxGeo);
+        const edgesMat = new THREE.LineBasicMaterial({ color: 0x00f3ff, linewidth: 2 });
+        this.edgeMesh = new THREE.LineSegments(edgesGeo, edgesMat);
+        this.solidMesh.add(this.edgeMesh);
+
+        // Inner Holographic Core
+        const coreGeo = new THREE.OctahedronGeometry(s * 0.34, 0);
+        const coreMat = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8, emissive: 0x00f3ff, emissiveIntensity: 0.8, wireframe: false
+        });
+        this.coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        this.solidMesh.add(this.coreMesh);
+
+        // HandRayView.cs Target Dot ("this is what a pinch gets")
+        const dotGeo = new THREE.SphereGeometry(0.010, 16, 16);
+        const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        this.targetDot = new THREE.Mesh(dotGeo, dotMat);
+        this.targetDot.position.set(0, 0, s * 0.54);
+        this.targetDot.visible = false;
+        this.group.add(this.targetDot);
+
+        // Surface Anchor Ring under the Cube (shows exact 3D desk lock)
+        const ringGeo = new THREE.RingGeometry(s * 0.55, s * 0.68, 36);
+        ringGeo.rotateX(-Math.PI / 2);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0x00f3ff, side: THREE.DoubleSide, transparent: true, opacity: 0.45
+        });
+        this.shadowRing = new THREE.Mesh(ringGeo, ringMat);
+        this.shadowRing.position.set(0, -s * 0.62, 0);
+        this.group.add(this.shadowRing);
+
+        this.springPos.snap(this.pos);
+        this.group.position.copy(this.pos);
+        appGroups[4].add(this.group);
+      },
+
+      resetToFront(cam) {
+        const forward = new THREE.Vector3(0, 0, -0.95).applyQuaternion(cam.quaternion);
+        this.pos.copy(cam.position).add(forward);
+        this.vel.set(0, 0, 0);
+        this.isFloating = true;
+        this.isGrabbed = false;
+        this.springPos.snap(this.pos);
+        this.group.position.copy(this.pos);
+      },
+
+      update(dt, isPinched, pinchWorld3d, cam, fingerAngle, tracker6dof) {
+        const eyeOrig = cam.position;
+        let rayDir = null;
+        if (pinchWorld3d) {
+          rayDir = pinchWorld3d.clone().sub(eyeOrig).normalize();
+        }
+
+        // 1. Eye-Through-PinchPoint Ray Hover Check (HandInteractorRig.cs line 85)
+        this.isHovered = false;
+        if (rayDir) {
+          const toCube = this.pos.clone().sub(eyeOrig);
+          const proj = toCube.dot(rayDir);
+          if (proj > 0.10) {
+            const closest = eyeOrig.clone().addScaledVector(rayDir, proj);
+            const rayDist = closest.distanceTo(this.pos);
+            if (rayDist < this.size * 1.45) this.isHovered = true;
+          }
+          if (pinchWorld3d.distanceTo(this.pos) < 0.26) this.isHovered = true;
+        }
+
+        const justReleased = (!isPinched) && this.wasPinched;
+        this.wasPinched = isPinched;
+
+        // 2. Grab on Pinch + Hover
+        if (isPinched && !this.isGrabbed && this.isHovered && rayDir) {
+          this.isGrabbed = true;
+          this.isFloating = false;
+          this.grabDist = Math.max(0.65, Math.min(1.45, this.pos.distanceTo(eyeOrig)));
+          const rayPt = eyeOrig.clone().addScaledVector(rayDir, this.grabDist);
+          this.grabOffset.copy(this.pos).sub(rayPt);
+          this.vel.set(0, 0, 0);
+          this.lastFingerAngle = fingerAngle;
+        }
+
+        if (isPinched && this.isGrabbed && rayDir) {
+          // Converge offset smoothly to 0 so cube centers 1:1 on pinched fingers
+          this.grabOffset.multiplyScalar(Math.exp(-dt * 14.0));
+          const target = eyeOrig.clone().addScaledVector(rayDir, this.grabDist).add(this.grabOffset);
+          const prevPos = this.pos.clone();
+          this.pos.copy(this.springPos.step(target, dt));
+          if (dt > 0.001) {
+            const instVel = this.pos.clone().sub(prevPos).divideScalar(dt);
+            this.vel.lerp(instVel, 0.45);
+          }
+
+          // RotateWithHand.cs: Smoothly twist cube with fingers/wrist via Slerp
+          if (fingerAngle !== null) {
+            if (this.lastFingerAngle !== null) {
+              let da = fingerAngle - this.lastFingerAngle;
+              if (Math.abs(da) < 0.7) {
+                const rotDelta = new THREE.Quaternion().setFromEuler(new THREE.Euler(da * 0.5, -da * 1.2, 0));
+                this.targetQuat.premultiply(rotDelta);
+              }
+            }
+            this.lastFingerAngle = fingerAngle;
+          }
+        } else {
+          this.lastFingerAngle = null;
+          if (justReleased && this.isGrabbed) {
+            this.isGrabbed = false;
+            tracker6dof.requestAnchorRefresh();
+            if (this.vel.length() < 1.45) {
+              this.isFloating = true;
+              this.vel.set(0, 0, 0);
+            } else {
+              this.isFloating = false;
+            }
+          }
+
+          if (!this.isFloating) {
+            this.vel.y -= 2.4 * dt;
+            this.pos.addScaledVector(this.vel, dt);
+            this.vel.multiplyScalar(0.95);
+            if (this.pos.y < -0.38) {
+              this.pos.y = -0.38;
+              this.vel.y = -this.vel.y * 0.55;
+              this.vel.x *= 0.84;
+              this.vel.z *= 0.84;
+              if (Math.abs(this.vel.y) < 0.12 && this.vel.length() < 0.18) {
+                this.vel.set(0, 0, 0);
+                this.isFloating = true;
+              }
+            }
+            this.springPos.snap(this.pos);
+          } else {
+            // Subtle idle rotation on inner core only, keeping placed cube steady on the desk!
+            if (this.coreMesh) {
+              this.coreMesh.rotation.y += dt * 1.4;
+              this.coreMesh.rotation.x += dt * 0.9;
+            }
+          }
+        }
+
+        // Apply smooth quaternion slerp & position
+        this.quat.slerp(this.targetQuat, 1.0 - Math.exp(-dt * 16.0));
+        this.solidMesh.quaternion.copy(this.quat);
+        this.group.position.copy(this.pos);
+
+        // GrabCue.cs & HandRayView.cs Visual States
+        if (this.isGrabbed) {
+          this.edgeMesh.material.color.setHex(0xffd54f); // Amber Gold
+          this.solidMesh.material.emissive.setHex(0xf59e0b);
+          this.targetDot.visible = true;
+          this.targetDot.material.color.setHex(0xffd54f);
+          this.shadowRing.material.color.setHex(0xffd54f);
+        } else if (this.isHovered) {
+          this.edgeMesh.material.color.setHex(0x6ee7b7); // Mint Ready-to-Grab
+          this.solidMesh.material.emissive.setHex(0x10b981);
+          this.targetDot.visible = true;
+          this.targetDot.material.color.setHex(0xffffff);
+          this.shadowRing.material.color.setHex(0x6ee7b7);
+        } else {
+          this.edgeMesh.material.color.setHex(0x00f3ff);
+          this.solidMesh.material.emissive.setHex(0x0284c7);
+          this.targetDot.visible = false;
+          this.shadowRing.material.color.setHex(0x00f3ff);
+        }
+      }
+    };
+    cubeState.init();
+
+    // -------------------------------------------------------------------------
+    // APP 5: 3D PRECISION CALIPER
+    // -------------------------------------------------------------------------
+    const caliperState = {
+      line: null,
+      jawA: null,
+      jawB: null,
+      distMm: 0
+    };
+    {
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0.1, -0.8)]);
+      caliperState.line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0x00f3ff, linewidth: 3 }));
+      const jawGeo = new THREE.SphereGeometry(0.009, 16, 16);
+      const jawMat = new THREE.MeshStandardMaterial({ color: 0xffd54f, emissive: 0xffd54f, emissiveIntensity: 0.6 });
+      caliperState.jawA = new THREE.Mesh(jawGeo, jawMat);
+      caliperState.jawB = new THREE.Mesh(jawGeo, jawMat);
+      appGroups[5].add(caliperState.line, caliperState.jawA, caliperState.jawB);
+    }
+
+    // -------------------------------------------------------------------------
+    // APP 6: SPATIAL 3D SOLAR SYSTEM & HORIZON GRID
+    // -------------------------------------------------------------------------
+    const solarState = {
+      root: new THREE.Group(),
+      planets: [],
+      speedMult: 1.0,
+      showGrid: true,
+      gridHelper: null
+    };
+    {
+      solarState.root.position.set(0, -0.05, -1.25);
+      solarState.root.rotation.x = 0.35;
+      appGroups[6].add(solarState.root);
+
+      solarState.gridHelper = new THREE.GridHelper(2.4, 16, 0x00f3ff, 0x1e293b);
+      solarState.gridHelper.position.set(0, -0.38, -1.25);
+      appGroups[6].add(solarState.gridHelper);
+
+      // Sun Core
+      const sunMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.085, 32, 32),
+        new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.9 })
+      );
+      solarState.root.add(sunMesh);
+
+      const defs = [
+        { r: 0.24, speed: 1.5, sz: 0.024, col: 0x00f3ff, ring: false },
+        { r: 0.42, speed: 0.85, sz: 0.036, col: 0x3b82f6, ring: false },
+        { r: 0.64, speed: 0.48, sz: 0.044, col: 0xfde047, ring: true }
+      ];
+      for (const d of defs) {
+        const orbitRing = new THREE.Mesh(
+          new THREE.RingGeometry(d.r - 0.003, d.r + 0.003, 64),
+          new THREE.MeshBasicMaterial({ color: 0x334155, side: THREE.DoubleSide })
+        );
+        orbitRing.rotation.x = Math.PI / 2;
+        solarState.root.add(orbitRing);
+
+        const pMesh = new THREE.Mesh(
+          new THREE.SphereGeometry(d.sz, 24, 24),
+          new THREE.MeshStandardMaterial({ color: d.col, roughness: 0.3, metalness: 0.2 })
+        );
+        if (d.ring) {
+          const satRing = new THREE.Mesh(
+            new THREE.RingGeometry(d.sz * 1.4, d.sz * 2.2, 32),
+            new THREE.MeshBasicMaterial({ color: 0xfef08a, side: THREE.DoubleSide, transparent: true, opacity: 0.75 })
+          );
+          satRing.rotation.x = Math.PI / 2.4;
+          pMesh.add(satRing);
+        }
+        solarState.root.add(pMesh);
+        solarState.planets.push({ mesh: pMesh, r: d.r, speed: d.speed, ang: Math.random() * 6.28 });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // APP 7: VR180 / 360 VIDEO SPHERE (Port of VideoSphere.cs)
+    // -------------------------------------------------------------------------
+    const demoVideoEl = document.getElementById("demo-video");
+    {
+      const vidTex = new THREE.VideoTexture(demoVideoEl);
+      vidTex.minFilter = THREE.LinearFilter;
+      vidTex.magFilter = THREE.LinearFilter;
+      const sphereGeo = new THREE.SphereGeometry(8.0, 48, 32);
+      sphereGeo.scale(-1, 1, 1); // Invert normals to view from inside
+      const sphereMat = new THREE.MeshBasicMaterial({ map: vidTex });
+      const sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
+      appGroups[7].add(sphereMesh);
+    }
+
+    // =========================================================================
+    // 5. MATERIAL 3 IN-AIR SPATIAL UI & PINCH ROUTER (M3Toolbar.cs + AppLibrary.cs)
+    // =========================================================================
+    const uiState = {
+      currentMode: 4, // Start on 3D Cube Sandbox so user can immediately test smooth 3D Cube!
+      stereoVrMode: false,
+      isMenuOpen: true,
+      isLibraryOpen: false,
+      useWebcamFallback: false,
+      flipH: false,
+      flipV: false,
+      rot180: false,
+      ipdOffset: 14,
+      activeRoute: null,
+      wasPinched: false,
+      aimHistory: new AimHistory(0.14),
+      smoothCursor: { x: 640, y: 360 },
+      hoveredBtnId: null,
+      buttons: [],
+
+      buildButtons(viewW, viewH) {
+        const sy = viewH / 720.0;
+        const panelX0 = viewW >= 800 ? Math.floor((viewW - 592) / 2) : 0;
+        const btns = [];
+
+        if (this.isMenuOpen) {
+          // Bottom M3 Toolbar
+          const yTb = Math.floor(634 * sy);
+          const hTb = Math.max(30, Math.floor(42 * sy));
+          const tbDefs = [
+            { id: "tb_apps", label: "[+] APPS", x: 30, w: 100, active: this.isLibraryOpen },
+            { id: "tb_view", label: this.stereoVrMode ? "[0] SBS VR" : "[0] 1-SCR", x: 138, w: 108, active: this.stereoVrMode },
+            { id: "tb_recenter", label: "[*] RESET", x: 254, w: 98, active: false },
+            { id: "tb_cam", label: this.useWebcamFallback ? "[-] LAPTOP" : "[-] IPHONE", x: 360, w: 104, active: false },
+            { id: "tb_hide", label: "[X] HIDE", x: 472, w: 90, active: false }
+          ];
+          for (const d of tbDefs) {
+            btns.push({ id: d.id, label: d.label, x: panelX0 + d.x, y: yTb, w: d.w, h: hTb, r: 20, active: d.active });
+          }
+
+          if (this.isLibraryOpen) {
+            // 2x4 App Library Grid
+            const tiles = [
+              { id: "demo_1", label: "3D PAINT", sub: "Tilt Brush", col: "#d0bcff" },
+              { id: "demo_2", label: "AR PORTAL", sub: "3D World", col: "#38bdf8" },
+              { id: "demo_3", label: "ORB RUSH", sub: "Rhythm", col: "#4ade80" },
+              { id: "demo_4", label: "3D CUBES", sub: "Physics", col: "#fb923c" },
+              { id: "demo_5", label: "CALIPER", sub: "mm Ruler", col: "#22d3ee" },
+              { id: "demo_6", label: "SPATIAL 3D", sub: "Solar Sim", col: "#f472b6" },
+              { id: "demo_7", label: "VIDEO VR", sub: "180/360", col: "#a78bfa" },
+              { id: "tb_recenter", label: "RECENTER", sub: "Reset 6DoF", col: "#94a3b8" }
+            ];
+            for (let i = 0; i < tiles.length; i++) {
+              const row = Math.floor(i / 4), col = i % 4;
+              const tx = panelX0 + 30 + col * 136;
+              const ty = Math.floor((356 + row * 94) * sy);
+              const modeNum = i < 7 ? i + 1 : -1;
+              btns.push({
+                id: tiles[i].id, label: tiles[i].label, sub: tiles[i].sub, accent: tiles[i].col,
+                x: tx, y: ty, w: 126, h: Math.floor(82 * sy), r: 18,
+                active: this.currentMode === modeNum
+              });
+            }
+          } else if (this.currentMode === 1) {
+            const ySub = Math.floor(560 * sy);
+            const cols = ["#d0bcff", "#00f3ff", "#22c55e", "#f97316", "#ffffff"];
+            for (let i = 0; i < 5; i++) {
+              btns.push({
+                id: `col_${i}`, label: "", accent: cols[i],
+                x: panelX0 + 40 + i * 52, y: ySub, w: 40, h: 40, r: 20,
+                active: paintState.colorIdx === i
+              });
+            }
+            btns.push({ id: "paint_undo", label: "UNDO", x: panelX0 + 315, y: ySub, w: 80, h: 40, r: 16 });
+            btns.push({ id: "paint_clear", label: "CLEAR", x: panelX0 + 405, y: ySub, w: 84, h: 40, r: 16 });
+          }
+        }
+        this.buttons = btns;
+        return btns;
+      },
+
+      switchMode(m) {
+        this.currentMode = m;
+        for (let i = 1; i <= 7; i++) appGroups[i].visible = (i === m);
+        if (m === 7) demoVideoEl.play().catch(() => {});
+        else demoVideoEl.pause();
+      },
+
+      dispatchClick(id, tracker6dof) {
+        if (id === "tb_apps") this.isLibraryOpen = !this.isLibraryOpen;
+        else if (id === "tb_view") this.stereoVrMode = !this.stereoVrMode;
+        else if (id === "tb_recenter") {
+          tracker6dof.reset();
+          cubeState.resetToFront(camera);
+        } else if (id === "tb_cam") {
+          this.useWebcamFallback = !this.useWebcamFallback;
+          if (this.useWebcamFallback) initLocalWebcam();
+        } else if (id === "tb_hide") {
+          this.isMenuOpen = false;
+          this.isLibraryOpen = false;
+        } else if (id.startsWith("demo_")) {
+          const m = parseInt(id.split("_")[1], 10);
+          this.switchMode(m);
+          this.isLibraryOpen = false;
+        } else if (id.startsWith("col_")) {
+          paintState.colorIdx = parseInt(id.split("_")[1], 10);
+          paintState.cursorBall.material.color.setHex(paintColors[paintState.colorIdx]);
+          paintState.cursorBall.material.emissive.setHex(paintColors[paintState.colorIdx]);
+        } else if (id === "paint_undo") paintState.undo();
+        else if (id === "paint_clear") paintState.clear();
+      },
+
+      updateRouter(cursorPt, isPinched, nowSec, tracker6dof, viewW, viewH) {
+        const btns = this.buildButtons(viewW, viewH);
+        this.hoveredBtnId = null;
+        if (!cursorPt) {
+          this.wasPinched = false;
+          this.activeRoute = null;
+          return false;
+        }
+
+        if (!isPinched) {
+          this.aimHistory.record(cursorPt, nowSec);
+        }
+        this.smoothCursor.x += (cursorPt.x - this.smoothCursor.x) * 0.65;
+        this.smoothCursor.y += (cursorPt.y - this.smoothCursor.y) * 0.65;
+
+        const aimPt = (isPinched && !this.wasPinched && this.aimHistory.sample(nowSec)) || this.smoothCursor;
+
+        let hoveredBtn = null;
+        for (const b of btns) {
+          if (aimPt.x >= b.x - 6 && aimPt.x <= b.x + b.w + 6 && aimPt.y >= b.y - 6 && aimPt.y <= b.y + b.h + 6) {
+            hoveredBtn = b;
+            this.hoveredBtnId = b.id;
+            break;
+          }
+        }
+
+        const justPinched = isPinched && !this.wasPinched;
+        this.wasPinched = isPinched;
+
+        if (justPinched) {
+          if (hoveredBtn) {
+            this.activeRoute = "UI";
+            this.dispatchClick(hoveredBtn.id, tracker6dof);
+            return true;
+          } else {
+            this.activeRoute = "DEMO";
+            return false;
+          }
+        }
+
+        if (isPinched) {
+          return this.activeRoute === "UI";
+        } else {
+          this.activeRoute = null;
+          return false;
+        }
+      },
+
+      drawGlassUI(ctx, offsetX, isPinched, hasHand) {
+        ctx.save();
+        ctx.translate(offsetX, 0);
+
+        for (const b of this.buttons) {
+          const isHov = (b.id === this.hoveredBtnId);
+          ctx.beginPath();
+          ctx.roundRect(b.x, b.y, b.w, b.h, b.r);
+          if (b.active) {
+            ctx.fillStyle = "rgba(79, 55, 139, 0.88)";
+            ctx.strokeStyle = "#d0bcff";
+            ctx.lineWidth = 2;
+          } else if (isHov) {
+            ctx.fillStyle = "rgba(62, 54, 78, 0.92)";
+            ctx.strokeStyle = "#00f3ff";
+            ctx.lineWidth = 2;
+          } else {
+            ctx.fillStyle = b.accent && b.id.startsWith("col_") ? b.accent : "rgba(28, 25, 34, 0.84)";
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.28)";
+            ctx.lineWidth = 1;
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          if (b.label) {
+            ctx.fillStyle = b.active ? "#f3e8ff" : "#f1f5f9";
+            ctx.font = b.sub ? "700 12px system-ui, sans-serif" : "700 11.5px system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(b.label, b.x + b.w / 2, b.sub ? b.y + b.h / 2 - 9 : b.y + b.h / 2);
+            if (b.sub) {
+              ctx.fillStyle = b.accent || "#94a3b8";
+              ctx.font = "600 10px system-ui, sans-serif";
+              ctx.fillText(b.sub, b.x + b.w / 2, b.y + b.h / 2 + 11);
+            }
+          }
+        }
+
+        // Draw CardboardXR Reticle Cursor at PinchPoint
+        if (hasHand) {
+          const cx = this.smoothCursor.x, cy = this.smoothCursor.y;
+          ctx.beginPath();
+          ctx.arc(cx, cy, isPinched ? 9 : 12, 0, Math.PI * 2);
+          ctx.strokeStyle = isPinched ? "#ffd54f" : (this.hoveredBtnId || cubeState.isHovered ? "#6ee7b7" : "#ffffff");
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, isPinched ? 5 : 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = isPinched ? "#ffd54f" : "#ffffff";
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    };
+
+    // =========================================================================
+    // 6. WEBCODECS HARDWARE H.264 DECODER (NVIDIA RTX 4060 NVDEC) + WEBSOCKET
+    // =========================================================================
+    const videoCanvas = document.createElement("canvas");
+    videoCanvas.width = W;
+    videoCanvas.height = H;
+    const videoCtx = videoCanvas.getContext("2d", { alpha: false });
+    let hasUsbFrame = false;
+    let usbConnected = false;
+    let usbFps = 0;
+
+    let h264Decoder = null;
+    let cachedSPS = null;
+    let cachedPPS = null;
+    let decoderConfigured = false;
+
+    function initWebCodecsDecoder() {
+      if (!("VideoDecoder" in window)) return;
+      h264Decoder = new VideoDecoder({
+        output: (videoFrame) => {
+          videoCtx.drawImage(videoFrame, 0, 0, W, H);
+          hasUsbFrame = true;
+          videoFrame.close();
+        },
+        error: (e) => {
+          console.warn("[WebCodecs] Resetting decoder:", e);
+          decoderConfigured = false;
+        }
+      });
+    }
+    initWebCodecsDecoder();
+
+    function splitAnnexBNalus(buf) {
+      const nalus = [];
+      let i = 0;
+      const n = buf.length;
+      let start = -1;
+      while (i < n - 3) {
+        if (buf[i] === 0 && buf[i + 1] === 0 && (buf[i + 2] === 1 || (buf[i + 2] === 0 && buf[i + 3] === 1))) {
+          const scLen = buf[i + 2] === 1 ? 3 : 4;
+          if (start !== -1) nalus.push(buf.subarray(start, i));
+          start = i;
+          i += scLen;
+        } else {
+          i++;
+        }
+      }
+      if (start !== -1) nalus.push(buf.subarray(start));
+      else if (n > 0) nalus.push(buf);
+      return nalus;
+    }
+
+    function getNalType(nalu) {
+      const offset = (nalu[0] === 0 && nalu[1] === 0 && nalu[2] === 1) ? 3 : 4;
+      return nalu[offset] & 0x1f;
+    }
+
+    function feedH264AccessUnit(rawBytes) {
+      if (!h264Decoder) return;
+      const nalus = splitAnnexBNalus(rawBytes);
+      let isKey = false;
+      let hasSlice = false;
+
+      for (const nalu of nalus) {
+        const t = getNalType(nalu);
+        if (t === 7) cachedSPS = nalu;
+        else if (t === 8) cachedPPS = nalu;
+        else if (t === 5) { isKey = true; hasSlice = true; }
+        else if (t === 1) { hasSlice = true; }
+      }
+
+      if (!decoderConfigured && cachedSPS && cachedPPS) {
+        try {
+          // Extract profile/constraints/level from SPS bytes after header
+          const off = (cachedSPS[0] === 0 && cachedSPS[1] === 0 && cachedSPS[2] === 1) ? 4 : 5;
+          const p = cachedSPS[off].toString(16).padStart(2, "0");
+          const c = cachedSPS[off + 1].toString(16).padStart(2, "0");
+          const l = cachedSPS[off + 2].toString(16).padStart(2, "0");
+          h264Decoder.configure({
+            codec: `avc1.${p}${c}${l}`,
+            optimizeForLatency: true,
+            hardwareAcceleration: "prefer-hardware"
+          });
+          decoderConfigured = true;
+        } catch {
+          h264Decoder.configure({
+            codec: "avc1.64002a",
+            optimizeForLatency: true,
+            hardwareAcceleration: "prefer-hardware"
+          });
+          decoderConfigured = true;
+        }
+      }
+
+      if (!decoderConfigured || !hasSlice) return;
+
+      let chunkData = rawBytes;
+      if (isKey && cachedSPS && cachedPPS) {
+        const merged = new Uint8Array(cachedSPS.length + cachedPPS.length + rawBytes.length);
+        merged.set(cachedSPS, 0);
+        merged.set(cachedPPS, cachedSPS.length);
+        merged.set(rawBytes, cachedSPS.length + cachedPPS.length);
+        chunkData = merged;
+      }
+
+      try {
+        if (h264Decoder.decodeQueueSize < 3) {
+          h264Decoder.decode(new EncodedVideoChunk({
+            type: isKey ? "key" : "delta",
+            timestamp: performance.now() * 1000,
+            data: chunkData
+          }));
+        }
+      } catch {
+        // Wait for next keyframe
+      }
+    }
+
+    // Local Webcam Fallback & iOS Safari Direct Camera
+    const webcamEl = document.getElementById("webcam-video");
+    let webcamReady = false;
+    async function initLocalWebcam() {
+      if (webcamReady) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: "environment" }, frameRate: { ideal: 60 } },
+          audio: false
+        });
+        webcamEl.srcObject = stream;
+        await webcamEl.play();
+        webcamReady = true;
+      } catch (e) {
+        console.warn("Webcam fallback unavailable:", e);
+      }
+    }
+    initLocalWebcam();
+
+    // iOS Safari Hardware 60-120Hz Gyroscope (when opened directly on iPhone Safari)
+    window.addEventListener("deviceorientation", (e) => {
+      if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
+        const deg2rad = Math.PI / 180;
+        const euler = new THREE.Euler(e.beta * deg2rad, e.alpha * deg2rad, -e.gamma * deg2rad, "YXZ");
+        const q = new THREE.Quaternion().setFromEuler(euler);
+        tracker6dof.setHardwarePose(0, 0, 0, -q.x, -q.y, q.z, q.w);
+      }
+    });
+
+    // Connect Binary WebSocket to Native Node.js USB Server
+    const tracker6dof = new SmoothSpatialTracker6DoF();
+    let ws = null;
+    let sendingReturnFrame = false;
+    const returnEncodeCanvas = document.createElement("canvas");
+    returnEncodeCanvas.width = 1280;
+    returnEncodeCanvas.height = 720;
+    const returnEncodeCtx = returnEncodeCanvas.getContext("2d", { alpha: false });
+
+    function connectWebSocket() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      ws = new WebSocket(`${proto}//${location.host}`);
+      ws.binaryType = "arraybuffer";
+
+      ws.onmessage = (ev) => {
+        if (typeof ev.data === "string") {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === "usb_status") {
+            usbConnected = msg.connected;
+            usbFps = msg.fps || 0;
+          }
+          return;
+        }
+        const bytes = new Uint8Array(ev.data);
+        if (bytes.length < 2) return;
+        const opcode = bytes[0];
+        const payload = bytes.subarray(1);
+        if (opcode === 0x01) {
+          feedH264AccessUnit(payload);
+        } else if (opcode === 0x02 && payload.byteLength >= 28) {
+          const dv = new DataView(payload.buffer, payload.byteOffset, 28);
+          const px = dv.getFloat32(0, true);
+          const py = dv.getFloat32(4, true);
+          const pz = dv.getFloat32(8, true);
+          const qx = dv.getFloat32(12, true);
+          const qy = dv.getFloat32(16, true);
+          const qz = dv.getFloat32(20, true);
+          const qw = dv.getFloat32(24, true);
+          tracker6dof.setHardwarePose(px, py, pz, qx, qy, qz, qw);
+        }
+      };
+
+      ws.onclose = () => setTimeout(connectWebSocket, 800);
+    }
+    connectWebSocket();
+
+    // =========================================================================
+    // 7. MEDIAPIPE GPU HAND LANDMARKER INITIALIZATION
+    // =========================================================================
+    let handLandmarker = null;
+    const filters2D = Array.from({ length: 21 }, () => ({
+      x: new ScalarOneEuroFilter(1.45, 0.018, 1.0),
+      y: new ScalarOneEuroFilter(1.45, 0.018, 1.0)
+    }));
+    const filters3D = Array.from({ length: 21 }, () => new Point3DOneEuroFilter(1.45, 0.018, 1.0));
+    const pinchDetector = new CardboardPinchDetector();
+
+    async function initMediaPipeGPU() {
+      try {
+        const visionModule = await import("/mediapipe/vision_bundle.mjs");
+        const { FilesetResolver, HandLandmarker } = visionModule;
+        const vision = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "/hand_landmarker.task",
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1,
+          minHandDetectionConfidence: 0.45,
+          minHandPresenceConfidence: 0.45,
+          minTrackingConfidence: 0.45
+        });
+        document.getElementById("status-text").textContent = "RTX 4060 GPU WEBGL2 + MEDIAPIPE GPU READY (60-120 FPS)";
+      } catch (e) {
+        console.error("MediaPipe GPU init error:", e);
+        document.getElementById("status-text").textContent = "GPU ENGINE READY (FALLBACK TRACKING)";
+      }
+    }
+    initMediaPipeGPU();
+
+    // Keyboard shortcuts
+    window.addEventListener("keydown", (e) => {
+      const k = e.key.toLowerCase();
+      if (k >= "1" && k <= "7") uiState.switchMode(parseInt(k, 10));
+      else if (k === "v") uiState.stereoVrMode = !uiState.stereoVrMode;
+      else if (k === "r") { tracker6dof.reset(); cubeState.resetToFront(camera); }
+      else if (k === "x") { uiState.useWebcamFallback = !uiState.useWebcamFallback; }
+      else if (k === "m") { uiState.flipH = !uiState.flipH; }
+    });
+
+    // =========================================================================
+    // 8. MAIN 60-120 FPS GPU RENDER & INTERACTION LOOP
+    // =========================================================================
+    let lastTime = performance.now();
+    let smoothFps = 60;
+    let lastValidPinchWorld = null;
+    let lastValidFingerAngle = null;
+
+    function unprojectScreenToWorld(px, py, viewW, viewH, depthM, cam) {
+      const ndcX = (px / viewW) * 2.0 - 1.0;
+      const ndcY = -(py / viewH) * 2.0 + 1.0;
+      const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov * 0.5)) * depthM;
+      const halfW = halfH * (viewW / viewH);
+      const localPt = new THREE.Vector3(ndcX * halfW, ndcY * halfH, -depthM);
+      return localPt.applyMatrix4(cam.matrixWorld);
+    }
+
+    function animate(nowMs) {
+      requestAnimationFrame(animate);
+      const dt = Math.max(0.001, Math.min(0.05, (nowMs - lastTime) / 1000.0));
+      lastTime = nowMs;
+      const nowSec = nowMs / 1000.0;
+      smoothFps = 0.92 * smoothFps + 0.08 * (1.0 / dt);
+
+      // 1. Select Active Camera Feed (iPhone USB H.264 NVDEC vs Local Webcam)
+      const useUsb = usbConnected && hasUsbFrame && !uiState.useWebcamFallback;
+      const activeVideoSource = useUsb ? videoCanvas : (webcamReady ? webcamEl : null);
+
+      if (activeVideoSource && !useUsb) {
+        videoCtx.save();
+        if (uiState.flipH) {
+          videoCtx.translate(W, 0);
+          videoCtx.scale(-1, 1);
+        }
+        videoCtx.drawImage(activeVideoSource, 0, 0, W, H);
+        videoCtx.restore();
+      }
+
+      // 2. Run MediaPipe GPU Hand Landmarker on current video frame
+      let lms2d = null;
+      let lms3dWorld = null;
+      let isPinched = false;
+      let pinchPt2d = null;
+      let pinchPtWorld = null;
+      let fingerAngle = null;
+
+      const viewW = uiState.stereoVrMode ? 640 : W;
+      const viewH = H;
+      const cropW = uiState.stereoVrMode ? Math.floor(H * (640 / 720)) : W;
+      const origX1 = uiState.stereoVrMode ? Math.floor((W - cropW) / 2) : 0;
+      const sxActive = viewW / cropW;
+      const syActive = viewH / H;
+
+      if (handLandmarker && (useUsb || webcamReady)) {
+        try {
+          const res = handLandmarker.detectForVideo(videoCanvas, nowMs);
+          if (res.landmarks && res.landmarks.length > 0) {
+            const rawLms = res.landmarks[0];
+            const worldLms = res.worldLandmarks && res.worldLandmarks.length > 0 ? res.worldLandmarks[0] : null;
+            lms2d = [];
+            for (let i = 0; i < 21; i++) {
+              lms2d.push({
+                x: filters2D[i].x.filter(nowSec, rawLms[i].x * W),
+                y: filters2D[i].y.filter(nowSec, rawLms[i].y * H),
+                z: rawLms[i].z || 0
+              });
+            }
+
+            // Update 6DoF Camera Pose BEFORE unprojecting 3D hand joints!
+            tracker6dof.updateFromVideo(videoCanvas, lms2d, W, H, dt);
+            camera.aspect = viewW / viewH;
+            camera.updateProjectionMatrix();
+            tracker6dof.applyToCamera(camera);
+
+            // Compute Monocular Hand Depth from knuckle width
+            const d2 = (a, b) => Math.hypot((lms2d[a].x - lms2d[b].x) * sxActive, (lms2d[a].y - lms2d[b].y) * syActive);
+            const knucklePx = 0.5 * (d2(5, 9) + d2(9, 13));
+            const palmPx = Math.max(knucklePx * 3.2, d2(0, 9), 24.0);
+            const focalPx = (viewW * 0.5) / Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+            const baseZ = Math.max(0.32, Math.min(1.25, (0.085 * focalPx) / palmPx));
+
+            lms3dWorld = [];
+            for (let i = 0; i < 21; i++) {
+              const vx = (lms2d[i].x - origX1) * sxActive;
+              const vy = lms2d[i].y * syActive;
+              const rawW = unprojectScreenToWorld(vx, vy, viewW, viewH, baseZ + lms2d[i].z * 0.45, camera);
+              lms3dWorld.push(filters3D[i].filter(nowSec, rawW));
+            }
+
+            isPinched = pinchDetector.update(lms2d, worldLms, nowSec);
+            pinchPtWorld = lms3dWorld[4].clone().add(lms3dWorld[8]).multiplyScalar(0.5);
+            pinchPt2d = {
+              x: ((lms2d[4].x + lms2d[8].x) * 0.5 - origX1) * sxActive,
+              y: ((lms2d[4].y + lms2d[8].y) * 0.5) * syActive
+            };
+            fingerAngle = Math.atan2(lms2d[8].y - lms2d[4].y, lms2d[8].x - lms2d[4].x);
+            lastValidPinchWorld = pinchPtWorld;
+            lastValidFingerAngle = fingerAngle;
+
+            // Open Palm Gesture at top-left to re-open hidden menu
+            if (!uiState.isMenuOpen && lms2d[8].y < lms2d[6].y && lms2d[12].y < lms2d[10].y && isPinched) {
+              uiState.isMenuOpen = true;
+            }
+          } else {
+            tracker6dof.updateFromVideo(videoCanvas, null, W, H, dt);
+            camera.aspect = viewW / viewH;
+            camera.updateProjectionMatrix();
+            tracker6dof.applyToCamera(camera);
+
+            if (pinchDetector.holdOnHandLost(nowSec) && lastValidPinchWorld) {
+              isPinched = true;
+              pinchPtWorld = lastValidPinchWorld;
+              fingerAngle = lastValidFingerAngle;
+            }
+          }
+        } catch {
+          // Continue smoothly
+        }
+      } else {
+        tracker6dof.updateFromVideo(videoCanvas, null, W, H, dt);
+        camera.aspect = viewW / viewH;
+        camera.updateProjectionMatrix();
+        tracker6dof.applyToCamera(camera);
+      }
+
+      // 3. Route Pinch via CardboardXR PinchRouter
+      const consumedByUI = uiState.updateRouter(pinchPt2d, isPinched, nowSec, tracker6dof, viewW, viewH);
+
+      // 4. Update Active 3D Spatial Demo
+      const mode = uiState.currentMode;
+      if (mode === 1) {
+        if (pinchPtWorld) {
+          paintState.cursorBall.visible = true;
+          paintState.cursorBall.position.copy(pinchPtWorld);
+        } else {
+          paintState.cursorBall.visible = false;
+        }
+        if (!consumedByUI && isPinched && pinchPtWorld) {
+          paintState.addPoint(pinchPtWorld);
+        } else {
+          paintState.finishStroke();
+        }
+      } else if (mode === 2) {
+        portalState.rings.forEach((r, idx) => {
+          r.rotation.z = nowSec * (idx % 2 === 0 ? 1.2 : -1.2);
+        });
+      } else if (mode === 3) {
+        rushState.update(nowSec, dt, pinchPtWorld || (lms3dWorld ? lms3dWorld[8] : null));
+      } else if (mode === 4) {
+        if (!consumedByUI) {
+          cubeState.update(dt, isPinched, pinchPtWorld, camera, fingerAngle, tracker6dof);
+        }
+      } else if (mode === 5 && lms3dWorld) {
+        caliperState.jawA.position.copy(lms3dWorld[4]);
+        caliperState.jawB.position.copy(lms3dWorld[8]);
+        caliperState.line.geometry.setFromPoints([lms3dWorld[4], lms3dWorld[8]]);
+        caliperState.distMm = lms3dWorld[4].distanceTo(lms3dWorld[8]) * 1000.0;
+      } else if (mode === 6) {
+        for (const p of solarState.planets) {
+          p.ang += p.speed * dt * solarState.speedMult;
+          p.mesh.position.set(Math.cos(p.ang) * p.r, 0, Math.sin(p.ang) * p.r);
+        }
+        if (!consumedByUI && isPinched && pinchPtWorld) {
+          solarState.root.rotation.y += dt * 1.8;
+        }
+      }
+
+      // 5. Render Three.js 3D WebGL Scene + Passthrough Video + Material 3 Glass UI onto Composite Canvas
+      compCtx.clearRect(0, 0, W, H);
+
+      if (!uiState.stereoVrMode) {
+        // 1-SCR (Single Full Screen 1280x720)
+        compCtx.drawImage(videoCanvas, 0, 0, W, H);
+        renderer.setViewport(0, 0, W, H);
+        renderer.setScissorTest(false);
+        renderer.render(scene, camera);
+        compCtx.drawImage(glCanvas, 0, 0, W, H);
+        uiState.drawGlassUI(compCtx, 0, isPinched, !!pinchPt2d);
+      } else {
+        // SBS VR (Dual-Eye 640x720 Stereo Side-by-Side for Shinecon G10)
+        const eyeW = 640, eyeH = 720;
+        const x1L = Math.max(0, Math.min(W - cropW, origX1 - uiState.ipdOffset));
+        const x1R = Math.max(0, Math.min(W - cropW, origX1 + uiState.ipdOffset));
+
+        // Draw Left & Right Passthrough Video Crops
+        compCtx.drawImage(videoCanvas, x1L, 0, cropW, H, 0, 0, eyeW, eyeH);
+        compCtx.drawImage(videoCanvas, x1R, 0, cropW, H, eyeW, 0, eyeW, eyeH);
+
+        // Render Left Eye (-32mm IPD shift) & Right Eye (+32mm IPD shift) in WebGL2
+        const basePos = camera.position.clone();
+        const rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+
+        renderer.setScissorTest(true);
+        // Left Eye
+        camera.position.copy(basePos).addScaledVector(rightVec, -0.032);
+        camera.updateMatrixWorld();
+        renderer.setViewport(0, 0, eyeW, eyeH);
+        renderer.setScissor(0, 0, eyeW, eyeH);
+        renderer.render(scene, camera);
+
+        // Right Eye
+        camera.position.copy(basePos).addScaledVector(rightVec, +0.032);
+        camera.updateMatrixWorld();
+        renderer.setViewport(eyeW, 0, eyeW, eyeH);
+        renderer.setScissor(eyeW, 0, eyeW, eyeH);
+        renderer.render(scene, camera);
+
+        camera.position.copy(basePos);
+        camera.updateMatrixWorld();
+
+        compCtx.drawImage(glCanvas, 0, 0, W, H);
+        uiState.drawGlassUI(compCtx, 0, isPinched, !!pinchPt2d);
+        uiState.drawGlassUI(compCtx, eyeW, isPinched, !!pinchPt2d);
+
+        // Center Divider Line
+        compCtx.fillStyle = "#000000";
+        compCtx.fillRect(eyeW - 2, 0, 4, eyeH);
+      }
+
+      // 6. Stream Rendered Composite Frame back to iPhone over USB (Opcode 0x03) with Zero Blocking!
+      if (usbConnected && ws && ws.readyState === 1 && !sendingReturnFrame && ws.bufferedAmount < 262144) {
+        sendingReturnFrame = true;
+        returnEncodeCtx.drawImage(compCanvas, 0, 0);
+        returnEncodeCanvas.toBlob(
+          (blob) => {
+            if (blob && ws && ws.readyState === 1) {
+              blob.arrayBuffer().then((ab) => {
+                const jpg = new Uint8Array(ab);
+                const pkt = new Uint8Array(1 + jpg.length);
+                pkt[0] = 0x03;
+                pkt.set(jpg, 1);
+                ws.send(pkt);
+                sendingReturnFrame = false;
+              }).catch(() => { sendingReturnFrame = false; });
+            } else {
+              sendingReturnFrame = false;
+            }
+          },
+          "image/jpeg",
+          0.74
+        );
+      }
+
+      // Update Top Status Pill
+      const srcLabel = useUsb ? `IPHONE USB (${usbFps} FPS)` : "WEBCAM / SAFARI";
+      const viewLabel = uiState.stereoVrMode ? "SBS VR" : "1-SCR";
+      document.getElementById("status-text").textContent =
+        `${viewLabel} | ${srcLabel} | RENDER: ${smoothFps.toFixed(0)} FPS | THREE.JS WEBGL2 + GPU AI`;
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
