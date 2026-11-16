@@ -476,11 +476,21 @@ class StarkTetheredBridge:
                     filtered_lms_3d = self.cached_filtered_3d
 
                 if filtered_lms_3d is not None and len(filtered_lms_3d) == 21:
-                    # 2. Tinh toan cu chi Pinch (Hysteresis)
+                    # 2. Tinh toan cu chi Pinch bat bien khoang cach (Scale-Invariant Hysteresis Pinch)
                     p_thumb_3d = filtered_lms_3d[4]
                     p_index_3d = filtered_lms_3d[8]
                     dist_pinch = float(np.linalg.norm(np.array(p_thumb_3d) - np.array(p_index_3d)))
-                    is_pinched = self.suite.pinch_detector.update(dist_pinch, now)
+                    sx_p = self.suite.spatial_cam.w / float(max(1, w))
+                    sy_p = self.suite.spatial_cam.h / float(max(1, h))
+                    palm_px_p = math.hypot(
+                        (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_p,
+                        (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_p
+                    )
+                    pinch_px_p = math.hypot(
+                        (filtered_lms_2d[4][0] - filtered_lms_2d[8][0]) * sx_p,
+                        (filtered_lms_2d[4][1] - filtered_lms_2d[8][1]) * sy_p
+                    )
+                    is_pinched = self.suite.pinch_detector.update(dist_pinch, now, pinch_px=pinch_px_p, palm_px=palm_px_p)
 
                     pinch_pt_3d = (np.array(p_thumb_3d) + np.array(p_index_3d)) * 0.5
                     pinch_pt_2d = (
@@ -488,9 +498,10 @@ class StarkTetheredBridge:
                         (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2
                     )
 
-            # Kiem tra Tuong tac Menu Khong gian 3D (Hands-Free In-Air UI)
+            # Kiem tra Tuong tac Menu Khong gian 3D (CardboardXR PinchRouter & HandInteractorRig)
             consumed = False
             hovered_btn = None
+            ui_shape = (720, 640) if self.suite.stereo_vr_mode else (720, 1280)
             if filtered_lms_2d is not None:
                 if self.suite.stereo_vr_mode:
                     # Chuyen doi sang toa do trung tam cua 1 mat (640x720) cho kinh VR SBS
@@ -505,31 +516,31 @@ class StarkTetheredBridge:
                         py = int(pt[1] * scale_y_c)
                         pts_mapped_center.append((px, py))
                 else:
-                    # Che do 1 MAN HINH DUY NHAT (1280x720): Menu can giua tai offset 320px
+                    # Che do 1 MAN HINH DUY NHAT (1280x720): SpatialInAirMenu tu dong can giua
                     scale_x_c = 1280.0 / float(w)
                     scale_y_c = 720.0 / float(h)
                     pts_mapped_center = []
                     for pt in filtered_lms_2d:
-                        px = int(pt[0] * scale_x_c) - 320
+                        px = int(pt[0] * scale_x_c)
                         py = int(pt[1] * scale_y_c)
                         pts_mapped_center.append((px, py))
 
                 p_knuckle_c = pts_mapped_center[5]
-                p_tip_c = pts_mapped_center[8]
-                dx = p_tip_c[0] - p_knuckle_c[0]
-                dy = p_tip_c[1] - p_knuckle_c[1]
-                dist_laser = math.hypot(dx, dy)
-                laser_end_c = None
-                if dist_laser > 8:
-                    scale_l = 750.0 / dist_laser
-                    laser_end_c = (int(p_tip_c[0] + dx * scale_l), int(p_tip_c[1] + dy * scale_l))
-
-                # Cap nhat Raycast & Palm System Gate cua In-Air Menu
-                consumed, hovered_btn = self.spatial_menu.update(
-                    pts_mapped_center, p_knuckle_c, p_tip_c, laser_end_c, is_pinched, now, self.suite, self
+                p_tip_c = (
+                    (pts_mapped_center[4][0] + pts_mapped_center[8][0]) // 2,
+                    (pts_mapped_center[4][1] + pts_mapped_center[8][1]) // 2
                 )
 
+                # Cap nhat PinchRouter & Palm System Gate cua In-Air Menu
+                consumed, hovered_btn = self.spatial_menu.update(
+                    pts_mapped_center, p_knuckle_c, p_tip_c, p_tip_c, is_pinched, now, self.suite, self, frame_shape=ui_shape
+                )
+            else:
+                self.spatial_menu.update(None, None, None, None, False, now, self.suite, self, frame_shape=ui_shape)
+
             # Cap nhat Logic cua cac Demo (Neu In-Air UI khong chiem cu chi Pinch)
+            if self.suite.current_mode == 1:
+                self.suite.paint_demo.preview_pt_3d = pinch_pt_3d
             if not consumed:
                 if self.suite.current_mode == 1: # PaintDemo (3D Air Paint)
                     if is_pinched and pinch_pt_3d is not None:
@@ -538,19 +549,15 @@ class StarkTetheredBridge:
                         self.suite.paint_demo.finish_stroke()
                 elif self.suite.current_mode == 3: # Orb Rush
                     self.suite.rush_demo.update(now, filtered_lms_3d)
-                elif self.suite.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs)
-                    ray_orig_3d = filtered_lms_3d[8] if filtered_lms_3d is not None else None
-                    ray_dir_3d = None
-                    if filtered_lms_3d is not None:
-                        dir_v = np.array(filtered_lms_3d[8]) - np.array(filtered_lms_3d[5])
-                        norm_d = float(np.linalg.norm(dir_v))
-                        if norm_d > 1e-4:
-                            ray_dir_3d = dir_v / norm_d
-                    self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
+                elif self.suite.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs + HandInteractorRig.cs)
+                    self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_origin_3d=self.suite.spatial_cam.head_pos)
                 elif self.suite.current_mode == 6:
                     self.suite.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
                 elif self.suite.current_mode == 7:
                     self.suite.video_demo.update(dt)
+            else:
+                if self.suite.current_mode == 1:
+                    self.suite.paint_demo.finish_stroke()
 
             # =================================================================
             # RENDER: 1 MAN HINH DUY NHAT (SINGLE SCREEN) HOAC CHIA DOI STEREO SBS
@@ -610,15 +617,16 @@ class StarkTetheredBridge:
                         for b1, b2 in HAND_BONES:
                             cv2.line(out_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
 
-                    # Con tro ngon tay thuan tuy (Pure Fingertip Reticle - Khong con tia laser vuong mat)
-                    cursor_pt_2d = pinch_pt_2d if (is_pinched and pinch_pt_2d is not None) else filtered_lms_2d[8]
+                    # Con tro PinchPoint duy nhat chuan CardboardXR (Khong giat nhay khi Pinch)
+                    cursor_pt_2d = pinch_pt_2d if pinch_pt_2d is not None else filtered_lms_2d[8]
                     if cursor_pt_2d is not None:
                         cur_px = int(cursor_pt_2d[0] * scale_x)
                         cur_py = int(cursor_pt_2d[1] * scale_y)
-                        self.spatial_menu.draw_cursor_reticle(out_frame, (cur_px, cur_py), is_pinched, is_hovering=(hovered_btn is not None))
+                        is_hov = (hovered_btn is not None) or (self.suite.current_mode == 4 and self.suite.cube_demo.is_hovered)
+                        self.spatial_menu.draw_cursor_reticle(out_frame, (cur_px, cur_py), is_pinched, is_hovering=is_hov)
 
-                # 3. Ve In-Air Spatial Menu can giua man hinh (offset_x = 320)
-                self.spatial_menu.draw(out_frame, now, self.suite.current_mode, eye_offset_x=320, bridge=self)
+                # 3. Ve In-Air Spatial Menu tu dong can giua man hinh
+                self.spatial_menu.draw(out_frame, now, self.suite.current_mode, eye_offset_x=0, bridge=self)
 
                 final_frame = out_frame
 
@@ -714,12 +722,13 @@ class StarkTetheredBridge:
                             for b1, b2 in HAND_BONES:
                                 cv2.line(target_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
 
-                        # Con tro ngon tay thuan tuy (Pure Fingertip Reticle - Khong con tia laser vuong mat)
-                        cursor_pt_2d = pinch_pt_2d if (is_pinched and pinch_pt_2d is not None) else filtered_lms_2d[8]
+                        # Con tro PinchPoint duy nhat chuan CardboardXR (Khong giat nhay khi Pinch)
+                        cursor_pt_2d = pinch_pt_2d if pinch_pt_2d is not None else filtered_lms_2d[8]
                         if cursor_pt_2d is not None:
                             cur_px = int((cursor_pt_2d[0] - orig_x1) * scale_x) + off_x
                             cur_py = int(cursor_pt_2d[1] * scale_y)
-                            self.spatial_menu.draw_cursor_reticle(target_frame, (cur_px, cur_py), is_pinched, is_hovering=(hovered_btn is not None))
+                            is_hov = (hovered_btn is not None) or (self.suite.current_mode == 4 and self.suite.cube_demo.is_hovered)
+                            self.spatial_menu.draw_cursor_reticle(target_frame, (cur_px, cur_py), is_pinched, is_hovering=is_hov)
 
                     menu_parallax = 4 if off_x < 0 else -4
                     self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax, bridge=self)

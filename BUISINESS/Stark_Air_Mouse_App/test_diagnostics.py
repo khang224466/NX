@@ -91,17 +91,47 @@ def run_diagnostics():
     except Exception as e:
         print(f"  [FAIL] Loi kiem thu 3D parallax: {e}")
 
-    # 4. In-Air Spatial Menu & Apple Vision Pro Palm Gate
-    print("\n[4/7] Kiem thu Co che Dieu khien Menu Khong gian & Palm Gate...")
+    # 4. In-Air Spatial Menu, PinchRouter, Rising-Edge & Eye-Through-PinchPoint Ray
+    print("\n[4/8] Kiem thu Co che Dieu khien CardboardXR (PinchRouter, Rising-Edge & Eye-Ray)...")
     try:
         from stark_spatial_menu import SpatialInAirMenu
+        from stark_cardboard_xr import CubePhysicsDemo
         menu = SpatialInAirMenu()
-        print(f"  [OK] Menu da san sang voi {len(menu.library_tiles)} o ung dung khong gian:")
-        for tile in menu.library_tiles:
-            print(f"       - [{tile.btn_id}]: {tile.label} ({tile.category})")
+        print(f"  [OK] Menu da san sang voi {len(menu.library_tiles)} o ung dung khong gian.")
+
+        # Test 4a: Responsive layout tren Webcam 640x480 (Tat ca nut phai nam trong khung hinh y <= 480)
+        menu._sync_layout(640, 480)
+        max_btn_y = max(b.y + b.h for b in menu.toolbar_buttons)
+        assert max_btn_y <= 480, f"Toolbar vuot ngoai man hinh 480p: {max_btn_y}"
+        print(f"  [OK] Responsive 480p Layout: Thanh Toolbar nam gon trong khung hinh (y_bottom={max_btn_y} <= 480px)!")
+
+        # Test 4b: Pinch o khong gian trong (x=640, y=200) KHI MENU DANG MO -> Phai tra ve consumed=False cho Demo 3D!
+        fake_lms = [(640, 200)] * 21
+        t_test = time.time()
+        menu.update(fake_lms, (640, 200), (640, 200), (640, 200), False, t_test, None, frame_shape=(720, 1280))
+        consumed_open_space, _ = menu.update(fake_lms, (640, 200), (640, 200), (640, 200), True, t_test + 0.05, None, frame_shape=(720, 1280))
+        assert consumed_open_space is False, "Menu nuot mat cu Pinch o khong gian trong!"
+        print("  [OK] PinchRouter Open-Space: Chum tay o vung trong -> consumed=False (Ve 3D & Bat Hop muot 100%)!")
+
+        # Test 4c: Dang giu Pinch ve 3D ma keo tay luot qua nut Toolbar -> Khong bao gio bam nham nut!
+        tb_btn = menu.toolbar_buttons[0]
+        fake_lms_on_btn = [(tb_btn.x + 10, tb_btn.y + 10)] * 21
+        consumed_drag, _ = menu.update(fake_lms_on_btn, (tb_btn.x + 10, tb_btn.y + 10), (tb_btn.x + 10, tb_btn.y + 10), (tb_btn.x + 10, tb_btn.y + 10), True, t_test + 0.10, None, frame_shape=(720, 1280))
+        assert consumed_drag is False, "Dang giu Pinch ve 3D ma luot qua nut lai bi bam nham!"
+        print("  [OK] Pinch Claim Ownership: Dang giu Pinch keo vat the luot qua Toolbar khong bao gio bam nham nut!")
+
+        # Test 4d: Eye-Through-PinchPoint Ray tren CubePhysicsDemo (HandInteractorRig.cs line 85)
+        cube = CubePhysicsDemo()
+        # Ban tay o z=0.55m nam tren duong nhin tu mat (0,0,0) toi khoi hop (0,0,1.1m)
+        cube.update(0.016, False, np.array([0.0, 0.0, 0.55]), ray_origin_3d=np.array([0.0, 0.0, 0.0]))
+        assert cube.is_hovered is True, "Tia Eye-Through-PinchPoint khong hover trung khoi hop!"
+        cube.update(0.016, True, np.array([0.0, 0.0, 0.55]), ray_origin_3d=np.array([0.0, 0.0, 0.0]))
+        assert cube.is_grabbed is True, "Chum tay khi hover khong gap duoc khoi hop!"
+        print("  [OK] Eye-Through-PinchPoint Ray: Ngam va gap khoi hop 3D o khoang cach 1.1m chinh xac 100%!")
+
         passed += 1
     except Exception as e:
-        print(f"  [FAIL] Loi Menu In-Air: {e}")
+        print(f"  [FAIL] Loi kiem thu co che dieu khien: {e}")
 
     # 5. Core XR Suite & 7 Spatial Apps
     print("\n[5/7] Kiem thu Module StarkCardboardXRSuite & 7 Apps...")

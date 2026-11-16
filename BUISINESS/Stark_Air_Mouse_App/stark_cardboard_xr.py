@@ -130,21 +130,34 @@ class OneEuroFilter:
 # CardboardXR Hysteresis Pinch Detector (Ported from PinchDetector.cs)
 # -----------------------------------------------------------------------------
 class PinchDetector:
-    def __init__(self, close_dist=0.026, open_dist=0.045):
+    """
+    Port of CardboardXR PinchDetector.cs & PinchRule:
+    Combines 3D metric distance hysteresis with scale-invariant 2D palm-normalized ratio
+    (pinch_px / palm_px) so pinching is 100% responsive and flicker-free at any hand depth.
+    """
+    def __init__(self, close_dist=0.028, open_dist=0.046, close_ratio=0.33, open_ratio=0.47):
         self.close_dist = close_dist
         self.open_dist = open_dist
+        self.close_ratio = close_ratio
+        self.open_ratio = open_ratio
         self.is_pinched = False
         self.pinch_start_time = 0.0
 
-    def update(self, dist_m, now):
+    def update(self, dist_m, now, pinch_px=None, palm_px=None):
+        ratio = (pinch_px / max(30.0, palm_px)) if (pinch_px is not None and palm_px is not None) else None
         if self.is_pinched:
-            if dist_m > self.open_dist:
+            should_open = (dist_m > self.open_dist) and (ratio is None or ratio > self.open_ratio)
+            if should_open:
                 self.is_pinched = False
         else:
-            if dist_m < self.close_dist:
+            should_close = (dist_m < self.close_dist) or (ratio is not None and ratio < self.close_ratio)
+            if should_close:
                 self.is_pinched = True
                 self.pinch_start_time = now
         return self.is_pinched
+
+    def reset(self):
+        self.is_pinched = False
 
 # -----------------------------------------------------------------------------
 # 3D Spatial Math & Camera Projection Engine (6DoF Head Pose + Stereoscopic Depth)
@@ -331,6 +344,16 @@ class SpatialCamera:
 # Demo 1: 3D Air Paint Engine (Tilt Brush in Space - PaintDemo.cs)
 # -----------------------------------------------------------------------------
 class PaintDemo:
+    """
+    Port of CardboardXR PaintDemo.cs:
+    - Pinch anywhere in open space to paint 3D ribbons following the thumb-index PinchPoint.
+    - Jump-distance protection (k_JumpDistance = 0.10m): splits stroke if depth jumps suddenly.
+    - Blip filtering (k_BlipLength = 0.015m): drops accidental 1-frame pinch flickers.
+    - Brush cursor preview ball shows current color and size at the PinchPoint.
+    """
+    k_JumpDistance = 0.12
+    k_BlipLength = 0.015
+
     def __init__(self):
         self.strokes = [] # Danh sach cac duong ve 3D: [ { 'points': [...], 'color': (b,g,r), 'size': 3 } ]
         self.current_stroke = []
@@ -343,19 +366,37 @@ class PaintDemo:
         ]
         self.current_color_idx = 1
         self.brush_size = 4
+        self.preview_pt_3d = None
 
     def add_point(self, pt_3d):
-        self.current_stroke.append(np.array(pt_3d, dtype=float))
+        pt = np.array(pt_3d, dtype=float)
+        self.preview_pt_3d = pt
+        if self.current_stroke:
+            jump = float(np.linalg.norm(pt - self.current_stroke[-1]))
+            if jump > self.k_JumpDistance:
+                # Tracker depth jumped (PaintDemo.cs line 47): finish previous segment and start fresh
+                self.finish_stroke()
+            elif jump < 0.002:
+                return
+            else:
+                # Smooth point transition
+                pt = 0.65 * pt + 0.35 * self.current_stroke[-1]
+        self.current_stroke.append(pt)
 
     def finish_stroke(self):
         if len(self.current_stroke) > 1:
-            self.strokes.append({
-                'points': list(self.current_stroke),
-                'color': self.palette[self.current_color_idx],
-                'size': self.brush_size
-            })
-            if len(self.strokes) > 50:
-                self.strokes.pop(0)
+            total_len = sum(
+                float(np.linalg.norm(self.current_stroke[i+1] - self.current_stroke[i]))
+                for i in range(len(self.current_stroke) - 1)
+            )
+            if total_len >= self.k_BlipLength:
+                self.strokes.append({
+                    'points': list(self.current_stroke),
+                    'color': self.palette[self.current_color_idx],
+                    'size': self.brush_size
+                })
+                if len(self.strokes) > 60:
+                    self.strokes.pop(0)
         self.current_stroke = []
 
     def undo(self):
@@ -384,8 +425,15 @@ class PaintDemo:
                     p_a, z_a = pts_2d[i]
                     p_b, z_b = pts_2d[i+1]
                     # Chieu day net ve theo do sau Z (Perspective Thickness)
-                    thick = max(1, int(stroke['size'] * (0.8 / ((z_a + z_b) / 2.0))))
+                    thick = max(2, int(stroke['size'] * (0.85 / ((z_a + z_b) / 2.0))))
                     cv2.line(frame, p_a, p_b, stroke['color'], thick, cv2.LINE_AA)
+
+        # PaintDemo.cs line 9: Small ball at PinchPoint shows current brush color before/while painting
+        if self.preview_pt_3d is not None:
+            bp2, bz = cam.project_3d(self.preview_pt_3d, offset_x)
+            if 0 <= bp2[0] < cam.w and 0 <= bp2[1] < cam.h and bz > 0.05:
+                r_ball = max(4, int(self.brush_size * (1.2 / bz)))
+                cv2.circle(frame, bp2, r_ball, self.palette[self.current_color_idx], -1, cv2.LINE_AA)
 
 # -----------------------------------------------------------------------------
 # Demo 2: Spatial AR Portal (Doorway into another World - PortalDemo.cs)
@@ -507,11 +555,15 @@ class OrbRushDemo:
             if not orb['hit']:
                 orb['pos'][2] -= orb['speed'] * dt
 
-                # Kiem tra va cham voi ban tay (Lòng bàn tay hoac dau ngon tay)
-                if hand_points_3d is not None and 0.4 <= orb['pos'][2] <= 0.85:
-                    for hp in [hand_points_3d[0], hand_points_3d[8], hand_points_3d[12]]:
-                        dist = np.linalg.norm(orb['pos'] - hp)
-                        if dist < 0.14: # Va cham trung bong!
+                # Kiem tra va cham voi ban tay (Palm hoac dau ngon tay - RushDemo.cs: 2D/Ray + 3D reach)
+                if hand_points_3d is not None and 0.32 <= orb['pos'][2] <= 1.15:
+                    for hp in [hand_points_3d[0], hand_points_3d[8], hand_points_3d[9], hand_points_3d[12]]:
+                        # So sanh ca khoang cach 3D va do lech goc nhin XY (chuan tia mat - ngon tay)
+                        dist_3d = float(np.linalg.norm(orb['pos'] - hp))
+                        scale_z = orb['pos'][2] / max(0.20, float(hp[2]))
+                        hp_proj = np.array([hp[0] * scale_z, hp[1] * scale_z, orb['pos'][2]])
+                        dist_ray = float(np.linalg.norm(orb['pos'] - hp_proj))
+                        if dist_3d < 0.18 or dist_ray < 0.16: # Va cham trung bong!
                             orb['hit'] = True
                             self.combo += 1
                             self.score += 100 * self.combo
@@ -531,7 +583,7 @@ class OrbRushDemo:
         self.hit_feedback = [f for f in self.hit_feedback if now - f['time'] < 0.8]
 
     def draw(self, frame, cam, now, offset_x=0):
-        # Ve vong muc tieu danh bong (Hit Ring Plane o khoang cach 0.6m)
+        # Ve vong muc tieu danh bong (Hit Ring Plane o khoang cach 0.65m)
         ring_center, _ = cam.project_3d(np.array([0.0, 0.05, 0.65]), offset_x)
         cv2.circle(frame, ring_center, 90, (50, 50, 80), 2, cv2.LINE_AA)
 
@@ -553,15 +605,18 @@ class OrbRushDemo:
                     (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 243, 255), 2)
 
 # -----------------------------------------------------------------------------
-# Demo 4: 3D Holographic Cube Physics & Grab (Ported from CardboardXR CubePhysics.cs)
+# Demo 4: 3D Holographic Cube Physics & Grab (Ported from CardboardXR CubePhysics.cs & HandInteractorRig.cs)
 # -----------------------------------------------------------------------------
 class CubePhysicsDemo:
     """
-    Port of CardboardXR CubePhysics.cs:
-    - Grab by near hand pinch (< 0.25m) or far pointing ray (NearFarInteractor)
-    - Kinematic movement while held by hand
-    - Throw on release with hand velocity (clamped to k_MaxThrowSpeed = 6.0 m/s)
-    - Natural gravity (-9.8 m/s^2), bounce off floor/desk and air damping
+    Authentic Port of CardboardXR CubePhysics.cs + HandInteractorRig.cs + HandRayView.cs:
+    - Eye-Through-PinchPoint Ray (HandInteractorRig.cs line 85):
+      Ray starts at the eyes (head_pos) and passes directly through the thumb-index PinchPoint!
+      Whenever your PinchPoint cursor hovers over the cube on screen, the ray hits the cube!
+    - HandRayView.cs Target Dot: Shows a bright white dot on the cube when hovered ("this is what a pinch gets")
+      and turns amber-gold while grabbed.
+    - Rising-Edge Grab: Only starts grabbing if the pinch began while hovering/near the cube.
+    - Kinematic Freeze on gentle placement (< 0.40 m/s) or hand loss; physics throw on fast flick (clamped to 6.0 m/s).
     """
     def __init__(self):
         self.pos = np.array([0.0, 0.0, 1.1])
@@ -569,60 +624,94 @@ class CubePhysicsDemo:
         self.rot = np.array([0.2, 0.4, 0.0])
         self.vel = np.array([0.0, 0.0, 0.0])
         self.is_grabbed = False
-        self.grab_offset = np.array([0.0, 0.0, 0.0])
-        self.prev_grab_pos = None
+        self.is_hovered = False
+        self.is_floating = True  # Neo lo lung tai cho cho den khi duoc nem manh
+        self.was_pinched = False
+        self.grab_ray_dist = 1.1
+        self.grab_hand_dist = 0.55
+        self.grab_ray_offset = np.array([0.0, 0.0, 0.0])
 
     def update(self, dt, is_pinched, pinch_pos_3d, ray_origin_3d=None, ray_dir_3d=None):
-        if is_pinched:
-            # 1. Kiem tra khoang cach cham gan (< 0.25m)
-            dist_pinch = np.linalg.norm(self.pos - pinch_pos_3d) if pinch_pos_3d is not None else 999.0
+        eye_orig = np.array(ray_origin_3d, dtype=float) if ray_origin_3d is not None else np.array([0.0, 0.0, 0.0])
+        eye_ray_dir = None
 
-            # 2. Kiem tra tia laser tu xa (Far Raycast toi qua cau bao quanh khoi hop)
-            hit_ray = False
-            if ray_origin_3d is not None and ray_dir_3d is not None:
-                to_cube = self.pos - ray_origin_3d
-                proj = float(np.dot(to_cube, ray_dir_3d))
-                if proj > 0.15:
-                    closest_pt = ray_origin_3d + proj * ray_dir_3d
-                    ray_dist = float(np.linalg.norm(self.pos - closest_pt))
-                    if ray_dist < (self.size * 1.6):
-                        hit_ray = True
+        if pinch_pos_3d is not None:
+            vec = np.array(pinch_pos_3d, dtype=float) - eye_orig
+            norm_v = float(np.linalg.norm(vec))
+            if norm_v > 1e-4:
+                eye_ray_dir = vec / norm_v
 
-            can_grab = (dist_pinch < 0.25) or hit_ray
-            if not self.is_grabbed and can_grab and pinch_pos_3d is not None:
-                self.is_grabbed = True
-                self.grab_offset = self.pos - pinch_pos_3d
-                self.prev_grab_pos = self.pos.copy()
+        # 1. Kiem tra Hover bang tia Eye-Through-PinchPoint (HandInteractorRig.cs line 85)
+        self.is_hovered = False
+        dist_pinch = float(np.linalg.norm(self.pos - pinch_pos_3d)) if pinch_pos_3d is not None else 999.0
+        if eye_ray_dir is not None:
+            to_cube = self.pos - eye_orig
+            proj = float(np.dot(to_cube, eye_ray_dir))
+            if proj > 0.15:
+                closest_pt = eye_orig + proj * eye_ray_dir
+                ray_dist = float(np.linalg.norm(self.pos - closest_pt))
+                if ray_dist < (self.size * 1.45):
+                    self.is_hovered = True
+        if dist_pinch < 0.28:
+            self.is_hovered = True
 
-            if self.is_grabbed and pinch_pos_3d is not None:
-                target_pos = pinch_pos_3d + self.grab_offset
+        just_pinched = is_pinched and (not self.was_pinched)
+        just_released = (not is_pinched) and self.was_pinched
+        self.was_pinched = is_pinched
+
+        # 2. Chi bat dau Grab tai suon len (just_pinched) khi dang nham trung khoi hop (HandInteractorRig.cs)
+        if just_pinched and self.is_hovered and pinch_pos_3d is not None and eye_ray_dir is not None:
+            self.is_grabbed = True
+            self.is_floating = False
+            self.grab_ray_dist = max(0.35, float(np.linalg.norm(self.pos - eye_orig)))
+            self.grab_hand_dist = max(0.18, float(np.linalg.norm(pinch_pos_3d - eye_orig)))
+            self.grab_ray_offset = self.pos - (eye_orig + eye_ray_dir * self.grab_ray_dist)
+            self.vel = np.array([0.0, 0.0, 0.0])
+
+        if is_pinched and self.is_grabbed:
+            if pinch_pos_3d is not None and eye_ray_dir is not None:
+                cur_hand_dist = max(0.18, float(np.linalg.norm(pinch_pos_3d - eye_orig)))
+                depth_scale = float(np.clip(cur_hand_dist / self.grab_hand_dist, 0.45, 2.0))
+                target_pos = eye_orig + eye_ray_dir * (self.grab_ray_dist * depth_scale) + self.grab_ray_offset
+                target_pos[2] = float(np.clip(target_pos[2], 0.40, 2.40))
+                smooth_target = 0.65 * target_pos + 0.35 * self.pos
                 if dt > 0.001:
-                    raw_vel = (target_pos - self.pos) / dt
-                    # Gioi han toc do nem toi da (CardboardXR k_MaxThrowSpeed = 6.0 m/s)
+                    raw_vel = (smooth_target - self.pos) / dt
                     spd = float(np.linalg.norm(raw_vel))
                     if spd > 6.0:
                         raw_vel = (raw_vel / spd) * 6.0
-                    self.vel = raw_vel
-                self.pos = target_pos
+                    self.vel = 0.6 * raw_vel + 0.4 * self.vel
+                self.pos = smooth_target
         else:
-            if self.is_grabbed:
+            if just_released and self.is_grabbed:
                 self.is_grabbed = False
+                # Neu tha tay nhe nhang (< 0.45 m/s) -> Neo khoi hop lo lung tai vi tri vua dat (CubePhysics.cs Freeze/Anchor)
+                if float(np.linalg.norm(self.vel)) < 0.45:
+                    self.is_floating = True
+                    self.vel = np.array([0.0, 0.0, 0.0])
+                else:
+                    self.is_floating = False
 
-            # Vat ly vat the tu do (Trong luc + Quan tinh nem + Ma sat khong khi)
-            # Gravity: -2.5 m/s^2 tao cam giac lo lung huyen ao nhe nhang trong AR
-            self.vel[1] -= 2.5 * dt
-            self.pos += self.vel * dt
-            self.vel *= 0.94 # Damping
+            if not self.is_floating:
+                # Vat ly vat the tu do khi nem manh (Trong luc + Quan tinh nem + Dan hoi mat ban)
+                self.vel[1] -= 2.5 * dt
+                self.pos += self.vel * dt
+                self.vel *= 0.94
 
-            # Cham san / Mat ban ao o do sau y = -0.55m -> Dan hoi nay len
-            if self.pos[1] < -0.55:
-                self.pos[1] = -0.55
-                self.vel[1] = -self.vel[1] * 0.50 # Nay len voi 50% dong nang
-                self.vel[0] *= 0.85
-                self.vel[2] *= 0.85
+                if self.pos[1] < -0.45:
+                    self.pos[1] = -0.45
+                    self.vel[1] = -self.vel[1] * 0.55
+                    self.vel[0] *= 0.85
+                    self.vel[2] *= 0.85
+                    if abs(self.vel[1]) < 0.12 and float(np.linalg.norm(self.vel)) < 0.18:
+                        self.vel = np.array([0.0, 0.0, 0.0])
+                        self.is_floating = True
 
-            self.rot[0] += 0.02
-            self.rot[1] += 0.03
+                self.pos[0] = float(np.clip(self.pos[0], -0.85, 0.85))
+                self.pos[2] = float(np.clip(self.pos[2], 0.45, 2.50))
+
+            self.rot[0] += 0.015
+            self.rot[1] += 0.022
 
     def draw(self, frame, cam, offset_x=0):
         # 8 dinh cua khoi lap phuong
@@ -632,13 +721,11 @@ class CubePhysicsDemo:
             [-s, -s,  s], [s, -s,  s], [s, s,  s], [-s, s,  s]
         ])
 
-        # Tinh ma tran xoay Euler 3D
         rx, ry, rz = self.rot
         Rx = np.array([[1, 0, 0], [0, math.cos(rx), -math.sin(rx)], [0, math.sin(rx), math.cos(rx)]])
         Ry = np.array([[math.cos(ry), 0, math.sin(ry)], [0, 1, 0], [-math.sin(ry), 0, math.cos(ry)]])
         rot_nodes = nodes @ Rx.T @ Ry.T + self.pos
 
-        # Chieu 2D
         pts_2d = [cam.project_3d(n, offset_x)[0] for n in rot_nodes]
 
         edges = [
@@ -646,11 +733,27 @@ class CubePhysicsDemo:
             (4,5), (5,6), (6,7), (7,4),
             (0,4), (1,5), (2,6), (3,7)
         ]
-        color = (0, 255, 128) if self.is_grabbed else (0, 243, 255)
+        if self.is_grabbed:
+            color = (50, 215, 255)  # Amber Gold khi dang nam giu (HandRayView.cs k_Pinching)
+            thick = 3
+        elif self.is_hovered:
+            color = (128, 255, 180) # Sang ruc khi tia ngam trung (Ready to grab)
+            thick = 3
+        else:
+            color = (0, 243, 255)
+            thick = 2
+
         for p1, p2 in edges:
-            cv2.line(frame, pts_2d[p1], pts_2d[p2], color, 2, cv2.LINE_AA)
+            cv2.line(frame, pts_2d[p1], pts_2d[p2], color, thick, cv2.LINE_AA)
         for pt in pts_2d:
             cv2.circle(frame, pt, 4, (255, 0, 255), -1, cv2.LINE_AA)
+
+        # HandRayView.cs lines 47-62: Ve cham tron muc tieu tren khoi hop khi ngam trung ("this is what a pinch gets")
+        if self.is_hovered or self.is_grabbed:
+            center_2d, _ = cam.project_3d(self.pos, offset_x)
+            dot_col = (50, 215, 255) if self.is_grabbed else (255, 255, 255)
+            cv2.circle(frame, center_2d, 9, (25, 25, 30), -1, cv2.LINE_AA)
+            cv2.circle(frame, center_2d, 6, dot_col, -1, cv2.LINE_AA)
 
 # -----------------------------------------------------------------------------
 # Demo 6: 3D Holographic Spatial Simulation (Solar System & Depth Grid)
@@ -1208,11 +1311,15 @@ class StarkCardboardXRSuite:
                     flt_pt3 = self.filters_3d[i].filter(now, pt3)
                     filtered_lms_3d.append(flt_pt3)
 
-                # 2. Tinh toan cu chi Pinch (Hysteresis)
+                # 2. Tinh toan cu chi Pinch bat bien khoang cach (Scale-Invariant Hysteresis Pinch)
                 p_thumb_3d = filtered_lms_3d[4]
                 p_index_3d = filtered_lms_3d[8]
-                dist_m = np.linalg.norm(p_thumb_3d - p_index_3d)
-                is_pinched = self.pinch_detector.update(dist_m, now)
+                dist_m = float(np.linalg.norm(p_thumb_3d - p_index_3d))
+                pinch_px = math.hypot(
+                    filtered_lms_2d[4][0] - filtered_lms_2d[8][0],
+                    filtered_lms_2d[4][1] - filtered_lms_2d[8][1]
+                )
+                is_pinched = self.pinch_detector.update(dist_m, now, pinch_px=pinch_px, palm_px=palm_px)
 
                 pinch_pt_3d = (p_thumb_3d + p_index_3d) * 0.5
                 pinch_pt_2d = ((filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) // 2,
@@ -1260,24 +1367,22 @@ class StarkCardboardXRSuite:
                 # Che do 1 man hinh Desktop AR
                 views = [(frame, 0, self.spatial_cam, 0, w, w, h)]
 
-            # Kiem tra In-Air UI
+            # Kiem tra In-Air UI (CardboardXR PinchRouter & HandInteractorRig)
             consumed = False
             hovered_btn = None
+            ui_shape = (720, 640) if self.stereo_vr_mode else (h, w)
             if filtered_lms_2d is not None:
                 p_knuckle = filtered_lms_2d[5]
-                p_tip = filtered_lms_2d[8]
-                dx = p_tip[0] - p_knuckle[0]
-                dy = p_tip[1] - p_knuckle[1]
-                dist_laser = math.hypot(dx, dy)
-                laser_end = None
-                if dist_laser > 8:
-                    scale_l = 480.0 / dist_laser
-                    laser_end = (int(p_tip[0] + dx * scale_l), int(p_tip[1] + dy * scale_l))
+                p_tip = pinch_pt_2d if pinch_pt_2d is not None else filtered_lms_2d[8]
                 consumed, hovered_btn = self.spatial_menu.update(
-                    filtered_lms_2d, p_knuckle, p_tip, laser_end, is_pinched, now, self
+                    filtered_lms_2d, p_knuckle, p_tip, p_tip, is_pinched, now, self, frame_shape=ui_shape
                 )
+            else:
+                self.spatial_menu.update(None, None, None, None, False, now, self, frame_shape=ui_shape)
 
             # Cap nhat Logic cua cac Demo (Neu UI khong chiem cu chi Pinch)
+            if self.current_mode == 1:
+                self.paint_demo.preview_pt_3d = pinch_pt_3d
             if not consumed:
                 if self.current_mode == 1: # PaintDemo
                     if is_pinched and pinch_pt_3d is not None:
@@ -1286,19 +1391,15 @@ class StarkCardboardXRSuite:
                         self.paint_demo.finish_stroke()
                 elif self.current_mode == 3: # Orb Rush
                     self.rush_demo.update(now, filtered_lms_3d)
-                elif self.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs)
-                    ray_orig_3d = filtered_lms_3d[8] if filtered_lms_3d is not None else None
-                    ray_dir_3d = None
-                    if filtered_lms_3d is not None:
-                        dir_v = np.array(filtered_lms_3d[8]) - np.array(filtered_lms_3d[5])
-                        norm_d = float(np.linalg.norm(dir_v))
-                        if norm_d > 1e-4:
-                            ray_dir_3d = dir_v / norm_d
-                    self.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_orig_3d, ray_dir_3d)
+                elif self.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs + HandInteractorRig.cs)
+                    self.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_origin_3d=self.spatial_cam.head_pos)
                 elif self.current_mode == 6:
                     self.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
                 elif self.current_mode == 7:
                     self.video_demo.update(dt)
+            else:
+                if self.current_mode == 1:
+                    self.paint_demo.finish_stroke()
 
             # Ve cac Demo vao cac View (Left / Right hoac Desktop)
             for target_frame, off_x, view_cam, orig_x1, orig_cw, vw_t, vh_t in views:
@@ -1326,7 +1427,7 @@ class StarkCardboardXRSuite:
                     eye_idx = 0 if off_x <= 0 else 1
                     self.video_demo.draw(target_frame, is_stereo=self.stereo_vr_mode, eye_idx=eye_idx, off_x=off_x)
 
-                # Ve khop tay & Tia Laser Pointing Ray
+                # Ve khop tay & Con tro PinchPoint chuan CardboardXR
                 if filtered_lms_2d is not None:
                     # An bo xuong mac dinh trong AR Passthrough (CardboardXR HandJointsView.cs)
                     if getattr(self.spatial_menu, 'show_skeleton_debug', False):
@@ -1346,14 +1447,14 @@ class StarkCardboardXRSuite:
                         for pt in filtered_lms_2d:
                             cv2.circle(target_frame, (int((pt[0] - orig_x1) * sx_v) + off_x, int(pt[1] * sy_v)), 3, (0, 150, 255), -1, cv2.LINE_AA)
 
-                    # Con tro ngon tay thuan tuy (Pure Fingertip Reticle - Khong con tia laser vuong mat)
-                    cursor_pos = pinch_pt_2d if (is_pinched and pinch_pt_2d is not None) else filtered_lms_2d[8]
+                    # Con tro PinchPoint duy nhat (Khong giat nhay giua lms[8] va trung diem khi Pinch)
+                    cursor_pos = self.spatial_menu.smooth_cursor if self.spatial_menu.smooth_cursor is not None else pinch_pt_2d
                     if cursor_pos is not None:
                         self.spatial_menu.draw_cursor_reticle(
                             target_frame,
                             (int((cursor_pos[0] - orig_x1) * sx_v) + off_x, int(cursor_pos[1] * sy_v)),
                             is_pinched,
-                            is_hovering=(hovered_btn is not None)
+                            is_hovering=(hovered_btn is not None or (self.current_mode == 4 and self.cube_demo.is_hovered))
                         )
 
                 # Ve In-Air Spatial Menu tren view

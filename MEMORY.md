@@ -1,32 +1,29 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.3.03 PRO - Deep Surgical Audit & Full Fix of Steps 1-4)
+## Current Status (v10.3.04 PRO - Authentic CardboardXR Interaction Engine Overhaul)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.3.03 PRO** (Kiểm toán và sửa triệt để toàn bộ các lỗi toán học, hệ trục tọa độ, dead-code Unity, lệch tâm quang học SBS/1080p, và treo lệnh `.bat` của các bản trước).
-- **Core Fixes in v10.3.03 PRO (Argon Surgical Audit)**:
-  1. **Sửa lỗi Toán học Hệ Trục Tọa Độ & Ma Trận Quaternion 6DoF (iOS ARKit Right-Handed $\rightarrow$ STARK/Unity Left-Handed)**:
-     - Phát hiện lỗi nghiêm trọng của bản trước: dùng `(Qx, -Qy, -Qz, Qw)` gây sai số ma trận `1.588` (phản xạ nhầm trục $X$ thay vì trục $Z$, làm ngược chiều ngẩng/cúi đầu Pitch và nghiêng đầu Roll), và quên đảo dấu trục $Z$ trong Python (`stark_tethered_bridge.py`), khiến bước tới gần vật thể ($Z_{\text{ARKit}} < 0$) lại làm vật thể trôi ra xa!
-     - Đã sửa chuẩn xác theo phép liên hợp ma trận phản xạ trục $Z$ ($S = \text{diag}(1, 1, -1)$):
-       $$R_{\text{LH}} = S \cdot R_{\text{RH}} \cdot S \iff P_{\text{LH}} = (X, Y, -Z), \quad Q_{\text{LH}} = (-Q_x, -Q_y, Q_z, Q_w)$$
-       Sai số ma trận kiểm thử đạt **`0.0e+00`**!
-     - Nâng cấp `reset_head_pose()` (Persistent 6DoF Recenter): Lưu `origin_pos` và `origin_rot_inv` để khi bấm nút `RECENTER` (hoặc phím `R`), các gói tin 6DoF tiếp theo từ iPhone vẫn giữ nguyên gốc tọa độ mới `(0, 0, 0)` thay vì bị ghi đè lại sau 8ms.
-  2. **Sửa lỗi Dead-Code & Crash Luồng Nền trong Unity C# (`HeadPoseFusion.cs` & `NetworkPoseSource.cs`)**:
-     - Trên Windows PC (RTX 4060) không có cảm biến IMU di động cục bộ, `m_Tracker.TryGetRotation()` luôn trả về `false`, khiến `HeadPoseFusion.UpdatePose()` của bản trước thoát ngay ở dòng đầu tiên và không bao giờ đọc `m_NetworkPose`!
-     - Đã sửa `HeadPoseFusion.cs`: Tự động gắn `NetworkPoseSource` trong `OnEnable()` trên Windows/Editor, mặc định bật `Mode.SixDof`, và khi `!hasLocalImu` thì điều khiển trực tiếp Camera Rig từ `m_NetworkPose.TryGetLatest()` (với đầy đủ `EyesAtCamera`, `m_RecenterRotation`, `m_RecenterPivot`, `m_HeightOffset`).
-     - Đã sửa `NetworkPoseSource.cs`: Thay `Time.realtimeSinceStartupAsDouble` (gây `UnityException` khi gọi trong luồng nền `ReceiveWorker`) bằng `Stopwatch.GetTimestamp()` thread-safe 100%; thay `Input.GetKeyDown` cũ bằng `UnityEngine.InputSystem.Keyboard.current`; loại bỏ `Thread.Abort()`.
-  3. **Sửa lỗi Lệch Tâm Quang Học 320px trên Luồng iPhone 1080p & Kính VR SBS**:
-     - Chuẩn hóa tọa độ khớp tay từ độ phân giải gốc (`1920x1080` / `4K`) về hệ quy chiếu `SpatialCamera` (`1280x720`) trước khi tính `palm_px` và `unproject_2d()`, triệt tiêu hoàn toàn độ lệch +320px ngang / +180px dọc khi vẽ Paint 3D và bắt khối hộp.
-     - Tạo camera quang học riêng cho từng mắt `get_eye_camera(640, 720)` với tâm quang học chuẩn `cx = 320, cy = 360` khi chạy chế độ chia đôi kính VR SBS, giúp khối 3D nằm chính giữa thấu kính thay vì bị cắt nửa ở mép phải `x = 640`.
-     - Sửa `PolynomialRadialDistortion.apply()` tự động cập nhật LUT nếu kích thước khung hình thay đổi.
-  4. **Sửa lỗi Treo Cứng (Hang) trong `CHAY_TEST_HE_THONG.bat` & Tối ưu iOS Swift (`STARK_Cam_iOS`)**:
-     - Loại bỏ lệnh `python -m pymobiledevice3 usbmux forward 23456 23456 &` gây treo đồng bộ trên Windows `cmd.exe` trong `:RUN_AUTO`.
-     - Trong `H264Encoder.swift`: Gộp `SPS + PPS + Slice NALUs` của cùng 1 frame thành 1 Access Unit duy nhất để mỗi khung hình chỉ gửi đúng 1 gói TCP và 1 gói UDP 6DoF Pose (loại bỏ hiện tượng nhân 3 gói tin trên mỗi Keyframe).
-     - Trong `CameraEngine.swift` & `ViewController.swift`: Tránh khởi tạo `AVCaptureSession` tranh chấp phần cứng khi `useARKit == true`, và tiết lưu cập nhật chữ HUD ở mức 6Hz để không gây nghẽn Main Thread.
+- Current live version: **v10.3.04 PRO** (Phẫu thuật toàn diện cơ chế điều khiển chuẩn 100% `CardboardXR`: `PinchRouter.cs` Rising-Edge State Machine, `HandInteractorRig.cs` Eye-Through-PinchPoint Ray, loại bỏ tia laser vô hình 750px gây bấm nhầm, loại bỏ lỗi nuốt cử chỉ `consumed=True` khi đang mở Toolbar, chuẩn hóa con trỏ `PinchPoint` duy nhất không giật nhảy, và Responsive Viewport Layout tự co giãn cho cả Webcam 640x480 lẫn 1280x720 / SBS 640x720).
+- **Core Breakthroughs in v10.3.04 PRO (Authentic CardboardXR Control Overhaul)**:
+  1. **Sửa lỗi Menu nuốt sạch cử chỉ 3D (`PinchRouter.cs` Rising-Edge & Claim Ownership)**:
+     - Bản cũ đặt `if is_pinched: consumed = True` ở nhánh `else` khi `self.is_open == True` (mặc định mở!), khiến khi Toolbar đang hiển thị, người dùng chụm tay ở giữa màn hình không thể vẽ Paint 3D hay bắt khối hộp Cubes!
+     - Đã port chuẩn `PinchRouter.cs`: Chỉ xét định tuyến tại **sườn lên (`just_pinched = is_pinched and not was_pinched`)** theo thứ tự `Settings Gear -> UI Button -> Demo/Grab`.
+     - Khi chụm tay ở vùng không gian trống (`hovered_btn is None`), trả về `consumed = False` và khóa quyền sở hữu `active_route = "DEMO"`. Trong suốt lúc đang giữ Pinch để vẽ 3D hoặc kéo khối hộp, dù tay có lướt ngang qua các nút trên Toolbar cũng **tuyệt đối không bao giờ bấm nhầm nút**; và giữ Pinch trên nút chỉ click **đúng 1 lần duy nhất** (không bị lặp 3 lần/giây).
+  2. **Loại bỏ Tia Laser Vô Hình 750px & Thay bằng Tia `Eye-Through-PinchPoint` (`HandInteractorRig.cs` dòng 85)**:
+     - Bản cũ ẩn tia laser trên màn hình nhưng ngầm bên dưới vẫn phóng một đoạn thẳng dài 750px dọc theo xương ngón trỏ (`lms[5] -> lms[8]`) và dùng `intersects_segment` quét qua các nút ở đỉnh/đáy màn hình (`FLIP V`, `ROT 180`, `CLOSE`), gây bấm nhầm điên loạn; đồng thời trong `CubePhysicsDemo`, vector `lms[8] - lms[5]` chỉ lên trần nhà thay vì chỉ vào màn hình nên không thể gắp được khối hộp ở xa $1.1\text{m}$!
+     - Đã thay bằng đúng công thức của `HandInteractorRig.cs`:
+       $$\vec{d}_{\text{ray}} = \frac{P_{\text{pinch}} - P_{\text{head}}}{\|P_{\text{pinch}} - P_{\text{head}}\|}$$
+       Tia đi từ **Mắt (`head_pos`) xuyên qua điểm giữa ngón cái & ngón trỏ (`PinchPoint`) thẳng vào chiều sâu màn hình**, kèm chấm tròn mục tiêu `HandRayView.cs` hiện ngay trên tâm khối hộp khi ngắm trúng (`is_hovered = True`).
+  3. **Con trỏ `PinchPoint` Duy Nhất + `AimHistory` 0.16s + `PinchDetector` Bất Biến Khoảng Cách**:
+     - Bản cũ đổi vị trí con trỏ từ đầu ngón trỏ `lms[8]` sang trung điểm `(lms[4]+lms[8])/2` ngay khoảnh khắc Pinch làm con trỏ giật nhảy 30px trượt khỏi nút. Đã hợp nhất về duy nhất `PinchPoint` lọc mượt + khóa điểm ngắm từ `0.16s` trước khi khép ngón (`AimHistory.cs`).
+     - Nâng cấp `PinchDetector` kết hợp khoảng cách 3D (mét) và tỉ lệ 2D bất biến theo kích thước bàn tay (`pinch_px / palm_px`), nhạy bén ở mọi cự ly `25cm – 1.2m`.
+  4. **Responsive Layout Cho Mọi Độ Phân Giải (`640x480`, `1280x720`, `640x720` SBS)**:
+     - Bản cũ hardcode `tb_y = 628` nên khi chạy trên Webcam Laptop `640x480` (`h = 480`), toàn bộ thanh Toolbar nằm ngoài màn hình (`628 > 480`). Đã nâng cấp `_sync_layout(fw, fh)` tự động co giãn và căn giữa trên mọi độ phân giải, đồng thời cất các nút `FLIP V / MIRROR / ROT 180` vào trong bảng `APP LIBRARY` để không bao giờ bấm nhầm khi đang chơi.
 
 ---
 
-## Kế hoạch Kiến trúc Lai 6DoF Offloaded Tethered XR (HOÀN TẤT & ĐÃ KIỂM TOÁN 8/8 PASS)
-- [x] **Bước 1:** Python Bridge & Engine (`stark_tethered_bridge.py`, `stark_cardboard_xr.py`, `stark_spatial_menu.py`)
-- [x] **Bước 2:** iOS Swift ARKit 6DoF (`CameraEngine.swift`, `H264Encoder.swift`, `USBTunnel.swift`, `ViewController.swift`)
-- [x] **Bước 3:** Unity C# IPC (`NetworkPoseSource.cs`, `HeadPoseFusion.cs`)
-- [x] **Bước 4:** Kịch bản Test 1-Click & Diagnostics (`CHAY_TEST_HE_THONG.bat`, `test_diagnostics.py`)
+## Past Milestones
+- **v10.3.03 PRO**: Kiểm toán và sửa triệt để lỗi toán học Quaternion ARKit RH->LH `(-Qx, -Qy, Qz, Qw)`, lỗi dead-code/crash luồng nền trong `HeadPoseFusion.cs` & `NetworkPoseSource.cs`, lỗi lệch tâm 320px trên 1080p/SBS, và lỗi treo `.bat`.
+- **v10.3.02 PRO**: Hoàn tất Bước 4; Auto `usbmux forward`, Unity Hybrid launcher, Diagnostics 8/8 PASS.
+- **v10.3.01 PRO**: Hoàn tất Bước 3; `NetworkPoseSource.cs` UDP 23457 & `HeadPoseFusion.cs`.
+- **v10.3.00 PRO**: Hoàn tất Bước 2; iOS Swift ARKit 6DoF + 28B Pose Mux.
+- **v10.2.99 PRO**: Hoàn tất Bước 1; Python 6DoF Decoder + MediaPipe VIDEO mode 3.5ms.
