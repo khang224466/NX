@@ -448,7 +448,25 @@ class StarkTetheredBridge:
             pinch_pt_3d = None
             finger_angle = None
 
-            # Xac dinh he quy chieu quang hoc active_cam khop 1:1 voi che do hien thi (1-SCR 1280x720 hay SBS VR 640x720)
+            # 1. Lay toa do 2D ban tay (1€ Filter pixel space) truoc de tao mat na che tay cho Visual SLAM
+            if raw_lms is not None:
+                if cur_lms_seq != self.last_filtered_lms_seq:
+                    filtered_lms_2d = []
+                    for i in range(21):
+                        raw_px = [raw_lms[i].x * w, raw_lms[i].y * h]
+                        flt_px = self.suite.filters_2d[i].filter(now, raw_px)
+                        filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
+                    self.cached_filtered_2d = filtered_lms_2d
+                    self.last_filtered_lms_seq = cur_lms_seq
+                else:
+                    filtered_lms_2d = self.cached_filtered_2d
+
+            # 1b. Cap nhat Visual SLAM 6DoF tren khung hinh sach (da loai tru vung ban tay filtered_lms_2d)
+            self.suite.spatial_cam.update_visual_slam(
+                frame, filtered_lms_2d, stereo_vr_mode=self.suite.stereo_vr_mode
+            )
+
+            # Xac dinh he quy chieu quang hoc active_cam (sau khi da cap nhat 6DoF head_pos & head_rot!)
             if self.suite.stereo_vr_mode:
                 active_cam = self.suite.spatial_cam.get_eye_camera(640, 720, fov=60.0)
                 if self.vr_projection == "immersive":
@@ -465,42 +483,28 @@ class StarkTetheredBridge:
                 sx_active = 1280.0 / float(max(1, w))
                 sy_active = 720.0 / float(max(1, h))
 
-            if raw_lms is not None:
-                if cur_lms_seq != self.last_filtered_lms_seq:
-                    # 1. Ap dung 1€ Filter pixel space chong rung giat (chi loc khi co frame AI moi)
-                    filtered_lms_2d = []
-                    for i in range(21):
-                        raw_px = [raw_lms[i].x * w, raw_lms[i].y * h]
-                        flt_px = self.suite.filters_2d[i].filter(now, raw_px)
-                        filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
+            if raw_lms is not None and filtered_lms_2d is not None:
+                # Tinh do sau tu be rong cac khop ban tay (5->9, 9->13, 0->9) tren active_cam
+                knuckle_px = 0.5 * (
+                    math.hypot((filtered_lms_2d[5][0] - filtered_lms_2d[9][0]) * sx_active, (filtered_lms_2d[5][1] - filtered_lms_2d[9][1]) * sy_active) +
+                    math.hypot((filtered_lms_2d[9][0] - filtered_lms_2d[13][0]) * sx_active, (filtered_lms_2d[9][1] - filtered_lms_2d[13][1]) * sy_active)
+                )
+                palm_px = max(knuckle_px * 3.2, math.hypot(
+                    (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_active,
+                    (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_active
+                ))
+                base_z = float(np.clip((0.085 * active_cam.focal) / max(20.0, palm_px), 0.25, 1.35))
 
-                    # Tinh do sau tu be rong cac khop ban tay (5->9, 9->13, 0->9) tren active_cam
-                    knuckle_px = 0.5 * (
-                        math.hypot((filtered_lms_2d[5][0] - filtered_lms_2d[9][0]) * sx_active, (filtered_lms_2d[5][1] - filtered_lms_2d[9][1]) * sy_active) +
-                        math.hypot((filtered_lms_2d[9][0] - filtered_lms_2d[13][0]) * sx_active, (filtered_lms_2d[9][1] - filtered_lms_2d[13][1]) * sy_active)
-                    )
-                    palm_px = max(knuckle_px * 3.2, math.hypot(
-                        (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_active,
-                        (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_active
-                    ))
-                    base_z = float(np.clip((0.085 * active_cam.focal) / max(20.0, palm_px), 0.25, 1.35))
-
-                    # Tinh toa do 3D truc tiep tren active_cam (Dam bao 2D cursor va 3D Cube trung khit 100%!)
-                    filtered_lms_3d = []
-                    for i in range(21):
-                        rel_z = (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.6
-                        cam_px = (filtered_lms_2d[i][0] - orig_x1_active) * sx_active
-                        cam_py = filtered_lms_2d[i][1] * sy_active
-                        pt3 = active_cam.unproject_2d(cam_px, cam_py, base_z + rel_z)
-                        flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
-                        filtered_lms_3d.append(flt_pt3)
-
-                    self.cached_filtered_2d = filtered_lms_2d
-                    self.cached_filtered_3d = filtered_lms_3d
-                    self.last_filtered_lms_seq = cur_lms_seq
-                else:
-                    filtered_lms_2d = self.cached_filtered_2d
-                    filtered_lms_3d = self.cached_filtered_3d
+                # Tinh toa do 3D truc tiep tren active_cam (Dam bao 2D cursor va 3D Cube trung khit 100%!)
+                filtered_lms_3d = []
+                for i in range(21):
+                    rel_z = (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.6
+                    cam_px = (filtered_lms_2d[i][0] - orig_x1_active) * sx_active
+                    cam_py = filtered_lms_2d[i][1] * sy_active
+                    pt3 = active_cam.unproject_2d(cam_px, cam_py, base_z + rel_z)
+                    flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
+                    filtered_lms_3d.append(flt_pt3)
+                self.cached_filtered_3d = filtered_lms_3d
 
                 if filtered_lms_3d is not None and len(filtered_lms_3d) == 21:
                     # 2. Tinh toan cu chi Pinch chuan CardboardXR (Fingertip Pad Ratio + World Landmarks + Anti-Drop)
@@ -575,6 +579,8 @@ class StarkTetheredBridge:
                     self.suite.rush_demo.update(now, filtered_lms_3d)
                 elif self.suite.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs + HandInteractorRig.cs)
                     self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_origin_3d=active_cam.head_pos, finger_angle=finger_angle)
+                    if self.suite.cube_demo.just_anchored and self.suite.spatial_cam.visual_slam is not None:
+                        self.suite.spatial_cam.visual_slam.request_keyframe_refresh()
                 elif self.suite.current_mode == 6:
                     self.suite.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
                 elif self.suite.current_mode == 7:
