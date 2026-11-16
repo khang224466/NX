@@ -1,0 +1,98 @@
+==================================================================================================
+           STARK MARK ILX // BANG CODE VA LENH DE CHAY TUNG UNG DUNG KHONG GIAN
+==================================================================================================
+Phien ban: v10.2.95 PRO
+Thu muc du an: C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App
+==================================================================================================
+
+[I] BANG CODE CHAY TRUC TIEP TUNG UNG DUNG (TERMINAL / CMD / POWERSHELL):
+--------------------------------------------------------------------------------------------------
+
+1. UNG DUNG 1: 3D AIR PAINT (VE NEON TRONG KHONG GIAN)
+   - Chay qua Cap USB iPhone (120 FPS):
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_tethered_bridge.py --demo 1
+   - Chay qua Webcam Laptop:
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_cardboard_xr.py --demo 1
+   - File 1-Click ngoai Desktop: [APP_1]_CHAY_PAINT_3D.bat
+   - Phim tat khi dang chay: Phim [1]
+
+2. UNG DUNG 2: AR SPATIAL PORTAL (CANH CUA KHONG-THOI GIAN)
+   - Chay qua Cap USB iPhone (120 FPS):
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_tethered_bridge.py --demo 2
+   - Chay qua Webcam Laptop:
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_cardboard_xr.py --demo 2
+   - File 1-Click ngoai Desktop: [APP_2]_CHAY_AR_PORTAL.bat
+   - Phim tat khi dang chay: Phim [2]
+
+3. UNG DUNG 3: ORB RUSH (GAME CHEM BONG NHIP DIEU KHONG GIAN)
+   - Chay qua Cap USB iPhone (120 FPS):
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_tethered_bridge.py --demo 3
+   - Chay qua Webcam Laptop:
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_cardboard_xr.py --demo 3
+   - File 1-Click ngoai Desktop: [APP_3]_CHAY_ORB_RUSH.bat
+   - Phim tat khi dang chay: Phim [3]
+
+4. UNG DUNG 4: CUBES PHYSICS SANDBOX (GAP VA NEM KHOI HOP VAT LY 3D)
+   - Chay qua Cap USB iPhone (120 FPS):
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_tethered_bridge.py --demo 4
+   - Chay qua Webcam Laptop:
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_cardboard_xr.py --demo 4
+   - File 1-Click ngoai Desktop: [APP_4]_CHAY_CUBES_PHYSICS.bat
+   - Phim tat khi dang chay: Phim [4]
+
+5. UNG DUNG 5: PRECISION 3D CALIPER (THUOC KEP DO MILIMET THOI GIAN THUC)
+   - Chay qua Cap USB iPhone (120 FPS):
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_tethered_bridge.py --demo 5
+   - Chay qua Webcam Laptop:
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_cardboard_xr.py --demo 5
+   - File 1-Click ngoai Desktop: [APP_5]_CHAY_3D_CALIPER.bat
+   - Phim tat khi dang chay: Phim [5]
+
+6. UNG DUNG 6: SPATIAL 3D UNIVERSE (MO PHONG KHONG GIAN VU TRU & QUY DAO HANH TINH)
+   - Chay qua Cap USB iPhone (120 FPS):
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_tethered_bridge.py --demo 6
+   - Chay qua Webcam Laptop:
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_cardboard_xr.py --demo 6
+   - File 1-Click ngoai Desktop: [APP_6]_CHAY_SPATIAL_UNIVERSE_3D.bat
+   - Phim tat khi dang chay: Phim [6]
+
+7. UNG DUNG 7: VIDEO VR 360 & VR180 SBS (RAP CHIEU PHIM THUC TE AO 3D THAT)
+   - Chay qua Cap USB iPhone (120 FPS):
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_tethered_bridge.py --demo 7
+   - Chay qua Webcam Laptop:
+     cd /d "C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App" && python stark_cardboard_xr.py --demo 7
+   - File 1-Click ngoai Desktop: [APP_7]_CHAY_VIDEO_VR_360.bat
+   - Phim tat khi dang chay: Phim [7]
+
+
+--------------------------------------------------------------------------------------------------
+[II] CODE TUY BIEN CHE DO HIEN THI (THEM VAO DUOI BAT KY LENH NAO):
+--------------------------------------------------------------------------------------------------
+
+1. Che do 1 MAN HINH DUY NHAT (Phone View - Khong dung kinh VR):
+   Them tham so: --view mono
+   Vi du: python stark_tethered_bridge.py --demo 6 --view mono
+
+2. Che do KINH 3D VR SBS (Side-by-Side cho kinh Shinecon G10):
+   Them tham so: --view sbs
+   Vi du: python stark_tethered_bridge.py --demo 6 --view sbs
+
+3. Che do bat Bo loc khu meo thau kinh Cardboard:
+   Them tham so: --distortion
+   Vi du: python stark_tethered_bridge.py --demo 6 --view sbs --distortion
+
+
+--------------------------------------------------------------------------------------------------
+[III] BANG BI DANH (ALIASES) HO TRO GOM CA SO LAN CHU:
+--------------------------------------------------------------------------------------------------
+* Demo 1: --demo 1  hoac  --demo paint
+* Demo 2: --demo 2  hoac  --demo portal
+* Demo 3: --demo 3  hoac  --demo rush
+* Demo 4: --demo 4  hoac  --demo cubes
+* Demo 5: --demo 5  hoac  --demo caliper
+* Demo 6: --demo 6  hoac  --demo spatial
+* Demo 7: --demo 7  hoac  --demo video
+
+==================================================================================================
+STARK MARK ILX // WINDOWS & IPHONE NATIVE SPATIAL COMPUTING
+==================================================================================================

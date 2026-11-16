@@ -1230,5 +1230,39 @@ class StarkCardboardXRSuite:
         cv2.destroyAllWindows()
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="STARK CardboardXR Spatial Suite")
+    parser.add_argument("--demo", "-d", default="1", help="Chon ung dung khoi dong (1-7 hoac paint, portal, rush, cubes, caliper, spatial, video)")
+    parser.add_argument("--view", "-v", default="mono", choices=["mono", "1-scr", "sbs", "stereo"], help="Che do hien thi (mono: 1 man hinh, sbs: kinh 3D)")
+    parser.add_argument("--cam", "-c", type=int, default=None, help="Chi dinh index camera (0, 1, 2)")
+    parser.add_argument("--distortion", action="store_true", help="Bat bo loc khu meo thau kinh Cardboard")
+    args = parser.parse_args()
+
     suite = StarkCardboardXRSuite()
+
+    demo_map = {
+        "1": 1, "paint": 1,
+        "2": 2, "portal": 2,
+        "3": 3, "rush": 3, "orb_rush": 3,
+        "4": 4, "cube": 4, "cubes": 4, "sandbox": 4,
+        "5": 5, "caliper": 5,
+        "6": 6, "spatial": 6, "sim": 6, "universe": 6,
+        "7": 7, "video": 7, "vr_video": 7
+    }
+    chosen_mode = demo_map.get(str(args.demo).lower(), 1)
+    suite.current_mode = chosen_mode
+    if chosen_mode == 3:
+        suite.rush_demo.start(time.time())
+
+    if args.view in ["sbs", "stereo"]:
+        suite.stereo_vr_mode = True
+    else:
+        suite.stereo_vr_mode = False
+
+    if args.distortion:
+        suite.enable_distortion = True
+
+    if args.cam is not None:
+        suite.current_cam_idx = args.cam
+
     suite.run()
