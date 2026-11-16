@@ -461,11 +461,7 @@ class SpatialInAirMenu:
         self.sub_buttons.append(M3SpatialButton("rush_start", "START GAME", "", 30, y_sub, 140, h_sub, radius=18, category="rush"))
         self.sub_buttons.append(M3SpatialButton("rush_reset_combo", "RESET COMBO", "", 180, y_sub, 140, h_sub, radius=18, category="rush"))
 
-        # Cubes Controls
-        self.sub_buttons.append(M3SpatialButton("cube_reset", "RESET CUBE", "", 30, y_sub, 160, h_sub, radius=18, category="cube"))
-
-        # Portal Controls
-        self.sub_buttons.append(M3SpatialButton("portal_reset", "CENTER PORTAL", "", 30, y_sub, 170, h_sub, radius=18, category="portal"))
+        # (Da xoa nut phu RESET CUBE / CENTER PORTAL du thua gay bam nham trong v2_f3.jpg vi da co nut [*] RESET tren Toolbar!)
 
         # Spatial 3D Controls
         self.sub_buttons.append(M3SpatialButton("sim_speed", "SPEED 1X", "", 30, y_sub, 110, h_sub, radius=18, category="spatial"))
@@ -599,9 +595,16 @@ class SpatialInAirMenu:
         self.was_pinched = is_pinched
 
         # 4. Xác định nút đang được trỏ tới (CHỈ dùng tọa độ điểm chụm ngón tay, tuyệt đối không dùng tia laser vô hình!)
+        # Nếu đang cầm khối hộp 3D hoặc đang ngắm trúng khối hộp (khi App Library đóng) -> Ưu tiên tuyệt đối cho khối hộp!
+        cube_active = (
+            suite is not None and
+            getattr(suite, 'current_mode', 0) == 4 and
+            hasattr(suite, 'cube_demo') and
+            (suite.cube_demo.is_grabbed or (suite.cube_demo.is_hovered and not self.is_library_open))
+        )
         hovered_btn = None
         self.hovered_tagline = ""
-        if self.is_open and self.active_route != "DEMO":
+        if self.is_open and self.active_route != "DEMO" and (not cube_active):
             for btn in active_buttons:
                 if btn.contains(effective_pt[0], effective_pt[1], margin=10):
                     hovered_btn = btn

@@ -131,19 +131,92 @@ class OneEuroFilter:
 # -----------------------------------------------------------------------------
 class PinchDetector:
     """
-    Port of CardboardXR PinchDetector.cs & PinchRule:
-    Combines 3D metric distance hysteresis with scale-invariant 2D palm-normalized ratio
-    (pinch_px / palm_px) so pinching is 100% responsive and flicker-free at any hand depth.
+    Authentic Port of CardboardXR HandTracker.cs + HandGeometry.cs + HandSubsystemFeed.cs:
+    - Uses local fingertip-pad scale (dist(7,8) & dist(3,4)) and knuckle width (dist(5,9))
+      plus 3D metric landmarks normalized by HandGeometry.PalmSize (0.055m).
+    - 100% immune to close-up wide-angle foreshortening when the hand is 10cm from the lens
+      and the wrist (0) is cut off at the bottom of the frame!
+    - Includes HandSubsystemFeed.cs k_OpenResults = 2 anti-drop debounce and k_PinchKeptSeconds = 0.30s
+      grace period so dragging a 3D cube never drops mid-air.
     """
-    def __init__(self, close_dist=0.028, open_dist=0.046, close_ratio=0.33, open_ratio=0.47):
+    PALM_IDS = (0, 5, 9, 13, 17)
+    k_TypicalPalmSize = 0.055
+    k_OpenResults = 2
+    k_PinchKeptSeconds = 0.30
+
+    def __init__(self, close_dist=0.028, open_dist=0.048, close_ratio=0.26, open_ratio=0.45):
         self.close_dist = close_dist
         self.open_dist = open_dist
         self.close_ratio = close_ratio
         self.open_ratio = open_ratio
         self.is_pinched = False
         self.pinch_start_time = 0.0
+        self.open_count = 0
+        self.last_seen_pinched_t = 0.0
 
-    def update(self, dist_m, now, pinch_px=None, palm_px=None):
+    def update(self, dist_m, now, pinch_px=None, palm_px=None, lms_2d=None, world_lms=None):
+        # 1. Neu co day du 21 khop 2D: Do ti le truc tiep tren dot ngon tay (Perspective-Invariant at 10cm!)
+        if lms_2d is not None and len(lms_2d) >= 21:
+            gap_2d = math.hypot(lms_2d[4][0] - lms_2d[8][0], lms_2d[4][1] - lms_2d[8][1])
+            # Chieu dai dot dau ngon tro (7->8) va ngon cai (3->4) nam cung do sau Z voi diem Pinch
+            tip_pad = 0.5 * (
+                math.hypot(lms_2d[7][0] - lms_2d[8][0], lms_2d[7][1] - lms_2d[8][1]) +
+                math.hypot(lms_2d[3][0] - lms_2d[4][0], lms_2d[3][1] - lms_2d[4][1])
+            )
+            # Be rong khop goc ngon tro - ngon giua (5->9) va ngon giua - ap ut (9->13) luon nam trong khung hinh
+            knuckle_w = 0.5 * (
+                math.hypot(lms_2d[5][0] - lms_2d[9][0], lms_2d[5][1] - lms_2d[9][1]) +
+                math.hypot(lms_2d[9][0] - lms_2d[13][0], lms_2d[9][1] - lms_2d[13][1])
+            )
+            tip_ratio = gap_2d / max(6.0, tip_pad)
+            knuckle_ratio = gap_2d / max(10.0, knuckle_w)
+
+            # Tinh khoang cach 3D chuan hoa theo HandGeometry.PalmSize (0.055m) neu co world_lms
+            metric_pinch_m = None
+            if world_lms is not None and len(world_lms) >= 21:
+                ps_sum, ps_cnt = 0.0, 0
+                for a_i in range(len(self.PALM_IDS)):
+                    for b_i in range(a_i + 1, len(self.PALM_IDS)):
+                        u, v = self.PALM_IDS[a_i], self.PALM_IDS[b_i]
+                        ps_sum += math.sqrt(
+                            (world_lms[u].x - world_lms[v].x) ** 2 +
+                            (world_lms[u].y - world_lms[v].y) ** 2 +
+                            (world_lms[u].z - world_lms[v].z) ** 2
+                        )
+                        ps_cnt += 1
+                palm_size_3d = ps_sum / max(1, ps_cnt)
+                scale_3d = self.k_TypicalPalmSize / max(0.015, palm_size_3d)
+                raw_3d = math.sqrt(
+                    (world_lms[4].x - world_lms[8].x) ** 2 +
+                    (world_lms[4].y - world_lms[8].y) ** 2 +
+                    (world_lms[4].z - world_lms[8].z) ** 2
+                )
+                metric_pinch_m = raw_3d * scale_3d
+
+            if not self.is_pinched:
+                self.open_count = 0
+                # Chi bat Pinch khi 2 dau ngon tay thuc su cham nhau (tip_ratio < 1.28 va knuckle_ratio < 0.85)
+                close_2d = (tip_ratio < 1.28 and knuckle_ratio < 0.85)
+                close_3d = (metric_pinch_m is not None and metric_pinch_m < 0.036 and tip_ratio < 1.42)
+                if close_2d or close_3d:
+                    self.is_pinched = True
+                    self.pinch_start_time = now
+                    self.last_seen_pinched_t = now
+            else:
+                # HandSubsystemFeed.cs: Khi dang giu Pinch, phai thay 2 ngon tay tach roi ro rang trong k_OpenResults frame lien tiep moi nha
+                is_clearly_open = (tip_ratio > 1.62 or knuckle_ratio > 1.10) and (metric_pinch_m is None or metric_pinch_m > 0.048)
+                if is_clearly_open:
+                    self.open_count += 1
+                    if self.open_count >= self.k_OpenResults:
+                        self.is_pinched = False
+                        self.open_count = 0
+                else:
+                    self.open_count = 0
+                    self.last_seen_pinched_t = now
+
+            return self.is_pinched
+
+        # 2. Fallback khi goi tu unit test khong co lms_2d
         ratio = (pinch_px / max(30.0, palm_px)) if (pinch_px is not None and palm_px is not None) else None
         if self.is_pinched:
             should_open = (dist_m > self.open_dist) and (ratio is None or ratio > self.open_ratio)
@@ -154,10 +227,19 @@ class PinchDetector:
             if should_close:
                 self.is_pinched = True
                 self.pinch_start_time = now
+                self.last_seen_pinched_t = now
         return self.is_pinched
+
+    def hold_on_hand_lost(self, now):
+        """HandSubsystemFeed.cs k_PinchKeptSeconds = 0.30s: Giu Pinch khi tay tam khuat khoi camera"""
+        if self.is_pinched and (now - self.last_seen_pinched_t <= self.k_PinchKeptSeconds):
+            return True
+        self.reset()
+        return False
 
     def reset(self):
         self.is_pinched = False
+        self.open_count = 0
 
 # -----------------------------------------------------------------------------
 # 3D Spatial Math & Camera Projection Engine (6DoF Head Pose + Stereoscopic Depth)
@@ -612,11 +694,12 @@ class CubePhysicsDemo:
     Authentic Port of CardboardXR CubePhysics.cs + HandInteractorRig.cs + HandRayView.cs:
     - Eye-Through-PinchPoint Ray (HandInteractorRig.cs line 85):
       Ray starts at the eyes (head_pos) and passes directly through the thumb-index PinchPoint!
-      Whenever your PinchPoint cursor hovers over the cube on screen, the ray hits the cube!
-    - HandRayView.cs Target Dot: Shows a bright white dot on the cube when hovered ("this is what a pinch gets")
+    - 1:1 Ray-Locked Kinematic Grab: While held, the cube stays locked directly on the
+      Eye-Through-PinchPoint ray so its projected 2D center tracks your pinched fingers 1:1
+      with zero drift!
+    - HandRayView.cs Target Dot: Shows a bright white dot on the cube when hovered
       and turns amber-gold while grabbed.
-    - Rising-Edge Grab: Only starts grabbing if the pinch began while hovering/near the cube.
-    - Kinematic Freeze on gentle placement (< 0.40 m/s) or hand loss; physics throw on fast flick (clamped to 6.0 m/s).
+    - Kinematic Freeze on gentle placement (< 0.55 m/s) or hand loss; physics throw on fast flick.
     """
     def __init__(self):
         self.pos = np.array([0.0, 0.0, 1.1])
@@ -630,8 +713,9 @@ class CubePhysicsDemo:
         self.grab_ray_dist = 1.1
         self.grab_hand_dist = 0.55
         self.grab_ray_offset = np.array([0.0, 0.0, 0.0])
+        self.last_finger_angle = None
 
-    def update(self, dt, is_pinched, pinch_pos_3d, ray_origin_3d=None, ray_dir_3d=None):
+    def update(self, dt, is_pinched, pinch_pos_3d, ray_origin_3d=None, ray_dir_3d=None, finger_angle=None):
         eye_orig = np.array(ray_origin_3d, dtype=float) if ray_origin_3d is not None else np.array([0.0, 0.0, 0.0])
         eye_ray_dir = None
 
@@ -647,46 +731,56 @@ class CubePhysicsDemo:
         if eye_ray_dir is not None:
             to_cube = self.pos - eye_orig
             proj = float(np.dot(to_cube, eye_ray_dir))
-            if proj > 0.15:
+            if proj > 0.10:
                 closest_pt = eye_orig + proj * eye_ray_dir
                 ray_dist = float(np.linalg.norm(self.pos - closest_pt))
-                if ray_dist < (self.size * 1.45):
+                if ray_dist < (self.size * 1.65):
                     self.is_hovered = True
-        if dist_pinch < 0.28:
+        if dist_pinch < 0.32:
             self.is_hovered = True
 
-        just_pinched = is_pinched and (not self.was_pinched)
         just_released = (not is_pinched) and self.was_pinched
         self.was_pinched = is_pinched
 
-        # 2. Chi bat dau Grab tai suon len (just_pinched) khi dang nham trung khoi hop (HandInteractorRig.cs)
-        if just_pinched and self.is_hovered and pinch_pos_3d is not None and eye_ray_dir is not None:
+        # 2. Bat dau Grab ngay khi chụm tay tren khoi hop (hoac dua tay dang chum cham vao khoi hop)
+        if is_pinched and (not self.is_grabbed) and self.is_hovered and pinch_pos_3d is not None and eye_ray_dir is not None:
             self.is_grabbed = True
             self.is_floating = False
-            self.grab_ray_dist = max(0.35, float(np.linalg.norm(self.pos - eye_orig)))
+            self.grab_ray_dist = float(np.clip(np.linalg.norm(self.pos - eye_orig), 0.75, 1.50))
             self.grab_hand_dist = max(0.18, float(np.linalg.norm(pinch_pos_3d - eye_orig)))
             self.grab_ray_offset = self.pos - (eye_orig + eye_ray_dir * self.grab_ray_dist)
             self.vel = np.array([0.0, 0.0, 0.0])
+            self.last_finger_angle = finger_angle
 
         if is_pinched and self.is_grabbed:
             if pinch_pos_3d is not None and eye_ray_dir is not None:
-                cur_hand_dist = max(0.18, float(np.linalg.norm(pinch_pos_3d - eye_orig)))
-                depth_scale = float(np.clip(cur_hand_dist / self.grab_hand_dist, 0.45, 2.0))
-                target_pos = eye_orig + eye_ray_dir * (self.grab_ray_dist * depth_scale) + self.grab_ray_offset
-                target_pos[2] = float(np.clip(target_pos[2], 0.40, 2.40))
-                smooth_target = 0.65 * target_pos + 0.35 * self.pos
+                # Kéo offset về 0 mượt mà để tâm khối hộp bám khít 1:1 vào đúng điểm kẹp ngón tay (PinchPoint)
+                self.grab_ray_offset = self.grab_ray_offset * 0.78
+                target_pos = eye_orig + eye_ray_dir * self.grab_ray_dist + self.grab_ray_offset
+                target_pos[2] = float(np.clip(target_pos[2], 0.55, 1.85))
+                smooth_target = 0.78 * target_pos + 0.22 * self.pos
                 if dt > 0.001:
                     raw_vel = (smooth_target - self.pos) / dt
                     spd = float(np.linalg.norm(raw_vel))
                     if spd > 6.0:
                         raw_vel = (raw_vel / spd) * 6.0
-                    self.vel = 0.6 * raw_vel + 0.4 * self.vel
+                    self.vel = 0.55 * raw_vel + 0.45 * self.vel
                 self.pos = smooth_target
+
+                # Xoay khoi hop theo goc nghieng cua 2 ngon tay khi dang kep
+                if finger_angle is not None:
+                    if self.last_finger_angle is not None:
+                        da = finger_angle - self.last_finger_angle
+                        if abs(da) < 0.8:
+                            self.rot[1] += da * 1.2
+                            self.rot[0] += da * 0.6
+                    self.last_finger_angle = finger_angle
         else:
+            self.last_finger_angle = None
             if just_released and self.is_grabbed:
                 self.is_grabbed = False
-                # Neu tha tay nhe nhang (< 0.45 m/s) -> Neo khoi hop lo lung tai vi tri vua dat (CubePhysics.cs Freeze/Anchor)
-                if float(np.linalg.norm(self.vel)) < 0.45:
+                # Neu tha tay nhe nhang (< 0.65 m/s) -> Neo khoi hop lo lung tai vi tri vua dat (CubePhysics.cs Freeze/Anchor)
+                if float(np.linalg.norm(self.vel)) < 0.65:
                     self.is_floating = True
                     self.vel = np.array([0.0, 0.0, 0.0])
                 else:
@@ -710,8 +804,8 @@ class CubePhysicsDemo:
                 self.pos[0] = float(np.clip(self.pos[0], -0.85, 0.85))
                 self.pos[2] = float(np.clip(self.pos[2], 0.45, 2.50))
 
-            self.rot[0] += 0.015
-            self.rot[1] += 0.022
+            self.rot[0] += 0.012
+            self.rot[1] += 0.018
 
     def draw(self, frame, cam, offset_x=0):
         # 8 dinh cua khoi lap phuong
@@ -1110,11 +1204,14 @@ class StarkCardboardXRSuite:
             base_options=base_options,
             running_mode=vision.RunningMode.VIDEO,
             num_hands=2,
-            min_hand_detection_confidence=0.55,
-            min_tracking_confidence=0.55
+            min_hand_detection_confidence=0.35,
+            min_hand_presence_confidence=0.35,
+            min_tracking_confidence=0.35
         )
         self.detector = vision.HandLandmarker.create_from_options(options)
         self.last_mp_ts = 0
+        self.last_valid_pinch_3d = None
+        self.last_valid_finger_angle = None
 
         # 2. He thong quang hoc & Camera khong gian
         self.cam_w = 1280
@@ -1284,6 +1381,21 @@ class StarkCardboardXRSuite:
             is_pinched = False
             pinch_pt_2d = None
             pinch_pt_3d = None
+            finger_angle = None
+
+            # Xac dinh camera quang hoc cua che do hien thi hien tai (1-SCR hay SBS VR 640x720)
+            if self.stereo_vr_mode:
+                eye_w, eye_h = 640, 720
+                crop_w = int(h * (eye_w / float(eye_h)))
+                orig_x1_active = max(0, min(w - crop_w, (w // 2) - crop_w // 2))
+                sx_active = eye_w / float(max(1, crop_w))
+                sy_active = eye_h / float(max(1, h))
+                active_cam = self.spatial_cam.get_eye_camera(eye_w, eye_h, fov=60.0)
+            else:
+                orig_x1_active = 0
+                sx_active = 1.0
+                sy_active = 1.0
+                active_cam = self.spatial_cam
 
             if results.hand_landmarks:
                 lms = results.hand_landmarks[0]
@@ -1296,22 +1408,28 @@ class StarkCardboardXRSuite:
                     flt_px = self.filters_2d[i].filter(now, raw_px)
                     filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
 
-                # Tinh khoang cach thuc Monocular Depth tu chieu dai long ban tay (wrist 0 -> mcp 9, ~0.085m)
-                palm_px = math.hypot(
-                    filtered_lms_2d[0][0] - filtered_lms_2d[9][0],
-                    filtered_lms_2d[0][1] - filtered_lms_2d[9][1]
+                # Tinh khoang cach thuc Monocular Depth tu be rong khop ban tay (5->9, 9->13, 0->9)
+                knuckle_px = 0.5 * (
+                    math.hypot((filtered_lms_2d[5][0] - filtered_lms_2d[9][0]) * sx_active, (filtered_lms_2d[5][1] - filtered_lms_2d[9][1]) * sy_active) +
+                    math.hypot((filtered_lms_2d[9][0] - filtered_lms_2d[13][0]) * sx_active, (filtered_lms_2d[9][1] - filtered_lms_2d[13][1]) * sy_active)
                 )
-                base_z = float(np.clip((0.085 * self.spatial_cam.focal) / max(20.0, palm_px), 0.25, 1.40))
+                palm_px = max(knuckle_px * 3.2, math.hypot(
+                    (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_active,
+                    (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_active
+                ))
+                base_z = float(np.clip((0.085 * active_cam.focal) / max(20.0, palm_px), 0.25, 1.35))
 
-                # Tinh toa do 3D trong he truc camera tu do sau thuc
+                # Tinh toa do 3D truc tiep tren active_cam (Khop 1:1 tuyet doi giua 2D cursor va 3D Cube!)
                 filtered_lms_3d = []
                 for i in range(21):
-                    rel_z = (lms[i].z if hasattr(lms[i], 'z') else 0.0) * 0.8
-                    pt3 = self.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], base_z + rel_z)
+                    rel_z = (lms[i].z if hasattr(lms[i], 'z') else 0.0) * 0.6
+                    cam_px = (filtered_lms_2d[i][0] - orig_x1_active) * sx_active
+                    cam_py = filtered_lms_2d[i][1] * sy_active
+                    pt3 = active_cam.unproject_2d(cam_px, cam_py, base_z + rel_z)
                     flt_pt3 = self.filters_3d[i].filter(now, pt3)
                     filtered_lms_3d.append(flt_pt3)
 
-                # 2. Tinh toan cu chi Pinch bat bien khoang cach (Scale-Invariant Hysteresis Pinch)
+                # 2. Tinh toan cu chi Pinch chuan CardboardXR (HandGeometry + Fingertip Pad Ratio + World Landmarks)
                 p_thumb_3d = filtered_lms_3d[4]
                 p_index_3d = filtered_lms_3d[8]
                 dist_m = float(np.linalg.norm(p_thumb_3d - p_index_3d))
@@ -1319,12 +1437,27 @@ class StarkCardboardXRSuite:
                     filtered_lms_2d[4][0] - filtered_lms_2d[8][0],
                     filtered_lms_2d[4][1] - filtered_lms_2d[8][1]
                 )
-                is_pinched = self.pinch_detector.update(dist_m, now, pinch_px=pinch_px, palm_px=palm_px)
+                is_pinched = self.pinch_detector.update(
+                    dist_m, now, pinch_px=pinch_px, palm_px=palm_px, lms_2d=filtered_lms_2d, world_lms=world_lms
+                )
 
                 pinch_pt_3d = (p_thumb_3d + p_index_3d) * 0.5
                 pinch_pt_2d = ((filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) // 2,
                                (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2)
+                finger_angle = math.atan2(
+                    filtered_lms_2d[8][1] - filtered_lms_2d[4][1],
+                    filtered_lms_2d[8][0] - filtered_lms_2d[4][0]
+                )
+                self.last_valid_pinch_3d = pinch_pt_3d
+                self.last_valid_finger_angle = finger_angle
+            else:
+                # HandSubsystemFeed.cs k_PinchKeptSeconds = 0.30s: Giu Pinch khi tay tam khuat khoi camera
+                if self.pinch_detector.hold_on_hand_lost(now) and self.last_valid_pinch_3d is not None:
+                    is_pinched = True
+                    pinch_pt_3d = self.last_valid_pinch_3d
+                    finger_angle = self.last_valid_finger_angle
 
+            if results.hand_landmarks:
                 # 3. Kiem tra Xoe ban tay (Open Palm) goi Roamies JARVIS - tranh xung dot voi Palm System Gate
                 is_flat_palm = (lms[8].y < lms[6].y and lms[12].y < lms[10].y and lms[16].y < lms[14].y and lms[20].y < lms[18].y)
                 menu_is_active = self.spatial_menu.is_open or self.spatial_menu.is_library_open
@@ -1357,7 +1490,7 @@ class StarkCardboardXRSuite:
                 x1_r = max(0, min(w - crop_w, cx_frame - crop_w // 2 + self.stereo_offset))
                 left_view = cv2.resize(frame[:, x1_l:x1_l + crop_w], (eye_w, eye_h))
                 right_view = cv2.resize(frame[:, x1_r:x1_r + crop_w], (eye_w, eye_h))
-                eye_cam = self.spatial_cam.get_eye_camera(eye_w, eye_h, fov=60.0)
+                eye_cam = active_cam
 
                 views = [
                     (left_view, -self.stereo_offset, eye_cam, x1_l, crop_w, eye_w, eye_h),
@@ -1372,13 +1505,20 @@ class StarkCardboardXRSuite:
             hovered_btn = None
             ui_shape = (720, 640) if self.stereo_vr_mode else (h, w)
             if filtered_lms_2d is not None:
-                p_knuckle = filtered_lms_2d[5]
-                p_tip = pinch_pt_2d if pinch_pt_2d is not None else filtered_lms_2d[8]
+                if self.stereo_vr_mode:
+                    ui_lms = [
+                        (int((pt[0] - orig_x1_active) * sx_active), int(pt[1] * sy_active))
+                        for pt in filtered_lms_2d
+                    ]
+                else:
+                    ui_lms = filtered_lms_2d
+                p_knuckle = ui_lms[5]
+                p_tip = ((ui_lms[4][0] + ui_lms[8][0]) // 2, (ui_lms[4][1] + ui_lms[8][1]) // 2)
                 consumed, hovered_btn = self.spatial_menu.update(
-                    filtered_lms_2d, p_knuckle, p_tip, p_tip, is_pinched, now, self, frame_shape=ui_shape
+                    ui_lms, p_knuckle, p_tip, p_tip, is_pinched, now, self, frame_shape=ui_shape
                 )
             else:
-                self.spatial_menu.update(None, None, None, None, False, now, self, frame_shape=ui_shape)
+                self.spatial_menu.update(None, None, None, None, is_pinched, now, self, frame_shape=ui_shape)
 
             # Cap nhat Logic cua cac Demo (Neu UI khong chiem cu chi Pinch)
             if self.current_mode == 1:
@@ -1392,7 +1532,7 @@ class StarkCardboardXRSuite:
                 elif self.current_mode == 3: # Orb Rush
                     self.rush_demo.update(now, filtered_lms_3d)
                 elif self.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs + HandInteractorRig.cs)
-                    self.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_origin_3d=self.spatial_cam.head_pos)
+                    self.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_origin_3d=active_cam.head_pos, finger_angle=finger_angle)
                 elif self.current_mode == 6:
                     self.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
                 elif self.current_mode == 7:

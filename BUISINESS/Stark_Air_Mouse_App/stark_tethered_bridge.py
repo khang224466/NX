@@ -50,12 +50,16 @@ class StarkTetheredBridge:
         self.ai_frame = None
         self.ai_lock = threading.Lock()
         self.latest_lms = None
+        self.latest_world_lms = None
         self.lms_seq = 0
         self.lms_lock = threading.Lock()
         
         self.cached_filtered_2d = None
         self.cached_filtered_3d = None
         self.last_filtered_lms_seq = -1
+        self.last_valid_pinch_3d = None
+        self.last_valid_pinch_2d = None
+        self.last_valid_finger_angle = None
         
         # VR SBS Geometry settings for Shinecon G10 (64mm IPD, 42mm lenses)
         self.ipd_offset = 14       # Disparity shift in pixels
@@ -254,8 +258,10 @@ class StarkTetheredBridge:
                     with self.lms_lock:
                         if results.hand_landmarks:
                             self.latest_lms = results.hand_landmarks[0]
+                            self.latest_world_lms = results.hand_world_landmarks[0] if results.hand_world_landmarks else None
                         else:
                             self.latest_lms = None
+                            self.latest_world_lms = None
                         self.lms_seq += 1
                 except Exception:
                     pass
@@ -427,9 +433,11 @@ class StarkTetheredBridge:
 
             # Doc ket qua landmarks tu AI Worker
             raw_lms = None
+            raw_world_lms = None
             cur_lms_seq = 0
             with self.lms_lock:
                 raw_lms = self.latest_lms
+                raw_world_lms = self.latest_world_lms
                 cur_lms_seq = self.lms_seq
 
             filtered_lms_2d = None
@@ -438,6 +446,24 @@ class StarkTetheredBridge:
             dist_pinch = 0.1
             pinch_pt_2d = None
             pinch_pt_3d = None
+            finger_angle = None
+
+            # Xac dinh he quy chieu quang hoc active_cam khop 1:1 voi che do hien thi (1-SCR 1280x720 hay SBS VR 640x720)
+            if self.suite.stereo_vr_mode:
+                active_cam = self.suite.spatial_cam.get_eye_camera(640, 720, fov=60.0)
+                if self.vr_projection == "immersive":
+                    crop_w_active = int(h * (640.0 / 720.0))
+                    orig_x1_active = max(0, min(w - crop_w_active, (w // 2) - crop_w_active // 2))
+                else:
+                    crop_w_active = w
+                    orig_x1_active = 0
+                sx_active = 640.0 / float(max(1, crop_w_active))
+                sy_active = 720.0 / float(max(1, h))
+            else:
+                active_cam = self.suite.spatial_cam
+                orig_x1_active = 0
+                sx_active = 1280.0 / float(max(1, w))
+                sy_active = 720.0 / float(max(1, h))
 
             if raw_lms is not None:
                 if cur_lms_seq != self.last_filtered_lms_seq:
@@ -448,22 +474,24 @@ class StarkTetheredBridge:
                         flt_px = self.suite.filters_2d[i].filter(now, raw_px)
                         filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
 
-                    # Chuan hoa toa do ban tay ve he quy chieu SpatialCamera (1280x720) truoc khi tinh do sau & unproject 3D
-                    sx_cam = self.suite.spatial_cam.w / float(max(1, w))
-                    sy_cam = self.suite.spatial_cam.h / float(max(1, h))
-                    palm_px = math.hypot(
-                        (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_cam,
-                        (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_cam
+                    # Tinh do sau tu be rong cac khop ban tay (5->9, 9->13, 0->9) tren active_cam
+                    knuckle_px = 0.5 * (
+                        math.hypot((filtered_lms_2d[5][0] - filtered_lms_2d[9][0]) * sx_active, (filtered_lms_2d[5][1] - filtered_lms_2d[9][1]) * sy_active) +
+                        math.hypot((filtered_lms_2d[9][0] - filtered_lms_2d[13][0]) * sx_active, (filtered_lms_2d[9][1] - filtered_lms_2d[13][1]) * sy_active)
                     )
-                    base_z = float(np.clip((0.085 * self.suite.spatial_cam.focal) / max(20.0, palm_px), 0.25, 1.40))
+                    palm_px = max(knuckle_px * 3.2, math.hypot(
+                        (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_active,
+                        (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_active
+                    ))
+                    base_z = float(np.clip((0.085 * active_cam.focal) / max(20.0, palm_px), 0.25, 1.35))
 
-                    # Tinh toa do 3D trong he truc camera tu do sau thuc
+                    # Tinh toa do 3D truc tiep tren active_cam (Dam bao 2D cursor va 3D Cube trung khit 100%!)
                     filtered_lms_3d = []
                     for i in range(21):
-                        rel_z = (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.8
-                        cam_px = filtered_lms_2d[i][0] * sx_cam
-                        cam_py = filtered_lms_2d[i][1] * sy_cam
-                        pt3 = self.suite.spatial_cam.unproject_2d(cam_px, cam_py, base_z + rel_z)
+                        rel_z = (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.6
+                        cam_px = (filtered_lms_2d[i][0] - orig_x1_active) * sx_active
+                        cam_py = filtered_lms_2d[i][1] * sy_active
+                        pt3 = active_cam.unproject_2d(cam_px, cam_py, base_z + rel_z)
                         flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
                         filtered_lms_3d.append(flt_pt3)
 
@@ -471,60 +499,56 @@ class StarkTetheredBridge:
                     self.cached_filtered_3d = filtered_lms_3d
                     self.last_filtered_lms_seq = cur_lms_seq
                 else:
-                    # Su dung cached landmarks da loc -> Tranh 1€ filter bi giat do re-filter cung 1 landmark voi timestamp moi
                     filtered_lms_2d = self.cached_filtered_2d
                     filtered_lms_3d = self.cached_filtered_3d
 
                 if filtered_lms_3d is not None and len(filtered_lms_3d) == 21:
-                    # 2. Tinh toan cu chi Pinch bat bien khoang cach (Scale-Invariant Hysteresis Pinch)
+                    # 2. Tinh toan cu chi Pinch chuan CardboardXR (Fingertip Pad Ratio + World Landmarks + Anti-Drop)
                     p_thumb_3d = filtered_lms_3d[4]
                     p_index_3d = filtered_lms_3d[8]
                     dist_pinch = float(np.linalg.norm(np.array(p_thumb_3d) - np.array(p_index_3d)))
-                    sx_p = self.suite.spatial_cam.w / float(max(1, w))
-                    sy_p = self.suite.spatial_cam.h / float(max(1, h))
                     palm_px_p = math.hypot(
-                        (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_p,
-                        (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_p
+                        (filtered_lms_2d[0][0] - filtered_lms_2d[9][0]) * sx_active,
+                        (filtered_lms_2d[0][1] - filtered_lms_2d[9][1]) * sy_active
                     )
                     pinch_px_p = math.hypot(
-                        (filtered_lms_2d[4][0] - filtered_lms_2d[8][0]) * sx_p,
-                        (filtered_lms_2d[4][1] - filtered_lms_2d[8][1]) * sy_p
+                        (filtered_lms_2d[4][0] - filtered_lms_2d[8][0]) * sx_active,
+                        (filtered_lms_2d[4][1] - filtered_lms_2d[8][1]) * sy_active
                     )
-                    is_pinched = self.suite.pinch_detector.update(dist_pinch, now, pinch_px=pinch_px_p, palm_px=palm_px_p)
+                    is_pinched = self.suite.pinch_detector.update(
+                        dist_pinch, now, pinch_px=pinch_px_p, palm_px=palm_px_p,
+                        lms_2d=filtered_lms_2d, world_lms=raw_world_lms
+                    )
 
                     pinch_pt_3d = (np.array(p_thumb_3d) + np.array(p_index_3d)) * 0.5
                     pinch_pt_2d = (
                         (filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) // 2,
                         (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2
                     )
+                    finger_angle = math.atan2(
+                        filtered_lms_2d[8][1] - filtered_lms_2d[4][1],
+                        filtered_lms_2d[8][0] - filtered_lms_2d[4][0]
+                    )
+                    self.last_valid_pinch_3d = pinch_pt_3d
+                    self.last_valid_pinch_2d = pinch_pt_2d
+                    self.last_valid_finger_angle = finger_angle
+            else:
+                # HandSubsystemFeed.cs k_PinchKeptSeconds = 0.30s: Giu Pinch khi tay tam khuat khoi camera
+                if self.suite.pinch_detector.hold_on_hand_lost(now) and self.last_valid_pinch_3d is not None:
+                    is_pinched = True
+                    pinch_pt_3d = self.last_valid_pinch_3d
+                    pinch_pt_2d = self.last_valid_pinch_2d
+                    finger_angle = self.last_valid_finger_angle
 
             # Kiem tra Tuong tac Menu Khong gian 3D (CardboardXR PinchRouter & HandInteractorRig)
             consumed = False
             hovered_btn = None
             ui_shape = (720, 640) if self.suite.stereo_vr_mode else (720, 1280)
             if filtered_lms_2d is not None:
-                if self.suite.stereo_vr_mode:
-                    # Chuyen doi sang toa do trung tam cua 1 mat (640x720) cho kinh VR SBS
-                    crop_w_calc = int(h * (640.0 / 720.0))
-                    orig_x1_c = max(0, min(w - crop_w_calc, (w // 2) - crop_w_calc // 2))
-                    scale_x_c = 640.0 / float(crop_w_calc)
-                    scale_y_c = 720.0 / float(h)
-
-                    pts_mapped_center = []
-                    for pt in filtered_lms_2d:
-                        px = int((pt[0] - orig_x1_c) * scale_x_c)
-                        py = int(pt[1] * scale_y_c)
-                        pts_mapped_center.append((px, py))
-                else:
-                    # Che do 1 MAN HINH DUY NHAT (1280x720): SpatialInAirMenu tu dong can giua
-                    scale_x_c = 1280.0 / float(w)
-                    scale_y_c = 720.0 / float(h)
-                    pts_mapped_center = []
-                    for pt in filtered_lms_2d:
-                        px = int(pt[0] * scale_x_c)
-                        py = int(pt[1] * scale_y_c)
-                        pts_mapped_center.append((px, py))
-
+                pts_mapped_center = [
+                    (int((pt[0] - orig_x1_active) * sx_active), int(pt[1] * sy_active))
+                    for pt in filtered_lms_2d
+                ]
                 p_knuckle_c = pts_mapped_center[5]
                 p_tip_c = (
                     (pts_mapped_center[4][0] + pts_mapped_center[8][0]) // 2,
@@ -536,7 +560,7 @@ class StarkTetheredBridge:
                     pts_mapped_center, p_knuckle_c, p_tip_c, p_tip_c, is_pinched, now, self.suite, self, frame_shape=ui_shape
                 )
             else:
-                self.spatial_menu.update(None, None, None, None, False, now, self.suite, self, frame_shape=ui_shape)
+                self.spatial_menu.update(None, None, None, None, is_pinched, now, self.suite, self, frame_shape=ui_shape)
 
             # Cap nhat Logic cua cac Demo (Neu In-Air UI khong chiem cu chi Pinch)
             if self.suite.current_mode == 1:
@@ -550,7 +574,7 @@ class StarkTetheredBridge:
                 elif self.suite.current_mode == 3: # Orb Rush
                     self.suite.rush_demo.update(now, filtered_lms_3d)
                 elif self.suite.current_mode == 4: # Cube Physics (CardboardXR CubePhysics.cs + HandInteractorRig.cs)
-                    self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_origin_3d=self.suite.spatial_cam.head_pos)
+                    self.suite.cube_demo.update(dt, is_pinched, pinch_pt_3d, ray_origin_3d=active_cam.head_pos, finger_angle=finger_angle)
                 elif self.suite.current_mode == 6:
                     self.suite.spatial_sim_demo.update(dt, is_pinched, pinch_pt_3d, filtered_lms_3d)
                 elif self.suite.current_mode == 7:
