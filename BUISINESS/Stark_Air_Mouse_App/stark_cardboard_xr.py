@@ -156,19 +156,51 @@ class SpatialCamera:
         self.focal = (w / 2.0) / math.tan(math.radians(fov / 2.0))
         self.cx = w / 2.0
         self.cy = h / 2.0
+        self.ipd_m = 0.064  # Khoang cach 2 dong tu mat nguoi tieu chuan (64mm)
+        self.convergence_dist = 1.35  # Mat phang hoi tu quang hoc 1.35m
 
-    def project_3d(self, pt_3d, offset_x=0):
-        """Chieu diem 3D (x, y, z) thanh diem 2D pixel tren man hinh"""
+    def project_3d(self, pt_3d, offset_eye=0):
+        """
+        True Stereoscopic Binocular Projection (Thi sai quang hoc 2 mat thuc thu):
+        Thay vi chi cong lech 1 hang so pixel phang khong co chieu sau,
+        ham tinh toan do lech thi sai (Binocular Disparity) phu thuoc nghich dao vao do sau Z:
+        parallax(z) = - eye_offset_m * focal * (1/z - 1/z_convergence)
+        - Khi z < 1.35m (vat the o gan mat): Thi sai duong -> Vat the noi bung ra khoi man hinh!
+        - Khi z > 1.35m (vat the o xa): Thi sai am -> Vat the chim sau vao duong chan troi!
+        - Mat truoc va mat sau cua khoi 3D co thi sai khac nhau -> Tao cam giac the tich va do day that 100%!
+        """
         x, y, z = pt_3d
         if z <= 0.05:
             z = 0.05
-        px = int(self.cx + offset_x + (x * self.focal) / z)
-        py = int(self.cy - (y * self.focal) / z) # truc Y huong len
+
+        if isinstance(offset_eye, float) and abs(offset_eye) <= 0.15 and offset_eye != 0:
+            eye_offset_m = offset_eye
+        elif offset_eye == -1 or (isinstance(offset_eye, int) and offset_eye < 0):
+            scale = abs(offset_eye) / 14.0 if abs(offset_eye) > 1 else 1.0
+            eye_offset_m = - (self.ipd_m / 2.0) * scale
+        elif offset_eye == 1 or (isinstance(offset_eye, int) and offset_eye > 0):
+            scale = abs(offset_eye) / 14.0 if abs(offset_eye) > 1 else 1.0
+            eye_offset_m = (self.ipd_m / 2.0) * scale
+        else:
+            eye_offset_m = 0.0
+
+        if eye_offset_m != 0.0:
+            parallax = - eye_offset_m * self.focal * (1.0 / z - 1.0 / self.convergence_dist)
+        else:
+            parallax = 0.0
+
+        px = int(self.cx + (x * self.focal) / z + parallax)
+        py = int(self.cy - (y * self.focal) / z)
         return (px, py), z
 
-    def unproject_2d(self, px, py, z, offset_x=0):
+    def unproject_2d(self, px, py, z, offset_eye=0):
         """Bien diem 2D pixel kem do sau z thanh toa do 3D thuc"""
-        x = ((px - self.cx - offset_x) * z) / self.focal
+        parallax = 0.0
+        if offset_eye != 0:
+            scale = abs(offset_eye) / 14.0 if abs(offset_eye) > 1 else 1.0
+            eye_offset_m = (-1.0 if offset_eye < 0 else 1.0) * (self.ipd_m / 2.0) * scale
+            parallax = - eye_offset_m * self.focal * (1.0 / z - 1.0 / self.convergence_dist)
+        x = ((px - self.cx - parallax) * z) / self.focal
         y = -((py - self.cy) * z) / self.focal
         return np.array([x, y, z])
 
