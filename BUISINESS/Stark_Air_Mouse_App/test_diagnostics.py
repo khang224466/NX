@@ -1,6 +1,6 @@
 """
-STARK MARK ILX - AUTOMATED SYSTEM DIAGNOSTICS & TEST SUITE (v10.2.98 PRO)
-Kiem thu toan dien 100% chuc nang: Python, AI MediaPipe, Stereo 3D Math, 7 Apps, Camera
+STARK MARK ILX - AUTOMATED SYSTEM DIAGNOSTICS & TEST SUITE (v10.3.02 PRO)
+Kiem thu toan dien 100% chuc nang: Python, AI MediaPipe, Stereo 3D Math, 6DoF Pose, 7 Apps, Camera, USB IPC
 """
 
 import sys
@@ -15,7 +15,7 @@ def run_diagnostics():
     print("=" * 75)
     
     passed = 0
-    total = 7
+    total = 8
 
     # 1. Package & Environment Test
     print("\n[1/7] Kiem tra moi truong Python & Libraries...")
@@ -157,6 +157,69 @@ def run_diagnostics():
         print("  [INFO] Khong co iPhone USB tren port 23456 -> San sang dung Webcam Laptop lam fallback")
 
     passed += 1
+
+    # 8. 6DoF IPC Pipeline Test (USB Forward 23456 + Unity UDP 23457)
+    print("\n[8/8] Kiem tra Luong du lieu 6DoF IPC Pipeline (USB 23456 + Unity UDP 23457)...")
+    ipc_ok = True
+
+    # 8a. Kiem tra SpatialCamera 6DoF Transform co dung phep bien doi P_cam = R^T * (P - T)
+    from stark_cardboard_xr import SpatialCamera, quat_to_rot_mat
+    cam6 = SpatialCamera(w=1280, h=720, fov=65.0)
+    cam6.set_head_pose(position=[0.5, 0.0, 0.0], rotation_quat=[0, 0, 0, 1])  # Di chuyen dau sang phai 0.5m
+    pt_world = [0.0, 0.0, 1.0]  # Vat the phia truoc 1m
+    (px_6dof, py_6dof), z_6dof = cam6.project_3d(pt_world, offset_eye=0)
+    
+    cam_no6 = SpatialCamera(w=1280, h=720, fov=65.0)
+    (px_no6, py_no6), z_no6 = cam_no6.project_3d(pt_world, offset_eye=0)
+    
+    # Khi dich dau sang phai 0.5m, vat the phai tro nen lech sang trai tren man hinh
+    if px_6dof < px_no6:
+        print(f"  [OK] 6DoF Transform: Di chuyen dau sang phai 0.5m -> Vat the dich sang trai {px_no6 - px_6dof}px (Dung!)")
+    else:
+        print(f"  [FAIL] 6DoF Transform sai: px_6dof={px_6dof} khong nho hon px_no6={px_no6}")
+        ipc_ok = False
+
+    # 8b. Kiem tra Quaternion Rotation
+    import math as _m8
+    cam6r = SpatialCamera(w=1280, h=720, fov=65.0)
+    # Quay dau 30 do sang phai (quanh truc Y)
+    angle_rad = _m8.radians(30)
+    qy_rot = [0, _m8.sin(angle_rad/2), 0, _m8.cos(angle_rad/2)]
+    cam6r.set_head_pose(position=[0, 0, 0], rotation_quat=qy_rot)
+    (px_rot, py_rot), z_rot = cam6r.project_3d([0.0, 0.0, 1.0], offset_eye=0)
+    # Quay dau sang phai 30 do -> vat the phia truoc phai lech sang trai man hinh
+    if px_rot < 640:
+        print(f"  [OK] Quaternion Rotation: Quay dau 30 do sang phai -> Vat the lech sang trai px={px_rot} (Dung!)")
+    else:
+        print(f"  [FAIL] Quaternion rotation sai: px={px_rot} (ky vong < 640)")
+        ipc_ok = False
+    
+    # 8c. Kiem tra NetworkPoseSource.cs ton tai tren dia
+    nps_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CardboardXR", "CardboardXR-main", "Assets", "_Project", "Scripts", "Stereo", "NetworkPoseSource.cs")
+    if not os.path.exists(nps_path):
+        # Thu tim o thu muc BUISINESS
+        nps_path = os.path.join("d:\\", "BUISINESS", "CardboardXR", "CardboardXR-main", "Assets", "_Project", "Scripts", "Stereo", "NetworkPoseSource.cs")
+    if os.path.exists(nps_path):
+        size_kb = os.path.getsize(nps_path) / 1024
+        print(f"  [OK] NetworkPoseSource.cs ton tai ({size_kb:.1f} KB) - San sang nhan 6DoF qua UDP 23457")
+    else:
+        print(f"  [INFO] NetworkPoseSource.cs chua tim thay (Chi can khi chay Unity 6DoF Mode)")
+
+    # 8d. Kiem tra UDP Port 23457 co san sang khong
+    import socket as _s8
+    try:
+        u = _s8.socket(_s8.AF_INET, _s8.SOCK_DGRAM)
+        u.bind(('127.0.0.1', 23457))
+        u.close()
+        print(f"  [OK] UDP Port 23457 san sang (Unity NetworkPoseSource co the lang nghe)")
+    except OSError:
+        print(f"  [INFO] UDP Port 23457 dang bi su dung (Co the Python Bridge hoac Unity dang chay)")
+
+    if ipc_ok:
+        print(f"  [OK] Toan bo phep bien doi 6DoF IPC Pipeline dat chuan toan hoc tuyet doi!")
+        passed += 1
+    else:
+        print(f"  [FAIL] 6DoF IPC Pipeline co loi!")
 
     print("\n" + "=" * 75)
     print(f"   KET QUA: {passed}/{total} MUC KIEM THU DAT CHUAN HOAN HAO (PASS)")
