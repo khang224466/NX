@@ -15,13 +15,17 @@ targets:
       path: Resources/Info.plist
       properties:
         CFBundleDisplayName: "STARK XR Cam"
-        CFBundleShortVersionString: "1.0.3"
-        CFBundleVersion: "4"
+        CFBundleShortVersionString: "1.0.4"
+        CFBundleVersion: "5"
         NSCameraUsageDescription: "STARK XR can su dung camera sau de truyen video 4K 120FPS ve laptop xu ly khong gian 3D AR."
         UIRequiresFullScreen: true
         UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+        UILaunchScreen:
+          UIImageRespectsSafeAreaInsets: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationLandscapeLeft
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:

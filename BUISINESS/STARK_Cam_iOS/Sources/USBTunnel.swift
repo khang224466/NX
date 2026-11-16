@@ -52,19 +52,22 @@ public class USBTunnel {
     private let tunnelQueue = DispatchQueue(label: "com.stark.usb.tunnel", qos: .userInteractive)
     public private(set) var isClientConnected: Bool = false
     
-    // Accumulation buffer for incoming TCP stream chunks
+    // Accumulation buffer & cursor for incoming TCP stream chunks (zero O(N) shifting + latest-frame mailbox)
     private var incomingBuffer = Data()
+    private var incomingReadOffset: Int = 0
     
     public init() {}
     
     public func startServer() {
         do {
-            let parameters = NWParameters.tcp
+            let tcpOptions = NWProtocolTCP.Options()
+            tcpOptions.noDelay = true // TCP_NODELAY: Disable Nagle algorithm for zero USB latency
+            let parameters = NWParameters(tls: nil, tcp: tcpOptions)
             parameters.allowLocalEndpointReuse = true
             
             // Prefer IPv4 for local usbmuxd tunnel
-            let tcpOptions = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options
-            tcpOptions?.version = .v4
+            let ipOptions = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options
+            ipOptions?.version = .v4
             
             listener = try NWListener(using: parameters, on: port)
             
@@ -100,6 +103,7 @@ public class USBTunnel {
         
         activeConnection = connection
         incomingBuffer.removeAll(keepingCapacity: true)
+        incomingReadOffset = 0
         
         connection.stateUpdateHandler = { [weak self] state in
             guard let self = self else { return }
@@ -183,28 +187,46 @@ public class USBTunnel {
     }
     
     private func processIncomingBuffer() {
-        // TCP Stream Framing: [4 bytes BigEndian Length] + [Payload Data (JPEG SBS frame)]
-        while incomingBuffer.count >= 4 {
-            let length = incomingBuffer.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
-            let totalFrameSize = 4 + Int(length)
-            
-            // Safeguard against corrupted headers
-            if length <= 0 || length > 10_000_000 {
+        // TCP Stream Framing: [4 bytes BigEndian Length] + [Payload Data (JPEG frame)]
+        // Skip stale buffered frames inside any burst and deliver ONLY the latest complete frame!
+        var latestFrameData: Data? = nil
+        while (incomingBuffer.count - incomingReadOffset) >= 4 {
+            let lenOffset = incomingReadOffset
+            let length: UInt32 = incomingBuffer.withUnsafeBytes { rawBuf in
+                guard let base = rawBuf.baseAddress else { return 0 }
+                var val: UInt32 = 0
+                memcpy(&val, base.advanced(by: lenOffset), 4)
+                return UInt32(bigEndian: val)
+            }
+            if length == 0 || length > 10_000_000 {
                 print("[STARK USB Tunnel] Goi tin khong hop le (\(length) bytes), xoa buffer")
                 incomingBuffer.removeAll(keepingCapacity: false)
+                incomingReadOffset = 0
                 break
             }
-            
-            if incomingBuffer.count >= totalFrameSize {
-                let frameData = incomingBuffer.subdata(in: 4..<totalFrameSize)
-                incomingBuffer.removeSubrange(0..<totalFrameSize)
-                
-                // Deliver full frame to UI
-                self.delegate?.usbTunnel(self, didReceiveReturnFrame: frameData)
+            let totalFrameSize = 4 + Int(length)
+            if (incomingBuffer.count - incomingReadOffset) >= totalFrameSize {
+                let start = incomingReadOffset + 4
+                let end = incomingReadOffset + totalFrameSize
+                latestFrameData = incomingBuffer.subdata(in: start..<end)
+                incomingReadOffset = end
             } else {
-                // Incomplete frame, wait for remaining chunks to arrive over USB
                 break
             }
+        }
+
+        if incomingReadOffset > 0 {
+            if incomingReadOffset >= incomingBuffer.count {
+                incomingBuffer.removeAll(keepingCapacity: true)
+                incomingReadOffset = 0
+            } else if incomingReadOffset >= 65536 {
+                incomingBuffer.removeSubrange(0..<incomingReadOffset)
+                incomingReadOffset = 0
+            }
+        }
+
+        if let frameData = latestFrameData {
+            self.delegate?.usbTunnel(self, didReceiveReturnFrame: frameData)
         }
     }
     
@@ -215,6 +237,7 @@ public class USBTunnel {
         listener = nil
         isClientConnected = false
         incomingBuffer.removeAll(keepingCapacity: false)
+        incomingReadOffset = 0
     }
     
     deinit {

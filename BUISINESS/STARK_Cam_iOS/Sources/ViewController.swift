@@ -1,6 +1,7 @@
 import UIKit
 import AVFoundation
 import Network
+import ImageIO
 
 class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegate, USBTunnelDelegate {
     
@@ -15,6 +16,13 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     private let vrDisplayImageView = UIImageView()
     private let permissionButton = UIButton(type: .system)
     
+    // Off-main-thread JPEG Decode Pipeline + Latest-Frame Mailbox (Zero UI lag!)
+    private let decodeQueue = DispatchQueue(label: "com.stark.vr.decode", qos: .userInteractive)
+    private let decodeLock = NSLock()
+    private var pendingReturnFrame: Data?
+    private var isDecodingReturn = false
+    private var hasAutoSwitchedToXR = false
+    
     // Futuristic HUD
     private let hudOverlay = UIView()
     private let statusCard = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
@@ -27,18 +35,22 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     private let controlCard = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
     private let resSegment = UISegmentedControl(items: ["1080p HD", "4K UHD"])
     private let fpsSegment = UISegmentedControl(items: ["30 FPS", "60 FPS", "120 FPS"])
-    private let modeSegment = UISegmentedControl(items: ["Camera Thuc", "Kinh VR SBS"])
+    private let modeSegment = UISegmentedControl(items: ["Camera Thuc", "Hien Thi XR"])
     
     private var isHUDHidden = false
     private var hudDismissTimer: Timer?
     private var hudFrameCounter: Int = 0
     
     override var prefersStatusBarHidden: Bool { true }
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscapeRight }
+    override var prefersHomeIndicatorAutoHidden: Bool { true }
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+        edgesForExtendedLayout = .all
+        extendedLayoutIncludesOpaqueBars = true
+        view.insetsLayoutMarginsFromSafeArea = false
         
         setupPreview()
         setupVRDisplay()
@@ -93,13 +105,16 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        cameraPreviewView.frame = view.bounds
         previewLayer?.frame = cameraPreviewView.bounds
+        vrDisplayImageView.frame = view.bounds
     }
     
     // MARK: - UI Setup
     private func setupPreview() {
         cameraPreviewView.frame = view.bounds
         cameraPreviewView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        cameraPreviewView.clipsToBounds = true
         view.addSubview(cameraPreviewView)
         
         permissionButton.setTitle("📷 BẤM ĐỂ BẬT CAMERA CHO STARK", for: .normal)
@@ -134,7 +149,8 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     private func setupVRDisplay() {
         vrDisplayImageView.frame = view.bounds
         vrDisplayImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        vrDisplayImageView.contentMode = .scaleToFill // Khop 100% 2 nua man hinh vao 2 thau kinh Shinecon G10
+        vrDisplayImageView.contentMode = .scaleAspectFill // Full man hinh edge-to-edge 19.5:9 khong meo hinh, khong vien den
+        vrDisplayImageView.clipsToBounds = true
         vrDisplayImageView.backgroundColor = .black
         vrDisplayImageView.isHidden = true
         view.addSubview(vrDisplayImageView)
@@ -323,6 +339,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     func usbTunnelDidConnectClient(_ tunnel: USBTunnel) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            self.hasAutoSwitchedToXR = false
             self.statusDot.backgroundColor = .systemGreen
             self.statusLabel.text = "DA KET NOI USB LAPTOP (480Mbps)"
         }
@@ -331,17 +348,54 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     func usbTunnelDidDisconnectClient(_ tunnel: USBTunnel) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            self.hasAutoSwitchedToXR = false
             self.statusDot.backgroundColor = .systemRed
             self.statusLabel.text = "CHO CAP USB LAPTOP..."
         }
     }
     
     func usbTunnel(_ tunnel: USBTunnel, didReceiveReturnFrame data: Data) {
-        // Render 3D Stereo SBS frame sent back from Laptop RTX 4060
-        DispatchQueue.main.async { [weak self] in
+        // Off-main-thread JPEG decoding + latest-frame mailbox (0 queue lag!)
+        decodeLock.lock()
+        pendingReturnFrame = data
+        let shouldStart = !isDecodingReturn
+        if shouldStart { isDecodingReturn = true }
+        decodeLock.unlock()
+
+        guard shouldStart else { return }
+        decodeQueue.async { [weak self] in
             guard let self = self else { return }
-            if let image = UIImage(data: data) {
-                self.vrDisplayImageView.image = image
+            while true {
+                self.decodeLock.lock()
+                let nextData = self.pendingReturnFrame
+                self.pendingReturnFrame = nil
+                guard let frameBytes = nextData else {
+                    self.isDecodingReturn = false
+                    self.decodeLock.unlock()
+                    return
+                }
+                self.decodeLock.unlock()
+
+                let decodedCG: CGImage? = autoreleasepool {
+                    let srcOpts = [kCGImageSourceShouldCache: false] as CFDictionary
+                    guard let src = CGImageSourceCreateWithData(frameBytes as CFData, srcOpts) else { return nil }
+                    let decOpts = [kCGImageSourceShouldCacheImmediately: true] as CFDictionary
+                    return CGImageSourceCreateImageAtIndex(src, 0, decOpts)
+                }
+
+                if let cgImage = decodedCG {
+                    let img = UIImage(cgImage: cgImage)
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        if !self.hasAutoSwitchedToXR {
+                            self.hasAutoSwitchedToXR = true
+                            self.modeSegment.selectedSegmentIndex = 1
+                            self.vrDisplayImageView.isHidden = false
+                            self.cameraPreviewView.isHidden = true
+                        }
+                        self.vrDisplayImageView.image = img
+                    }
+                }
             }
         }
     }

@@ -150,7 +150,9 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             let config = ARWorldTrackingConfiguration()
             config.providesAudioData = false
             if let format = ARWorldTrackingConfiguration.supportedVideoFormats.first(where: {
-                $0.imageResolution.width == 1920 && $0.framesPerSecond >= 60
+                Int($0.imageResolution.width) == 1280 && Int($0.imageResolution.height) == 720 && $0.framesPerSecond >= 60
+            }) ?? ARWorldTrackingConfiguration.supportedVideoFormats.first(where: {
+                Int($0.imageResolution.width) == 1920 && Int($0.imageResolution.height) == 1080 && $0.framesPerSecond >= 60
             }) ?? ARWorldTrackingConfiguration.supportedVideoFormats.first {
                 config.videoFormat = format
             }

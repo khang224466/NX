@@ -30,13 +30,15 @@ public class H264Encoder {
         self.height = height
         self.fps = fps
         
-        // Dynamic bitrate: 15Mbps for 1080p30, 25Mbps for 1080p60/120, 45Mbps for 4K
+        // Optimal USB 2.0 half-duplex bitrate: 8-10 Mbps keeps upstream fast without starving return frames!
         if width > 1920 {
-            self.bitrate = 45_000_000 // 45 Mbps for 4K
+            self.bitrate = 24_000_000
+        } else if width >= 1920 && fps >= 60 {
+            self.bitrate = 11_000_000
         } else if fps >= 60 {
-            self.bitrate = 25_000_000
+            self.bitrate = 8_000_000
         } else {
-            self.bitrate = 15_000_000
+            self.bitrate = 6_000_000
         }
         
         teardown()
@@ -98,6 +100,11 @@ public class H264Encoder {
     }
 
     public func encode(pixelBuffer: CVPixelBuffer, presentationTimeStamp pts: CMTime, duration: CMTime = .invalid, pose: STARKPose6DoF? = nil) {
+        let bufW = Int32(CVPixelBufferGetWidth(pixelBuffer))
+        let bufH = Int32(CVPixelBufferGetHeight(pixelBuffer))
+        if bufW > 0 && bufH > 0 && (bufW != self.width || bufH != self.height) {
+            configure(width: bufW, height: bufH, fps: self.fps)
+        }
         guard let session = compressionSession else { return }
         
         let refCon = Unmanaged.passRetained(PoseBox(pose)).toOpaque()
