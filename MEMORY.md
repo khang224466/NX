@@ -1,26 +1,17 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.89 PRO & STARK Mark ILX Standalone Desktop Release)
+## Current Status (v10.2.90 PRO & Pure Fingertip In-Air Interaction)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.89 PRO** (Đóng gói trọn vẹn toàn bộ dự án Không Gian & Kính 3D thành folder độc lập `stark mark ILX` trên Desktop với bộ 4 Launcher 1-Click).
-- **Packaging Details (C:\Users\LEGION\Desktop\stark mark ILX)**:
-  1. **Launcher Scripts 1-Click Tại Gốc**:
-     - `[1]_KHOI_DONG_STARK_XR_IPHONE_120FPS.bat`: Khởi động kết nối cáp USB Lightning iPhone 120 FPS mượt mà không độ trễ.
-     - `[2]_KHOI_DONG_STARK_XR_LAPTOP_WEBCAM.bat`: Khởi động chế độ Standalone bằng Webcam Laptop.
-     - `[3]_KHOI_DONG_ROAMIES_JARVIS_VOICE.bat`: Khởi động trợ lý giọng nói Roamies JARVIS rảnh tay.
-     - `[4]_KHOI_DONG_AIR_MOUSE_DESKTOP.bat`: Khởi động chuột không gian Windows Desktop.
-     - `HUONG_DAN_SU_DUNG_STARK_MARK_ILX.txt`: Hướng dẫn vận hành rảnh tay chi tiết.
-  2. **Thư Mục Thành Phần Được Đóng Gói Đầy Đủ**:
-     - `Stark_Air_Mouse_App/`: Toàn bộ mã nguồn Python XR (M3 Menu, AimHistory, 1€ Filter, Tethered Bridge).
-     - `STARK_Cam_iOS/` & `STARK_Cam_iOS_IPA*`: Client camera iOS cho iPhone 13.
-     - `CardboardXR/` & `CardboardXR_Windows/`: Mã nguồn Unity 6 C# và bản build Windows.
-     - `Roamies/`: Cấu hình và daemon trợ lý ảo giọng nói.
-  3. **Core Breakthroughs in v10.2.88 PRO (CardboardXR Port)**:
-     - Hệ thống Giao diện Material 3 (`M3Theme`, frosted glass, Capsule Toolbar, App Library Grid 5 apps).
-     - Bộ đệm `AimHistory.cs` triệt tiêu $5.6^\circ$ độ vặn ngón khi chụm ngón, chống trượt nút 100%.
-     - visionOS Palm Gate: Xòe lòng bàn tay $\ge 0.2$s hiện nút bánh răng `MENU / CHỤM ĐỂ MỞ` rảnh tay.
-     - Passthrough sạch sẽ ẩn khung xương 21 khớp, hiển thị con trỏ Reticle trắng $\rightarrow$ vàng hổ phách.
-     - Vật lý CubePhysics gắp gần, gắp xa bằng tia và ném quán tính.
+- Current live version: **v10.2.90 PRO** (Xóa bỏ hoàn toàn đường kẻ tia laser vướng tầm nhìn; chuyển 100% sang tương tác thuần ngón tay: Direct Fingertip Touch + Pinch Amber Haptic Ring).
+- **Core Breakthroughs in v10.2.90 PRO (Pure Fingertip Interaction)**:
+  1. **Xóa Bỏ Hoàn Toàn Tia Laser (Zero Laser Visuals)**:
+     - Xóa bỏ triệt để hàm vẽ `draw_pointing_ray`: Không còn bất kỳ đường kẻ tia laser dài nào phóng ra từ ngón tay gây vướng mắt hoặc làm mất tính chân thực của AR Passthrough.
+  2. **Tương Tác Thuần Bằng Ngón Tay (Direct In-Air Fingertip Touch)**:
+     - **Khi di chuyển ngón tay (Idle)**: Con trỏ chấm tròn trắng tinh tế bám trực tiếp tại đầu ngón tay trỏ (`p_tip`), đi theo ngón tay 1:1.
+     - **Khi lướt qua nút bấm (Direct Hover)**: Bán kính vùng chạm ngón tay được mở rộng tự nhiên (`margin = 16px`), chỉ cần đầu ngón tay chạm nhẹ vào nút là nút phát sáng tím (`M3Theme.Primary`).
+     - **Khi chụm ngón (Pinch)**: Con trỏ chuyển ngay sang màu vàng hổ phách (`Golden Amber #FFD732`) kèm vòng sóng xúc giác Haptic Ripple (`r = 14px`) ngay tại điểm tiếp xúc giữa ngón cái và ngón trỏ để kích hoạt nút bấm.
+  3. **Đồng Bộ Trọn Gói Về Desktop `stark mark ILX`**:
+     - Cập nhật đồng bộ toàn bộ file mã nguồn mới nhất vào thư mục `C:\Users\LEGION\Desktop\stark mark ILX\Stark_Air_Mouse_App`.
 
 ---
 

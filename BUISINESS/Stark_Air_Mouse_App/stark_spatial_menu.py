@@ -231,8 +231,8 @@ class M3SpatialButton:
         self.is_hovered = False
         self.ripple_time = 0.0
 
-    def contains(self, px, py):
-        return (self.x <= px <= self.x + self.w) and (self.y <= py <= self.y + self.h)
+    def contains(self, px, py, margin=0):
+        return (self.x - margin <= px <= self.x + self.w + margin) and (self.y - margin <= py <= self.y + self.h + margin)
 
     def intersects_segment(self, p1, p2):
         if self.contains(p1[0], p1[1]) or self.contains(p2[0], p2[1]):
@@ -438,23 +438,23 @@ class SpatialInAirMenu:
             if b.category in ["settings", cur_cat]:
                 active_buttons.append(b)
 
-        if effective_tip is not None and effective_laser is not None:
-            # Ưu tiên số 1: Nút mà điểm ngắm con trỏ Laser đang đặt lên (Laser Reticle Focus)
+        if effective_tip is not None:
+            # Ưu tiên số 1: Chạm trực tiếp bằng đầu ngón tay trỏ (Direct In-Air Fingertip Touch)
             target_hit = None
             for btn in active_buttons:
-                if btn.contains(effective_laser[0], effective_laser[1]):
+                if btn.contains(effective_tip[0], effective_tip[1], margin=16):
                     target_hit = btn
                     break
 
-            # Ưu tiên số 2: Chạm trực tiếp bằng đầu ngón tay (Near-touch)
-            if target_hit is None:
+            # Ưu tiên số 2: Ngắm hướng chỉ ngón tay (Invisible Finger Vector - Không vẽ tia laser)
+            if target_hit is None and effective_laser is not None:
                 for btn in active_buttons:
-                    if btn.contains(effective_tip[0], effective_tip[1]):
+                    if btn.contains(effective_laser[0], effective_laser[1], margin=10):
                         target_hit = btn
                         break
 
-            # Ưu tiên số 3: Tia cắt qua nút (Raycast Sweep)
-            if target_hit is None:
+            # Ưu tiên số 3: Đoạn ngón tay quét qua nút
+            if target_hit is None and effective_laser is not None:
                 for btn in active_buttons:
                     if btn.intersects_segment(effective_tip, effective_laser):
                         target_hit = btn
@@ -657,7 +657,9 @@ class SpatialInAirMenu:
         radius = 7 if is_pinched else (5 if is_hovering else 4)
 
         # Vầng sáng mờ xung quanh
-        cv2.circle(frame, (cx, cy), radius + 3, (40, 40, 50), -1, cv2.LINE_AA)
+        cv2.circle(frame, (cx, cy), radius + 3, (30, 28, 36), -1, cv2.LINE_AA)
         cv2.circle(frame, (cx, cy), radius, color, -1, cv2.LINE_AA)
-        if is_hovering:
+        if is_hovering and not is_pinched:
             cv2.circle(frame, (cx, cy), radius + 6, M3Theme.Primary, 1, cv2.LINE_AA)
+        elif is_pinched:
+            cv2.circle(frame, (cx, cy), radius + 7, M3Theme.TintAmber, 1, cv2.LINE_AA)

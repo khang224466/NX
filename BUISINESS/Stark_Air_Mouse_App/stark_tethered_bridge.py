@@ -550,15 +550,12 @@ class StarkTetheredBridge:
                         for b1, b2 in HAND_BONES:
                             cv2.line(out_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
 
-                    p_knuckle = pts_mapped[5]
-                    p_tip = pts_mapped[8]
-                    self.suite.draw_pointing_ray(out_frame, p_knuckle, p_tip)
-
-                    # CardboardXR Reticle Con tro ngam (Chấm trắng mịn khi nhàn rỗi, biến vàng hổ phách khi Pinch)
-                    if pinch_pt_2d is not None:
-                        pinch_px = int(pinch_pt_2d[0] * scale_x)
-                        pinch_py = int(pinch_pt_2d[1] * scale_y)
-                        self.spatial_menu.draw_cursor_reticle(out_frame, (pinch_px, pinch_py), is_pinched, is_hovering=(hovered_btn is not None))
+                    # Con tro ngon tay thuan tuy (Pure Fingertip Reticle - Khong con tia laser vuong mat)
+                    cursor_pt_2d = pinch_pt_2d if (is_pinched and pinch_pt_2d is not None) else filtered_lms_2d[8]
+                    if cursor_pt_2d is not None:
+                        cur_px = int(cursor_pt_2d[0] * scale_x)
+                        cur_py = int(cursor_pt_2d[1] * scale_y)
+                        self.spatial_menu.draw_cursor_reticle(out_frame, (cur_px, cur_py), is_pinched, is_hovering=(hovered_btn is not None))
 
                 # 3. Ve In-Air Spatial Menu can giua man hinh (offset_x = 320)
                 self.spatial_menu.draw(out_frame, now, self.suite.current_mode, eye_offset_x=320, bridge=self)
@@ -651,14 +648,12 @@ class StarkTetheredBridge:
                             for b1, b2 in HAND_BONES:
                                 cv2.line(target_frame, pts_mapped[b1], pts_mapped[b2], (0, 243, 255), 2, cv2.LINE_AA)
 
-                        p_knuckle = pts_mapped[5]
-                        p_tip = pts_mapped[8]
-                        self.suite.draw_pointing_ray(target_frame, p_knuckle, p_tip)
-
-                        if pinch_pt_2d is not None:
-                            pinch_px = int((pinch_pt_2d[0] - orig_x1) * scale_x) + off_x
-                            pinch_py = int(pinch_pt_2d[1] * scale_y)
-                            self.spatial_menu.draw_cursor_reticle(target_frame, (pinch_px, pinch_py), is_pinched, is_hovering=(hovered_btn is not None))
+                        # Con tro ngon tay thuan tuy (Pure Fingertip Reticle - Khong con tia laser vuong mat)
+                        cursor_pt_2d = pinch_pt_2d if (is_pinched and pinch_pt_2d is not None) else filtered_lms_2d[8]
+                        if cursor_pt_2d is not None:
+                            cur_px = int((cursor_pt_2d[0] - orig_x1) * scale_x) + off_x
+                            cur_py = int(cursor_pt_2d[1] * scale_y)
+                            self.spatial_menu.draw_cursor_reticle(target_frame, (cur_px, cur_py), is_pinched, is_hovering=(hovered_btn is not None))
 
                     menu_parallax = 4 if off_x < 0 else -4
                     self.spatial_menu.draw(target_frame, now, self.suite.current_mode, eye_offset_x=menu_parallax, bridge=self)

@@ -541,17 +541,8 @@ class StarkCardboardXRSuite:
         cv2.circle(frame, pt, 3, (255, 255, 255), -1, cv2.LINE_AA)
 
     def draw_pointing_ray(self, frame, p_knuckle, p_tip):
-        """Tia laser chi dinh khong gian tu ngon tro (HandRayView)"""
-        dx = p_tip[0] - p_knuckle[0]
-        dy = p_tip[1] - p_knuckle[1]
-        dist = math.hypot(dx, dy)
-        if dist > 8:
-            scale = 750.0 / dist
-            end_x = int(p_tip[0] + dx * scale)
-            end_y = int(p_tip[1] + dy * scale)
-            cv2.line(frame, p_tip, (end_x, end_y), (0, 255, 200), 2, cv2.LINE_AA)
-            cv2.circle(frame, (end_x, end_y), 6, (0, 243, 255), -1, cv2.LINE_AA)
-            cv2.circle(frame, (end_x, end_y), 12, (0, 255, 200), 1, cv2.LINE_AA)
+        """Xoa bo hoan toan tia laser theo yeu cau, dieu khien thuan ngon tay"""
+        pass
 
     def draw_hud(self, frame, fps):
         """Thanh dieu khien khong gian Material 3 (M3 Spatial Toolbar)"""
@@ -794,16 +785,12 @@ class StarkCardboardXRSuite:
                         for pt in filtered_lms_2d:
                             cv2.circle(target_frame, (pt[0] + off_x, pt[1]), 3, (0, 150, 255), -1, cv2.LINE_AA)
 
-                    # Pointing Ray tu ngon tro
-                    p_knuckle = (filtered_lms_2d[5][0] + off_x, filtered_lms_2d[5][1])
-                    p_tip = (filtered_lms_2d[8][0] + off_x, filtered_lms_2d[8][1])
-                    self.draw_pointing_ray(target_frame, p_knuckle, p_tip)
-
-                    # Tam ngam Reticle khi Pinch (CardboardXR HandRayView.cs)
-                    if pinch_pt_2d is not None:
+                    # Con tro ngon tay thuan tuy (Pure Fingertip Reticle - Khong con tia laser vuong mat)
+                    cursor_pos = pinch_pt_2d if (is_pinched and pinch_pt_2d is not None) else filtered_lms_2d[8]
+                    if cursor_pos is not None:
                         self.spatial_menu.draw_cursor_reticle(
                             target_frame,
-                            (pinch_pt_2d[0] + off_x, pinch_pt_2d[1]),
+                            (cursor_pos[0] + off_x, cursor_pos[1]),
                             is_pinched,
                             is_hovering=(hovered_btn is not None)
                         )
