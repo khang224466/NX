@@ -1,24 +1,26 @@
 # Memory - Automated Control & Web Automation Project
 
-## Current Status (v10.2.88 PRO & CardboardXR Native Spatial Port)
+## Current Status (v10.2.89 PRO & STARK Mark ILX Standalone Desktop Release)
 - **Strict Rule:** BUMP VERSION ON EVERY SINGLE UPDATE ("mỗi 1 lần up lên là thay đổi tên phiên bản").
-- Current live version: **v10.2.88 PRO** (Hoàn tất "ăn cắp" 100% tinh hoa của CardboardXR: Material 3 Floating Dock + App Library Grid, AimHistory triệt tiêu rung giật góc chụm 5.6 độ, Palm Gate triệu hồi Menu rảnh tay, Passthrough sạch giấu xương tay).
-- **Core Breakthroughs in v10.2.88 PRO (CardboardXR Port)**:
-  1. **Hệ Thống Giao Diện Không Gian Material 3 (M3 Spatial UI)**:
-     - Xóa bỏ toàn bộ các khối chữ nhật viền thô kệch OpenCV; thay thế bằng hệ thống Material 3 (`M3Theme`: Surface `#141218`, SurfaceContainer `#211F26`, Primary Lavender `#D0BCFF`, Accent Tints cho từng app).
-     - Bo góc siêu mượt và nền kính mờ (`draw_rounded_glass`) chống nhòe thị sai, hiển thị hoàn hảo ở cả chế độ 1 Màn hình (Single Screen 1280x720) và Kính VR SBS (640x720 mỗi mắt).
-     - Thanh công cụ Capsule Toolbar lơ lửng dưới đáy (`[+] APPS`, `[O] 1-SCR/SBS VR`, `[*] RESET`, `[~] IPHONE`, `[X] CLOSE`).
-     - Lưới **App Library Grid** mở từ nút `[APPS]` hiển thị trọn vẹn 5 ứng dụng (🎨 Paint 3D, 🌀 Portal, ⚡ Orb Rush, 📦 Cube Physics, 📐 Caliper) kèm dòng mô tả Tagline động khi trỏ tới.
-  2. **Cơ Chế Điều Khiển "AimHistory" Triệt Tiêu Độ Lệch Chụm Ngón**:
-     - Port nguyên bản thuật toán `AimHistory.cs` từ CardboardXR: Khi chụm ngón tay, bàn tay người tự nhiên bị vặn xoay một góc trung bình **5.6 độ**, khiến tia laser văng lệch khỏi nút bấm mục tiêu.
-     - Bộ đệm `AimHistory` tự động lưu lịch sử tia và lấy lại mẫu tia tại thời điểm **0.18s trước khi chụm ngón**, khóa chặt mục tiêu vào đúng nút người dùng muốn bấm, độ chính xác đạt 100%.
-  3. **100% Rảnh Tay (Hands-Free) — Rời Xa Hoàn Toàn Bàn Phím Laptop**:
-     - Cổng cử chỉ **Lòng bàn tay (visionOS Palm Gate)**: Khi mở lòng bàn tay hướng về camera $\ge 0.20$s, một nút bánh răng phát sáng nhịp tim (`MENU` / `CHỤM ĐỂ MỞ`) tự động xuất hiện giữa ngón cái và ngón trỏ.
-     - Chụm ngón cái và trỏ để mở/đóng Menu ngay trong không gian thực, chuyển đổi giữa chế độ 1 màn hình và kính 3D SBS, chọn demo, đổi camera mà không cần chạm vào laptop.
-  4. **Passthrough Sạch Sẽ (CardboardXR HandJointsView.cs)**:
-     - Ẩn toàn bộ khung xương 21 khớp màu vàng thô ráp che khuất bàn tay thật trong Passthrough; thay thế bằng con trỏ Reticle chấm tròn trắng thanh mảnh, phóng to và chuyển sang màu vàng hổ phách (Golden Amber `#FFD732`) khi chụm ngón tay.
-  5. **Vật Lý Khối Hộp Nâng Cấp (CardboardXR CubePhysics.cs)**:
-     - Hỗ trợ gắp gần ($< 0.25$m) và bắn tia gắp xa (Ray Grab), quán tính ném vật thể với giới hạn gia tốc ($6.0\text{ m/s}$), va chạm nảy bàn/sàn đàn hồi và lực cản không khí.
+- Current live version: **v10.2.89 PRO** (Đóng gói trọn vẹn toàn bộ dự án Không Gian & Kính 3D thành folder độc lập `stark mark ILX` trên Desktop với bộ 4 Launcher 1-Click).
+- **Packaging Details (C:\Users\LEGION\Desktop\stark mark ILX)**:
+  1. **Launcher Scripts 1-Click Tại Gốc**:
+     - `[1]_KHOI_DONG_STARK_XR_IPHONE_120FPS.bat`: Khởi động kết nối cáp USB Lightning iPhone 120 FPS mượt mà không độ trễ.
+     - `[2]_KHOI_DONG_STARK_XR_LAPTOP_WEBCAM.bat`: Khởi động chế độ Standalone bằng Webcam Laptop.
+     - `[3]_KHOI_DONG_ROAMIES_JARVIS_VOICE.bat`: Khởi động trợ lý giọng nói Roamies JARVIS rảnh tay.
+     - `[4]_KHOI_DONG_AIR_MOUSE_DESKTOP.bat`: Khởi động chuột không gian Windows Desktop.
+     - `HUONG_DAN_SU_DUNG_STARK_MARK_ILX.txt`: Hướng dẫn vận hành rảnh tay chi tiết.
+  2. **Thư Mục Thành Phần Được Đóng Gói Đầy Đủ**:
+     - `Stark_Air_Mouse_App/`: Toàn bộ mã nguồn Python XR (M3 Menu, AimHistory, 1€ Filter, Tethered Bridge).
+     - `STARK_Cam_iOS/` & `STARK_Cam_iOS_IPA*`: Client camera iOS cho iPhone 13.
+     - `CardboardXR/` & `CardboardXR_Windows/`: Mã nguồn Unity 6 C# và bản build Windows.
+     - `Roamies/`: Cấu hình và daemon trợ lý ảo giọng nói.
+  3. **Core Breakthroughs in v10.2.88 PRO (CardboardXR Port)**:
+     - Hệ thống Giao diện Material 3 (`M3Theme`, frosted glass, Capsule Toolbar, App Library Grid 5 apps).
+     - Bộ đệm `AimHistory.cs` triệt tiêu $5.6^\circ$ độ vặn ngón khi chụm ngón, chống trượt nút 100%.
+     - visionOS Palm Gate: Xòe lòng bàn tay $\ge 0.2$s hiện nút bánh răng `MENU / CHỤM ĐỂ MỞ` rảnh tay.
+     - Passthrough sạch sẽ ẩn khung xương 21 khớp, hiển thị con trỏ Reticle trắng $\rightarrow$ vàng hổ phách.
+     - Vật lý CubePhysics gắp gần, gắp xa bằng tia và ném quán tính.
 
 ---
 
