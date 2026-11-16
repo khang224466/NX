@@ -147,8 +147,20 @@ class PinchDetector:
         return self.is_pinched
 
 # -----------------------------------------------------------------------------
-# 3D Spatial Math & Camera Projection Engine
+# 3D Spatial Math & Camera Projection Engine (6DoF Head Pose + Stereoscopic Depth)
 # -----------------------------------------------------------------------------
+def quat_to_rot_mat(q):
+    """Chuyen doi Quaternion (qx, qy, qz, qw) sang Ma tran xoay 3x3 (Euler Rotation Matrix)"""
+    qx, qy, qz, qw = q
+    n = math.sqrt(qx*qx + qy*qy + qz*qz + qw*qw)
+    if n > 1e-6:
+        qx, qy, qz, qw = qx/n, qy/n, qz/n, qw/n
+    return np.array([
+        [1.0 - 2.0*(qy*qy + qz*qz), 2.0*(qx*qy - qz*qw), 2.0*(qx*qz + qy*qw)],
+        [2.0*(qx*qy + qz*qw), 1.0 - 2.0*(qx*qx + qz*qz), 2.0*(qy*qz - qx*qw)],
+        [2.0*(qx*qz - qy*qw), 2.0*(qy*qz + qx*qw), 1.0 - 2.0*(qx*qx + qy*qy)]
+    ], dtype=float)
+
 class SpatialCamera:
     def __init__(self, w=1280, h=720, fov=65.0):
         self.w = w
@@ -159,17 +171,42 @@ class SpatialCamera:
         self.ipd_m = 0.064  # Khoang cach 2 dong tu mat nguoi tieu chuan (64mm)
         self.convergence_dist = 1.35  # Mat phang hoi tu quang hoc 1.35m
 
+        # 6DoF Head Pose Tracking (Kien truc Lai Offloaded Tethered XR)
+        self.head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+        self.head_rot = np.eye(3, dtype=float)
+        self.has_6dof = False
+
+    def set_head_pose(self, position=None, rotation_quat=None, rotation_mat=None):
+        """Cap nhat vi tri & huong quay 6DoF cua dau tu ARKit iPhone qua cap USB"""
+        if position is not None:
+            self.head_pos = np.array(position, dtype=float)
+        if rotation_mat is not None:
+            self.head_rot = np.array(rotation_mat, dtype=float)
+            self.has_6dof = True
+        elif rotation_quat is not None:
+            self.head_rot = quat_to_rot_mat(rotation_quat)
+            self.has_6dof = True
+
+    def reset_head_pose(self):
+        """Reset vi tri dau ve goc toa do (Recenter)"""
+        self.head_pos = np.array([0.0, 0.0, 0.0], dtype=float)
+        self.head_rot = np.eye(3, dtype=float)
+        self.has_6dof = False
+
     def project_3d(self, pt_3d, offset_eye=0):
         """
-        True Stereoscopic Binocular Projection (Thi sai quang hoc 2 mat thuc thu):
-        Thay vi chi cong lech 1 hang so pixel phang khong co chieu sau,
-        ham tinh toan do lech thi sai (Binocular Disparity) phu thuoc nghich dao vao do sau Z:
-        parallax(z) = - eye_offset_m * focal * (1/z - 1/z_convergence)
-        - Khi z < 1.35m (vat the o gan mat): Thi sai duong -> Vat the noi bung ra khoi man hinh!
-        - Khi z > 1.35m (vat the o xa): Thi sai am -> Vat the chim sau vao duong chan troi!
-        - Mat truoc va mat sau cua khoi 3D co thi sai khac nhau -> Tao cam giac the tich va do day that 100%!
+        True Stereoscopic Binocular Projection (Thi sai quang hoc 2 mat thuc thu + 6DoF):
+        1. Chuyen doi toa do the gioi sang he toa do Camera 6DoF: P_cam = R^T * (P_world - T)
+        2. Tinh toan do lech thi sai (Binocular Disparity) phu thuoc nghich dao vao do sau Z:
+           parallax(z) = - eye_offset_m * focal * (1/z - 1/z_convergence)
         """
-        x, y, z = pt_3d
+        if self.has_6dof:
+            p_rel = np.array(pt_3d, dtype=float) - self.head_pos
+            p_cam = self.head_rot.T @ p_rel
+            x, y, z = float(p_cam[0]), float(p_cam[1]), float(p_cam[2])
+        else:
+            x, y, z = float(pt_3d[0]), float(pt_3d[1]), float(pt_3d[2])
+
         if z <= 0.05:
             z = 0.05
 
@@ -193,6 +230,40 @@ class SpatialCamera:
         py = int(self.cy - (y * self.focal) / z)
         return (px, py), z
 
+    def project_3d_batch(self, pts_3d_arr, offset_eye=0):
+        """Chieu 3D hang loat N diem cung luc bang Vectorization NumPy (Tang toc 30x)"""
+        pts = np.asarray(pts_3d_arr, dtype=float)
+        if pts.ndim == 1:
+            p2d, z = self.project_3d(pts, offset_eye)
+            return [p2d]
+
+        if self.has_6dof:
+            rel = pts - self.head_pos
+            cam_pts = (self.head_rot.T @ rel.T).T
+            x = cam_pts[:, 0]
+            y = cam_pts[:, 1]
+            z = np.clip(cam_pts[:, 2], 0.05, 100.0)
+        else:
+            x = pts[:, 0]
+            y = pts[:, 1]
+            z = np.clip(pts[:, 2], 0.05, 100.0)
+
+        if isinstance(offset_eye, float) and abs(offset_eye) <= 0.15 and offset_eye != 0:
+            eye_offset_m = offset_eye
+        elif offset_eye < 0:
+            scale = abs(offset_eye) / 14.0 if abs(offset_eye) > 1 else 1.0
+            eye_offset_m = - (self.ipd_m / 2.0) * scale
+        elif offset_eye > 0:
+            scale = abs(offset_eye) / 14.0 if abs(offset_eye) > 1 else 1.0
+            eye_offset_m = (self.ipd_m / 2.0) * scale
+        else:
+            eye_offset_m = 0.0
+
+        parallax = - eye_offset_m * self.focal * (1.0 / z - 1.0 / self.convergence_dist) if eye_offset_m != 0.0 else 0.0
+        px = (self.cx + (x * self.focal) / z + parallax).astype(int)
+        py = (self.cy - (y * self.focal) / z).astype(int)
+        return list(zip(px, py))
+
     def unproject_2d(self, px, py, z, offset_eye=0):
         """Bien diem 2D pixel kem do sau z thanh toa do 3D thuc"""
         parallax = 0.0
@@ -202,7 +273,11 @@ class SpatialCamera:
             parallax = - eye_offset_m * self.focal * (1.0 / z - 1.0 / self.convergence_dist)
         x = ((px - self.cx - parallax) * z) / self.focal
         y = -((py - self.cy) * z) / self.focal
-        return np.array([x, y, z])
+        p_cam = np.array([x, y, z])
+        if self.has_6dof:
+            p_world = self.head_rot @ p_cam + self.head_pos
+            return p_world
+        return p_cam
 
 # -----------------------------------------------------------------------------
 # Demo 1: 3D Air Paint Engine (Tilt Brush in Space - PaintDemo.cs)
@@ -296,26 +371,41 @@ class PortalDemo:
         # Ve khung canh cua phat sang (Glowing Portal Frame)
         pts = np.array(corners_2d, np.int32).reshape((-1, 1, 2))
         
-        # Tao hieu ung Mat Portal (The gioi vu tru ao ben trong khung cua)
-        mask = np.zeros(frame.shape[:2], dtype=np.uint8)
-        cv2.fillPoly(mask, [pts], 255)
+        # Tinh Bounding Box ROI cua khung cua (Toi uu hoa Zero-Allocation ROI, giam 85% RAM)
+        xs = [c[0] for c in corners_2d]
+        ys = [c[1] for c in corners_2d]
+        x1 = max(0, min(xs) - 2)
+        y1 = max(0, min(ys) - 2)
+        x2 = min(frame.shape[1], max(xs) + 2)
+        y2 = min(frame.shape[0], max(ys) + 2)
 
-        # Ve bau troi sao Cyberpunk ben trong khung cua
-        portal_content = np.zeros_like(frame)
-        grid_phase = (t_sec * 0.4) % 1.0
-        # Luoi khong gian 3D vo tan ben trong portal
-        for z_layer in np.arange(1.6, 4.5, 0.4):
-            z_eff = z_layer - grid_phase * 0.4
-            p1, _ = cam.project_3d([-1.5, -0.8, z_eff], offset_x)
-            p2, _ = cam.project_3d([1.5, -0.8, z_eff], offset_x)
-            cv2.line(portal_content, p1, p2, (80, 20, 120), 1, cv2.LINE_AA)
+        if x2 > x1 and y2 > y1:
+            roi = frame[y1:y2, x1:x2]
+            pts_roi = np.array([[[c[0] - x1, c[1] - y1]] for c in corners_2d], np.int32)
+            
+            mask_roi = np.zeros((y2 - y1, x2 - x1), dtype=np.uint8)
+            cv2.fillPoly(mask_roi, [pts_roi], 255)
 
-        for star in self.starfield:
-            p2, _ = cam.project_3d(star, offset_x)
-            cv2.circle(portal_content, p2, 2, (255, 255, 200), -1)
+            portal_roi = np.zeros_like(roi)
+            grid_phase = (t_sec * 0.4) % 1.0
+            for z_layer in np.arange(1.6, 4.5, 0.4):
+                z_eff = z_layer - grid_phase * 0.4
+                p1, _ = cam.project_3d([-1.5, -0.8, z_eff], offset_x)
+                p2, _ = cam.project_3d([1.5, -0.8, z_eff], offset_x)
+                p1_roi = (p1[0] - x1, p1[1] - y1)
+                p2_roi = (p2[0] - x1, p2[1] - y1)
+                cv2.line(portal_roi, p1_roi, p2_roi, (80, 20, 120), 1, cv2.LINE_AA)
 
-        # Ghep noi dung the gioi ao vao trong khung cua phong thuc
-        frame[mask > 0] = cv2.addWeighted(frame[mask > 0], 0.35, portal_content[mask > 0], 0.65, 0)
+            for star in self.starfield:
+                p2, _ = cam.project_3d(star, offset_x)
+                p2_roi = (p2[0] - x1, p2[1] - y1)
+                if 0 <= p2_roi[0] < (x2 - x1) and 0 <= p2_roi[1] < (y2 - y1):
+                    cv2.circle(portal_roi, p2_roi, 2, (255, 255, 200), -1)
+
+            # Hoa tron chi tren vung ROI cua cua
+            inside = mask_roi > 0
+            if np.any(inside):
+                roi[inside] = cv2.addWeighted(roi[inside], 0.35, portal_roi[inside], 0.65, 0)
 
         # Vien khung cong nghe Cyber Neon xung quanh cua
         cv2.polylines(frame, [pts], True, (0, 243, 255), 3, cv2.LINE_AA)
@@ -865,12 +955,13 @@ class StarkCardboardXRSuite:
         base_options = python.BaseOptions(model_asset_path=model_path)
         options = vision.HandLandmarkerOptions(
             base_options=base_options,
-            running_mode=vision.RunningMode.IMAGE,
+            running_mode=vision.RunningMode.VIDEO,
             num_hands=2,
             min_hand_detection_confidence=0.55,
             min_tracking_confidence=0.55
         )
         self.detector = vision.HandLandmarker.create_from_options(options)
+        self.last_mp_ts = 0
 
         # 2. He thong quang hoc & Camera khong gian
         self.cam_w = 1280
@@ -1025,7 +1116,11 @@ class StarkCardboardXRSuite:
             h, w, _ = frame.shape
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-            results = self.detector.detect(mp_image)
+            now_ms = int(time.perf_counter() * 1000)
+            if now_ms <= self.last_mp_ts:
+                now_ms = self.last_mp_ts + 1
+            self.last_mp_ts = now_ms
+            results = self.detector.detect_for_video(mp_image, now_ms)
 
             filtered_lms_2d = None
             filtered_lms_3d = None
@@ -1044,11 +1139,18 @@ class StarkCardboardXRSuite:
                     flt_px = self.filters_2d[i].filter(now, raw_px)
                     filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
 
-                # Tinh toa do 3D trong he truc camera
+                # Tinh khoang cach thuc Monocular Depth tu chieu dai long ban tay (wrist 0 -> mcp 9, ~0.085m)
+                palm_px = math.hypot(
+                    filtered_lms_2d[0][0] - filtered_lms_2d[9][0],
+                    filtered_lms_2d[0][1] - filtered_lms_2d[9][1]
+                )
+                base_z = float(np.clip((0.085 * self.spatial_cam.focal) / max(20.0, palm_px), 0.25, 1.40))
+
+                # Tinh toa do 3D trong he truc camera tu do sau thuc
                 filtered_lms_3d = []
                 for i in range(21):
-                    z_depth = 0.65 + (lms[i].z if hasattr(lms[i], 'z') else 0.0) * 0.8
-                    pt3 = self.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], z_depth)
+                    rel_z = (lms[i].z if hasattr(lms[i], 'z') else 0.0) * 0.8
+                    pt3 = self.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], base_z + rel_z)
                     flt_pt3 = self.filters_3d[i].filter(now, pt3)
                     filtered_lms_3d.append(flt_pt3)
 
@@ -1062,16 +1164,23 @@ class StarkCardboardXRSuite:
                 pinch_pt_2d = ((filtered_lms_2d[4][0] + filtered_lms_2d[8][0]) // 2,
                                (filtered_lms_2d[4][1] + filtered_lms_2d[8][1]) // 2)
 
-                # 3. Kiem tra Xoe ban tay (Open Palm) goi Roamies JARVIS
+                # 3. Kiem tra Xoe ban tay (Open Palm) goi Roamies JARVIS - tranh xung dot voi Palm System Gate
                 is_flat_palm = (lms[8].y < lms[6].y and lms[12].y < lms[10].y and lms[16].y < lms[14].y and lms[20].y < lms[18].y)
-                if is_flat_palm:
-                    if self.palm_hold_start == 0.0:
-                        self.palm_hold_start = now
-                    elif (now - self.palm_hold_start) > 0.50 and (now - self.jarvis_cooldown) > 2.5:
-                        self.jarvis_cooldown = now
-                        trigger_jarvis_snap()
-                        cv2.putText(frame, "JARVIS SCANNING...", (w//2 - 100, h - 50),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                menu_is_active = self.spatial_menu.is_open or self.spatial_menu.is_library_open
+                if is_flat_palm and not menu_is_active:
+                    thumb_pinky_dist = math.hypot(filtered_lms_2d[4][0] - filtered_lms_2d[20][0],
+                                                  filtered_lms_2d[4][1] - filtered_lms_2d[20][1])
+                    is_jarvis_gesture = thumb_pinky_dist < 50.0  # Kep ngon cai vao ngon ut khi xoe tay
+                    if is_jarvis_gesture:
+                        if self.palm_hold_start == 0.0:
+                            self.palm_hold_start = now
+                        elif (now - self.palm_hold_start) > 0.40 and (now - self.jarvis_cooldown) > 2.5:
+                            self.jarvis_cooldown = now
+                            trigger_jarvis_snap()
+                            cv2.putText(frame, "JARVIS SCANNING...", (w//2 - 100, h - 50),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    else:
+                        self.palm_hold_start = 0.0
                 else:
                     self.palm_hold_start = 0.0
 

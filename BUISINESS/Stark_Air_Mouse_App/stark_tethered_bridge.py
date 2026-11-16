@@ -74,6 +74,15 @@ class StarkTetheredBridge:
         self.last_rx_t = time.time()
         self.use_fallback = False
 
+        # 6DoF Head Pose & Unity C# IPC Broadcast
+        self.latest_pose = None
+        self.last_ai_ts = 0
+        self.unity_ipc_port = 23457
+        try:
+            self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        except Exception:
+            self.udp_sock = None
+
     def start_usbmux_forward(self):
         """Khoi chay usbmux forwarder anh xa cong 23456 qua cap USB"""
         print(f"\n[+] Dang khoi tao kenh truyen du lieu USB usbmuxd tai cong {self.port}...")
@@ -152,8 +161,35 @@ class StarkTetheredBridge:
                 if not payload:
                     break
                 
+                # Multiplexed 6DoF Pose Decoder (Kien truc Lai Offloaded Tethered XR)
+                # Dinh dang packet: 4B Magic ('6DOF') + 4B Type + 28B Pose (3f Pos, 4f Quat) + H.264
+                h264_payload = payload
+                if len(payload) >= 36 and payload[:4] == b'6DOF':
+                    try:
+                        pos_x, pos_y, pos_z, qx, qy, qz, qw = struct.unpack("<7f", payload[8:36])
+                        self.latest_pose = {
+                            "pos": np.array([pos_x, pos_y, pos_z], dtype=float),
+                            "quat": np.array([qx, qy, qz, qw], dtype=float),
+                            "time": time.time()
+                        }
+                        # Dong bo ma tran 6DoF vao SpatialCamera de di chuyen Camera Rig
+                        self.suite.spatial_cam.set_head_pose(
+                            position=self.latest_pose["pos"],
+                            rotation_quat=self.latest_pose["quat"]
+                        )
+                        h264_payload = payload[36:]
+
+                        # Ban 28B Pose qua UDP port 23457 cho Unity C# NetworkPoseSource (Zero-Lag IPC)
+                        if self.udp_sock is not None:
+                            try:
+                                self.udp_sock.sendto(payload[8:36], ("127.0.0.1", self.unity_ipc_port))
+                            except Exception:
+                                pass
+                    except Exception:
+                        h264_payload = payload
+
                 try:
-                    packets = codec.parse(payload)
+                    packets = codec.parse(h264_payload)
                     for pkt in packets:
                         try:
                             frames = codec.decode(pkt)
@@ -208,7 +244,11 @@ class StarkTetheredBridge:
                     rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
                     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                     
-                    results = self.suite.detector.detect(mp_image)
+                    now_ms = int(time.perf_counter() * 1000)
+                    if now_ms <= self.last_ai_ts:
+                        now_ms = self.last_ai_ts + 1
+                    self.last_ai_ts = now_ms
+                    results = self.suite.detector.detect_for_video(mp_image, now_ms)
                     
                     with self.lms_lock:
                         if results.hand_landmarks:
@@ -407,11 +447,18 @@ class StarkTetheredBridge:
                         flt_px = self.suite.filters_2d[i].filter(now, raw_px)
                         filtered_lms_2d.append((int(flt_px[0]), int(flt_px[1])))
 
-                    # Tinh toa do 3D trong he truc camera
+                    # Tinh khoang cach thuc Monocular Depth tu chieu dai long ban tay (wrist 0 -> mcp 9, ~0.085m)
+                    palm_px = math.hypot(
+                        filtered_lms_2d[0][0] - filtered_lms_2d[9][0],
+                        filtered_lms_2d[0][1] - filtered_lms_2d[9][1]
+                    )
+                    base_z = float(np.clip((0.085 * self.suite.spatial_cam.focal) / max(20.0, palm_px), 0.25, 1.40))
+
+                    # Tinh toa do 3D trong he truc camera tu do sau thuc
                     filtered_lms_3d = []
                     for i in range(21):
-                        z_depth = 0.65 + (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.8
-                        pt3 = self.suite.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], z_depth)
+                        rel_z = (raw_lms[i].z if hasattr(raw_lms[i], 'z') else 0.0) * 0.8
+                        pt3 = self.suite.spatial_cam.unproject_2d(filtered_lms_2d[i][0], filtered_lms_2d[i][1], base_z + rel_z)
                         flt_pt3 = self.suite.filters_3d[i].filter(now, pt3)
                         filtered_lms_3d.append(flt_pt3)
 
