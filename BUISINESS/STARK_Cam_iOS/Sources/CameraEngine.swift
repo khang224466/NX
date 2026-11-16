@@ -1,6 +1,8 @@
 import Foundation
 import AVFoundation
 import UIKit
+import ARKit
+import simd
 
 public enum STARKResolution: String, CaseIterable {
     case hd1080p = "HD 1080p"
@@ -17,12 +19,13 @@ public enum STARKResolution: String, CaseIterable {
 }
 
 public protocol CameraEngineDelegate: AnyObject {
-    func cameraEngine(_ engine: CameraEngine, didOutput sampleBuffer: CMSampleBuffer)
+    func cameraEngine(_ engine: CameraEngine, didOutput pixelBuffer: CVPixelBuffer, timestamp: CMTime, pose: STARKPose6DoF?)
+    func cameraEngine(_ engine: CameraEngine, didUpdateTrackingState status: String)
     func cameraEngine(_ engine: CameraEngine, didUpdateActualFPS fps: Double)
     func cameraEngine(_ engine: CameraEngine, didEncounterError error: Error)
 }
 
-public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
+public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, ARSessionDelegate {
     public weak var delegate: CameraEngineDelegate?
     
     private let captureSession = AVCaptureSession()
@@ -30,6 +33,11 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     private var videoInput: AVCaptureDeviceInput?
     private let videoOutput = AVCaptureVideoDataOutput()
     private let sessionQueue = DispatchQueue(label: "com.stark.camera.session", qos: .userInteractive)
+    
+    // ARKit 6DoF World Tracking Engine
+    public let arSession = ARSession()
+    public private(set) var useARKit: Bool = true
+    public private(set) var latestPose: STARKPose6DoF? = nil
     
     public private(set) var currentResolution: STARKResolution = .hd1080p
     public private(set) var currentFPS: Int = 60
@@ -45,6 +53,14 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     
     public var previewSession: AVCaptureSession {
         return captureSession
+    }
+    
+    public func setTrackingMode(useARKit: Bool) {
+        self.useARKit = useARKit
+        if isRunning {
+            stop()
+            start()
+        }
     }
     
     public func requestCameraAccess(completion: @escaping (Bool) -> Void) {
@@ -103,7 +119,6 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         videoOutput.alwaysDiscardsLateVideoFrames = true
         videoOutput.setSampleBufferDelegate(self, queue: sessionQueue)
         
-        // Choose best supported pixel format (BiPlanar Full or Video range)
         if videoOutput.availableVideoPixelFormatTypes.contains(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
             videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)]
         } else if videoOutput.availableVideoPixelFormatTypes.contains(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) {
@@ -124,21 +139,38 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         }
         
         captureSession.commitConfiguration()
-        
-        // Apply default format (1080p 60fps)
         self.applyFormat(resolution: self.currentResolution, fps: self.currentFPS)
     }
     
     public func start() {
-        sessionQueue.async { [weak self] in
-            guard let self = self, !self.captureSession.isRunning else { return }
-            self.captureSession.startRunning()
-            self.isRunning = true
-            print("[STARK Camera] Da khoi dong camera phan giai: \(self.currentResolution.rawValue), FPS: \(self.currentFPS)")
+        if useARKit && ARWorldTrackingConfiguration.isSupported {
+            let config = ARWorldTrackingConfiguration()
+            config.providesAudioData = false
+            if let format = ARWorldTrackingConfiguration.supportedVideoFormats.first(where: {
+                $0.imageResolution.width == 1920 && $0.framesPerSecond >= 60
+            }) ?? ARWorldTrackingConfiguration.supportedVideoFormats.first {
+                config.videoFormat = format
+            }
+            config.worldAlignment = .gravity
+            arSession.delegate = self
+            arSession.run(config, options: [.resetTracking, .removeExistingAnchors])
+            isRunning = true
+            print("[STARK Camera] Da kich hoat ARKit 6DoF World Tracking Engine!")
+        } else {
+            sessionQueue.async { [weak self] in
+                guard let self = self, !self.captureSession.isRunning else { return }
+                self.captureSession.startRunning()
+                self.isRunning = true
+                print("[STARK Camera] Da khoi dong AVCaptureSession: \(self.currentResolution.rawValue), FPS: \(self.currentFPS)")
+            }
         }
     }
     
     public func stop() {
+        if useARKit {
+            arSession.pause()
+            isRunning = false
+        }
         sessionQueue.async { [weak self] in
             guard let self = self, self.captureSession.isRunning else { return }
             self.captureSession.stopRunning()
@@ -162,7 +194,6 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         var bestFormat: AVCaptureDevice.Format?
         var bestRange: AVFrameRateRange?
         
-        // Match exact resolution and supported FPS range
         for format in device.formats {
             let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
             if dims.width == targetDims.width && dims.height == targetDims.height {
@@ -177,7 +208,6 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             }
         }
         
-        // Fallback: match resolution with highest available frame rate
         if bestFormat == nil {
             for format in device.formats {
                 let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
@@ -189,10 +219,7 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             }
         }
         
-        guard let format = bestFormat else {
-            print("[STARK Camera] Khong tim thay format phu hop cho \(resolution.rawValue)")
-            return
-        }
+        guard let format = bestFormat else { return }
         
         do {
             try device.lockForConfiguration()
@@ -215,15 +242,15 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             }
             
             device.unlockForConfiguration()
-            print("[STARK Camera] Thiet lap thanh cong: \(targetDims.width)x\(targetDims.height) @ \(Int(targetFps)) FPS")
         } catch {
             print("[STARK Camera] Loi khoa thiet bi: \(error)")
         }
     }
     
-    // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
-    public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        // Measure real framerate
+    // MARK: - ARSessionDelegate (6DoF Tracking & Video Frame)
+    public func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        guard useARKit else { return }
+        
         frameCount += 1
         let now = CFAbsoluteTimeGetCurrent()
         if now - lastFPSCheckTime >= 1.0 {
@@ -233,6 +260,52 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             lastFPSCheckTime = now
         }
         
-        delegate?.cameraEngine(self, didOutput: sampleBuffer)
+        // Trích xuất vị trí & góc quay 6DoF từ ARKit VIO
+        let transform = frame.camera.transform
+        let pos = simd_make_float3(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
+        let quat = simd_quatf(transform)
+        let pose = STARKPose6DoF(position: pos, orientation: quat, timestamp: frame.timestamp)
+        self.latestPose = pose
+        
+        let pts = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000)
+        delegate?.cameraEngine(self, didOutput: frame.capturedImage, timestamp: pts, pose: pose)
+    }
+
+    public func session(_ session: ARSession, cameraDidChangeTrackingState camera: ARCamera) {
+        var statusStr = "Tracking"
+        switch camera.trackingState {
+        case .normal:
+            statusStr = "6DoF (Normal)"
+        case .limited(let reason):
+            switch reason {
+            case .initializing: statusStr = "Khoi tao ARKit..."
+            case .excessiveMotion: statusStr = "Dau quay nhanh"
+            case .insufficientFeatures: statusStr = "Thieu diem phong"
+            case .relocalizing: statusStr = "Dinh vi lai..."
+            @unknown default: statusStr = "Limited"
+            }
+        case .notAvailable:
+            statusStr = "ARKit khong kha dung"
+        }
+        delegate?.cameraEngine(self, didUpdateTrackingState: statusStr)
+    }
+    
+    // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate (Fallback Mode)
+    public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard !useARKit else { return }
+        
+        frameCount += 1
+        let now = CFAbsoluteTimeGetCurrent()
+        if now - lastFPSCheckTime >= 1.0 {
+            let actualFPS = Double(frameCount) / (now - lastFPSCheckTime)
+            delegate?.cameraEngine(self, didUpdateActualFPS: actualFPS)
+            frameCount = 0
+            lastFPSCheckTime = now
+        }
+        
+        if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+            delegate?.cameraEngine(self, didOutput: imageBuffer, timestamp: pts, pose: nil)
+        }
     }
 }

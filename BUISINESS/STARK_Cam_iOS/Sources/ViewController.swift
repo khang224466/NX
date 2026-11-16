@@ -283,9 +283,21 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     }
     
     // MARK: - CameraEngineDelegate
-    func cameraEngine(_ engine: CameraEngine, didOutput sampleBuffer: CMSampleBuffer) {
-        // Feed frame to Apple A15 Bionic hardware H.264 encoder
-        h264Encoder.encode(sampleBuffer: sampleBuffer)
+    func cameraEngine(_ engine: CameraEngine, didOutput pixelBuffer: CVPixelBuffer, timestamp: CMTime, pose: STARKPose6DoF?) {
+        // Feed frame to Apple A15 Bionic hardware H.264 encoder with 6DoF Pose
+        h264Encoder.encode(pixelBuffer: pixelBuffer, presentationTimeStamp: timestamp, pose: pose)
+        
+        if let p = pose {
+            DispatchQueue.main.async { [weak self] in
+                self?.statsLabel.text = String(format: "6DoF (%.2f, %.2f, %.2f) // A15 HW", p.position.x, p.position.y, p.position.z)
+            }
+        }
+    }
+    
+    func cameraEngine(_ engine: CameraEngine, didUpdateTrackingState status: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.statusLabel.text = "ARKit: \(status)"
+        }
     }
     
     func cameraEngine(_ engine: CameraEngine, didUpdateActualFPS fps: Double) {
@@ -299,9 +311,9 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     }
     
     // MARK: - H264EncoderDelegate
-    func h264Encoder(_ encoder: H264Encoder, didEncodeNALU data: Data, isKeyFrame: Bool) {
-        // Send compressed NALU over USB Lightning wire to Laptop
-        usbTunnel.sendFrameData(data)
+    func h264Encoder(_ encoder: H264Encoder, didEncodeNALU data: Data, isKeyFrame: Bool, pose: STARKPose6DoF?) {
+        // Send compressed NALU + synchronized 28B 6DoF Pose over USB Lightning wire to Laptop
+        usbTunnel.sendFrameData(data, pose: pose)
     }
     
     // MARK: - USBTunnelDelegate

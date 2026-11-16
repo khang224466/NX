@@ -3,7 +3,12 @@ import VideoToolbox
 import CoreMedia
 
 public protocol H264EncoderDelegate: AnyObject {
-    func h264Encoder(_ encoder: H264Encoder, didEncodeNALU data: Data, isKeyFrame: Bool)
+    func h264Encoder(_ encoder: H264Encoder, didEncodeNALU data: Data, isKeyFrame: Bool, pose: STARKPose6DoF?)
+}
+
+private final class PoseBox {
+    let pose: STARKPose6DoF?
+    init(_ pose: STARKPose6DoF?) { self.pose = pose }
 }
 
 public class H264Encoder {
@@ -69,23 +74,46 @@ public class H264Encoder {
         print("[STARK Encoder] VideoToolbox Hardware H.264 San sang: \(width)x\(height) @ \(fps) FPS, Bitrate: \(bitrate / 1_000_000) Mbps")
     }
     
-    public func encode(sampleBuffer: CMSampleBuffer) {
+    public func encode(sampleBuffer: CMSampleBuffer, pose: STARKPose6DoF? = nil) {
         guard let session = compressionSession,
               let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         let duration = CMSampleBufferGetDuration(sampleBuffer)
+        let refCon = Unmanaged.passRetained(PoseBox(pose)).toOpaque()
         
         var flags: VTEncodeInfoFlags = []
-        VTCompressionSessionEncodeFrame(
+        let status = VTCompressionSessionEncodeFrame(
             session,
             imageBuffer: imageBuffer,
             presentationTimeStamp: pts,
             duration: duration,
             frameProperties: nil,
-            sourceFrameRefcon: nil,
+            sourceFrameRefcon: refCon,
             infoFlagsOut: &flags
         )
+        if status != noErr {
+            _ = Unmanaged<PoseBox>.fromOpaque(refCon).takeRetainedValue()
+        }
+    }
+
+    public func encode(pixelBuffer: CVPixelBuffer, presentationTimeStamp pts: CMTime, duration: CMTime = .invalid, pose: STARKPose6DoF? = nil) {
+        guard let session = compressionSession else { return }
+        
+        let refCon = Unmanaged.passRetained(PoseBox(pose)).toOpaque()
+        var flags: VTEncodeInfoFlags = []
+        let status = VTCompressionSessionEncodeFrame(
+            session,
+            imageBuffer: pixelBuffer,
+            presentationTimeStamp: pts,
+            duration: duration,
+            frameProperties: nil,
+            sourceFrameRefcon: refCon,
+            infoFlagsOut: &flags
+        )
+        if status != noErr {
+            _ = Unmanaged<PoseBox>.fromOpaque(refCon).takeRetainedValue()
+        }
     }
     
     public func teardown() {
@@ -108,6 +136,12 @@ private func compressionCallback(
     infoFlags: VTEncodeInfoFlags,
     sampleBuffer: CMSampleBuffer?
 ) {
+    var framePose: STARKPose6DoF? = nil
+    if let sourceFrameRefCon = sourceFrameRefCon {
+        let box = Unmanaged<PoseBox>.fromOpaque(sourceFrameRefCon).takeRetainedValue()
+        framePose = box.pose
+    }
+
     guard status == noErr, let sampleBuffer = sampleBuffer, let refCon = outputCallbackRefCon else { return }
     let encoder = Unmanaged<H264Encoder>.fromOpaque(refCon).takeUnretainedValue()
     
@@ -138,7 +172,7 @@ private func compressionCallback(
             if status == noErr, let sps = spsPointer {
                 var spsData = Data([0x00, 0x00, 0x00, 0x01])
                 spsData.append(sps, count: spsSize)
-                encoder.delegate?.h264Encoder(encoder, didEncodeNALU: spsData, isKeyFrame: true)
+                encoder.delegate?.h264Encoder(encoder, didEncodeNALU: spsData, isKeyFrame: true, pose: framePose)
             }
             
             var ppsSize: Int = 0
@@ -155,7 +189,7 @@ private func compressionCallback(
             if status == noErr, let pps = ppsPointer {
                 var ppsData = Data([0x00, 0x00, 0x00, 0x01])
                 ppsData.append(pps, count: ppsSize)
-                encoder.delegate?.h264Encoder(encoder, didEncodeNALU: ppsData, isKeyFrame: true)
+                encoder.delegate?.h264Encoder(encoder, didEncodeNALU: ppsData, isKeyFrame: true, pose: framePose)
             }
         }
     }
@@ -181,7 +215,7 @@ private func compressionCallback(
         var naluData = Data([0x00, 0x00, 0x00, 0x01])
         naluData.append(UnsafePointer<UInt8>(OpaquePointer(slicePointer)), count: Int(naluLength))
         
-        encoder.delegate?.h264Encoder(encoder, didEncodeNALU: naluData, isKeyFrame: isKeyFrame)
+        encoder.delegate?.h264Encoder(encoder, didEncodeNALU: naluData, isKeyFrame: isKeyFrame, pose: framePose)
         bufferOffset += avccHeaderLength + Int(naluLength)
     }
 }

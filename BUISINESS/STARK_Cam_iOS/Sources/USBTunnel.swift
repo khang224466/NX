@@ -1,5 +1,39 @@
 import Foundation
 import Network
+import simd
+
+public struct STARKPose6DoF {
+    public var position: simd_float3 // x, y, z in meters
+    public var orientation: simd_quatf // qx, qy, qz, qw
+    public var timestamp: TimeInterval
+
+    public init(position: simd_float3, orientation: simd_quatf, timestamp: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        self.position = position
+        self.orientation = orientation
+        self.timestamp = timestamp
+    }
+
+    // 28 bytes binary data (Little Endian: 3f pos + 4f quat)
+    public var binaryData: Data {
+        var data = Data(capacity: 28)
+        var px = position.x
+        var py = position.y
+        var pz = position.z
+        var qx = orientation.vector.x
+        var qy = orientation.vector.y
+        var qz = orientation.vector.z
+        var qw = orientation.vector.w
+
+        withUnsafeBytes(of: &px) { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: &py) { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: &pz) { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: &qx) { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: &qy) { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: &qz) { data.append(contentsOf: $0) }
+        withUnsafeBytes(of: &qw) { data.append(contentsOf: $0) }
+        return data
+    }
+}
 
 public protocol USBTunnelDelegate: AnyObject {
     func usbTunnelDidConnectClient(_ tunnel: USBTunnel)
@@ -90,14 +124,32 @@ public class USBTunnel {
         connection.start(queue: tunnelQueue)
     }
     
-    // Send NALU frame over USB to PC
-    public func sendFrameData(_ data: Data) {
+    // Send NALU frame over USB to PC (supports optional 6DoF Pose multiplexing)
+    public func sendFrameData(_ data: Data, pose: STARKPose6DoF? = nil) {
         guard let connection = activeConnection, isClientConnected else { return }
         
-        // Prefix with 4-byte big-endian payload length for streaming TCP packet framing
-        var length = UInt32(data.count).bigEndian
-        var packet = Data(bytes: &length, count: 4)
-        packet.append(data)
+        var packet: Data
+        if let pose = pose {
+            // Multiplexed 6DoF Packet:
+            // [4B Magic '6DOF'] + [4B Type 0x01] + [28B Pose Data] + [H.264 Payload]
+            let magic = "6DOF".data(using: .ascii)!
+            var packetType = UInt32(1).littleEndian
+            let typeData = Data(bytes: &packetType, count: 4)
+            
+            let totalPayloadLength = magic.count + typeData.count + 28 + data.count
+            var length = UInt32(totalPayloadLength).bigEndian
+            
+            packet = Data(bytes: &length, count: 4)
+            packet.append(magic)
+            packet.append(typeData)
+            packet.append(pose.binaryData)
+            packet.append(data)
+        } else {
+            // Standard NALU video packet
+            var length = UInt32(data.count).bigEndian
+            packet = Data(bytes: &length, count: 4)
+            packet.append(data)
+        }
         
         connection.send(content: packet, completion: .contentProcessed({ error in
             if let error = error {

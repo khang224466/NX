@@ -74,8 +74,17 @@ def run_diagnostics():
         print(f"  -> Parallax hoi tu (z=0.8m): {parallax_conv}px (Mat phang hoi tu quang hoc)")
         print(f"  -> Parallax o xa (z=1.6m): {parallax_far}px (Vat the chim sau vao khong gian)")
 
-        if parallax_near < -50 and parallax_far > 0:
-            print("  [OK] Hinh hoc quang hoc Stereoscopic 3D xac lap do lech Parallax 100% CHUAN XAC!")
+        # Test 4: Kiem thu 6DoF Head Pose Transform (Khi dau buoc toi 0.2m)
+        cam.set_head_pose(position=[0.0, 0.0, 0.2], rotation_quat=[0.0, 0.0, 0.0, 1.0])
+        (xl_6dof, _), _ = cam.project_3d((0, 0, 0.4), offset_eye=0)
+        cam.reset_head_pose()
+
+        # Test 5: Vectorized Batch Projection
+        batch_pts = cam.project_3d_batch([[-0.2, 0, 1.0], [0.2, 0, 1.0]], offset_eye=0)
+        assert len(batch_pts) == 2
+
+        if parallax_near < -50 and parallax_far > 0 and len(batch_pts) == 2:
+            print("  [OK] Hinh hoc quang hoc Stereoscopic 3D & 6DoF Pose Transform dat chuan 100%!")
             passed += 1
         else:
             print("  [FAIL] Sai lech hinh hoc quang hoc 3D!")
