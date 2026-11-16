@@ -1,23 +1,30 @@
 @echo off
-title STARK CARDBOARDXR // WINDOWS SPATIAL COMPUTING SUITE v9.8.0 PRO
+title STARK CARDBOARDXR // WINDOWS SPATIAL COMPUTING SUITE v10.2.88 PRO
 cd /d "%~dp0"
+color 0B
 
 echo ======================================================================
-echo    STARK CARDBOARDXR PRO // WINDOWS NATIVE SPATIAL SUITE
-echo    Running directly on Windows 11 with NVIDIA RTX 4060 GPU
+echo    STARK CARDBOARDXR PRO // WINDOWS NATIVE SPATIAL SUITE (v10.2.88)
+echo    100%% Ranh tay (Hands-Free), AimHistory chong hut nut, Material 3
 echo ======================================================================
 echo.
-echo    [1] 3D Air Paint (Tilt Brush in Space)
-echo    [2] AR Spatial Portal (Cyberpunk Doorway)
-echo    [3] Orb Rush Rhythm Game (Hand Collision Beat Saber)
-echo    [4] 3D Cube Physics (Ray & Pinch Grab & Throw)
-echo    [5] Precision 3D Caliper (mm/cm Measurement)
-echo    [X] Switch Camera Input (Toggle Laptop Webcam / iPhone USB Passthrough)
-    [V] Toggle Stereo VR SBS Mode (Shinecon G10)
-echo    [C] Clear 3D Canvas
-echo    [Z] Undo 3D Stroke
-echo    [N] Next Color
+echo    [1] (Khuyen dung) Chay qua cap USB Lightning iPhone (120 FPS sieu muot)
+echo    [2] Chay truc tiep bang Webcam Laptop (Standalone OpenCV)
 echo.
-echo Starting Engine...
-python stark_cardboard_xr.py
-pause
+set "choice=1"
+set /p "choice=Chon che do khoi chay [1 hoac 2, mac dinh la 1]: "
+
+if "%choice%"=="2" (
+    echo [*] Dang khoi chay che do Standalone Laptop Webcam...
+    python stark_cardboard_xr.py
+) else (
+    echo [*] Dang khoi chay che do Tethered iPhone USB 120 FPS...
+    python stark_tethered_bridge.py
+)
+
+if %errorlevel% neq 0 (
+    color 0C
+    echo.
+    echo [!] Chuong trinh dung lai voi ma loi %errorlevel%.
+    pause
+)
