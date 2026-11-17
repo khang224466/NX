@@ -246,7 +246,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
             // Status Card
             statusCard.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
             statusCard.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-            statusCard.widthAnchor.constraint(equalToConstant: 320),
+            statusCard.widthAnchor.constraint(equalToConstant: 344),
             statusCard.heightAnchor.constraint(equalToConstant: 64),
             
             statusDot.leadingAnchor.constraint(equalTo: statusCard.contentView.leadingAnchor, constant: 14),
@@ -255,6 +255,7 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
             statusDot.heightAnchor.constraint(equalToConstant: 10),
             
             statusLabel.leadingAnchor.constraint(equalTo: statusDot.trailingAnchor, constant: 8),
+            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: fpsLabel.leadingAnchor, constant: -10),
             statusLabel.centerYAnchor.constraint(equalTo: statusDot.centerYAnchor),
             
             fpsLabel.trailingAnchor.constraint(equalTo: statusCard.contentView.trailingAnchor, constant: -14),
@@ -295,9 +296,9 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         }
     }
     
-    private func startHUDTimer() {
+    private func startHUDTimer(_ delay: TimeInterval = 3.0) {
         hudDismissTimer?.invalidate()
-        hudDismissTimer = Timer.scheduledTimer(withTimeInterval: 6.0, repeats: false) { [weak self] _ in
+        hudDismissTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             guard let self = self, !self.isHUDHidden else { return }
             self.toggleHUD()
         }
@@ -378,7 +379,8 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
             self.isUsingH264Return = false
             self.h264DisplayLayer.flush()
             self.statusDot.backgroundColor = .systemGreen
-            self.statusLabel.text = "DA KET NOI USB LAPTOP (480Mbps)"
+            self.statusLabel.text = "USB LAPTOP 480M"
+            self.startHUDTimer(1.5)
         }
     }
     
