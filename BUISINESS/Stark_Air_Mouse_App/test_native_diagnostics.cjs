@@ -1,5 +1,5 @@
 /**
- * STARK CARDBOARDXR // NATIVE NODE.JS DIAGNOSTICS SUITE (v10.6.01 PRO)
+ * STARK CARDBOARDXR // NATIVE NODE.JS DIAGNOSTICS SUITE (v10.7.00 PRO)
  * Kiếm thử tự động 100% Zero-Python: Node.js, Native usbmuxd USB, Three.js WebGL2,
  * MediaPipe GPU WASM Bundle, Hand Landmarker Model, và WebSocket IPC.
  */
@@ -22,7 +22,7 @@ async function fetchStatus(url) {
 
 async function runNativeDiagnostics() {
   console.log("===========================================================================");
-  console.log("   STARK MARK ILX - KIEM THU NATIVE GPU ENGINE v10.6.01 PRO (ZERO PYTHON)");
+  console.log("   STARK MARK ILX - KIEM THU NATIVE GPU ENGINE v10.7.00 PRO (ZERO PYTHON)");
   console.log("===========================================================================\n");
 
   let passed = 0;
@@ -89,8 +89,8 @@ async function runNativeDiagnostics() {
     console.log(`  [FAIL] Loi HTTP Server: ${e.message}`);
   }
 
-  // 4. Verify All 7 CardboardXR Spatial Apps, PBR Studio Lighting, Hand Occlusion & H.264 60FPS Return
-  console.log("\n[4/6] Kiem tra 7 Apps 3D PBR, Hand Depth Occlusion, Pose RingBuffer & H.264 60FPS Return...");
+  // 4. Verify All 7 CardboardXR Spatial Apps, 3D Environments, Zero-Copy Swapchain & H.264 60FPS Return
+  console.log("\n[4/6] Kiem tra 7 Apps 3D PBR, 3D Environment (AR/VR), Zero-Copy WebGL2 & H.264 60FPS Return...");
   const htmlContent = fs.readFileSync(path.join(__dirname, "stark_xr_gpu_engine.html"), "utf8");
   const serverContent = fs.readFileSync(path.join(__dirname, "stark_xr_native_server.cjs"), "utf8");
   const hasAllApps =
@@ -102,6 +102,9 @@ async function runNativeDiagnostics() {
     htmlContent.includes("VideoEncoder") &&
     htmlContent.includes("PMREMGenerator") &&
     htmlContent.includes("handOccluderState") &&
+    htmlContent.includes("envState") &&
+    htmlContent.includes("vrFloorRoot") &&
+    htmlContent.includes("uiFullOverlayScene") &&
     htmlContent.includes("poseBuffer") &&
     htmlContent.includes("createEyeDistortionMesh") &&
     htmlContent.includes("predictHorizonMs") &&
@@ -111,7 +114,7 @@ async function runNativeDiagnostics() {
     serverContent.includes("sendH264BackToIphone") &&
     serverContent.includes("latestPendingJpeg");
   if (hasAllApps) {
-    console.log("  [OK] Day du 7 Spatial Apps PBR + Stencil Portal + Tesseract Cube + Hand Z-Occlusion!");
+    console.log("  [OK] Day du 7 Spatial Apps + 3D AR/VR Environment + Cyber-Hand + Zero-Copy WebGL2!");
     console.log("  [OK] Tich hop NVENC H.264 Return (0x06) + ARKit VFOV Sync + OffscreenCanvas JPEG Mirror!");
     passed++;
   } else {

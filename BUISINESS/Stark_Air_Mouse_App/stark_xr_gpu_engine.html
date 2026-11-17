@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
-  <title>STARK CardboardXR // RTX 4060 WebGL2 + MediaPipe GPU Engine (v10.6.01 PRO)</title>
+  <title>STARK CardboardXR // RTX 4060 WebGL2 + MediaPipe GPU Engine (v10.7.00 PRO)</title>
   <script src="/three.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
@@ -69,7 +69,7 @@
     <span id="status-text">GPU ENGINE INITIALIZING...</span>
   </div>
   <div id="quick-keys">
-    [1-7] Chuyển App | [V] 1-SCR / SBS VR | [B] Thấu kính VR | [Q] H.264 / JPEG | [O] Tay 3D | [R] Recenter
+    [1-7] Chuyển App | [E] 3D Room / AR | [V] 1-SCR / SBS VR | [B] Thấu kính VR | [Q] H.264 / JPEG | [O] Tay 3D | [R] Recenter
   </div>
 
   <!-- Hidden Video Elements for Local Webcam & VR Video Demo -->
@@ -483,7 +483,7 @@
         this.smoothRoll += (this.targetRoll - this.smoothRoll) * blend;
       }
 
-      applyToCamera(cam, predictiveMode = false) {
+      applyToCamera(cam, predictiveMode = false, dt = 0.016) {
         if (this.hasHardwarePose) {
           if (this.vFovDeg && Math.abs(cam.fov - this.vFovDeg) > 0.15) {
             cam.fov = this.vFovDeg;
@@ -517,8 +517,15 @@
           }
           const relPos = samplePos.sub(this.originPos).applyQuaternion(this.originQuatInv);
           const relQuat = this.originQuatInv.clone().multiply(sampleQuat);
-          cam.position.lerp(relPos, predictiveMode ? 0.96 : 0.85);
-          cam.quaternion.slerp(relQuat, predictiveMode ? 0.96 : 0.85);
+          if (cam.position.distanceToSquared(relPos) > 4.0) {
+            cam.position.copy(relPos);
+            cam.quaternion.copy(relQuat);
+          } else {
+            const followRate = predictiveMode ? 180.0 : 115.0;
+            const alphaPose = 1.0 - Math.exp(-Math.max(0.001, dt) * followRate);
+            cam.position.lerp(relPos, alphaPose);
+            cam.quaternion.slerp(relQuat, alphaPose);
+          }
         } else {
           cam.position.set(0, 0, 0);
           // Three.js camera looks down -Z: yaw around Y, pitch around X
@@ -534,21 +541,18 @@
     // =========================================================================
     const W = 1280, H = 720;
     const compCanvas = document.getElementById("composite-canvas");
-    const compCtx = compCanvas.getContext("2d", { alpha: false });
 
-    // Offscreen WebGL2 Renderer for 3D Holograms & CardboardXR Meshes (with Stencil + ACES Filmic)
-    const glCanvas = document.createElement("canvas");
-    glCanvas.width = W;
-    glCanvas.height = H;
+    // Zero-Copy Direct WebGL2 Swapchain on #composite-canvas (eliminates GPU->2D->GPU readback!)
     const renderer = new THREE.WebGLRenderer({
-      canvas: glCanvas,
-      alpha: true,
+      canvas: compCanvas,
+      alpha: false,
       antialias: true,
       stencil: true,
       powerPreference: "high-performance"
     });
     renderer.setSize(W, H, false);
     renderer.setPixelRatio(1);
+    renderer.setClearColor(0x030712, 1.0);
     renderer.autoClear = false;
     renderer.shadowMap.enabled = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -560,7 +564,7 @@
     const videoCanvas = document.createElement("canvas");
     videoCanvas.width = W;
     videoCanvas.height = H;
-    const videoCtx = videoCanvas.getContext("2d", { alpha: false });
+    const videoCtx = videoCanvas.getContext("2d", { alpha: false, desynchronized: true });
     const videoBgTex = new THREE.CanvasTexture(videoCanvas);
     videoBgTex.minFilter = THREE.LinearFilter;
     videoBgTex.magFilter = THREE.LinearFilter;
@@ -615,14 +619,27 @@
     const uiLayerCanvas = document.createElement("canvas");
     uiLayerCanvas.width = 640;
     uiLayerCanvas.height = 720;
-    const uiLayerCtx = uiLayerCanvas.getContext("2d");
+    const uiLayerCtx = uiLayerCanvas.getContext("2d", { desynchronized: true });
     const uiLayerTex = new THREE.CanvasTexture(uiLayerCanvas);
     uiLayerTex.minFilter = THREE.LinearFilter;
     uiLayerTex.magFilter = THREE.LinearFilter;
     const uiOverlayScene = new THREE.Scene();
     uiOverlayScene.add(new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
-      new THREE.MeshBasicMaterial({ map: uiLayerTex, transparent: true, depthTest: false, depthWrite: false })
+      new THREE.MeshBasicMaterial({ map: uiLayerTex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false })
+    ));
+
+    const uiFullCanvas = document.createElement("canvas");
+    uiFullCanvas.width = W;
+    uiFullCanvas.height = H;
+    const uiFullCtx = uiFullCanvas.getContext("2d", { desynchronized: true });
+    const uiFullTex = new THREE.CanvasTexture(uiFullCanvas);
+    uiFullTex.minFilter = THREE.LinearFilter;
+    uiFullTex.magFilter = THREE.LinearFilter;
+    const uiFullOverlayScene = new THREE.Scene();
+    uiFullOverlayScene.add(new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      new THREE.MeshBasicMaterial({ map: uiFullTex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false })
     ));
 
     // Pre-Calculated 48x48 Barrel Distortion + R/G/B Lateral Chromatic Aberration + Hidden Area Vignette
@@ -719,11 +736,15 @@
     }
     const vrOpticsScene = new THREE.Scene();
     vrOpticsScene.add(createEyeDistortionMesh(0, 48), createEyeDistortionMesh(1, 48));
+    const vrDividerGeo = new THREE.PlaneGeometry(0.006, 2);
+    const vrDividerMat = new THREE.MeshBasicMaterial({ color: 0x000000, depthTest: false, depthWrite: false, toneMapped: false });
+    vrOpticsScene.add(new THREE.Mesh(vrDividerGeo, vrDividerMat));
     const vrFlatScene = new THREE.Scene();
     vrFlatScene.add(new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
-      new THREE.MeshBasicMaterial({ map: stereoTarget.texture, depthTest: false, depthWrite: false })
+      new THREE.MeshBasicMaterial({ map: stereoTarget.texture, depthTest: false, depthWrite: false, toneMapped: false })
     ));
+    vrFlatScene.add(new THREE.Mesh(vrDividerGeo, vrDividerMat));
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, W / H, 0.05, 60.0);
@@ -779,15 +800,22 @@
         [0, 17], [17, 18], [18, 19], [19, 20]
       ],
       init() {
-        const depthMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true });
+        this.depthMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true });
+        this.holoMat = new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.68,
+          depthWrite: true
+        });
+        this.isVrHolo = false;
         const boneGeo = new THREE.CylinderGeometry(0.0058, 0.0066, 1.0, 8);
         for (let i = 0; i < this.pairs.length; i++) {
-          const m = new THREE.Mesh(boneGeo, depthMat);
+          const m = new THREE.Mesh(boneGeo, this.depthMat);
           m.renderOrder = -10;
           this.group.add(m);
           this.bones.push(m);
         }
-        this.palmSphere = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 12), depthMat);
+        this.palmSphere = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 12), this.depthMat);
         this.palmSphere.renderOrder = -10;
         this.group.add(this.palmSphere);
 
@@ -802,11 +830,21 @@
         this.group.visible = false;
         scene.add(this.group);
       },
-      update(lms3dWorld, pinchPtWorld, isPinched, cam, enabled, skipTipOcc) {
+      update(lms3dWorld, pinchPtWorld, isPinched, cam, enabled, skipTipOcc, vrHoloMode = false) {
         this.reticle.visible = false; // 2D Reticle + targetDot keep HUD crisp with zero overlapping rings
         if (!lms3dWorld || lms3dWorld.length < 21) {
           this.group.visible = false;
           return;
+        }
+        const useHolo = !!vrHoloMode;
+        if (useHolo !== this.isVrHolo) {
+          this.isVrHolo = useHolo;
+          const m = useHolo ? this.holoMat : this.depthMat;
+          for (let i = 0; i < this.bones.length; i++) this.bones[i].material = m;
+          if (this.palmSphere) this.palmSphere.material = m;
+        }
+        if (useHolo) {
+          this.holoMat.color.setHex(isPinched ? 0xfbbf24 : 0x38bdf8);
         }
         this.group.visible = enabled;
         if (enabled) {
@@ -841,6 +879,300 @@
       }
     };
     handOccluderState.init();
+
+    // -------------------------------------------------------------------------
+    // 4C. SPATIAL 3D ENVIRONMENT ENGINE (AR ROOM + CARDBOARDXR 360 VR ROOM)
+    // -------------------------------------------------------------------------
+    const envGroup = new THREE.Group();
+    scene.add(envGroup);
+
+    const envState = {
+      arGroup: new THREE.Group(),
+      arFloorRoot: new THREE.Group(),
+      vrGroup: new THREE.Group(),
+      vrFloorRoot: new THREE.Group(),
+      beacons: [],
+      dirMarkers: [],
+      motes: null,
+      floorY: -0.225,
+      init() {
+        envGroup.add(this.arGroup, this.vrGroup);
+        this.arGroup.add(this.arFloorRoot);
+        this.arFloorRoot.position.set(0, this.floorY, 0);
+
+        // --- AR ROOM: Radial-Faded 8x8m Hologram Floor Grid ---
+        const arGridGeo = new THREE.PlaneGeometry(8.0, 8.0);
+        arGridGeo.rotateX(-Math.PI / 2);
+        const arGridMat = new THREE.ShaderMaterial({
+          transparent: true,
+          depthWrite: false,
+          uniforms: {
+            uTime: { value: 0 },
+            uCenter: { value: new THREE.Vector2(0, -0.58) }
+          },
+          vertexShader: `
+            varying vec3 vWorldPos;
+            void main() {
+              vec4 wp = modelMatrix * vec4(position, 1.0);
+              vWorldPos = wp.xyz;
+              gl_Position = projectionMatrix * viewMatrix * wp;
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform vec2 uCenter;
+            varying vec3 vWorldPos;
+            void main() {
+              vec2 p = vWorldPos.xz - uCenter;
+              float dist = length(p);
+              float radialFade = 1.0 - smoothstep(0.95, 3.85, dist);
+              if (radialFade <= 0.005) discard;
+              vec2 gMinor = abs(fract(p * 4.0 - 0.5) - 0.5) / fwidth(p * 4.0);
+              float minorLine = 1.0 - min(min(gMinor.x, gMinor.y), 1.0);
+              vec2 gMajor = abs(fract(p * 1.0 - 0.5) - 0.5) / fwidth(p * 1.0);
+              float majorLine = 1.0 - min(min(gMajor.x, gMajor.y), 1.0);
+              float pulse = 0.85 + 0.15 * sin(dist * 4.5 - uTime * 2.2);
+              vec3 col = mix(vec3(0.0, 0.72, 1.0), vec3(0.55, 0.88, 1.0), majorLine);
+              float a = radialFade * (minorLine * 0.24 + majorLine * 0.52) * pulse;
+              gl_FragColor = vec4(col, a);
+            }
+          `
+        });
+        const arGrid = new THREE.Mesh(arGridGeo, arGridMat);
+        arGrid.position.set(0, 0, -0.58);
+        arGrid.renderOrder = -2;
+        this.arGridMat = arGridMat;
+        this.arFloorRoot.add(arGrid);
+
+        // 3 Concentric Spatial Radar Rings around active hologram desk (-0.58m)
+        const ringRadii = [
+          { r0: 0.38, r1: 0.39, col: 0x00f3ff, op: 0.45 },
+          { r0: 0.95, r1: 0.962, col: 0x38bdf8, op: 0.28 },
+          { r0: 1.85, r1: 1.868, col: 0x818cf8, op: 0.18 }
+        ];
+        for (const rr of ringRadii) {
+          const rg = new THREE.RingGeometry(rr.r0, rr.r1, 64);
+          rg.rotateX(-Math.PI / 2);
+          const rm = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({
+            color: rr.col, transparent: true, opacity: rr.op, side: THREE.DoubleSide, depthWrite: false
+          }));
+          rm.position.set(0, 0.002, -0.58);
+          this.arFloorRoot.add(rm);
+        }
+
+        // 4 Spatial Depth Corner Beacons (strong 6DoF parallax landmarks in real room!)
+        const beaconCoords = [
+          { x: -1.35, y: 0.45, z: -1.45, col: 0x00f3ff },
+          { x: 1.35, y: 0.45, z: -1.45, col: 0x38bdf8 },
+          { x: -1.75, y: 0.50, z: 0.85, col: 0xa78bfa },
+          { x: 1.75, y: 0.50, z: 0.85, col: 0xa78bfa }
+        ];
+        for (const bc of beaconCoords) {
+          const pillar = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.004, 0.008, 1.0, 8),
+            new THREE.MeshBasicMaterial({ color: bc.col, transparent: true, opacity: 0.30, depthWrite: false })
+          );
+          pillar.position.set(bc.x, bc.y - 0.12, bc.z);
+          this.arFloorRoot.add(pillar);
+
+          const gem = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.052, 0),
+            new THREE.MeshBasicMaterial({ color: bc.col, wireframe: true, transparent: true, opacity: 0.72 })
+          );
+          gem.position.set(bc.x, bc.y + 0.44, bc.z);
+          this.arFloorRoot.add(gem);
+          this.beacons.push({ mesh: gem, baseY: bc.y + 0.44, phase: Math.abs(bc.x + bc.z) });
+        }
+
+        // 80 Ambient 3D Spatial Dust Motes (Parallax Depth Cues)
+        const moteCount = 80;
+        const posArr = new Float32Array(moteCount * 3);
+        const colArr = new Float32Array(moteCount * 3);
+        for (let i = 0; i < moteCount; i++) {
+          posArr[i * 3] = (Math.random() - 0.5) * 4.6;
+          posArr[i * 3 + 1] = -0.35 + Math.random() * 1.65;
+          posArr[i * 3 + 2] = -2.8 + Math.random() * 4.2;
+          const cyanMix = Math.random();
+          colArr[i * 3] = 0.25 + 0.35 * (1 - cyanMix);
+          colArr[i * 3 + 1] = 0.78 + 0.22 * cyanMix;
+          colArr[i * 3 + 2] = 1.0;
+        }
+        const moteGeo = new THREE.BufferGeometry();
+        moteGeo.setAttribute("position", new THREE.BufferAttribute(posArr, 3));
+        moteGeo.setAttribute("color", new THREE.BufferAttribute(colArr, 3));
+        this.motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
+          size: 0.022,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.65,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        }));
+        this.arGroup.add(this.motes);
+
+        // --- VR 3D ROOM (Full 360° CardboardXR Port: 900-Star SkyDome + 10m Checker Room + 6 Direction Markers) ---
+        this.vrGroup.add(this.vrFloorRoot);
+        this.vrFloorRoot.position.set(0, this.floorY, 0);
+
+        // 1. CardboardXR Starry Night SkyDome (1024x512 CanvasTexture with 900 Stars)
+        const skyCanvas = document.createElement("canvas");
+        skyCanvas.width = 1024;
+        skyCanvas.height = 512;
+        const sctx = skyCanvas.getContext("2d");
+        const grad = sctx.createLinearGradient(0, 0, 0, 512);
+        grad.addColorStop(0.0, "#03050d");
+        grad.addColorStop(0.55, "#091026");
+        grad.addColorStop(1.0, "#050711");
+        sctx.fillStyle = grad;
+        sctx.fillRect(0, 0, 1024, 512);
+        for (let i = 0; i < 900; i++) {
+          const sx = Math.random() * 1024;
+          const sy = Math.random() * 340;
+          const sr = Math.random() < 0.12 ? 1.6 : (0.6 + Math.random() * 0.7);
+          const br = 0.35 + Math.random() * 0.65;
+          sctx.fillStyle = i % 7 === 0 ? `rgba(125,211,252,${br})` : `rgba(241,245,249,${br})`;
+          sctx.beginPath();
+          sctx.arc(sx, sy, sr, 0, Math.PI * 2);
+          sctx.fill();
+        }
+        const skyTex = new THREE.CanvasTexture(skyCanvas);
+        const skyDome = new THREE.Mesh(
+          new THREE.SphereGeometry(24, 32, 24),
+          new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, depthWrite: false, toneMapped: false })
+        );
+        this.vrGroup.add(skyDome);
+
+        // 2. CardboardXR Procedural Checkered Grid Texture (CreateGridTexture)
+        const gridCan = document.createElement("canvas");
+        gridCan.width = 256;
+        gridCan.height = 256;
+        const gctx = gridCan.getContext("2d");
+        gctx.fillStyle = "#111b33";
+        gctx.fillRect(0, 0, 256, 256);
+        gctx.fillStyle = "#1a284a";
+        gctx.fillRect(0, 0, 128, 128);
+        gctx.fillRect(128, 128, 128, 128);
+        gctx.strokeStyle = "rgba(56, 189, 248, 0.32)";
+        gctx.lineWidth = 2;
+        gctx.strokeRect(0, 0, 128, 128);
+        gctx.strokeRect(128, 128, 128, 128);
+        gctx.strokeRect(128, 0, 128, 128);
+        gctx.strokeRect(0, 128, 128, 128);
+
+        const floorTex = new THREE.CanvasTexture(gridCan);
+        floorTex.wrapS = THREE.RepeatWrapping;
+        floorTex.wrapT = THREE.RepeatWrapping;
+        floorTex.repeat.set(6, 6);
+        const wallTex = new THREE.CanvasTexture(gridCan);
+        wallTex.wrapS = THREE.RepeatWrapping;
+        wallTex.wrapT = THREE.RepeatWrapping;
+        wallTex.repeat.set(6, 3);
+
+        const vrFloorY = -0.56;
+        const vrFloor = new THREE.Mesh(
+          new THREE.PlaneGeometry(10, 10),
+          new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.68, metalness: 0.18 })
+        );
+        vrFloor.rotation.x = -Math.PI / 2;
+        vrFloor.position.y = vrFloorY;
+        this.vrFloorRoot.add(vrFloor);
+
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8, metalness: 0.12 });
+        const wallConfigs = [
+          { x: 0, z: -5, ry: 0 },
+          { x: 0, z: 5, ry: Math.PI },
+          { x: -5, z: 0, ry: Math.PI / 2 },
+          { x: 5, z: 0, ry: -Math.PI / 2 }
+        ];
+        for (const wc of wallConfigs) {
+          const wMesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), wallMat);
+          wMesh.position.set(wc.x, vrFloorY + 2.5, wc.z);
+          wMesh.rotation.y = wc.ry;
+          this.vrFloorRoot.add(wMesh);
+
+          const neonStrip = new THREE.Mesh(
+            new THREE.PlaneGeometry(10, 0.045),
+            new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.55, toneMapped: false })
+          );
+          neonStrip.position.set(wc.x, vrFloorY + 0.03, wc.z + (wc.z === 5 ? -0.01 : wc.z === -5 ? 0.01 : 0));
+          if (wc.x !== 0) neonStrip.position.x = wc.x + (wc.x === 5 ? -0.01 : 0.01);
+          neonStrip.rotation.y = wc.ry;
+          this.vrFloorRoot.add(neonStrip);
+        }
+
+        // 3. Hologram Workbench Pedestal right below the Tesseract / Demo Area (-0.58m)
+        const pedCol = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.11, 0.16, Math.abs(vrFloorY) - 0.02, 24),
+          new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.72, roughness: 0.25 })
+        );
+        pedCol.position.set(0, vrFloorY * 0.5 - 0.01, -0.58);
+        const pedTop = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.32, 0.30, 0.022, 32),
+          new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.65, roughness: 0.2 })
+        );
+        pedTop.position.set(0, -0.012, -0.58);
+        const pedRim = new THREE.Mesh(
+          new THREE.TorusGeometry(0.32, 0.008, 12, 48),
+          new THREE.MeshBasicMaterial({ color: 0x00f3ff, toneMapped: false })
+        );
+        pedRim.rotation.x = Math.PI / 2;
+        pedRim.position.set(0, -0.002, -0.58);
+        this.vrFloorRoot.add(pedCol, pedTop, pedRim);
+
+        // 4. CardboardXR 6 Cardinal Color Orientation Cubes (Ahead Red, Above White, Right Green, Left Blue, Behind Magenta, Near Amber)
+        const markers = [
+          { x: 0, y: 0.55, z: -4.2, col: 0xef4444, s: 0.34 },
+          { x: 0, y: 3.10, z: -2.0, col: 0xf8fafc, s: 0.34 },
+          { x: 4.2, y: 0.55, z: 0, col: 0x22c55e, s: 0.34 },
+          { x: -4.2, y: 0.55, z: 0, col: 0x3b82f6, s: 0.34 },
+          { x: 0, y: 0.55, z: 4.2, col: 0xe879f9, s: 0.34 },
+          { x: 0, y: 0.12, z: 1.75, col: 0xf59e0b, s: 0.22 }
+        ];
+        const mkBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const mkEdgeGeo = new THREE.EdgesGeometry(mkBoxGeo);
+        for (const mk of markers) {
+          const g = new THREE.Group();
+          const core = new THREE.Mesh(mkBoxGeo, new THREE.MeshStandardMaterial({
+            color: mk.col, emissive: mk.col, emissiveIntensity: 0.45, roughness: 0.25, metalness: 0.35
+          }));
+          const wire = new THREE.LineSegments(mkEdgeGeo, new THREE.LineBasicMaterial({ color: 0xffffff }));
+          wire.scale.setScalar(1.04);
+          g.add(core, wire);
+          g.scale.setScalar(mk.s);
+          g.position.set(mk.x, mk.y, mk.z);
+          this.vrFloorRoot.add(g);
+          this.dirMarkers.push({ mesh: g, baseY: mk.y, phase: mk.x * 0.4 + mk.z * 0.3 });
+        }
+
+        this.applyMode(0);
+      },
+      syncFloorY(deskY) {
+        this.floorY = deskY - 0.065;
+        this.arFloorRoot.position.y = this.floorY;
+        this.vrFloorRoot.position.y = this.floorY;
+      },
+      applyMode(envMode) {
+        this.arGroup.visible = (envMode === 0);
+        this.vrGroup.visible = (envMode === 1);
+      },
+      update(nowSec, envMode) {
+        if (envMode === 0) {
+          if (this.arGridMat) this.arGridMat.uniforms.uTime.value = nowSec;
+          for (const b of this.beacons) {
+            b.mesh.rotation.y = nowSec * 0.9 + b.phase;
+            b.mesh.position.y = b.baseY + Math.sin(nowSec * 1.8 + b.phase) * 0.045;
+          }
+          if (this.motes) this.motes.rotation.y = Math.sin(nowSec * 0.12) * 0.06;
+        } else if (envMode === 1) {
+          for (const dm of this.dirMarkers) {
+            dm.mesh.rotation.y = nowSec * 0.55 + dm.phase;
+            dm.mesh.rotation.x = Math.sin(nowSec * 0.7 + dm.phase) * 0.18;
+            dm.mesh.position.y = dm.baseY + Math.sin(nowSec * 1.4 + dm.phase) * 0.08;
+          }
+        }
+      }
+    };
+    envState.init();
 
     // Groups for each of the 7 Spatial Apps
     const appGroups = {
@@ -1297,6 +1629,7 @@
         this.isGrabbed = false;
         this.springPos.snap(this.pos);
         this.group.position.copy(this.pos);
+        envState.syncFloorY(this.deskY);
       },
 
       update(dt, isPinched, pinchWorld3d, cam, fingerAngle, tracker6dof) {
@@ -1564,6 +1897,7 @@
     const uiState = {
       currentMode: 4, // Start on 3D Cube Sandbox so user can immediately test smooth 3D Cube!
       stereoVrMode: false,
+      envMode: 0, // 0 = AR ROOM (Grid + Beacons + Particles + Cam), 1 = VR 3D (CardboardXR Room), 2 = CAM ONLY
       vrLensOptics: true, // Cardboard/Shinecon 48x48 Barrel Distortion + R/G/B Chromatic Pre-Correction
       handOcclusion: true,
       isMenuOpen: true,
@@ -1583,19 +1917,20 @@
 
       buildButtons(viewW, viewH) {
         const sy = viewH / 720.0;
-        const panelX0 = viewW >= 800 ? Math.floor((viewW - 592) / 2) : Math.floor((viewW - 592) / 2);
+        const panelX0 = Math.floor((viewW - 592) / 2);
         const btns = [];
 
         if (this.isMenuOpen) {
-          // Top Safe-Zone M3 Toolbar (nam o tren cung y=72..112 de nhường toan bo khong gian duoi cho tay & 3D!)
+          // Top Safe-Zone M3 Toolbar (compact 592px strip fits both 640px SBS and 1280px 1-SCR)
           const yTb = Math.floor(72 * sy);
           const hTb = Math.max(30, Math.floor(38 * sy));
+          const envLabels = ["[E] AR ROOM", "[E] VR 3D", "[E] CAM"];
           const tbDefs = [
-            { id: "tb_apps", label: "[+] APPS", x: 30, w: 100, active: this.isLibraryOpen },
-            { id: "tb_view", label: this.stereoVrMode ? "[0] SBS VR" : "[0] 1-SCR", x: 138, w: 108, active: this.stereoVrMode },
-            { id: "tb_recenter", label: "[*] RESET", x: 254, w: 98, active: false },
-            { id: "tb_cam", label: this.useWebcamFallback ? "[-] LAPTOP" : "[-] IPHONE", x: 360, w: 104, active: false },
-            { id: "tb_hide", label: "[X] HIDE", x: 472, w: 90, active: false }
+            { id: "tb_apps", label: "[+] APPS", x: 30, w: 96, active: this.isLibraryOpen },
+            { id: "tb_view", label: this.stereoVrMode ? "[0] SBS VR" : "[0] 1-SCR", x: 132, w: 102, active: this.stereoVrMode },
+            { id: "tb_env", label: envLabels[this.envMode], x: 240, w: 122, active: this.envMode < 2 },
+            { id: "tb_recenter", label: "[*] RESET", x: 368, w: 96, active: false },
+            { id: "tb_hide", label: "[X] HIDE", x: 470, w: 92, active: false }
           ];
           for (const d of tbDefs) {
             btns.push({ id: d.id, label: d.label, x: panelX0 + d.x, y: yTb, w: d.w, h: hTb, r: 19, active: d.active });
@@ -1611,7 +1946,7 @@
               { id: "demo_5", label: "CALIPER", sub: "mm Ruler", col: "#22d3ee" },
               { id: "demo_6", label: "SPATIAL 3D", sub: "Solar Sim", col: "#f472b6" },
               { id: "demo_7", label: "VIDEO VR", sub: "180/360", col: "#a78bfa" },
-              { id: "tb_recenter", label: "RECENTER", sub: "Reset 6DoF", col: "#94a3b8" }
+              { id: "tb_cam", label: this.useWebcamFallback ? "SRC: LAPTOP" : "SRC: IPHONE", sub: "Switch Cam", col: "#94a3b8" }
             ];
             for (let i = 0; i < tiles.length; i++) {
               const row = Math.floor(i / 4), col = i % 4;
@@ -1652,7 +1987,11 @@
       dispatchClick(id, tracker6dof) {
         if (id === "tb_apps") this.isLibraryOpen = !this.isLibraryOpen;
         else if (id === "tb_view") this.stereoVrMode = !this.stereoVrMode;
-        else if (id === "tb_recenter") {
+        else if (id === "tb_env") {
+          this.envMode = (this.envMode + 1) % 3;
+          envState.applyMode(this.envMode);
+          lastUploadedTexSeq = "";
+        } else if (id === "tb_recenter") {
           tracker6dof.reset();
           cubeState.resetToFront(camera);
         } else if (id === "tb_cam") {
@@ -1842,7 +2181,7 @@
     const aiCanvas = document.createElement("canvas");
     aiCanvas.width = AI_W;
     aiCanvas.height = AI_H;
-    const aiCtx = aiCanvas.getContext("2d", { alpha: false });
+    const aiCtx = aiCanvas.getContext("2d", { alpha: false, desynchronized: true });
 
     let hasUsbFrame = false;
     let usbConnected = false;
@@ -2247,6 +2586,11 @@
     window.addEventListener("keydown", (e) => {
       const k = e.key.toLowerCase();
       if (k >= "1" && k <= "7") uiState.switchMode(parseInt(k, 10));
+      else if (k === "e") {
+        uiState.envMode = (uiState.envMode + 1) % 3;
+        envState.applyMode(uiState.envMode);
+        lastUploadedTexSeq = "";
+      }
       else if (k === "v") uiState.stereoVrMode = !uiState.stereoVrMode;
       else if (k === "b") uiState.vrLensOptics = !uiState.vrLensOptics;
       else if (k === "r") { tracker6dof.reset(); cubeState.resetToFront(camera); }
@@ -2292,7 +2636,8 @@
       const useUsb = usbConnected && hasUsbFrame && !uiState.useWebcamFallback;
       const activeVideoSource = useUsb ? videoCanvas : (webcamReady ? webcamEl : null);
 
-      if (activeVideoSource && !useUsb) {
+      const needCamUpload = (uiState.envMode !== 1) || (handLandmarker && (nowMs - lastAiRunMs >= 32));
+      if (activeVideoSource && !useUsb && needCamUpload) {
         videoCtx.save();
         if (uiState.flipH) {
           videoCtx.translate(W, 0);
@@ -2302,7 +2647,7 @@
         videoCtx.restore();
       }
 
-      // 2. Run MediaPipe GPU Hand Landmarker on current video frame
+      // 2. Smooth 60 FPS Pose + Hand Filter Pass (Zero Blocking AI before Render!)
       let lms2d = null;
       let lms3dWorld = null;
       let isPinched = false;
@@ -2322,7 +2667,7 @@
         tracker6dof.reset();
         camera.aspect = viewW / viewH;
         camera.updateProjectionMatrix();
-        tracker6dof.applyToCamera(camera, false);
+        tracker6dof.applyToCamera(camera, false, 0.25);
         cubeState.resetToFront(camera);
       }
 
@@ -2333,102 +2678,86 @@
       const curFrameKey = useUsb
         ? `u_${videoFrameSeq}`
         : `w_${(webcamEl && webcamEl.currentTime ? webcamEl.currentTime : 0).toFixed(4)}`;
-      if ((useUsb || webcamReady) && curFrameKey !== lastUploadedTexSeq) {
+      if (uiState.envMode !== 1 && (useUsb || webcamReady) && curFrameKey !== lastUploadedTexSeq) {
         lastUploadedTexSeq = curFrameKey;
         videoBgTex.needsUpdate = true;
       }
 
-      if (handLandmarker && (useUsb || webcamReady)) {
-        try {
-          const curInputSeq = curFrameKey;
-          let res = cachedHandResult;
-          if (curInputSeq !== lastAiFrameSeq || (nowMs - lastAiRunMs) > 80) {
-            lastAiFrameSeq = curInputSeq;
-            lastAiRunMs = nowMs;
-            aiCtx.drawImage(videoCanvas, 0, 0, AI_W, AI_H);
-            const mpTs = nowMs > lastMpTs ? nowMs : lastMpTs + 1;
-            lastMpTs = mpTs;
-            res = handLandmarker.detectForVideo(aiCanvas, mpTs);
-            cachedHandResult = res;
-          }
-          if (res && res.landmarks && res.landmarks.length > 0) {
-            const rawLms = res.landmarks[0];
-            const worldLms = res.worldLandmarks && res.worldLandmarks.length > 0 ? res.worldLandmarks[0] : null;
-            lms2d = [];
-            for (let i = 0; i < 21; i++) {
-              lms2d.push({
-                x: filters2D[i].x.filter(nowSec, rawLms[i].x * W),
-                y: filters2D[i].y.filter(nowSec, rawLms[i].y * H),
-                z: rawLms[i].z || 0
-              });
-            }
-
-            // Update 6DoF Camera Pose BEFORE unprojecting 3D hand joints!
-            tracker6dof.updateFromVideo(videoCanvas, lms2d, W, H, dt);
-            camera.aspect = viewW / viewH;
-            camera.updateProjectionMatrix();
-            tracker6dof.applyToCamera(camera, uiState.stereoVrMode);
-
-            // Compute Monocular Hand Depth from knuckle width
-            const d2 = (a, b) => Math.hypot((lms2d[a].x - lms2d[b].x) * sxActive, (lms2d[a].y - lms2d[b].y) * syActive);
-            const knucklePx = 0.5 * (d2(5, 9) + d2(9, 13));
-            const palmPx = Math.max(knucklePx * 3.2, d2(0, 9), 24.0);
-            const focalPx = (viewW * 0.5) / Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
-            const baseZ = Math.max(0.32, Math.min(1.25, (0.085 * focalPx) / palmPx));
-
-            lms3dWorld = [];
-            for (let i = 0; i < 21; i++) {
-              const vx = (lms2d[i].x - origX1) * sxActive;
-              const vy = lms2d[i].y * syActive;
-              const rawW = unprojectScreenToWorld(vx, vy, viewW, viewH, baseZ + lms2d[i].z * 0.45, camera);
-              lms3dWorld.push(filters3D[i].filter(nowSec, rawW));
-            }
-
-            isPinched = pinchDetector.update(lms2d, worldLms, nowSec);
-            // Index-anchored weighted pinch cursor avoids downward aiming jump right before pinching!
-            const wIdx = isPinched ? 0.58 : 0.78;
-            const wThumb = 1.0 - wIdx;
-            pinchPtWorld = lms3dWorld[8].clone().multiplyScalar(wIdx).addScaledVector(lms3dWorld[4], wThumb);
-            const px2dRaw = lms2d[8].x * wIdx + lms2d[4].x * wThumb;
-            const py2dRaw = lms2d[8].y * wIdx + lms2d[4].y * wThumb;
-            pinchPt2d = {
-              x: (px2dRaw - origX1) * sxActive,
-              y: py2dRaw * syActive
-            };
-            fingerAngle = Math.atan2(lms2d[8].y - lms2d[4].y, lms2d[8].x - lms2d[4].x);
-            lastValidPinchWorld = pinchPtWorld;
-            lastValidFingerAngle = fingerAngle;
-
-            // Open Palm Gesture at top-left to re-open hidden menu
-            if (!uiState.isMenuOpen && lms2d[8].y < lms2d[6].y && lms2d[12].y < lms2d[10].y && isPinched) {
-              uiState.isMenuOpen = true;
-            }
-          } else {
-            tracker6dof.updateFromVideo(videoCanvas, null, W, H, dt);
-            camera.aspect = viewW / viewH;
-            camera.updateProjectionMatrix();
-            tracker6dof.applyToCamera(camera, uiState.stereoVrMode);
-
-            if (pinchDetector.holdOnHandLost(nowSec) && lastValidPinchWorld) {
-              isPinched = true;
-              pinchPtWorld = lastValidPinchWorld;
-              fingerAngle = lastValidFingerAngle;
-            }
-          }
-        } catch {
-          // Continue smoothly
+      const res = cachedHandResult;
+      if (res && res.landmarks && res.landmarks.length > 0 && (useUsb || webcamReady)) {
+        const rawLms = res.landmarks[0];
+        const worldLms = res.worldLandmarks && res.worldLandmarks.length > 0 ? res.worldLandmarks[0] : null;
+        lms2d = [];
+        for (let i = 0; i < 21; i++) {
+          lms2d.push({
+            x: filters2D[i].x.filter(nowSec, rawLms[i].x * W),
+            y: filters2D[i].y.filter(nowSec, rawLms[i].y * H),
+            z: rawLms[i].z || 0
+          });
         }
-      } else {
-        tracker6dof.updateFromVideo(videoCanvas, null, W, H, dt);
+
+        // Skip CPU pixel optical flow whenever iPhone ARKit 6DoF or VR 3D mode is active
+        if (!tracker6dof.hasHardwarePose && uiState.envMode !== 1) {
+          tracker6dof.updateFromVideo(videoCanvas, lms2d, W, H, dt);
+        }
         camera.aspect = viewW / viewH;
         camera.updateProjectionMatrix();
-        tracker6dof.applyToCamera(camera, uiState.stereoVrMode);
+        tracker6dof.applyToCamera(camera, uiState.stereoVrMode, dt);
+
+        // Compute Monocular Hand Depth from knuckle width
+        const d2 = (a, b) => Math.hypot((lms2d[a].x - lms2d[b].x) * sxActive, (lms2d[a].y - lms2d[b].y) * syActive);
+        const knucklePx = 0.5 * (d2(5, 9) + d2(9, 13));
+        const palmPx = Math.max(knucklePx * 3.2, d2(0, 9), 24.0);
+        const focalPx = (viewW * 0.5) / Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+        const baseZ = Math.max(0.32, Math.min(1.25, (0.085 * focalPx) / palmPx));
+
+        lms3dWorld = [];
+        for (let i = 0; i < 21; i++) {
+          const vx = (lms2d[i].x - origX1) * sxActive;
+          const vy = lms2d[i].y * syActive;
+          const rawW = unprojectScreenToWorld(vx, vy, viewW, viewH, baseZ + lms2d[i].z * 0.45, camera);
+          lms3dWorld.push(filters3D[i].filter(nowSec, rawW));
+        }
+
+        isPinched = pinchDetector.update(lms2d, worldLms, nowSec);
+        // Index-anchored weighted pinch cursor avoids downward aiming jump right before pinching!
+        const wIdx = isPinched ? 0.58 : 0.78;
+        const wThumb = 1.0 - wIdx;
+        pinchPtWorld = lms3dWorld[8].clone().multiplyScalar(wIdx).addScaledVector(lms3dWorld[4], wThumb);
+        const px2dRaw = lms2d[8].x * wIdx + lms2d[4].x * wThumb;
+        const py2dRaw = lms2d[8].y * wIdx + lms2d[4].y * wThumb;
+        pinchPt2d = {
+          x: (px2dRaw - origX1) * sxActive,
+          y: py2dRaw * syActive
+        };
+        fingerAngle = Math.atan2(lms2d[8].y - lms2d[4].y, lms2d[8].x - lms2d[4].x);
+        lastValidPinchWorld = pinchPtWorld;
+        lastValidFingerAngle = fingerAngle;
+
+        // Open Palm Gesture at top-left to re-open hidden menu
+        if (!uiState.isMenuOpen && lms2d[8].y < lms2d[6].y && lms2d[12].y < lms2d[10].y && isPinched) {
+          uiState.isMenuOpen = true;
+        }
+      } else {
+        if (!tracker6dof.hasHardwarePose && uiState.envMode !== 1 && (useUsb || webcamReady)) {
+          tracker6dof.updateFromVideo(videoCanvas, null, W, H, dt);
+        }
+        camera.aspect = viewW / viewH;
+        camera.updateProjectionMatrix();
+        tracker6dof.applyToCamera(camera, uiState.stereoVrMode, dt);
+
+        if (pinchDetector.holdOnHandLost(nowSec) && lastValidPinchWorld) {
+          isPinched = true;
+          pinchPtWorld = lastValidPinchWorld;
+          fingerAngle = lastValidFingerAngle;
+        }
       }
 
       // 3. Route Pinch via CardboardXR PinchRouter
       const consumedByUI = uiState.updateRouter(pinchPt2d, isPinched, nowSec, tracker6dof, viewW, viewH);
 
-      // 4. Update Active 3D Spatial Demo
+      // 4. Update Spatial 3D Environment + Active Spatial App at Locked 60 FPS
+      envState.update(nowSec, uiState.envMode);
       const mode = uiState.currentMode;
       if (mode === 1) {
         if (pinchPtWorld) {
@@ -2471,33 +2800,37 @@
         }
       }
 
-      // Update Depth-Only 21-Joint Hand Occluder + 3D Pinch Reticle
+      // Update Depth-Only (AR) or Glowing Cyan Cyber-Hand (VR 3D)
       handOccluderState.update(
         lms3dWorld,
         pinchPtWorld,
         isPinched,
         camera,
-        uiState.handOcclusion,
-        mode === 4 && cubeState.isGrabbed
+        uiState.handOcclusion || (uiState.envMode === 1),
+        mode === 4 && cubeState.isGrabbed,
+        uiState.envMode === 1
       );
 
-      // 5. Render Single-Pass WebGL2 CAS Video + Depth Hand Occluder + PBR 3D + VR Optics Compositor
+      // 5. Zero-Copy WebGL2 Render Directly to #composite-canvas (Zero CPU/2D Readback!)
       if (!uiState.stereoVrMode) {
-        // 1-SCR: GPU CAS Sharpened Video + Depth-Only Hand Occlusion + PBR 3D Apps -> compCanvas
         renderer.setRenderTarget(null);
         renderer.setViewport(0, 0, W, H);
         renderer.setScissorTest(false);
         renderer.clear();
-        bgMat.uniforms.uCrop.value.set(0, 0, 1, 1);
-        renderer.render(bgScene, bgCamera);
-        renderer.clearDepth();
-        renderer.clearStencil();
+        if (uiState.envMode !== 1) {
+          bgMat.uniforms.uCrop.value.set(0, 0, 1, 1);
+          renderer.render(bgScene, bgCamera);
+          renderer.clearDepth();
+          renderer.clearStencil();
+        }
         renderer.render(scene, camera);
 
-        compCtx.drawImage(glCanvas, 0, 0, W, H);
-        uiState.drawGlassUI(compCtx, 0, isPinched, !!pinchPt2d);
+        uiFullCtx.clearRect(0, 0, W, H);
+        uiState.drawGlassUI(uiFullCtx, 0, isPinched, !!pinchPt2d);
+        uiFullTex.needsUpdate = true;
+        renderer.render(uiFullOverlayScene, bgCamera);
       } else {
-        // SBS VR: Render Dual-Eye (CAS Video + Stereo IPD 3D + HUD Texture) -> Offscreen Target -> 48x48 Barrel & RGB Optics Pass
+        // SBS VR: Render Dual-Eye (CAS Video/VR + Stereo IPD 3D + HUD Texture) -> Offscreen Target -> 48x48 Barrel & RGB Optics Pass
         const eyeW = 640, eyeH = 720;
         const x1L = Math.max(0, Math.min(W - cropW, origX1 - uiState.ipdOffset));
         const x1R = Math.max(0, Math.min(W - cropW, origX1 + uiState.ipdOffset));
@@ -2516,10 +2849,12 @@
         renderer.setViewport(0, 0, eyeW, eyeH);
         renderer.setScissor(0, 0, eyeW, eyeH);
         renderer.clear();
-        bgMat.uniforms.uCrop.value.set(x1L / W, 0, cropW / W, 1);
-        renderer.render(bgScene, bgCamera);
-        renderer.clearDepth();
-        renderer.clearStencil();
+        if (uiState.envMode !== 1) {
+          bgMat.uniforms.uCrop.value.set(x1L / W, 0, cropW / W, 1);
+          renderer.render(bgScene, bgCamera);
+          renderer.clearDepth();
+          renderer.clearStencil();
+        }
         camera.position.copy(basePos).addScaledVector(rightVec, -0.032);
         camera.updateMatrixWorld();
         renderer.render(scene, camera);
@@ -2529,10 +2864,12 @@
         renderer.setViewport(eyeW, 0, eyeW, eyeH);
         renderer.setScissor(eyeW, 0, eyeW, eyeH);
         renderer.clear();
-        bgMat.uniforms.uCrop.value.set(x1R / W, 0, cropW / W, 1);
-        renderer.render(bgScene, bgCamera);
-        renderer.clearDepth();
-        renderer.clearStencil();
+        if (uiState.envMode !== 1) {
+          bgMat.uniforms.uCrop.value.set(x1R / W, 0, cropW / W, 1);
+          renderer.render(bgScene, bgCamera);
+          renderer.clearDepth();
+          renderer.clearStencil();
+        }
         camera.position.copy(basePos).addScaledVector(rightVec, +0.032);
         camera.updateMatrixWorld();
         renderer.render(scene, camera);
@@ -2541,20 +2878,16 @@
         camera.position.copy(basePos);
         camera.updateMatrixWorld();
 
-        // Final Compositor Optics Pass (Vertex Barrel Distortion + R/G/B Chromatic + Hidden Area Mask)
+        // Final Compositor Optics Pass (Vertex Barrel Distortion + R/G/B Chromatic + Divider Quad) directly onto compCanvas
         renderer.setRenderTarget(null);
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, W, H);
         renderer.clear();
         renderer.render(uiState.vrLensOptics ? vrOpticsScene : vrFlatScene, bgCamera);
-
-        compCtx.drawImage(glCanvas, 0, 0, W, H);
-        compCtx.fillStyle = "#000000";
-        compCtx.fillRect(eyeW - 2, 0, 4, eyeH);
       }
 
-      // 6. Stream Rendered Composite Frame back to iPhone:
-      //    - USB Native App: RTX 4060 NVENC Hardware H.264 (0x06) @ 60 FPS Crisp 720p (Zero JPEG Blur!)
+      // 6. Immediately Stream Rendered WebGL2 Frame back to iPhone:
+      //    - USB Native App: RTX 4060 NVENC Hardware H.264 (0x06) @ Locked 60 FPS
       //    - Safari /phone Mirror or Fallback: High-Quality 1280x720 Worker JPEG (0x03)
       const hasPhoneTarget = usbConnected || mirrorConnected;
       const useH264Usb = usbConnected && h264EncoderReady && usbQualityMode <= 1;
@@ -2562,11 +2895,11 @@
         encoderBusy = false;
       }
       const wireReady = usbConnected
-        ? (usbWireAckReady || (nowMs - lastSendAt > 32))
+        ? (usbWireAckReady || (nowMs - lastSendAt > 18))
         : (ws && ws.bufferedAmount < 131072 && (nowMs - lastSendAt >= 15));
 
       if (useH264Usb && ws && ws.readyState === 1 && returnH264Encoder && returnH264Encoder.state === "configured") {
-        if (returnH264Encoder.encodeQueueSize < 2 && wireReady && ws.bufferedAmount < 262144 && (nowMs - lastH264SubmitAt >= 13.5)) {
+        if (returnH264Encoder.encodeQueueSize < 3 && wireReady && ws.bufferedAmount < 262144 && (nowMs - lastH264SubmitAt >= 10.0)) {
           lastH264SubmitAt = nowMs;
           try {
             const vf = new VideoFrame(compCanvas, { timestamp: Math.round(nowMs * 1000) });
@@ -2631,6 +2964,7 @@
       // Update Top Status Pill
       const srcLabel = useUsb ? `IPHONE USB (${usbFps} FPS)` : "WEBCAM / SAFARI";
       const viewLabel = uiState.stereoVrMode ? "SBS VR" : "1-SCR";
+      const envShort = uiState.envMode === 1 ? "VR 3D" : (uiState.envMode === 0 ? "AR ROOM" : "CAM");
       const qLabel = useH264Usb
         ? (usbQualityMode === 1 ? "H264 720p ULTRA" : "H264 720p")
         : (usbQualityMode === 3 || usbRttMs > 28 ? "JPEG 540p" : "JPEG 720p");
@@ -2638,7 +2972,21 @@
         ? ` | PHONE: ${phoneFps || 0} FPS (${Math.round(usbRttMs)}ms ${qLabel})`
         : "";
       document.getElementById("status-text").textContent =
-        `${viewLabel} | ${srcLabel} | RENDER: ${smoothFps.toFixed(0)} FPS${phoneLabel} | VFOV: ${camera.fov.toFixed(0)}°`;
+        `${viewLabel} [${envShort}] | ${srcLabel} | RENDER: ${smoothFps.toFixed(0)} FPS${phoneLabel} | VFOV: ${camera.fov.toFixed(0)}°`;
+
+      // 7. Run MediaPipe GPU Hand Tracking AFTER Render & NVENC Submit (~30Hz Throttled, Zero VSync Stall!)
+      if (handLandmarker && (useUsb || webcamReady) && curFrameKey !== lastAiFrameSeq && (nowMs - lastAiRunMs >= 32)) {
+        try {
+          lastAiFrameSeq = curFrameKey;
+          lastAiRunMs = nowMs;
+          aiCtx.drawImage(videoCanvas, 0, 0, AI_W, AI_H);
+          const mpTs = nowMs > lastMpTs ? nowMs : lastMpTs + 1;
+          lastMpTs = mpTs;
+          cachedHandResult = handLandmarker.detectForVideo(aiCanvas, mpTs);
+        } catch {
+          // Continue smoothly at 60 FPS even if AI skips a frame
+        }
+      }
     }
 
     requestAnimationFrame(animate);
