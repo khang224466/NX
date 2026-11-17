@@ -1,5 +1,5 @@
 /**
- * STARK CARDBOARDXR // NATIVE NODE.JS DIAGNOSTICS SUITE (v10.6.00 PRO)
+ * STARK CARDBOARDXR // NATIVE NODE.JS DIAGNOSTICS SUITE (v10.6.01 PRO)
  * Kiếm thử tự động 100% Zero-Python: Node.js, Native usbmuxd USB, Three.js WebGL2,
  * MediaPipe GPU WASM Bundle, Hand Landmarker Model, và WebSocket IPC.
  */
@@ -22,7 +22,7 @@ async function fetchStatus(url) {
 
 async function runNativeDiagnostics() {
   console.log("===========================================================================");
-  console.log("   STARK MARK ILX - KIEM THU NATIVE GPU ENGINE v10.6.00 PRO (ZERO PYTHON)");
+  console.log("   STARK MARK ILX - KIEM THU NATIVE GPU ENGINE v10.6.01 PRO (ZERO PYTHON)");
   console.log("===========================================================================\n");
 
   let passed = 0;

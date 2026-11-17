@@ -1,5 +1,5 @@
 /**
- * STARK CARDBOARDXR // ZERO-PYTHON NATIVE NODE.JS USB & GPU SERVER (v10.6.00 PRO)
+ * STARK CARDBOARDXR // ZERO-PYTHON NATIVE NODE.JS USB & GPU SERVER (v10.6.01 PRO)
  * ================================================================================
  * - 100% Native Node.js (ZERO Python in runtime):
  *   1. Speaks directly to Apple's native `usbmuxd` daemon (127.0.0.1:27015) using
@@ -605,7 +605,7 @@ class StarkNativeXRServer {
 
     httpServer.listen(HTTP_PORT, "127.0.0.1", () => {
       console.log("=========================================================================");
-      console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.6.00 PRO (ZERO PYTHON)");
+      console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.6.01 PRO (ZERO PYTHON)");
       console.log(`  [+] Local RTX 4060 GPU Engine : http://127.0.0.1:${HTTP_PORT}`);
     });
 
@@ -635,7 +635,7 @@ class StarkNativeXRServer {
             }
           }
           console.log("=========================================================================");
-          console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.6.00 PRO (ZERO PYTHON)");
+          console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.6.01 PRO (ZERO PYTHON)");
           console.log(`  [+] Local RTX 4060 GPU Engine    : http://127.0.0.1:${HTTP_PORT}`);
           console.log(`  [+] iPhone Fullscreen 60FPS Mirror: https://${lanIp}:${HTTPS_PORT}/phone`);
           console.log(`  [+] iPhone Safari Native WebXR   : https://${lanIp}:${HTTPS_PORT}`);
