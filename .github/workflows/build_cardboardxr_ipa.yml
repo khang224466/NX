@@ -48,6 +48,14 @@ jobs:
               mkdir -p /var/lib/dbus /root/.cache/unity3d /root/.local/share/unity3d/Unity /root/.config/unity3d/Unity/licenses
               ln -sf /etc/machine-id /var/lib/dbus/machine-id || true
 
+              LIC_CLIENT="/opt/unity/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client"
+              echo "== Activating Unity Personal Entitlement via Licensing Client =="
+              if ! "$LIC_CLIENT" --activate-all --include-personal --username "$UNITY_EMAIL" --password "$UNITY_PASSWORD"; then
+                echo "::warning::--activate-all exited non-zero; checking LicensingClient options..."
+                "$LIC_CLIENT" --help || true
+              fi
+              "$LIC_CLIENT" --showEntitlements || true
+
               set +e
               unity-editor \
                 -batchmode \
