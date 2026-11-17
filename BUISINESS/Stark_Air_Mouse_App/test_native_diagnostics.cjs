@@ -1,5 +1,5 @@
 /**
- * STARK CARDBOARDXR // NATIVE NODE.JS DIAGNOSTICS SUITE (v10.4.00 PRO)
+ * STARK CARDBOARDXR // NATIVE NODE.JS DIAGNOSTICS SUITE (v10.4.01 PRO)
  * Kiếm thử tự động 100% Zero-Python: Node.js, Native usbmuxd USB, Three.js WebGL2,
  * MediaPipe GPU WASM Bundle, Hand Landmarker Model, và WebSocket IPC.
  */
@@ -22,7 +22,7 @@ async function fetchStatus(url) {
 
 async function runNativeDiagnostics() {
   console.log("===========================================================================");
-  console.log("   STARK MARK ILX - KIEM THU NATIVE GPU ENGINE v10.4.00 PRO (ZERO PYTHON)");
+  console.log("   STARK MARK ILX - KIEM THU NATIVE GPU ENGINE v10.4.01 PRO (ZERO PYTHON)");
   console.log("===========================================================================\n");
 
   let passed = 0;
@@ -65,6 +65,7 @@ async function runNativeDiagnostics() {
 
   try {
     const rHtml = await fetchStatus("http://127.0.0.1:8787/");
+    const rPhone = await fetchStatus("http://127.0.0.1:8787/phone");
     const rThree = await fetchStatus("http://127.0.0.1:8787/three.min.js");
     const rMpJs = await fetchStatus("http://127.0.0.1:8787/mediapipe/vision_bundle.mjs");
     const rMpWasm = await fetchStatus("http://127.0.0.1:8787/mediapipe/wasm/vision_wasm_internal.wasm");
@@ -72,36 +73,43 @@ async function runNativeDiagnostics() {
 
     if (
       rHtml.statusCode === 200 &&
+      rPhone.statusCode === 200 &&
       rThree.statusCode === 200 &&
       rMpJs.statusCode === 200 &&
       rMpWasm.statusCode === 200 &&
       rTask.statusCode === 200
     ) {
-      console.log(`  [OK] Engine HTML (${(rHtml.contentLength / 1024).toFixed(1)} KB) | Three.js WebGL2 (${(rThree.contentLength / 1024).toFixed(0)} KB)`);
+      console.log(`  [OK] Engine HTML (${(rHtml.contentLength / 1024).toFixed(1)} KB) | Phone Mirror /phone (${(rPhone.contentLength / 1024).toFixed(1)} KB) | Three.js WebGL2 (${(rThree.contentLength / 1024).toFixed(0)} KB)`);
       console.log(`  [OK] MediaPipe GPU WASM (${(rMpWasm.contentLength / 1024 / 1024).toFixed(2)} MB) | hand_landmarker.task (${(rTask.contentLength / 1024 / 1024).toFixed(2)} MB)`);
       passed++;
     } else {
-      console.log("  [FAIL] Mot so tai nguyen GPU tra ve ma loi:", { rHtml, rThree, rMpJs, rMpWasm, rTask });
+      console.log("  [FAIL] Mot so tai nguyen GPU tra ve ma loi:", { rHtml, rPhone, rThree, rMpJs, rMpWasm, rTask });
     }
   } catch (e) {
     console.log(`  [FAIL] Loi HTTP Server: ${e.message}`);
   }
 
-  // 4. Verify All 7 CardboardXR Spatial Apps & Spring Physics in GPU Engine
-  console.log("\n[4/6] Kiem tra 7 Ung dung Khong gian 3D & Co che Vat ly Lo xo (Spring 480/36)...");
+  // 4. Verify All 7 CardboardXR Spatial Apps, Spring Physics & 60FPS Return Pipeline
+  console.log("\n[4/6] Kiem tra 7 Ung dung Khong gian 3D, Spring (480/36) & 60FPS USB Return Pipeline...");
   const htmlContent = fs.readFileSync(path.join(__dirname, "stark_xr_gpu_engine.html"), "utf8");
+  const serverContent = fs.readFileSync(path.join(__dirname, "stark_xr_native_server.cjs"), "utf8");
   const hasAllApps =
     htmlContent.includes("TubeGeometry") &&
     htmlContent.includes("Spring3D") &&
     htmlContent.includes("CardboardPinchDetector") &&
     htmlContent.includes("SmoothSpatialTracker6DoF") &&
-    htmlContent.includes("VideoDecoder");
+    htmlContent.includes("VideoDecoder") &&
+    htmlContent.includes("OffscreenCanvas") &&
+    htmlContent.includes("0x05") &&
+    htmlContent.includes("aiCanvas") &&
+    serverContent.includes("latestPendingJpeg") &&
+    serverContent.includes("0x05");
   if (hasAllApps) {
-    console.log("  [OK] Day du 7 Spatial Apps 3D (3D Tube Paint, Portal, Orb Rush, Solid Shaded Cube, Caliper, Solar 3D, Video Sphere)!");
+    console.log("  [OK] Day du 7 Spatial Apps 3D + OffscreenCanvas Worker + 0x05 Wire ACK + Dual-Frame Latest Mailbox!");
     console.log("  [OK] Tich hop WebCodecs Hardware H.264 NVDEC + Spring3D (480/36) + 1€ Filter + PinchRouter!");
     passed++;
   } else {
-    console.log("  [FAIL] Thieu module trong stark_xr_gpu_engine.html");
+    console.log("  [FAIL] Thieu module trong stark_xr_gpu_engine.html hoac stark_xr_native_server.cjs");
   }
 
   // 5. Verify VR Video Assets

@@ -4,23 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>STARK CardboardXR // RTX 4060 WebGL2 + MediaPipe GPU Engine (v10.4.00 PRO)</title>
+  <link rel="manifest" href="/manifest.json" />
+  <title>STARK CardboardXR // RTX 4060 WebGL2 + MediaPipe GPU Engine (v10.4.01 PRO)</title>
   <script src="/three.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
     html, body {
-      width: 100%; height: 100%; overflow: hidden;
-      background: #05070b; color: #f1f5f9;
+      position: fixed; inset: 0;
+      width: 100vw; height: 100vh;
+      width: 100dvw; height: 100dvh;
+      overflow: hidden;
+      background: #000; color: #f1f5f9;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: none;
     }
     #stage {
-      position: relative; width: 100vw; height: 100vh;
-      display: flex; align-items: center; justify-content: center;
+      position: fixed; inset: 0;
+      width: 100vw; height: 100vh;
+      width: 100dvw; height: 100dvh;
+      margin: 0; padding: 0;
       background: #000;
     }
     #composite-canvas {
-      width: 100%; height: 100%; object-fit: contain;
+      position: fixed; inset: 0;
+      width: 100vw; height: 100vh;
+      width: 100dvw; height: 100dvh;
+      object-fit: cover;
       display: block;
     }
     #hud-top {
@@ -58,7 +69,7 @@
     <span id="status-text">GPU ENGINE INITIALIZING...</span>
   </div>
   <div id="quick-keys">
-    [1-7] Chuyển App | [V] 1-SCR / SBS VR | [R] Recenter 6DoF | [X] Đổi Camera | [M] Mirror
+    [1-7] Chuyển App | [V] 1-SCR / SBS VR | [Q] Chất lượng USB | [R] Recenter | [X] Đổi Cam | [M] Mirror
   </div>
 
   <!-- Hidden Video Elements for Local Webcam & VR Video Demo -->
@@ -869,6 +880,13 @@
         this.solidMesh.quaternion.copy(this.quat);
         this.group.position.copy(this.pos);
 
+        // HandRayView.cs Target Dot ("this is what a pinch gets") dynamically faces viewer
+        const toEye = eyeOrig.clone().sub(this.pos);
+        if (toEye.lengthSq() > 1e-4) {
+          toEye.normalize().multiplyScalar(this.size * 0.62);
+          this.targetDot.position.copy(toEye);
+        }
+
         // GrabCue.cs & HandRayView.cs Visual States
         if (this.isGrabbed) {
           this.edgeMesh.material.color.setHex(0xffd54f); // Amber Gold
@@ -1008,9 +1026,9 @@
         const btns = [];
 
         if (this.isMenuOpen) {
-          // Bottom M3 Toolbar
-          const yTb = Math.floor(634 * sy);
-          const hTb = Math.max(30, Math.floor(42 * sy));
+          // Bottom M3 Toolbar (nam gon trong Safe Zone y=65..655 de iPhone 13 19.5:9 fullscreen khong bao gio bi cat!)
+          const yTb = Math.floor(588 * sy);
+          const hTb = Math.max(30, Math.floor(40 * sy));
           const tbDefs = [
             { id: "tb_apps", label: "[+] APPS", x: 30, w: 100, active: this.isLibraryOpen },
             { id: "tb_view", label: this.stereoVrMode ? "[0] SBS VR" : "[0] 1-SCR", x: 138, w: 108, active: this.stereoVrMode },
@@ -1037,7 +1055,7 @@
             for (let i = 0; i < tiles.length; i++) {
               const row = Math.floor(i / 4), col = i % 4;
               const tx = panelX0 + 30 + col * 136;
-              const ty = Math.floor((356 + row * 94) * sy);
+              const ty = Math.floor((330 + row * 94) * sy);
               const modeNum = i < 7 ? i + 1 : -1;
               btns.push({
                 id: tiles[i].id, label: tiles[i].label, sub: tiles[i].sub, accent: tiles[i].col,
@@ -1046,7 +1064,7 @@
               });
             }
           } else if (this.currentMode === 1) {
-            const ySub = Math.floor(560 * sy);
+            const ySub = Math.floor(534 * sy);
             const cols = ["#d0bcff", "#00f3ff", "#22c55e", "#f97316", "#ffffff"];
             for (let i = 0; i < 5; i++) {
               btns.push({
@@ -1195,6 +1213,38 @@
           ctx.fill();
         }
 
+        // Render Mode 3 (Orb Rush) & Mode 5 (3D Caliper) Floating Telemetry inside safe zone
+        if (this.currentMode === 3) {
+          ctx.fillStyle = "rgba(15, 23, 42, 0.80)";
+          ctx.strokeStyle = "#00f3ff";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(24, 84, 248, 34, 17);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#00f3ff";
+          ctx.font = "700 13px system-ui, sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(`ORB RUSH  |  ${rushState.score} PTS  (x${rushState.combo})`, 38, 101);
+        } else if (this.currentMode === 5 && hasHand) {
+          const txt = `${caliperState.distMm.toFixed(1)} mm (${(caliperState.distMm / 10).toFixed(2)} cm)`;
+          const lx = Math.max(80, Math.min(540, this.smoothCursor.x));
+          const ly = Math.max(92, this.smoothCursor.y - 36);
+          ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+          ctx.strokeStyle = "#ffd54f";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(lx - 78, ly - 16, 156, 32, 16);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#ffd54f";
+          ctx.font = "700 13px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(txt, lx, ly);
+        }
+
         ctx.restore();
       }
     };
@@ -1206,9 +1256,22 @@
     videoCanvas.width = W;
     videoCanvas.height = H;
     const videoCtx = videoCanvas.getContext("2d", { alpha: false });
+    const AI_W = 640;
+    const AI_H = 360;
+    const aiCanvas = document.createElement("canvas");
+    aiCanvas.width = AI_W;
+    aiCanvas.height = AI_H;
+    const aiCtx = aiCanvas.getContext("2d", { alpha: false });
+
     let hasUsbFrame = false;
     let usbConnected = false;
+    let mirrorConnected = false;
     let usbFps = 0;
+    let videoFrameSeq = 0;
+    let lastAiFrameSeq = "";
+    let lastAiRunMs = 0;
+    let lastMpTs = 0;
+    let cachedHandResult = null;
 
     let h264Decoder = null;
     let cachedSPS = null;
@@ -1221,6 +1284,7 @@
         output: (videoFrame) => {
           videoCtx.drawImage(videoFrame, 0, 0, W, H);
           hasUsbFrame = true;
+          videoFrameSeq++;
           videoFrame.close();
         },
         error: (e) => {
@@ -1320,8 +1384,10 @@
     // Local Webcam Fallback & iOS Safari Direct Camera
     const webcamEl = document.getElementById("webcam-video");
     let webcamReady = false;
+    let webcamStartRequested = false;
     async function initLocalWebcam() {
-      if (webcamReady) return;
+      if (webcamReady || webcamStartRequested) return;
+      webcamStartRequested = true;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: "environment" }, frameRate: { ideal: 60 } },
@@ -1331,10 +1397,13 @@
         await webcamEl.play();
         webcamReady = true;
       } catch (e) {
+        webcamStartRequested = false;
         console.warn("Webcam fallback unavailable:", e);
       }
     }
-    initLocalWebcam();
+    setTimeout(() => {
+      if (!usbConnected && !webcamReady) initLocalWebcam();
+    }, 1500);
 
     // iOS Safari Hardware 60-120Hz Gyroscope (when opened directly on iPhone Safari)
     window.addEventListener("deviceorientation", (e) => {
@@ -1346,32 +1415,115 @@
       }
     });
 
-    // Connect Binary WebSocket to Native Node.js USB Server
+    // Connect Binary WebSocket to Native Node.js USB Server + Background Worker JPEG Encoder
     const tracker6dof = new SmoothSpatialTracker6DoF();
     let ws = null;
-    let sendingReturnFrame = false;
+    let encoderBusy = false;
+    let encodeStartedAt = 0;
+    let usbWireAckReady = true;
+    let lastSendAt = 0;
+    let usbRttMs = 8;
+    let phoneFramesCount = 0;
+    let phoneFps = 0;
+    let lastPhoneFpsTick = performance.now();
+    let usbQualityMode = 0; // 0: AUTO (540p/450p), 1: HD 720p, 2: TURBO 450p
+
     const returnEncodeCanvas = document.createElement("canvas");
-    returnEncodeCanvas.width = 1280;
-    returnEncodeCanvas.height = 720;
+    returnEncodeCanvas.width = 960;
+    returnEncodeCanvas.height = 540;
     const returnEncodeCtx = returnEncodeCanvas.getContext("2d", { alpha: false });
+
+    function onReturnPacketEncoded(buffer) {
+      encoderBusy = false;
+      if (buffer && ws && ws.readyState === 1 && (usbConnected || mirrorConnected)) {
+        usbWireAckReady = false;
+        lastSendAt = performance.now();
+        ws.send(buffer);
+        phoneFramesCount++;
+        const dtFps = lastSendAt - lastPhoneFpsTick;
+        if (dtFps >= 1000) {
+          phoneFps = Math.round((phoneFramesCount * 1000) / dtFps);
+          phoneFramesCount = 0;
+          lastPhoneFpsTick = lastSendAt;
+        }
+      }
+    }
+
+    let jpegWorker = null;
+    if (typeof OffscreenCanvas !== "undefined" && typeof createImageBitmap === "function") {
+      try {
+        const workerSrc = `
+          let oc = null;
+          let ctx = null;
+          self.onmessage = async (e) => {
+            const { bitmap, w, h, quality } = e.data;
+            try {
+              if (!oc || oc.width !== w || oc.height !== h) {
+                oc = new OffscreenCanvas(w, h);
+                ctx = oc.getContext("2d", { alpha: false });
+              }
+              ctx.drawImage(bitmap, 0, 0, w, h);
+              bitmap.close();
+              const blob = await oc.convertToBlob({ type: "image/jpeg", quality });
+              const ab = await blob.arrayBuffer();
+              const pkt = new Uint8Array(1 + ab.byteLength);
+              pkt[0] = 0x03;
+              pkt.set(new Uint8Array(ab), 1);
+              self.postMessage({ buffer: pkt.buffer }, [pkt.buffer]);
+            } catch (err) {
+              try { if (bitmap && bitmap.close) bitmap.close(); } catch {}
+              self.postMessage({ buffer: null });
+            }
+          };
+        `;
+        const workerBlob = new Blob([workerSrc], { type: "application/javascript" });
+        jpegWorker = new Worker(URL.createObjectURL(workerBlob));
+        jpegWorker.onmessage = (e) => onReturnPacketEncoded(e.data && e.data.buffer);
+        jpegWorker.onerror = () => { encoderBusy = false; };
+      } catch (e) {
+        console.warn("[ReturnWorker] Fallback to main canvas:", e);
+        jpegWorker = null;
+      }
+    }
 
     function connectWebSocket() {
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       ws = new WebSocket(`${proto}//${location.host}`);
       ws.binaryType = "arraybuffer";
 
+      ws.onopen = () => {
+        usbWireAckReady = true;
+        ws.send(JSON.stringify({ type: "role", role: "gpu_engine" }));
+      };
+
       ws.onmessage = (ev) => {
         if (typeof ev.data === "string") {
           const msg = JSON.parse(ev.data);
           if (msg.type === "usb_status") {
-            usbConnected = msg.connected;
+            usbConnected = !!msg.connected;
             usbFps = msg.fps || 0;
+            mirrorConnected = Boolean(msg.mirrorConnected || (msg.mirrorClients || 0) > 0);
+            if (!usbConnected) usbWireAckReady = true;
+          } else if (msg.type === "gyro" && msg.a !== null && msg.b !== null && msg.g !== null) {
+            const deg2rad = Math.PI / 180;
+            const euler = new THREE.Euler(msg.b * deg2rad, msg.a * deg2rad, -msg.g * deg2rad, "YXZ");
+            const q = new THREE.Quaternion().setFromEuler(euler);
+            tracker6dof.setHardwarePose(0, 0, 0, -q.x, -q.y, q.z, q.w);
           }
           return;
         }
         const bytes = new Uint8Array(ev.data);
-        if (bytes.length < 2) return;
+        if (bytes.length < 1) return;
         const opcode = bytes[0];
+        if (opcode === 0x05) {
+          usbWireAckReady = true;
+          if (lastSendAt > 0) {
+            const rtt = Math.max(1, performance.now() - lastSendAt);
+            usbRttMs = usbRttMs * 0.7 + rtt * 0.3;
+          }
+          return;
+        }
+        if (bytes.length < 2) return;
         const payload = bytes.subarray(1);
         if (opcode === 0x01) {
           feedH264AccessUnit(payload);
@@ -1388,7 +1540,11 @@
         }
       };
 
-      ws.onclose = () => setTimeout(connectWebSocket, 800);
+      ws.onclose = () => {
+        usbWireAckReady = true;
+        encoderBusy = false;
+        setTimeout(connectWebSocket, 800);
+      };
     }
     connectWebSocket();
 
@@ -1433,7 +1589,11 @@
       if (k >= "1" && k <= "7") uiState.switchMode(parseInt(k, 10));
       else if (k === "v") uiState.stereoVrMode = !uiState.stereoVrMode;
       else if (k === "r") { tracker6dof.reset(); cubeState.resetToFront(camera); }
-      else if (k === "x") { uiState.useWebcamFallback = !uiState.useWebcamFallback; }
+      else if (k === "x") {
+        uiState.useWebcamFallback = !uiState.useWebcamFallback;
+        if (uiState.useWebcamFallback && !webcamReady) initLocalWebcam();
+      }
+      else if (k === "q") { usbQualityMode = (usbQualityMode + 1) % 3; }
       else if (k === "m") { uiState.flipH = !uiState.flipH; }
     });
 
@@ -1490,10 +1650,26 @@
       const sxActive = viewW / cropW;
       const syActive = viewH / H;
 
+      if (uiState.useWebcamFallback && !webcamReady && !webcamStartRequested) {
+        initLocalWebcam();
+      }
+
       if (handLandmarker && (useUsb || webcamReady)) {
         try {
-          const res = handLandmarker.detectForVideo(videoCanvas, nowMs);
-          if (res.landmarks && res.landmarks.length > 0) {
+          const curInputSeq = useUsb
+            ? `u_${videoFrameSeq}`
+            : `w_${(webcamEl && webcamEl.currentTime ? webcamEl.currentTime : 0).toFixed(4)}`;
+          let res = cachedHandResult;
+          if (curInputSeq !== lastAiFrameSeq || (nowMs - lastAiRunMs) > 80) {
+            lastAiFrameSeq = curInputSeq;
+            lastAiRunMs = nowMs;
+            aiCtx.drawImage(videoCanvas, 0, 0, AI_W, AI_H);
+            const mpTs = nowMs > lastMpTs ? nowMs : lastMpTs + 1;
+            lastMpTs = mpTs;
+            res = handLandmarker.detectForVideo(aiCanvas, mpTs);
+            cachedHandResult = res;
+          }
+          if (res && res.landmarks && res.landmarks.length > 0) {
             const rawLms = res.landmarks[0];
             const worldLms = res.worldLandmarks && res.worldLandmarks.length > 0 ? res.worldLandmarks[0] : null;
             lms2d = [];
@@ -1656,35 +1832,75 @@
         compCtx.fillRect(eyeW - 2, 0, 4, eyeH);
       }
 
-      // 6. Stream Rendered Composite Frame back to iPhone over USB (Opcode 0x03) with Zero Blocking!
-      if (usbConnected && ws && ws.readyState === 1 && !sendingReturnFrame && ws.bufferedAmount < 262144) {
-        sendingReturnFrame = true;
-        returnEncodeCtx.drawImage(compCanvas, 0, 0);
-        returnEncodeCanvas.toBlob(
-          (blob) => {
-            if (blob && ws && ws.readyState === 1) {
-              blob.arrayBuffer().then((ab) => {
-                const jpg = new Uint8Array(ab);
-                const pkt = new Uint8Array(1 + jpg.length);
-                pkt[0] = 0x03;
-                pkt.set(jpg, 1);
-                ws.send(pkt);
-                sendingReturnFrame = false;
-              }).catch(() => { sendingReturnFrame = false; });
-            } else {
-              sendingReturnFrame = false;
-            }
-          },
-          "image/jpeg",
-          0.74
-        );
+      // 6. Stream Rendered Composite Frame back to iPhone over USB / Phone Mirror (Opcode 0x03)
+      // Non-blocking OffscreenCanvas Web Worker + 0x05 Wire ACK Pacing + Adaptive Quality
+      const hasPhoneTarget = usbConnected || mirrorConnected;
+      if (encoderBusy && nowMs - encodeStartedAt > 300) {
+        encoderBusy = false;
+      }
+      const wireReady = usbConnected
+        ? (usbWireAckReady || (nowMs - lastSendAt > 45))
+        : (ws && ws.bufferedAmount < 131072 && (nowMs - lastSendAt >= 15));
+
+      if (hasPhoneTarget && ws && ws.readyState === 1 && !encoderBusy && wireReady && ws.bufferedAmount < 262144) {
+        encoderBusy = true;
+        encodeStartedAt = nowMs;
+
+        let targetW = 960;
+        let targetH = 540;
+        let targetQ = 0.58;
+        if (usbQualityMode === 1) {
+          targetW = 1280;
+          targetH = 720;
+          targetQ = 0.68;
+        } else if (usbQualityMode === 2 || (usbQualityMode === 0 && usbRttMs > 20)) {
+          targetW = 800;
+          targetH = 450;
+          targetQ = 0.50;
+        }
+
+        if (jpegWorker && typeof createImageBitmap === "function") {
+          createImageBitmap(compCanvas)
+            .then((bitmap) => {
+              jpegWorker.postMessage({ bitmap, w: targetW, h: targetH, quality: targetQ }, [bitmap]);
+            })
+            .catch(() => {
+              encoderBusy = false;
+            });
+        } else {
+          if (returnEncodeCanvas.width !== targetW || returnEncodeCanvas.height !== targetH) {
+            returnEncodeCanvas.width = targetW;
+            returnEncodeCanvas.height = targetH;
+          }
+          returnEncodeCtx.drawImage(compCanvas, 0, 0, targetW, targetH);
+          returnEncodeCanvas.toBlob(
+            (blob) => {
+              if (blob && ws && ws.readyState === 1) {
+                blob.arrayBuffer().then((ab) => {
+                  const pkt = new Uint8Array(1 + ab.byteLength);
+                  pkt[0] = 0x03;
+                  pkt.set(new Uint8Array(ab), 1);
+                  onReturnPacketEncoded(pkt.buffer);
+                }).catch(() => { encoderBusy = false; });
+              } else {
+                encoderBusy = false;
+              }
+            },
+            "image/jpeg",
+            targetQ
+          );
+        }
       }
 
       // Update Top Status Pill
       const srcLabel = useUsb ? `IPHONE USB (${usbFps} FPS)` : "WEBCAM / SAFARI";
       const viewLabel = uiState.stereoVrMode ? "SBS VR" : "1-SCR";
+      const qLabel = usbQualityMode === 1 ? "720p" : (usbQualityMode === 2 || usbRttMs > 20 ? "450p" : "540p");
+      const phoneLabel = hasPhoneTarget
+        ? ` | PHONE: ${phoneFps || 0} FPS (${Math.round(usbRttMs)}ms ${qLabel})`
+        : "";
       document.getElementById("status-text").textContent =
-        `${viewLabel} | ${srcLabel} | RENDER: ${smoothFps.toFixed(0)} FPS | THREE.JS WEBGL2 + GPU AI`;
+        `${viewLabel} | ${srcLabel} | RENDER: ${smoothFps.toFixed(0)} FPS${phoneLabel} | WEBGL2 + GPU`;
     }
 
     requestAnimationFrame(animate);

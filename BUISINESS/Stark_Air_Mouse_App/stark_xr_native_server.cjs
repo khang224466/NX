@@ -1,5 +1,5 @@
 /**
- * STARK CARDBOARDXR // ZERO-PYTHON NATIVE NODE.JS USB & GPU SERVER (v10.4.00 PRO)
+ * STARK CARDBOARDXR // ZERO-PYTHON NATIVE NODE.JS USB & GPU SERVER (v10.4.01 PRO)
  * ================================================================================
  * - 100% Native Node.js (ZERO Python in runtime):
  *   1. Speaks directly to Apple's native `usbmuxd` daemon (127.0.0.1:27015) using
@@ -193,6 +193,9 @@ function resolveStaticFile(urlPath) {
   if (cleanUrl === "/" || cleanUrl === "/index.html") {
     return path.join(APP_DIR, "stark_xr_gpu_engine.html");
   }
+  if (cleanUrl === "/phone" || cleanUrl === "/phone/") {
+    return path.join(APP_DIR, "stark_xr_phone_mirror.html");
+  }
   if (cleanUrl === "/three.min.js") {
     const candidates = [
       path.join(APP_DIR, "three.min.js"),
@@ -239,6 +242,21 @@ function handleHttpRequest(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
 
+  if (req.url === "/manifest.json") {
+    const manifest = JSON.stringify({
+      name: "STARK CardboardXR Pro",
+      short_name: "CardboardXR",
+      start_url: "/",
+      display: "fullscreen",
+      orientation: "landscape",
+      background_color: "#000000",
+      theme_color: "#000000",
+    });
+    res.writeHead(200, { "Content-Type": "application/manifest+json" });
+    res.end(manifest);
+    return;
+  }
+
   const filePath = resolveStaticFile(req.url || "/");
   if (!filePath || !fs.existsSync(filePath)) {
     res.writeHead(404, { "Content-Type": "text/plain" });
@@ -281,11 +299,22 @@ class StarkNativeXRServer {
     this.usbSock = null;
     this.usbConnected = false;
     this.usbWriting = false;
+    this.latestPendingJpeg = null;
     this.wsClients = new Set();
     this.udpSock = dgram.createSocket("udp4");
     this.rxFrames = 0;
     this.lastFpsTime = Date.now();
     this.iphoneFps = 0;
+    this.returnFrames = 0;
+    this.lastReturnFpsTime = Date.now();
+    this.phoneReturnFps = 0;
+  }
+
+  hasPhoneMirrorClients() {
+    for (const client of this.wsClients) {
+      if (client.readyState === 1 && client.clientRole === "phone_mirror") return true;
+    }
+    return false;
   }
 
   broadcastBinary(opcode, payloadBuf) {
@@ -294,8 +323,25 @@ class StarkNativeXRServer {
     msg[0] = opcode;
     payloadBuf.copy(msg, 1);
     for (const client of this.wsClients) {
-      if (client.readyState === 1 && client.bufferedAmount < 1_500_000) {
+      if (client.readyState === 1 && client.clientRole !== "phone_mirror" && client.bufferedAmount < 1_500_000) {
         client.send(msg, { binary: true });
+      }
+    }
+  }
+
+  broadcastPhoneMirror(rawMsg) {
+    for (const client of this.wsClients) {
+      if (client.readyState === 1 && client.clientRole === "phone_mirror" && client.bufferedAmount < 262144) {
+        client.send(rawMsg, { binary: true });
+      }
+    }
+  }
+
+  sendWireAckToEngines() {
+    const ack = Buffer.from([0x05]);
+    for (const client of this.wsClients) {
+      if (client.readyState === 1 && client.clientRole !== "phone_mirror") {
+        client.send(ack, { binary: true });
       }
     }
   }
@@ -305,32 +351,68 @@ class StarkNativeXRServer {
       type: "usb_status",
       connected: this.usbConnected,
       fps: Math.round(this.iphoneFps),
+      phoneFps: Math.round(this.phoneReturnFps),
+      mirrorConnected: this.hasPhoneMirrorClients(),
     });
     for (const client of this.wsClients) {
-      if (client.readyState === 1) {
+      if (client.readyState === 1 && client.clientRole !== "phone_mirror") {
         client.send(msg);
       }
     }
   }
 
   sendFrameBackToIphone(jpegBuf) {
-    if (!this.usbConnected || !this.usbSock || this.usbWriting) return;
-    if (this.usbSock.writableLength > 262144) return; // Zero bufferbloat drop
+    if (!this.usbConnected || !this.usbSock) {
+      this.sendWireAckToEngines();
+      return;
+    }
+    // Latest-Frame-Only Mailbox: Luon gui duy nhat frame moi nhat, khong bao gio xep hang gay tre (Zero Queue Lag)!
+    if (this.usbWriting) {
+      this.latestPendingJpeg = jpegBuf;
+      return;
+    }
+    this._flushJpegToUsb(jpegBuf);
+  }
+
+  _flushJpegToUsb(jpegBuf) {
+    if (!this.usbConnected || !this.usbSock) {
+      this.usbWriting = false;
+      this.latestPendingJpeg = null;
+      this.sendWireAckToEngines();
+      return;
+    }
     this.usbWriting = true;
     const hdr = Buffer.allocUnsafe(4);
     hdr.writeUInt32BE(jpegBuf.length, 0);
     const pkt = Buffer.concat([hdr, jpegBuf]);
     this.usbSock.write(pkt, () => {
-      this.usbWriting = false;
+      this.returnFrames++;
+      const now = Date.now();
+      if (now - this.lastReturnFpsTime >= 1000) {
+        this.phoneReturnFps = (this.returnFrames * 1000) / (now - this.lastReturnFpsTime);
+        this.returnFrames = 0;
+        this.lastReturnFpsTime = now;
+      }
+      if (this.latestPendingJpeg) {
+        const nextBuf = this.latestPendingJpeg;
+        this.latestPendingJpeg = null;
+        this._flushJpegToUsb(nextBuf);
+      } else {
+        this.usbWriting = false;
+        this.sendWireAckToEngines();
+      }
     });
   }
 
   attachUsbStream(sock, initialRemainder = Buffer.alloc(0)) {
+    sock.setNoDelay(true);
     this.usbSock = sock;
     this.usbConnected = true;
     this.usbWriting = false;
+    this.latestPendingJpeg = null;
     console.log("\n[V] KET NOI THANH CONG VOI IPHONE 13 QUA CAP USB LIGHTNING (NATIVE NODE.JS)!");
     this.broadcastStatus();
+    this.sendWireAckToEngines();
 
     let accum = initialRemainder;
 
@@ -388,9 +470,13 @@ class StarkNativeXRServer {
       if (this.usbSock === sock) {
         this.usbConnected = false;
         this.usbSock = null;
+        this.usbWriting = false;
+        this.latestPendingJpeg = null;
         this.iphoneFps = 0;
+        this.phoneReturnFps = 0;
         console.log("[!] Tam ngat ket noi USB iPhone. Dang tu dong tim kiem lai...");
         this.broadcastStatus();
+        this.sendWireAckToEngines();
       }
     };
 
@@ -427,20 +513,44 @@ class StarkNativeXRServer {
     const wss = new WebSocketServer({ server: httpServer });
 
     const bindWs = (ws) => {
+      ws.clientRole = "gpu_engine";
+      if (ws._socket && typeof ws._socket.setNoDelay === "function") {
+        ws._socket.setNoDelay(true);
+      }
       this.wsClients.add(ws);
       ws.send(
         JSON.stringify({
           type: "usb_status",
           connected: this.usbConnected,
           fps: Math.round(this.iphoneFps),
+          phoneFps: Math.round(this.phoneReturnFps),
+          mirrorConnected: this.hasPhoneMirrorClients(),
         })
       );
 
       ws.on("message", (data, isBinary) => {
+        if (!isBinary) {
+          try {
+            const parsed = JSON.parse(data.toString("utf8"));
+            if (parsed.type === "role" && parsed.role) {
+              ws.clientRole = parsed.role;
+              this.broadcastStatus();
+            } else if (parsed.type === "gyro") {
+              const fwd = JSON.stringify(parsed);
+              for (const c of this.wsClients) {
+                if (c.readyState === 1 && c.clientRole !== "phone_mirror") c.send(fwd);
+              }
+            }
+          } catch {}
+          return;
+        }
         if (isBinary && data.length > 1) {
           const opcode = data[0];
           if (opcode === 0x03) {
-            // Opcode 0x03: Rendered JPEG frame from RTX 4060 Three.js Canvas -> Send back to iPhone USB!
+            // Opcode 0x03: Rendered JPEG frame from RTX 4060 Three.js Canvas -> Send back to iPhone USB + Fullscreen Web Mirror!
+            if (this.hasPhoneMirrorClients()) {
+              this.broadcastPhoneMirror(data);
+            }
             this.sendFrameBackToIphone(data.subarray(1));
           } else if (opcode === 0x04 && data.length >= 29) {
             // Opcode 0x04: Visual/Gyro 6DoF Pose from GPU Engine -> Forward to Unity UDP 23457
@@ -449,7 +559,11 @@ class StarkNativeXRServer {
         }
       });
 
-      ws.on("close", () => this.wsClients.delete(ws));
+      ws.on("close", () => {
+        const wasMirror = ws.clientRole === "phone_mirror";
+        this.wsClients.delete(ws);
+        if (wasMirror) this.broadcastStatus();
+      });
       ws.on("error", () => this.wsClients.delete(ws));
     };
 
@@ -457,7 +571,7 @@ class StarkNativeXRServer {
 
     httpServer.listen(HTTP_PORT, "127.0.0.1", () => {
       console.log("=========================================================================");
-      console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.4.00 PRO (ZERO PYTHON)");
+      console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.4.01 PRO (ZERO PYTHON)");
       console.log(`  [+] Local RTX 4060 GPU Engine : http://127.0.0.1:${HTTP_PORT}`);
     });
 
@@ -486,7 +600,11 @@ class StarkNativeXRServer {
               }
             }
           }
-          console.log(`  [+] iPhone Safari Native WebXR: https://${lanIp}:${HTTPS_PORT}`);
+          console.log("=========================================================================");
+          console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.4.01 PRO (ZERO PYTHON)");
+          console.log(`  [+] Local RTX 4060 GPU Engine    : http://127.0.0.1:${HTTP_PORT}`);
+          console.log(`  [+] iPhone Fullscreen 60FPS Mirror: https://${lanIp}:${HTTPS_PORT}/phone`);
+          console.log(`  [+] iPhone Safari Native WebXR   : https://${lanIp}:${HTTPS_PORT}`);
           console.log("=========================================================================");
         });
       } catch (e) {
