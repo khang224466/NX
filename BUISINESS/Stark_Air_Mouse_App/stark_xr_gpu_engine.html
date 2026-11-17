@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
-  <title>STARK CardboardXR // RTX 4060 WebGL2 + MediaPipe GPU Engine (v10.5.00 PRO)</title>
+  <title>STARK CardboardXR // RTX 4060 WebGL2 + MediaPipe GPU Engine (v10.6.00 PRO)</title>
   <script src="/three.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
@@ -69,7 +69,7 @@
     <span id="status-text">GPU ENGINE INITIALIZING...</span>
   </div>
   <div id="quick-keys">
-    [1-7] Chuyển App | [V] 1-SCR / SBS VR | [Q] H.264 / JPEG | [O] Occlude Tay | [R] Recenter | [X] Đổi Cam
+    [1-7] Chuyển App | [V] 1-SCR / SBS VR | [B] Thấu kính VR | [Q] H.264 / JPEG | [O] Tay 3D | [R] Recenter
   </div>
 
   <!-- Hidden Video Elements for Local Webcam & VR Video Demo -->
@@ -162,10 +162,11 @@
     class CardboardPinchDetector {
       constructor() {
         this.isPinched = false;
+        this.pinchProgress = 0; // 0..1 tactile closing ring indicator
         this.openCount = 0;
         this.lastTrackedTime = 0;
         this.k_OpenResults = 2;
-        this.k_PinchKeptSeconds = 0.30;
+        this.k_PinchKeptSeconds = 0.28;
       }
       update(lms2d, worldLms, nowSec) {
         this.lastTrackedTime = nowSec;
@@ -177,6 +178,7 @@
 
         const padRatio = pinchPx / Math.max(8.0, tipPad);
         const palmRatio = pinchPx / palmSpan;
+        this.pinchProgress = Math.max(0, Math.min(1, 1.0 - (padRatio - 1.05) / 0.65));
 
         let worldPinchM = null;
         if (worldLms && worldLms.length >= 21) {
@@ -196,16 +198,17 @@
         }
 
         if (!this.isPinched) {
-          const close2d = (padRatio < 1.18) || (palmRatio < 0.30);
-          const close3d = (worldPinchM === null) || (worldPinchM < 0.030);
-          if (close2d && (close3d || padRatio < 0.92)) {
+          // Ergonomic trigger works reliably in front & side hand views
+          const close2d = (padRatio < 1.32) || (palmRatio < 0.34);
+          const close3d = (worldPinchM === null) || (worldPinchM < 0.036);
+          if (close2d && (close3d || padRatio < 1.05)) {
             this.isPinched = true;
             this.openCount = 0;
           }
         } else {
-          const open2d = (padRatio > 1.62) && (palmRatio > 0.42);
-          const open3d = (worldPinchM !== null) && (worldPinchM > 0.040);
-          if (open2d || (open3d && padRatio > 1.38)) {
+          const open2d = (padRatio > 1.56) && (palmRatio > 0.40);
+          const open3d = (worldPinchM !== null) && (worldPinchM > 0.045);
+          if (open2d || (open3d && padRatio > 1.34)) {
             this.openCount++;
             if (this.openCount >= this.k_OpenResults) {
               this.isPinched = false;
@@ -215,6 +218,7 @@
             this.openCount = 0;
           }
         }
+        if (this.isPinched) this.pinchProgress = 1.0;
         return this.isPinched;
       }
       holdOnHandLost(nowSec) {
@@ -223,12 +227,13 @@
         }
         this.isPinched = false;
         this.openCount = 0;
+        this.pinchProgress = 0;
         return false;
       }
     }
 
     class AimHistory {
-      constructor(lookbackSec = 0.14) {
+      constructor(lookbackSec = 0.045) {
         this.lookbackSec = lookbackSec;
         this.samples = [];
       }
@@ -280,8 +285,14 @@
         this.originPos = new THREE.Vector3();
         this.originQuatInv = new THREE.Quaternion();
         this.poseBuffer = [];
-        this.poseDelayMs = 10.0; // Khop do tre ~10ms cua luong H.264 camera -> triet tieu hieu ung troi khi quay dau
+        this.poseDelayMs = 10.0; // Khop do tre H.264 passthrough trong che do 1-SCR
+        this.predictHorizonMs = 14.0; // Ngoai suy tuong lai (xrLocateViews) trong che do SBS VR
         this.vFovDeg = null;
+        this.firstHardwareAnchored = false;
+        this.linVel = new THREE.Vector3();
+        this.angAxis = new THREE.Vector3(0, 1, 0);
+        this.angSpeed = 0;
+        this.lastPoseTimeMs = 0;
       }
 
       reset() {
@@ -299,17 +310,41 @@
       }
 
       setHardwarePose(px, py, pz, qx, qy, qz, qw, vFovDeg = null) {
+        const now = performance.now();
         this.hasHardwarePose = true;
-        // ARKit Right-Handed (-Z forward) -> Left-Handed / Three.js camera
-        this.hwPos.set(px, py, -pz);
-        this.hwQuat.set(-qx, -qy, qz, qw).normalize();
+        const newPos = new THREE.Vector3(px, py, -pz);
+        const newQuat = new THREE.Quaternion(-qx, -qy, qz, qw).normalize();
+
+        if (this.lastPoseTimeMs > 0) {
+          const dtSec = Math.max(0.002, Math.min(0.06, (now - this.lastPoseTimeMs) * 0.001));
+          const instVel = newPos.clone().sub(this.hwPos).divideScalar(dtSec);
+          this.linVel.lerp(instVel, 0.35);
+
+          // Quaternion delta qDelta = newQuat * inv(hwQuat)
+          const qDelta = newQuat.clone().multiply(this.hwQuat.clone().invert()).normalize();
+          if (qDelta.w < 0) { qDelta.x = -qDelta.x; qDelta.y = -qDelta.y; qDelta.z = -qDelta.z; qDelta.w = -qDelta.w; }
+          const halfAng = Math.acos(Math.max(-1, Math.min(1, qDelta.w)));
+          const s = Math.sin(halfAng);
+          if (s > 1e-4) {
+            const axis = new THREE.Vector3(qDelta.x / s, qDelta.y / s, qDelta.z / s).normalize();
+            const spd = (2.0 * halfAng) / dtSec;
+            this.angAxis.lerp(axis, 0.35).normalize();
+            this.angSpeed = this.angSpeed * 0.65 + Math.min(8.0, spd) * 0.35;
+          } else {
+            this.angSpeed *= 0.6;
+          }
+        }
+        this.lastPoseTimeMs = now;
+        this.hwPos.copy(newPos);
+        this.hwQuat.copy(newQuat);
+
         if (vFovDeg && vFovDeg > 20 && vFovDeg < 110) {
           this.vFovDeg = this.vFovDeg === null ? vFovDeg : (this.vFovDeg * 0.8 + vFovDeg * 0.2);
         }
         this.poseBuffer.push({
-          t: performance.now(),
-          pos: this.hwPos.clone(),
-          quat: this.hwQuat.clone()
+          t: now,
+          pos: newPos,
+          quat: newQuat
         });
         if (this.poseBuffer.length > 32) this.poseBuffer.shift();
       }
@@ -445,15 +480,23 @@
         this.smoothRoll += (this.targetRoll - this.smoothRoll) * blend;
       }
 
-      applyToCamera(cam) {
+      applyToCamera(cam, predictiveMode = false) {
         if (this.hasHardwarePose) {
           if (this.vFovDeg && Math.abs(cam.fov - this.vFovDeg) > 0.15) {
             cam.fov = this.vFovDeg;
             cam.updateProjectionMatrix();
           }
-          let samplePos = this.hwPos;
-          let sampleQuat = this.hwQuat;
-          if (this.poseBuffer.length >= 2) {
+          let samplePos = this.hwPos.clone();
+          let sampleQuat = this.hwQuat.clone();
+          if (predictiveMode) {
+            // OpenXR xrLocateViews style pose prediction for VR headsets
+            const hSec = this.predictHorizonMs * 0.001;
+            samplePos.addScaledVector(this.linVel, hSec);
+            if (this.angSpeed > 0.02) {
+              const predDelta = new THREE.Quaternion().setFromAxisAngle(this.angAxis, this.angSpeed * hSec);
+              sampleQuat.premultiply(predDelta).normalize();
+            }
+          } else if (this.poseBuffer.length >= 2) {
             const targetT = performance.now() - this.poseDelayMs;
             let chosenIdx = this.poseBuffer.length - 1;
             for (let i = this.poseBuffer.length - 1; i >= 1; i--) {
@@ -469,10 +512,10 @@
             samplePos = a.pos.clone().lerp(b.pos, alpha);
             sampleQuat = a.quat.clone().slerp(b.quat, alpha);
           }
-          const relPos = samplePos.clone().sub(this.originPos).applyQuaternion(this.originQuatInv);
+          const relPos = samplePos.sub(this.originPos).applyQuaternion(this.originQuatInv);
           const relQuat = this.originQuatInv.clone().multiply(sampleQuat);
-          cam.position.lerp(relPos, 0.85);
-          cam.quaternion.slerp(relQuat, 0.85);
+          cam.position.lerp(relPos, predictiveMode ? 0.96 : 0.85);
+          cam.quaternion.slerp(relQuat, predictiveMode ? 0.96 : 0.85);
         } else {
           cam.position.set(0, 0, 0);
           // Three.js camera looks down -Z: yaw around Y, pitch around X
@@ -503,9 +546,181 @@
     });
     renderer.setSize(W, H, false);
     renderer.setPixelRatio(1);
+    renderer.autoClear = false;
     renderer.shadowMap.enabled = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
+
+    // -------------------------------------------------------------------------
+    // 4A. SINGLE-PASS VIDEO CAS SHARPENING + 48x48 VR OPTICS COMPOSITOR
+    // -------------------------------------------------------------------------
+    const videoCanvas = document.createElement("canvas");
+    videoCanvas.width = W;
+    videoCanvas.height = H;
+    const videoCtx = videoCanvas.getContext("2d", { alpha: false });
+    const videoBgTex = new THREE.CanvasTexture(videoCanvas);
+    videoBgTex.minFilter = THREE.LinearFilter;
+    videoBgTex.magFilter = THREE.LinearFilter;
+    const bgScene = new THREE.Scene();
+    const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const bgMat = new THREE.ShaderMaterial({
+      uniforms: {
+        tVideo: { value: videoBgTex },
+        uCrop: { value: new THREE.Vector4(0, 0, 1, 1) },
+        uTexel: { value: new THREE.Vector2(1.0 / W, 1.0 / H) },
+        uSharp: { value: 0.30 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position.xy, 0.0, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tVideo;
+        uniform vec4 uCrop;
+        uniform vec2 uTexel;
+        uniform float uSharp;
+        varying vec2 vUv;
+        void main() {
+          vec2 p = vec2(uCrop.x + vUv.x * uCrop.z, uCrop.y + vUv.y * uCrop.w);
+          vec3 c = texture2D(tVideo, p).rgb;
+          vec3 n = texture2D(tVideo, p + vec2(0.0, uTexel.y)).rgb;
+          vec3 s = texture2D(tVideo, p - vec2(0.0, uTexel.y)).rgb;
+          vec3 e = texture2D(tVideo, p + vec2(uTexel.x, 0.0)).rgb;
+          vec3 w = texture2D(tVideo, p - vec2(uTexel.x, 0.0)).rgb;
+          vec3 avg = 0.25 * (n + s + e + w);
+          vec3 mn = min(c, min(min(n, s), min(e, w)));
+          vec3 mx = max(c, max(max(n, s), max(e, w)));
+          float damp = clamp(1.0 - max(mx.g - mn.g, 0.05) * 2.4, 0.0, 1.0);
+          vec3 sharp = clamp(c + (c - avg) * (uSharp * (0.65 + 0.55 * damp)), 0.0, 1.0);
+          gl_FragColor = vec4(sharp, 1.0);
+        }
+      `,
+      depthTest: false,
+      depthWrite: false
+    });
+    bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat));
+
+    const stereoTarget = new THREE.WebGLRenderTarget(W, H, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      stencilBuffer: true
+    });
+
+    const uiLayerCanvas = document.createElement("canvas");
+    uiLayerCanvas.width = 640;
+    uiLayerCanvas.height = 720;
+    const uiLayerCtx = uiLayerCanvas.getContext("2d");
+    const uiLayerTex = new THREE.CanvasTexture(uiLayerCanvas);
+    uiLayerTex.minFilter = THREE.LinearFilter;
+    uiLayerTex.magFilter = THREE.LinearFilter;
+    const uiOverlayScene = new THREE.Scene();
+    uiOverlayScene.add(new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      new THREE.MeshBasicMaterial({ map: uiLayerTex, transparent: true, depthTest: false, depthWrite: false })
+    ));
+
+    // Pre-Calculated 48x48 Barrel Distortion + R/G/B Lateral Chromatic Aberration + Hidden Area Vignette
+    function createEyeDistortionMesh(eyeIdx, gridN = 48) {
+      const k1 = 0.22;
+      const k2 = 0.14;
+      const kR = -0.014;
+      const kB = 0.018;
+      const verts = [], uvR = [], uvG = [], uvB = [], locG = [], rads = [], indices = [];
+      const uBase = eyeIdx === 0 ? 0.0 : 0.5;
+      for (let iy = 0; iy <= gridN; iy++) {
+        const v = iy / gridN;
+        const dy = 2.0 * v - 1.0;
+        for (let ix = 0; ix <= gridN; ix++) {
+          const u = ix / gridN;
+          const dx = 2.0 * u - 1.0;
+          const r2 = dx * dx + dy * dy;
+          const r = Math.sqrt(r2);
+          const s = 1.0 + k1 * r2 + k2 * r2 * r2;
+          const sR = s * (1.0 + kR * r2);
+          const sG = s;
+          const sB = s * (1.0 + kB * r2);
+
+          const gx = 0.5 + 0.5 * dx * sG;
+          const gy = 0.5 + 0.5 * dy * sG;
+          verts.push((eyeIdx === 0 ? -1.0 : 0.0) + u, dy, 0);
+          uvR.push(uBase + 0.5 * (0.5 + 0.5 * dx * sR), 0.5 + 0.5 * dy * sR);
+          uvG.push(uBase + 0.5 * gx, gy);
+          uvB.push(uBase + 0.5 * (0.5 + 0.5 * dx * sB), 0.5 + 0.5 * dy * sB);
+          locG.push(gx, gy);
+          rads.push(r);
+        }
+      }
+      for (let iy = 0; iy < gridN; iy++) {
+        for (let ix = 0; ix < gridN; ix++) {
+          const a = iy * (gridN + 1) + ix;
+          const b = a + 1;
+          const c = a + (gridN + 1);
+          const d = c + 1;
+          indices.push(a, b, c, b, d, c);
+        }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+      geo.setAttribute("aUvR", new THREE.Float32BufferAttribute(uvR, 2));
+      geo.setAttribute("aUvG", new THREE.Float32BufferAttribute(uvG, 2));
+      geo.setAttribute("aUvB", new THREE.Float32BufferAttribute(uvB, 2));
+      geo.setAttribute("aLocG", new THREE.Float32BufferAttribute(locG, 2));
+      geo.setAttribute("aRad", new THREE.Float32BufferAttribute(rads, 1));
+      geo.setIndex(indices);
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { tEye: { value: stereoTarget.texture } },
+        vertexShader: `
+          attribute vec2 aUvR;
+          attribute vec2 aUvG;
+          attribute vec2 aUvB;
+          attribute vec2 aLocG;
+          attribute float aRad;
+          varying vec2 vUvR;
+          varying vec2 vUvG;
+          varying vec2 vUvB;
+          varying vec2 vLocG;
+          varying float vRad;
+          void main() {
+            vUvR = aUvR;
+            vUvG = aUvG;
+            vUvB = aUvB;
+            vLocG = aLocG;
+            vRad = aRad;
+            gl_Position = vec4(position.xy, 0.0, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D tEye;
+          varying vec2 vUvR;
+          varying vec2 vUvG;
+          varying vec2 vUvB;
+          varying vec2 vLocG;
+          varying float vRad;
+          void main() {
+            float inside = step(0.0, vLocG.x) * step(vLocG.x, 1.0) * step(0.0, vLocG.y) * step(vLocG.y, 1.0);
+            float vig = smoothstep(1.16, 1.02, vRad);
+            float r = texture2D(tEye, vUvR).r;
+            float g = texture2D(tEye, vUvG).g;
+            float b = texture2D(tEye, vUvB).b;
+            gl_FragColor = vec4(vec3(r, g, b) * inside * vig, 1.0);
+          }
+        `,
+        depthTest: false,
+        depthWrite: false
+      });
+      return new THREE.Mesh(geo, mat);
+    }
+    const vrOpticsScene = new THREE.Scene();
+    vrOpticsScene.add(createEyeDistortionMesh(0, 48), createEyeDistortionMesh(1, 48));
+    const vrFlatScene = new THREE.Scene();
+    vrFlatScene.add(new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      new THREE.MeshBasicMaterial({ map: stereoTarget.texture, depthTest: false, depthWrite: false })
+    ));
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, W / H, 0.05, 60.0);
@@ -934,9 +1149,13 @@
       isFloating: true,
       wasPinched: false,
       grabDist: 0.58,
+      grabStartPinchDist: 0.50,
+      grabStartCubeDist: 0.58,
       grabOffset: new THREE.Vector3(),
       lastFingerAngle: null,
-      prevPinchWorld: null,
+      laserLine: null,
+      isOffscreen: false,
+      offscreenDirX: 0,
       size: 0.11, // 11cm tactile palm-sized glass Tesseract cube
       deskY: -0.25,
 
@@ -1062,6 +1281,15 @@
         );
         appGroups[4].add(this.shadowRing);
 
+        // 6. PinchAim Laser Ray from finger toward Cube (gives clear hover lock visual)
+        const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -0.5)]);
+        this.laserLine = new THREE.Line(
+          laserGeo,
+          new THREE.LineBasicMaterial({ color: 0x6ee7b7, transparent: true, opacity: 0.55 })
+        );
+        this.laserLine.visible = false;
+        appGroups[4].add(this.laserLine);
+
         this.springPos.snap(this.pos);
         this.group.position.copy(this.pos);
         appGroups[4].add(this.group);
@@ -1085,7 +1313,13 @@
           rayDir = pinchWorld3d.clone().sub(eyeOrig).normalize();
         }
 
-        // 1. Eye-Through-PinchPoint Ray Hover Check (HandInteractorRig.cs line 85)
+        // Check if Cube is offscreen relative to camera for directional badge hint
+        const camSpace = this.pos.clone().applyMatrix4(cam.matrixWorldInverse);
+        const ndc = this.pos.clone().project(cam);
+        this.isOffscreen = (camSpace.z > -0.05) || (Math.abs(ndc.x) > 1.05) || (Math.abs(ndc.y) > 1.05);
+        this.offscreenDirX = camSpace.x >= 0 ? 1 : -1;
+
+        // 1. Generous Magnetic Eye-Through-PinchPoint Hover Cone (easy targeting!)
         this.isHovered = false;
         if (rayDir) {
           const toCube = this.pos.clone().sub(eyeOrig);
@@ -1093,9 +1327,9 @@
           if (proj > 0.10) {
             const closest = eyeOrig.clone().addScaledVector(rayDir, proj);
             const rayDist = closest.distanceTo(this.pos);
-            if (rayDist < this.size * 1.45) this.isHovered = true;
+            if (rayDist < this.size * 2.15) this.isHovered = true;
           }
-          if (pinchWorld3d.distanceTo(this.pos) < 0.24) this.isHovered = true;
+          if (pinchWorld3d.distanceTo(this.pos) < 0.28) this.isHovered = true;
         }
 
         const justReleased = (!isPinched) && this.wasPinched;
@@ -1105,16 +1339,23 @@
         if (isPinched && !this.isGrabbed && this.isHovered && rayDir) {
           this.isGrabbed = true;
           this.isFloating = false;
-          this.grabDist = Math.max(0.42, Math.min(1.15, this.pos.distanceTo(eyeOrig)));
+          this.grabDist = Math.max(0.40, Math.min(1.15, this.pos.distanceTo(eyeOrig)));
+          this.grabStartCubeDist = this.grabDist;
+          this.grabStartPinchDist = pinchWorld3d ? pinchWorld3d.distanceTo(eyeOrig) : 0.50;
           const rayPt = eyeOrig.clone().addScaledVector(rayDir, this.grabDist);
           this.grabOffset.copy(this.pos).sub(rayPt);
           this.vel.set(0, 0, 0);
           this.lastFingerAngle = fingerAngle;
-          this.prevPinchWorld = pinchWorld3d ? pinchWorld3d.clone() : null;
         }
 
         if (isPinched && this.isGrabbed && rayDir) {
           this.grabOffset.multiplyScalar(Math.exp(-dt * 15.0));
+          // Smooth Z-axis push/pull relative to initial grab depth
+          const curPinchDist = pinchWorld3d.distanceTo(eyeOrig);
+          const depthShift = (curPinchDist - this.grabStartPinchDist) * 1.15;
+          const targetDist = Math.max(0.36, Math.min(1.25, this.grabStartCubeDist + depthShift));
+          this.grabDist += (targetDist - this.grabDist) * 0.25;
+
           const target = eyeOrig.clone().addScaledVector(rayDir, this.grabDist).add(this.grabOffset);
           const prevPos = this.pos.clone();
           this.pos.copy(this.springPos.step(target, dt));
@@ -1123,32 +1364,19 @@
             this.vel.lerp(instVel, 0.45);
           }
 
-          // Smooth intuitive rotation from wrist twist + subtle motion arc
+          // Clean controlled rotation: twist fingers directly to spin without wild tumbling when moving XY!
           if (fingerAngle !== null && this.lastFingerAngle !== null) {
             let da = fingerAngle - this.lastFingerAngle;
             if (da > Math.PI) da -= Math.PI * 2;
             if (da < -Math.PI) da += Math.PI * 2;
             if (Math.abs(da) < 0.7) {
-              const rotDelta = new THREE.Quaternion().setFromEuler(new THREE.Euler(da * 0.45, -da * 1.45, da * 0.35));
+              const rotDelta = new THREE.Quaternion().setFromEuler(new THREE.Euler(da * 0.35, -da * 1.45, da * 0.30));
               this.targetQuat.premultiply(rotDelta);
             }
-          }
-          if (this.prevPinchWorld && pinchWorld3d) {
-            const dp = pinchWorld3d.clone().sub(this.prevPinchWorld);
-            const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
-            const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
-            const yawMove = dp.dot(camRight) * 2.2;
-            const pitchMove = -dp.dot(camUp) * 2.2;
-            if (Math.abs(yawMove) + Math.abs(pitchMove) > 0.001) {
-              const dragRot = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitchMove, yawMove, 0));
-              this.targetQuat.premultiply(dragRot);
-            }
-            this.prevPinchWorld.copy(pinchWorld3d);
           }
           this.lastFingerAngle = fingerAngle;
         } else {
           this.lastFingerAngle = null;
-          this.prevPinchWorld = null;
           if (justReleased && this.isGrabbed) {
             this.isGrabbed = false;
             tracker6dof.requestAnchorRefresh();
@@ -1203,6 +1431,14 @@
         if (this.shadowRing) {
           this.shadowRing.position.set(this.pos.x, this.deskY + 0.002, this.pos.z);
           this.shadowRing.material.opacity = shAlpha * 0.55;
+        }
+        if (this.laserLine) {
+          if (!this.isGrabbed && this.isHovered && pinchWorld3d) {
+            this.laserLine.visible = true;
+            this.laserLine.geometry.setFromPoints([pinchWorld3d, this.pos]);
+          } else {
+            this.laserLine.visible = false;
+          }
         }
 
         // HandRayView Target Dot dynamically faces viewer
@@ -1335,6 +1571,7 @@
     const uiState = {
       currentMode: 4, // Start on 3D Cube Sandbox so user can immediately test smooth 3D Cube!
       stereoVrMode: false,
+      vrLensOptics: true, // Cardboard/Shinecon 48x48 Barrel Distortion + R/G/B Chromatic Pre-Correction
       handOcclusion: true,
       isMenuOpen: true,
       isLibraryOpen: false,
@@ -1345,20 +1582,21 @@
       ipdOffset: 14,
       activeRoute: null,
       wasPinched: false,
-      aimHistory: new AimHistory(0.14),
+      lastClickAt: 0,
+      aimHistory: new AimHistory(0.045),
       smoothCursor: { x: 640, y: 360 },
       hoveredBtnId: null,
       buttons: [],
 
       buildButtons(viewW, viewH) {
         const sy = viewH / 720.0;
-        const panelX0 = viewW >= 800 ? Math.floor((viewW - 592) / 2) : 0;
+        const panelX0 = viewW >= 800 ? Math.floor((viewW - 592) / 2) : Math.floor((viewW - 592) / 2);
         const btns = [];
 
         if (this.isMenuOpen) {
-          // Bottom M3 Toolbar (nam gon trong Safe Zone y=65..655 de iPhone 13 19.5:9 fullscreen khong bao gio bi cat!)
-          const yTb = Math.floor(588 * sy);
-          const hTb = Math.max(30, Math.floor(40 * sy));
+          // Top Safe-Zone M3 Toolbar (nam o tren cung y=72..112 de nhường toan bo khong gian duoi cho tay & 3D!)
+          const yTb = Math.floor(72 * sy);
+          const hTb = Math.max(30, Math.floor(38 * sy));
           const tbDefs = [
             { id: "tb_apps", label: "[+] APPS", x: 30, w: 100, active: this.isLibraryOpen },
             { id: "tb_view", label: this.stereoVrMode ? "[0] SBS VR" : "[0] 1-SCR", x: 138, w: 108, active: this.stereoVrMode },
@@ -1367,11 +1605,11 @@
             { id: "tb_hide", label: "[X] HIDE", x: 472, w: 90, active: false }
           ];
           for (const d of tbDefs) {
-            btns.push({ id: d.id, label: d.label, x: panelX0 + d.x, y: yTb, w: d.w, h: hTb, r: 20, active: d.active });
+            btns.push({ id: d.id, label: d.label, x: panelX0 + d.x, y: yTb, w: d.w, h: hTb, r: 19, active: d.active });
           }
 
           if (this.isLibraryOpen) {
-            // 2x4 App Library Grid
+            // 2x4 App Library Grid ngay ben duoi thanh cong cu tren (y=124..300)
             const tiles = [
               { id: "demo_1", label: "3D PAINT", sub: "Tilt Brush", col: "#d0bcff" },
               { id: "demo_2", label: "AR PORTAL", sub: "3D World", col: "#38bdf8" },
@@ -1385,16 +1623,16 @@
             for (let i = 0; i < tiles.length; i++) {
               const row = Math.floor(i / 4), col = i % 4;
               const tx = panelX0 + 30 + col * 136;
-              const ty = Math.floor((330 + row * 94) * sy);
+              const ty = Math.floor((124 + row * 90) * sy);
               const modeNum = i < 7 ? i + 1 : -1;
               btns.push({
                 id: tiles[i].id, label: tiles[i].label, sub: tiles[i].sub, accent: tiles[i].col,
-                x: tx, y: ty, w: 126, h: Math.floor(82 * sy), r: 18,
+                x: tx, y: ty, w: 126, h: Math.floor(80 * sy), r: 18,
                 active: this.currentMode === modeNum
               });
             }
           } else if (this.currentMode === 1) {
-            const ySub = Math.floor(534 * sy);
+            const ySub = Math.floor(122 * sy);
             const cols = ["#d0bcff", "#00f3ff", "#22c55e", "#f97316", "#ffffff"];
             for (let i = 0; i < 5; i++) {
               btns.push({
@@ -1454,14 +1692,14 @@
         if (!isPinched) {
           this.aimHistory.record(cursorPt, nowSec);
         }
-        this.smoothCursor.x += (cursorPt.x - this.smoothCursor.x) * 0.65;
-        this.smoothCursor.y += (cursorPt.y - this.smoothCursor.y) * 0.65;
+        this.smoothCursor.x += (cursorPt.x - this.smoothCursor.x) * 0.80;
+        this.smoothCursor.y += (cursorPt.y - this.smoothCursor.y) * 0.80;
 
         const aimPt = (isPinched && !this.wasPinched && this.aimHistory.sample(nowSec)) || this.smoothCursor;
 
         let hoveredBtn = null;
         for (const b of btns) {
-          if (aimPt.x >= b.x - 6 && aimPt.x <= b.x + b.w + 6 && aimPt.y >= b.y - 6 && aimPt.y <= b.y + b.h + 6) {
+          if (aimPt.x >= b.x - 8 && aimPt.x <= b.x + b.w + 8 && aimPt.y >= b.y - 8 && aimPt.y <= b.y + b.h + 8) {
             hoveredBtn = b;
             this.hoveredBtnId = b.id;
             break;
@@ -1472,9 +1710,13 @@
         this.wasPinched = isPinched;
 
         if (justPinched) {
-          if (hoveredBtn) {
+          if (hoveredBtn && (nowSec - this.lastClickAt) > 0.28) {
+            this.lastClickAt = nowSec;
             this.activeRoute = "UI";
             this.dispatchClick(hoveredBtn.id, tracker6dof);
+            return true;
+          } else if (hoveredBtn) {
+            this.activeRoute = "UI";
             return true;
           } else {
             this.activeRoute = "DEMO";
@@ -1528,19 +1770,39 @@
           }
         }
 
-        // Draw CardboardXR Reticle Cursor at PinchPoint
+        // Draw CardboardXR Reticle Cursor + Tactile Pinch-Closing Halo at Index-Anchored PinchPoint
         if (hasHand) {
           const cx = this.smoothCursor.x, cy = this.smoothCursor.y;
+          const prog = pinchDetector ? pinchDetector.pinchProgress : (isPinched ? 1 : 0);
+          const outerR = isPinched ? 9 : (18 - 8 * prog);
           ctx.beginPath();
-          ctx.arc(cx, cy, isPinched ? 9 : 12, 0, Math.PI * 2);
-          ctx.strokeStyle = isPinched ? "#ffd54f" : (this.hoveredBtnId || cubeState.isHovered ? "#6ee7b7" : "#ffffff");
-          ctx.lineWidth = 2.5;
+          ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+          ctx.strokeStyle = isPinched ? "#ffd54f" : (this.hoveredBtnId || cubeState.isHovered ? "#6ee7b7" : "rgba(255,255,255,0.88)");
+          ctx.lineWidth = isPinched ? 2.8 : (1.8 + 1.2 * prog);
           ctx.stroke();
 
           ctx.beginPath();
           ctx.arc(cx, cy, isPinched ? 5 : 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = isPinched ? "#ffd54f" : "#ffffff";
+          ctx.fillStyle = isPinched ? "#ffd54f" : (cubeState.isHovered ? "#6ee7b7" : "#ffffff");
           ctx.fill();
+        }
+
+        // Offscreen Cube Directional Helper Badge (Mode 4)
+        if (this.currentMode === 4 && cubeState.isOffscreen && !this.isLibraryOpen) {
+          const onRight = cubeState.offscreenDirX >= 0;
+          const bx = onRight ? (offsetX === 0 && !this.stereoVrMode ? W - 185 : 640 - 158) : 28;
+          ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+          ctx.strokeStyle = "#00f3ff";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(bx, 620, 140, 32, 16);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#00f3ff";
+          ctx.font = "700 11.5px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(onRight ? "TESSERACT  ▶" : "◀  TESSERACT", bx + 70, 636);
         }
 
         // Render Mode 3 (Orb Rush) & Mode 5 (3D Caliper) Floating Telemetry inside safe zone
@@ -1582,10 +1844,6 @@
     // =========================================================================
     // 6. WEBCODECS HARDWARE H.264 DECODER (NVIDIA RTX 4060 NVDEC) + WEBSOCKET
     // =========================================================================
-    const videoCanvas = document.createElement("canvas");
-    videoCanvas.width = W;
-    videoCanvas.height = H;
-    const videoCtx = videoCanvas.getContext("2d", { alpha: false });
     const AI_W = 640;
     const AI_H = 360;
     const aiCanvas = document.createElement("canvas");
@@ -1598,6 +1856,7 @@
     let mirrorConnected = false;
     let usbFps = 0;
     let videoFrameSeq = 0;
+    let lastUploadedTexSeq = "";
     let lastAiFrameSeq = "";
     let lastAiRunMs = 0;
     let lastMpTs = 0;
@@ -1996,6 +2255,7 @@
       const k = e.key.toLowerCase();
       if (k >= "1" && k <= "7") uiState.switchMode(parseInt(k, 10));
       else if (k === "v") uiState.stereoVrMode = !uiState.stereoVrMode;
+      else if (k === "b") uiState.vrLensOptics = !uiState.vrLensOptics;
       else if (k === "r") { tracker6dof.reset(); cubeState.resetToFront(camera); }
       else if (k === "x") {
         uiState.useWebcamFallback = !uiState.useWebcamFallback;
@@ -2064,15 +2324,30 @@
       const sxActive = viewW / cropW;
       const syActive = viewH / H;
 
+      if (tracker6dof.hasHardwarePose && !tracker6dof.firstHardwareAnchored) {
+        tracker6dof.firstHardwareAnchored = true;
+        tracker6dof.reset();
+        camera.aspect = viewW / viewH;
+        camera.updateProjectionMatrix();
+        tracker6dof.applyToCamera(camera, false);
+        cubeState.resetToFront(camera);
+      }
+
       if (uiState.useWebcamFallback && !webcamReady && !webcamStartRequested) {
         initLocalWebcam();
       }
 
+      const curFrameKey = useUsb
+        ? `u_${videoFrameSeq}`
+        : `w_${(webcamEl && webcamEl.currentTime ? webcamEl.currentTime : 0).toFixed(4)}`;
+      if ((useUsb || webcamReady) && curFrameKey !== lastUploadedTexSeq) {
+        lastUploadedTexSeq = curFrameKey;
+        videoBgTex.needsUpdate = true;
+      }
+
       if (handLandmarker && (useUsb || webcamReady)) {
         try {
-          const curInputSeq = useUsb
-            ? `u_${videoFrameSeq}`
-            : `w_${(webcamEl && webcamEl.currentTime ? webcamEl.currentTime : 0).toFixed(4)}`;
+          const curInputSeq = curFrameKey;
           let res = cachedHandResult;
           if (curInputSeq !== lastAiFrameSeq || (nowMs - lastAiRunMs) > 80) {
             lastAiFrameSeq = curInputSeq;
@@ -2099,7 +2374,7 @@
             tracker6dof.updateFromVideo(videoCanvas, lms2d, W, H, dt);
             camera.aspect = viewW / viewH;
             camera.updateProjectionMatrix();
-            tracker6dof.applyToCamera(camera);
+            tracker6dof.applyToCamera(camera, uiState.stereoVrMode);
 
             // Compute Monocular Hand Depth from knuckle width
             const d2 = (a, b) => Math.hypot((lms2d[a].x - lms2d[b].x) * sxActive, (lms2d[a].y - lms2d[b].y) * syActive);
@@ -2117,10 +2392,15 @@
             }
 
             isPinched = pinchDetector.update(lms2d, worldLms, nowSec);
-            pinchPtWorld = lms3dWorld[4].clone().add(lms3dWorld[8]).multiplyScalar(0.5);
+            // Index-anchored weighted pinch cursor avoids downward aiming jump right before pinching!
+            const wIdx = isPinched ? 0.58 : 0.78;
+            const wThumb = 1.0 - wIdx;
+            pinchPtWorld = lms3dWorld[8].clone().multiplyScalar(wIdx).addScaledVector(lms3dWorld[4], wThumb);
+            const px2dRaw = lms2d[8].x * wIdx + lms2d[4].x * wThumb;
+            const py2dRaw = lms2d[8].y * wIdx + lms2d[4].y * wThumb;
             pinchPt2d = {
-              x: ((lms2d[4].x + lms2d[8].x) * 0.5 - origX1) * sxActive,
-              y: ((lms2d[4].y + lms2d[8].y) * 0.5) * syActive
+              x: (px2dRaw - origX1) * sxActive,
+              y: py2dRaw * syActive
             };
             fingerAngle = Math.atan2(lms2d[8].y - lms2d[4].y, lms2d[8].x - lms2d[4].x);
             lastValidPinchWorld = pinchPtWorld;
@@ -2134,7 +2414,7 @@
             tracker6dof.updateFromVideo(videoCanvas, null, W, H, dt);
             camera.aspect = viewW / viewH;
             camera.updateProjectionMatrix();
-            tracker6dof.applyToCamera(camera);
+            tracker6dof.applyToCamera(camera, uiState.stereoVrMode);
 
             if (pinchDetector.holdOnHandLost(nowSec) && lastValidPinchWorld) {
               isPinched = true;
@@ -2149,7 +2429,7 @@
         tracker6dof.updateFromVideo(videoCanvas, null, W, H, dt);
         camera.aspect = viewW / viewH;
         camera.updateProjectionMatrix();
-        tracker6dof.applyToCamera(camera);
+        tracker6dof.applyToCamera(camera, uiState.stereoVrMode);
       }
 
       // 3. Route Pinch via CardboardXR PinchRouter
@@ -2208,54 +2488,74 @@
         mode === 4 && cubeState.isGrabbed
       );
 
-      // 5. Render Three.js 3D WebGL Scene + Passthrough Video + Material 3 Glass UI onto Composite Canvas
-      compCtx.clearRect(0, 0, W, H);
-
+      // 5. Render Single-Pass WebGL2 CAS Video + Depth Hand Occluder + PBR 3D + VR Optics Compositor
       if (!uiState.stereoVrMode) {
-        // 1-SCR (Single Full Screen 1280x720)
-        compCtx.drawImage(videoCanvas, 0, 0, W, H);
+        // 1-SCR: GPU CAS Sharpened Video + Depth-Only Hand Occlusion + PBR 3D Apps -> compCanvas
+        renderer.setRenderTarget(null);
         renderer.setViewport(0, 0, W, H);
         renderer.setScissorTest(false);
+        renderer.clear();
+        bgMat.uniforms.uCrop.value.set(0, 0, 1, 1);
+        renderer.render(bgScene, bgCamera);
+        renderer.clearDepth();
+        renderer.clearStencil();
         renderer.render(scene, camera);
+
         compCtx.drawImage(glCanvas, 0, 0, W, H);
         uiState.drawGlassUI(compCtx, 0, isPinched, !!pinchPt2d);
       } else {
-        // SBS VR (Dual-Eye 640x720 Stereo Side-by-Side for Shinecon G10)
+        // SBS VR: Render Dual-Eye (CAS Video + Stereo IPD 3D + HUD Texture) -> Offscreen Target -> 48x48 Barrel & RGB Optics Pass
         const eyeW = 640, eyeH = 720;
         const x1L = Math.max(0, Math.min(W - cropW, origX1 - uiState.ipdOffset));
         const x1R = Math.max(0, Math.min(W - cropW, origX1 + uiState.ipdOffset));
 
-        // Draw Left & Right Passthrough Video Crops
-        compCtx.drawImage(videoCanvas, x1L, 0, cropW, H, 0, 0, eyeW, eyeH);
-        compCtx.drawImage(videoCanvas, x1R, 0, cropW, H, eyeW, 0, eyeW, eyeH);
+        uiLayerCtx.clearRect(0, 0, eyeW, eyeH);
+        uiState.drawGlassUI(uiLayerCtx, 0, isPinched, !!pinchPt2d);
+        uiLayerTex.needsUpdate = true;
 
-        // Render Left Eye (-32mm IPD shift) & Right Eye (+32mm IPD shift) in WebGL2
         const basePos = camera.position.clone();
         const rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
 
+        renderer.setRenderTarget(stereoTarget);
         renderer.setScissorTest(true);
-        // Left Eye
-        camera.position.copy(basePos).addScaledVector(rightVec, -0.032);
-        camera.updateMatrixWorld();
+
+        // Left Eye (-32mm IPD shift)
         renderer.setViewport(0, 0, eyeW, eyeH);
         renderer.setScissor(0, 0, eyeW, eyeH);
-        renderer.render(scene, camera);
-
-        // Right Eye
-        camera.position.copy(basePos).addScaledVector(rightVec, +0.032);
+        renderer.clear();
+        bgMat.uniforms.uCrop.value.set(x1L / W, 0, cropW / W, 1);
+        renderer.render(bgScene, bgCamera);
+        renderer.clearDepth();
+        renderer.clearStencil();
+        camera.position.copy(basePos).addScaledVector(rightVec, -0.032);
         camera.updateMatrixWorld();
+        renderer.render(scene, camera);
+        renderer.render(uiOverlayScene, bgCamera);
+
+        // Right Eye (+32mm IPD shift)
         renderer.setViewport(eyeW, 0, eyeW, eyeH);
         renderer.setScissor(eyeW, 0, eyeW, eyeH);
+        renderer.clear();
+        bgMat.uniforms.uCrop.value.set(x1R / W, 0, cropW / W, 1);
+        renderer.render(bgScene, bgCamera);
+        renderer.clearDepth();
+        renderer.clearStencil();
+        camera.position.copy(basePos).addScaledVector(rightVec, +0.032);
+        camera.updateMatrixWorld();
         renderer.render(scene, camera);
+        renderer.render(uiOverlayScene, bgCamera);
 
         camera.position.copy(basePos);
         camera.updateMatrixWorld();
 
-        compCtx.drawImage(glCanvas, 0, 0, W, H);
-        uiState.drawGlassUI(compCtx, 0, isPinched, !!pinchPt2d);
-        uiState.drawGlassUI(compCtx, eyeW, isPinched, !!pinchPt2d);
+        // Final Compositor Optics Pass (Vertex Barrel Distortion + R/G/B Chromatic + Hidden Area Mask)
+        renderer.setRenderTarget(null);
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, W, H);
+        renderer.clear();
+        renderer.render(uiState.vrLensOptics ? vrOpticsScene : vrFlatScene, bgCamera);
 
-        // Center Divider Line
+        compCtx.drawImage(glCanvas, 0, 0, W, H);
         compCtx.fillStyle = "#000000";
         compCtx.fillRect(eyeW - 2, 0, 4, eyeH);
       }
