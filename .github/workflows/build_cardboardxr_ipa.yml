@@ -1,7 +1,74 @@
+name: Build CardboardXR Unity iOS App (IPA)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export-xcode:
+    name: Export Unity 6 iOS Xcode Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Unity License Secret
+        env:
+          U_LIC: ${{ secrets.UNITY_LICENSE }}
+          U_SER: ${{ secrets.UNITY_SERIAL }}
+        run: |
+          if [ -z "$U_LIC" ] && [ -z "$U_SER" ]; then
+            echo "::error::Missing UNITY_LICENSE (or UNITY_SERIAL) secret in GitHub Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Restore Unity Library Cache
+        uses: actions/cache@v4
+        with:
+          path: BUISINESS/CardboardXR/CardboardXR-main/Library
+          key: cardboardxr-ios-Library-${{ hashFiles('BUISINESS/CardboardXR/CardboardXR-main/Assets/**', 'BUISINESS/CardboardXR/CardboardXR-main/Packages/**', 'BUISINESS/CardboardXR/CardboardXR-main/ProjectSettings/**') }}
+          restore-keys: |
+            cardboardxr-ios-Library-
+
+      - name: Export iOS Xcode Project via StereoBuilder.BuildIos
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          unityVersion: 6000.6.8f1
+          targetPlatform: iOS
+          projectPath: BUISINESS/CardboardXR/CardboardXR-main
+          buildMethod: ProjectBootstrap.StereoBuilder.BuildIos
+          allowDirtyBuild: true
+
+      - name: Upload Xcode Project Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CardboardXR_Xcode_iOS
+          path: BUISINESS/CardboardXR/CardboardXR-main/Builds/iOS
+          if-no-files-found: error
+          retention-days: 7
+
+  package-ipa:
+    name: Archive & Package Unsigned IPA (Sideloadly Ready)
+    needs: export-xcode
+    runs-on: macos-latest
+    steps:
+      - name: Download Xcode Project
+        uses: actions/download-artifact@v4
+        with:
+          name: CardboardXR_Xcode_iOS
+          path: ios-xcode
+
+      - name: Install CocoaPods Dependencies (if Podfile exists)
+        working-directory: ios-xcode
         run: |
           if [ -f Podfile ]; then
             pod install
           fi
+
       - name: Build Unsigned iOS Archive (.xcarchive)
         working-directory: ios-xcode
         run: |
@@ -26,6 +93,7 @@
               CODE_SIGN_IDENTITY="" \
               CODE_SIGNING_REQUIRED=NO
           fi
+
       - name: Package CardboardXR.ipa
         working-directory: ios-xcode
         run: |
@@ -39,6 +107,7 @@
           cd build
           zip -r CardboardXR.ipa Payload
           ls -lh CardboardXR.ipa
+
       - name: Upload CardboardXR IPA Artifact
         uses: actions/upload-artifact@v4
         with:
