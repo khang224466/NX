@@ -10,8 +10,8 @@
   2. **Khóa Mượt 60 FPS Zero-Copy WebGL2 + Async Throttled AI**:
      - `<canvas id="composite-canvas">` đóng vai trò trực tiếp là WebGL2 swapchain (`alpha: false`, `renderer` vẽ thẳng `uiFullOverlayScene` `1280x720` & thanh chia đen SBS VR trong GPU), loại bỏ hoàn toàn `glCanvas -> 2D compCtx.drawImage` và `getImageData` khi đã có ARKit 6DoF.
      - Đảo thứ tự `animate()`: Render WebGL2 + đẩy NVENC H.264 (`0x06`) lên trước với `applyToCamera(..., dt)` bất biến tần số quét và pipelining USB 18ms/10ms gate; chuyển `handLandmarker.detectForVideo` xuống SAU render ở nhịp `>= 32ms` (~30Hz) để không bao giờ chặn VSync 60 FPS.
-  3. **Chuẩn bị Boost CardboardXR (`Unity 6000.6.8f1`) lên iPhone (`.ipa`)**:
-     - Tạo workflow cloud `.github/workflows/build_cardboardxr_ipa.yml` (`game-ci/unity-builder@v4` gọi `ProjectBootstrap.StereoBuilder.BuildIos` -> `macos-latest xcodebuild archive` -> `CardboardXR_iOS_IPA`) và script `BUISINESS/CardboardXR/BOOST_CARDBOARDXR_IPHONE.bat` (chỉ còn 1 bước user thêm Secret `UNITY_LICENSE` trên GitHub Actions).
+  3. **Boost CardboardXR (`Unity 6000.6.8f1`) thành công lên iPhone (`CardboardXR.ipa` 44.61 MB)**:
+     - Vượt qua lỗi `game-ci` `UNITY_SERIAL=x` bằng auth thẳng `Unity.Licensing.Client --activate-all --include-personal` trong container `unityci/editor:ubuntu-6000.6.8f1-ios-3`, sửa lỗi C# `CS0165` (`trackerRotation`) trong [HeadPoseFusion.cs](BUISINESS/CardboardXR/CardboardXR-main/Assets/_Project/Scripts/Stereo/HeadPoseFusion.cs), hoàn tất Run **#44010618198** (`Export Xcode 12m3s` -> `macOS Archive IPA 13m17s`) và tải xác minh `CardboardXR.ipa` (`72` entries, `46,775,425 bytes`) tại `BUISINESS/CardboardXR/Builds_IPA/CardboardXR.ipa`.
   4. **Kiểm chứng**: JS `vm.Script` + `node -c` + `YAML_OK` + `test_native_diagnostics.cjs` (`Desktop\stark mark ILX\code\`) đạt **6/6 PASS** (không cần cài lại `STARK_Cam_iOS.ipa` v1.0.6 Build 7).
 
 ---

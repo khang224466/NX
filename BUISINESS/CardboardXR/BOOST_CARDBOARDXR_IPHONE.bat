@@ -23,23 +23,14 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [1/4] Kiem tra Unity License Secret (UNITY_LICENSE / UNITY_SERIAL)...
-gh secret list -R %REPO% | findstr /I "UNITY_LICENSE UNITY_SERIAL" >nul
+echo [1/4] Kiem tra Unity Credentials Secret (UNITY_EMAIL / UNITY_PASSWORD)...
+gh secret list -R %REPO% | findstr /I "UNITY_EMAIL" >nul
 if errorlevel 1 (
   echo.
-  echo [CAN 1 BUOC DUY NHAT] Repo %REPO% chua co GitHub Secret "UNITY_LICENSE" !
-  echo Vi Windows khong co Xcode / macOS, Unity + Xcode build chay tren GitHub Cloud.
-  echo.
-  echo Cach lay UNITY_LICENSE mien phi (Unity Personal .ulf) hoac nhanh nhat:
-  echo   1. Mo Unity Hub tren may bat ky, hoac dung game-ci activation workflow
-  echo   2. Vao https://github.com/%REPO%/settings/secrets/actions
-  echo   3. Tao Secret ten: UNITY_LICENSE (dan noi dung file Unity_v6000.x.ulf)
-  echo      (hoac UNITY_SERIAL + UNITY_EMAIL + UNITY_PASSWORD neu dung Pro key)
-  echo.
-  echo Sau khi add Secret xong, chay lai file .bat nay de auto build ^& tai CardboardXR.ipa!
-  echo.
-  set /p openWeb="Ban co muon mo trang Settings > Secrets tren trinh duyet ngay khong? [Y/N]: "
-  if /I "%openWeb%"=="Y" start "" "https://github.com/%REPO%/settings/secrets/actions"
+  echo [CAN 1 BUOC DUY NHAT] Repo %REPO% chua co Secret UNITY_EMAIL / UNITY_PASSWORD !
+  echo Hay chay:
+  echo   gh secret set UNITY_EMAIL -R %REPO%
+  echo   gh secret set UNITY_PASSWORD -R %REPO%
   pause
   exit /b 0
 )
