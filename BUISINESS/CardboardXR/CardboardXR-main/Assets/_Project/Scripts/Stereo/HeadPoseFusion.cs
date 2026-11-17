@@ -246,7 +246,8 @@ namespace CardboardXR.Stereo
             if (m_Mode != Mode.SixDof)
                 return;
 
-            bool hasLocalImu = m_Tracker != null && m_Tracker.TryGetRotation(out var trackerRotation);
+            Quaternion trackerRotation = Quaternion.identity;
+            bool hasLocalImu = m_Tracker != null && m_Tracker.TryGetRotation(out trackerRotation);
 
             // Chế độ Hybrid 6DoF trên PC Standalone (RTX 4060):
             // Khi không có cảm biến IMU di động cục bộ (hasLocalImu == false) nhưng có luồng 6DoF VIO

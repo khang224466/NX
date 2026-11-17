@@ -107,6 +107,7 @@ jobs:
       - name: Build Unsigned iOS Archive (.xcarchive)
         working-directory: ios-xcode
         run: |
+          find . -name "*.sh" -exec chmod +x {} + || true
           if [ -d Unity-iPhone.xcworkspace ]; then
             xcodebuild archive \
               -workspace Unity-iPhone.xcworkspace \
