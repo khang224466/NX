@@ -8,13 +8,13 @@ jobs:
     name: Export Unity 6 iOS Xcode Project
     runs-on: ubuntu-latest
     steps:
-      - name: Check Unity License Secret
+      - name: Check Unity Credentials
         env:
-          U_LIC: ${{ secrets.UNITY_LICENSE }}
-          U_SER: ${{ secrets.UNITY_SERIAL }}
+          U_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          U_PASS: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          if [ -z "$U_LIC" ] && [ -z "$U_SER" ]; then
-            echo "::error::Missing UNITY_LICENSE (or UNITY_SERIAL) secret in GitHub Settings > Secrets and variables > Actions."
+          if [ -z "$U_EMAIL" ] || [ -z "$U_PASS" ]; then
+            echo "::error::Missing UNITY_EMAIL or UNITY_PASSWORD secret in GitHub Settings > Secrets and variables > Actions."
             exit 1
           fi
 
@@ -29,19 +29,46 @@ jobs:
           restore-keys: |
             cardboardxr-ios-Library-
 
-      - name: Export iOS Xcode Project via StereoBuilder.BuildIos
-        uses: game-ci/unity-builder@v4
+      - name: Export iOS Xcode Project via Unity 6000.6.8f1 Entitlement Auth
         env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
-        with:
-          unityVersion: 6000.6.8f1
-          targetPlatform: iOS
-          projectPath: BUISINESS/CardboardXR/CardboardXR-main
-          buildMethod: ProjectBootstrap.StereoBuilder.BuildIos
-          allowDirtyBuild: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/unity_home"
+          docker run --rm \
+            --workdir /github/workspace \
+            --shm-size=1025m \
+            --env UNITY_EMAIL \
+            --env UNITY_PASSWORD \
+            --volume "$GITHUB_WORKSPACE:/github/workspace" \
+            --volume "$RUNNER_TEMP/unity_home:/root" \
+            unityci/editor:ubuntu-6000.6.8f1-ios-3 \
+            /bin/bash -c '
+              dbus-uuidgen > /etc/machine-id || true
+              mkdir -p /var/lib/dbus /root/.cache/unity3d /root/.local/share/unity3d/Unity /root/.config/unity3d/Unity/licenses
+              ln -sf /etc/machine-id /var/lib/dbus/machine-id || true
+
+              set +e
+              unity-editor \
+                -batchmode \
+                -nographics \
+                -quit \
+                -username "$UNITY_EMAIL" \
+                -password "$UNITY_PASSWORD" \
+                -projectPath /github/workspace/BUISINESS/CardboardXR/CardboardXR-main \
+                -buildTarget iOS \
+                -executeMethod ProjectBootstrap.StereoBuilder.BuildIos \
+                -logFile /dev/stdout
+              BUILD_RC=$?
+
+              chmod -R a+rwX /github/workspace/BUISINESS/CardboardXR/CardboardXR-main/Builds /github/workspace/BUISINESS/CardboardXR/CardboardXR-main/Library 2>/dev/null || true
+              exit $BUILD_RC
+            '
+
+      - name: Verify Xcode Project Output
+        run: |
+          ls -la BUISINESS/CardboardXR/CardboardXR-main/Builds/iOS
+          test -d BUISINESS/CardboardXR/CardboardXR-main/Builds/iOS/Unity-iPhone.xcodeproj
 
       - name: Upload Xcode Project Artifact
         uses: actions/upload-artifact@v4
