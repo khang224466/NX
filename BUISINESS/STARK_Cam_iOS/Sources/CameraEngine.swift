@@ -265,11 +265,14 @@ public class CameraEngine: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
             lastFPSCheckTime = now
         }
         
-        // Trích xuất vị trí & góc quay 6DoF từ ARKit VIO
+        // Trích xuất vị trí, góc quay 6DoF & FOV thật của ống kính từ ARKit VIO
         let transform = frame.camera.transform
         let pos = simd_make_float3(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
         let quat = simd_quatf(transform)
-        let pose = STARKPose6DoF(position: pos, orientation: quat, timestamp: frame.timestamp)
+        let fy = frame.camera.intrinsics.columns.1.y
+        let imgH = Float(frame.camera.imageResolution.height)
+        let vFovDeg: Float = (fy > 1.0 && imgH > 1.0) ? (2.0 * atan((imgH * 0.5) / fy) * 180.0 / .pi) : 45.0
+        let pose = STARKPose6DoF(position: pos, orientation: quat, timestamp: frame.timestamp, verticalFovDeg: vFovDeg)
         self.latestPose = pose
         
         let pts = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000)

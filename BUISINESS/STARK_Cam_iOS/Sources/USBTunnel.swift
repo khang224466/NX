@@ -6,11 +6,18 @@ public struct STARKPose6DoF {
     public var position: simd_float3 // x, y, z in meters
     public var orientation: simd_quatf // qx, qy, qz, qw
     public var timestamp: TimeInterval
+    public var verticalFovDeg: Float
 
-    public init(position: simd_float3, orientation: simd_quatf, timestamp: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+    public init(
+        position: simd_float3,
+        orientation: simd_quatf,
+        timestamp: TimeInterval = ProcessInfo.processInfo.systemUptime,
+        verticalFovDeg: Float = 45.0
+    ) {
         self.position = position
         self.orientation = orientation
         self.timestamp = timestamp
+        self.verticalFovDeg = verticalFovDeg
     }
 
     // 28 bytes binary data (Little Endian: 3f pos + 4f quat)
@@ -33,12 +40,21 @@ public struct STARKPose6DoF {
         withUnsafeBytes(of: &qw) { data.append(contentsOf: $0) }
         return data
     }
+
+    // 32 bytes binary data (28B Pose + 4B ARKit Vertical FOV in degrees)
+    public var binaryDataWithFov: Data {
+        var data = binaryData
+        var fov = verticalFovDeg
+        withUnsafeBytes(of: &fov) { data.append(contentsOf: $0) }
+        return data
+    }
 }
 
 public protocol USBTunnelDelegate: AnyObject {
     func usbTunnelDidConnectClient(_ tunnel: USBTunnel)
     func usbTunnelDidDisconnectClient(_ tunnel: USBTunnel)
     func usbTunnel(_ tunnel: USBTunnel, didReceiveReturnFrame data: Data)
+    func usbTunnel(_ tunnel: USBTunnel, didReceiveReturnH264 data: Data)
     func usbTunnel(_ tunnel: USBTunnel, didChangeState state: NWListener.State)
 }
 
@@ -135,18 +151,19 @@ public class USBTunnel {
         var packet: Data
         if let pose = pose {
             // Multiplexed 6DoF Packet:
-            // [4B Magic '6DOF'] + [4B Type 0x01] + [28B Pose Data] + [H.264 Payload]
+            // [4B Magic '6DOF'] + [4B Type 0x02] + [32B Pose+VFov] + [H.264 Payload]
             let magic = "6DOF".data(using: .ascii)!
-            var packetType = UInt32(1).littleEndian
+            var packetType = UInt32(2).littleEndian
             let typeData = Data(bytes: &packetType, count: 4)
+            let poseBytes = pose.binaryDataWithFov
             
-            let totalPayloadLength = magic.count + typeData.count + 28 + data.count
+            let totalPayloadLength = magic.count + typeData.count + poseBytes.count + data.count
             var length = UInt32(totalPayloadLength).bigEndian
             
             packet = Data(bytes: &length, count: 4)
             packet.append(magic)
             packet.append(typeData)
-            packet.append(pose.binaryData)
+            packet.append(poseBytes)
             packet.append(data)
         } else {
             // Standard NALU video packet
@@ -187,9 +204,11 @@ public class USBTunnel {
     }
     
     private func processIncomingBuffer() {
-        // TCP Stream Framing: [4 bytes BigEndian Length] + [Payload Data (JPEG frame)]
-        // Skip stale buffered frames inside any burst and deliver ONLY the latest complete frame!
-        var latestFrameData: Data? = nil
+        // TCP Stream Framing: [4 bytes BigEndian Length] + [Payload Data (H.264 Annex-B or JPEG)]
+        // H.264 frames (00 00 00 01 ...) are delivered in strict sequence so P-frames never break.
+        // JPEG frames use latest-frame mailbox to skip any intermediate buffered stills.
+        var h264Queue: [Data] = []
+        var latestJpegData: Data? = nil
         while (incomingBuffer.count - incomingReadOffset) >= 4 {
             let lenOffset = incomingReadOffset
             let length: UInt32 = incomingBuffer.withUnsafeBytes { rawBuf in
@@ -208,8 +227,17 @@ public class USBTunnel {
             if (incomingBuffer.count - incomingReadOffset) >= totalFrameSize {
                 let start = incomingReadOffset + 4
                 let end = incomingReadOffset + totalFrameSize
-                latestFrameData = incomingBuffer.subdata(in: start..<end)
+                let payload = incomingBuffer.subdata(in: start..<end)
                 incomingReadOffset = end
+                if payload.count >= 4,
+                   payload[payload.startIndex] == 0x00,
+                   payload[payload.startIndex + 1] == 0x00,
+                   payload[payload.startIndex + 2] == 0x00,
+                   payload[payload.startIndex + 3] == 0x01 {
+                    h264Queue.append(payload)
+                } else {
+                    latestJpegData = payload
+                }
             } else {
                 break
             }
@@ -225,7 +253,10 @@ public class USBTunnel {
             }
         }
 
-        if let frameData = latestFrameData {
+        for au in h264Queue {
+            self.delegate?.usbTunnel(self, didReceiveReturnH264: au)
+        }
+        if let frameData = latestJpegData {
             self.delegate?.usbTunnel(self, didReceiveReturnFrame: frameData)
         }
     }

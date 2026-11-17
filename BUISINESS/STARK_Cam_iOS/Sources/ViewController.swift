@@ -1,5 +1,6 @@
 import UIKit
 import AVFoundation
+import CoreMedia
 import Network
 import ImageIO
 
@@ -14,6 +15,8 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     private let cameraPreviewView = UIView()
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private let vrDisplayImageView = UIImageView()
+    private let vrH264View = UIView()
+    private let h264DisplayLayer = AVSampleBufferDisplayLayer()
     private let permissionButton = UIButton(type: .system)
     
     // Off-main-thread JPEG Decode Pipeline + Latest-Frame Mailbox (Zero UI lag!)
@@ -22,6 +25,13 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     private var pendingReturnFrame: Data?
     private var isDecodingReturn = false
     private var hasAutoSwitchedToXR = false
+    private var isUsingH264Return = false
+
+    // Hardware H.264 Annex-B Display Pipeline (AVSampleBufferDisplayLayer -> 60FPS Crisp Retina!)
+    private let h264ReturnQueue = DispatchQueue(label: "com.stark.vr.h264return", qos: .userInteractive)
+    private var returnSPS: Data?
+    private var returnPPS: Data?
+    private var returnFormatDesc: CMVideoFormatDescription?
     
     // Futuristic HUD
     private let hudOverlay = UIView()
@@ -108,6 +118,8 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         cameraPreviewView.frame = view.bounds
         previewLayer?.frame = cameraPreviewView.bounds
         vrDisplayImageView.frame = view.bounds
+        vrH264View.frame = view.bounds
+        h264DisplayLayer.frame = vrH264View.bounds
     }
     
     // MARK: - UI Setup
@@ -154,6 +166,17 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         vrDisplayImageView.backgroundColor = .black
         vrDisplayImageView.isHidden = true
         view.addSubview(vrDisplayImageView)
+
+        vrH264View.frame = view.bounds
+        vrH264View.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        vrH264View.clipsToBounds = true
+        vrH264View.backgroundColor = .black
+        vrH264View.isHidden = true
+        h264DisplayLayer.videoGravity = .resizeAspectFill
+        h264DisplayLayer.backgroundColor = UIColor.black.cgColor
+        h264DisplayLayer.frame = vrH264View.bounds
+        vrH264View.layer.addSublayer(h264DisplayLayer)
+        view.addSubview(vrH264View)
     }
     
     private func setupHUD() {
@@ -295,8 +318,15 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     @objc private func modeChanged() {
         startHUDTimer()
         let isVR = (modeSegment.selectedSegmentIndex == 1)
-        vrDisplayImageView.isHidden = !isVR
-        cameraPreviewView.isHidden = isVR
+        if !isVR {
+            vrDisplayImageView.isHidden = true
+            vrH264View.isHidden = true
+            cameraPreviewView.isHidden = false
+        } else {
+            vrDisplayImageView.isHidden = isUsingH264Return
+            vrH264View.isHidden = !isUsingH264Return
+            cameraPreviewView.isHidden = true
+        }
     }
     
     // MARK: - CameraEngineDelegate
@@ -337,9 +367,16 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
     
     // MARK: - USBTunnelDelegate
     func usbTunnelDidConnectClient(_ tunnel: USBTunnel) {
+        h264ReturnQueue.async { [weak self] in
+            self?.returnSPS = nil
+            self?.returnPPS = nil
+            self?.returnFormatDesc = nil
+        }
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.hasAutoSwitchedToXR = false
+            self.isUsingH264Return = false
+            self.h264DisplayLayer.flush()
             self.statusDot.backgroundColor = .systemGreen
             self.statusLabel.text = "DA KET NOI USB LAPTOP (480Mbps)"
         }
@@ -349,9 +386,162 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.hasAutoSwitchedToXR = false
+            self.isUsingH264Return = false
+            self.h264DisplayLayer.flushAndRemoveImage()
             self.statusDot.backgroundColor = .systemRed
             self.statusLabel.text = "CHO CAP USB LAPTOP..."
         }
+    }
+
+    func usbTunnel(_ tunnel: USBTunnel, didReceiveReturnH264 data: Data) {
+        h264ReturnQueue.async { [weak self] in
+            guard let self = self else { return }
+            let nalus = self.splitAnnexBNALUs(data)
+            guard !nalus.isEmpty else { return }
+
+            var avccData = Data()
+            for nalu in nalus {
+                guard let firstByte = nalu.first else { continue }
+                let nalType = firstByte & 0x1F
+                if nalType == 7 {
+                    if self.returnSPS != nalu {
+                        self.returnSPS = nalu
+                        self.returnFormatDesc = nil
+                    }
+                } else if nalType == 8 {
+                    if self.returnPPS != nalu {
+                        self.returnPPS = nalu
+                        self.returnFormatDesc = nil
+                    }
+                } else if nalType == 1 || nalType == 5 {
+                    var beLen = UInt32(nalu.count).bigEndian
+                    withUnsafeBytes(of: &beLen) { avccData.append(contentsOf: $0) }
+                    avccData.append(nalu)
+                }
+            }
+
+            if self.returnFormatDesc == nil, let sps = self.returnSPS, let pps = self.returnPPS {
+                sps.withUnsafeBytes { spsRaw in
+                    pps.withUnsafeBytes { ppsRaw in
+                        guard let spsPtr = spsRaw.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                              let ppsPtr = ppsRaw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+                        let ptrs: [UnsafePointer<UInt8>] = [spsPtr, ppsPtr]
+                        let sizes: [Int] = [sps.count, pps.count]
+                        var desc: CMVideoFormatDescription?
+                        let st = CMVideoFormatDescriptionCreateFromH264ParameterSets(
+                            allocator: kCFAllocatorDefault,
+                            parameterSetCount: 2,
+                            parameterSetPointers: ptrs,
+                            parameterSetSizes: sizes,
+                            nalUnitHeaderLength: 4,
+                            formatDescriptionOut: &desc
+                        )
+                        if st == noErr {
+                            self.returnFormatDesc = desc
+                        }
+                    }
+                }
+            }
+
+            guard !avccData.isEmpty, let formatDesc = self.returnFormatDesc else { return }
+
+            var blockBuffer: CMBlockBuffer?
+            let allocStatus = CMBlockBufferCreateWithMemoryBlock(
+                allocator: kCFAllocatorDefault,
+                memoryBlock: nil,
+                blockLength: avccData.count,
+                blockAllocator: kCFAllocatorDefault,
+                customBlockSource: nil,
+                offsetToData: 0,
+                dataLength: avccData.count,
+                flags: 0,
+                blockBufferOut: &blockBuffer
+            )
+            guard allocStatus == kCMBlockBufferNoErr, let blockBuf = blockBuffer else { return }
+
+            let copyStatus = avccData.withUnsafeBytes { rawBuf -> OSStatus in
+                guard let base = rawBuf.baseAddress else { return OSStatus(-1) }
+                return CMBlockBufferReplaceDataBytes(with: base, blockBuffer: blockBuf, offsetIntoDestination: 0, dataLength: avccData.count)
+            }
+            guard copyStatus == kCMBlockBufferNoErr else { return }
+
+            var sampleBuffer: CMSampleBuffer?
+            var sampleSize = avccData.count
+            var timing = CMSampleTimingInfo(
+                duration: CMTime.invalid,
+                presentationTimeStamp: CMClockGetTime(CMClockGetHostTimeClock()),
+                decodeTimeStamp: CMTime.invalid
+            )
+            let sbStatus = CMSampleBufferCreateReady(
+                allocator: kCFAllocatorDefault,
+                dataBuffer: blockBuf,
+                formatDescription: formatDesc,
+                sampleCount: 1,
+                sampleTimingEntryCount: 1,
+                sampleTimingArray: &timing,
+                sampleSizeEntryCount: 1,
+                sampleSizeArray: &sampleSize,
+                sampleBufferOut: &sampleBuffer
+            )
+            guard sbStatus == noErr, let sbuf = sampleBuffer else { return }
+
+            if let attachments = CMSampleBufferGetSampleAttachmentsArray(sbuf, createIfNecessary: true) {
+                let dict = unsafeBitCast(CFArrayGetValueAtIndex(attachments, 0), to: CFMutableDictionary.self)
+                CFDictionarySetValue(
+                    dict,
+                    Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
+                    Unmanaged.passUnretained(kCFBooleanTrue).toOpaque()
+                )
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.isUsingH264Return = true
+                if self.h264DisplayLayer.status == .failed {
+                    self.h264DisplayLayer.flush()
+                }
+                if !self.hasAutoSwitchedToXR || self.vrH264View.isHidden {
+                    self.hasAutoSwitchedToXR = true
+                    self.modeSegment.selectedSegmentIndex = 1
+                    self.vrH264View.isHidden = false
+                    self.vrDisplayImageView.isHidden = true
+                    self.cameraPreviewView.isHidden = true
+                }
+                self.h264DisplayLayer.enqueue(sbuf)
+            }
+        }
+    }
+
+    private func splitAnnexBNALUs(_ data: Data) -> [Data] {
+        var result: [Data] = []
+        let count = data.count
+        guard count > 4 else { return result }
+        data.withUnsafeBytes { rawBuf in
+            guard let bytes = rawBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            var i = 0
+            var nalStart = -1
+            while i < count {
+                var scLen = 0
+                if i + 3 < count && bytes[i] == 0 && bytes[i + 1] == 0 && bytes[i + 2] == 0 && bytes[i + 3] == 1 {
+                    scLen = 4
+                } else if i + 2 < count && bytes[i] == 0 && bytes[i + 1] == 0 && bytes[i + 2] == 1 {
+                    scLen = 3
+                }
+                if scLen > 0 {
+                    if nalStart >= 0 && i > nalStart {
+                        result.append(Data(bytes: bytes + nalStart, count: i - nalStart))
+                    }
+                    nalStart = i + scLen
+                    i += scLen
+                } else {
+                    i += 1
+                }
+            }
+            if nalStart >= 0 && count > nalStart {
+                result.append(Data(bytes: bytes + nalStart, count: count - nalStart))
+            }
+        }
+        return result
     }
     
     func usbTunnel(_ tunnel: USBTunnel, didReceiveReturnFrame data: Data) {
@@ -387,9 +577,11 @@ class ViewController: UIViewController, CameraEngineDelegate, H264EncoderDelegat
                     let img = UIImage(cgImage: cgImage)
                     DispatchQueue.main.async { [weak self] in
                         guard let self = self else { return }
-                        if !self.hasAutoSwitchedToXR {
+                        self.isUsingH264Return = false
+                        if !self.hasAutoSwitchedToXR || self.vrDisplayImageView.isHidden {
                             self.hasAutoSwitchedToXR = true
                             self.modeSegment.selectedSegmentIndex = 1
+                            self.vrH264View.isHidden = true
                             self.vrDisplayImageView.isHidden = false
                             self.cameraPreviewView.isHidden = true
                         }
