@@ -1,5 +1,5 @@
 /**
- * STARK CARDBOARDXR // ZERO-PYTHON NATIVE NODE.JS USB & GPU SERVER (v10.4.01 PRO)
+ * STARK CARDBOARDXR // ZERO-PYTHON NATIVE NODE.JS USB & GPU SERVER (v10.5.00 PRO)
  * ================================================================================
  * - 100% Native Node.js (ZERO Python in runtime):
  *   1. Speaks directly to Apple's native `usbmuxd` daemon (127.0.0.1:27015) using
@@ -300,6 +300,8 @@ class StarkNativeXRServer {
     this.usbConnected = false;
     this.usbWriting = false;
     this.latestPendingJpeg = null;
+    this.pendingH264Queue = [];
+    this.usingH264Return = false;
     this.wsClients = new Set();
     this.udpSock = dgram.createSocket("udp4");
     this.rxFrames = 0;
@@ -361,30 +363,49 @@ class StarkNativeXRServer {
     }
   }
 
+  sendH264BackToIphone(h264Buf) {
+    if (!this.usbConnected || !this.usbSock) {
+      this.sendWireAckToEngines();
+      return;
+    }
+    if (this.usbWriting) {
+      // Preserve P-frame decode order; if queue grows during momentary USB stall, reset cleanly on next IDR
+      const hasSpsOrIdr = h264Buf.length > 4 && h264Buf[0] === 0 && h264Buf[1] === 0 && h264Buf[2] === 0 && h264Buf[3] === 1 && ((h264Buf[4] & 0x1f) === 7 || (h264Buf[4] & 0x1f) === 5);
+      if (hasSpsOrIdr) {
+        this.pendingH264Queue = [h264Buf];
+      } else if (this.pendingH264Queue.length < 3) {
+        this.pendingH264Queue.push(h264Buf);
+      }
+      return;
+    }
+    this._flushPacketToUsb(h264Buf);
+  }
+
   sendFrameBackToIphone(jpegBuf) {
     if (!this.usbConnected || !this.usbSock) {
       this.sendWireAckToEngines();
       return;
     }
-    // Latest-Frame-Only Mailbox: Luon gui duy nhat frame moi nhat, khong bao gio xep hang gay tre (Zero Queue Lag)!
+    // Latest-Frame-Only Mailbox for JPEG: Luon gui duy nhat frame moi nhat, khong bao gio xep hang gay tre (Zero Queue Lag)!
     if (this.usbWriting) {
       this.latestPendingJpeg = jpegBuf;
       return;
     }
-    this._flushJpegToUsb(jpegBuf);
+    this._flushPacketToUsb(jpegBuf);
   }
 
-  _flushJpegToUsb(jpegBuf) {
+  _flushPacketToUsb(payloadBuf) {
     if (!this.usbConnected || !this.usbSock) {
       this.usbWriting = false;
       this.latestPendingJpeg = null;
+      this.pendingH264Queue = [];
       this.sendWireAckToEngines();
       return;
     }
     this.usbWriting = true;
     const hdr = Buffer.allocUnsafe(4);
-    hdr.writeUInt32BE(jpegBuf.length, 0);
-    const pkt = Buffer.concat([hdr, jpegBuf]);
+    hdr.writeUInt32BE(payloadBuf.length, 0);
+    const pkt = Buffer.concat([hdr, payloadBuf]);
     this.usbSock.write(pkt, () => {
       this.returnFrames++;
       const now = Date.now();
@@ -393,10 +414,13 @@ class StarkNativeXRServer {
         this.returnFrames = 0;
         this.lastReturnFpsTime = now;
       }
-      if (this.latestPendingJpeg) {
+      if (this.pendingH264Queue.length > 0) {
+        const nextH264 = this.pendingH264Queue.shift();
+        this._flushPacketToUsb(nextH264);
+      } else if (this.latestPendingJpeg) {
         const nextBuf = this.latestPendingJpeg;
         this.latestPendingJpeg = null;
-        this._flushJpegToUsb(nextBuf);
+        this._flushPacketToUsb(nextBuf);
       } else {
         this.usbWriting = false;
         this.sendWireAckToEngines();
@@ -410,6 +434,8 @@ class StarkNativeXRServer {
     this.usbConnected = true;
     this.usbWriting = false;
     this.latestPendingJpeg = null;
+    this.pendingH264Queue = [];
+    this.usingH264Return = false;
     console.log("\n[V] KET NOI THANH CONG VOI IPHONE 13 QUA CAP USB LIGHTNING (NATIVE NODE.JS)!");
     this.broadcastStatus();
     this.sendWireAckToEngines();
@@ -429,7 +455,7 @@ class StarkNativeXRServer {
         accum = accum.subarray(4 + len);
 
         let h264Data = payload;
-        // Check for 36-byte Multiplexed ARKit 6DoF Header: '6DOF' + 4B type + 28B (7 floats)
+        // Check for Multiplexed ARKit 6DoF Header: '6DOF' + 4B type + (28B Type 1 OR 32B Type 2 w/ VFOV)
         if (
           payload.length >= 36 &&
           payload[0] === 0x36 && // '6'
@@ -437,11 +463,13 @@ class StarkNativeXRServer {
           payload[2] === 0x4f && // 'O'
           payload[3] === 0x46    // 'F'
         ) {
-          const pose28 = payload.subarray(8, 36);
-          h264Data = payload.subarray(36);
-          // Forward 28B 6DoF pose to GPU Engine (Opcode 0x02) and Unity C# UDP 23457
-          this.broadcastBinary(0x02, pose28);
-          this.udpSock.send(pose28, UNITY_UDP_PORT, "127.0.0.1");
+          const pktType = payload.readUInt32LE(4);
+          const poseLen = pktType === 2 && payload.length >= 40 ? 32 : 28;
+          const poseBuf = payload.subarray(8, 8 + poseLen);
+          h264Data = payload.subarray(8 + poseLen);
+          // Forward 28B/32B 6DoF pose (+ VFovDeg) to GPU Engine (Opcode 0x02) and 28B to Unity C# UDP 23457
+          this.broadcastBinary(0x02, poseBuf);
+          this.udpSock.send(poseBuf.subarray(0, 28), UNITY_UDP_PORT, "127.0.0.1");
         }
 
         // Forward H.264 NALU access unit to GPU Engine (Opcode 0x01)
@@ -546,12 +574,18 @@ class StarkNativeXRServer {
         }
         if (isBinary && data.length > 1) {
           const opcode = data[0];
-          if (opcode === 0x03) {
-            // Opcode 0x03: Rendered JPEG frame from RTX 4060 Three.js Canvas -> Send back to iPhone USB + Fullscreen Web Mirror!
+          if (opcode === 0x06) {
+            // Opcode 0x06: Hardware H.264 Annex-B return frame from RTX 4060 NVENC -> Crisp 60 FPS USB iPhone!
+            this.usingH264Return = true;
+            this.sendH264BackToIphone(data.subarray(1));
+          } else if (opcode === 0x03) {
+            // Opcode 0x03: Rendered JPEG frame -> Safari /phone mirror (+ USB JPEG only when not using H.264)
             if (this.hasPhoneMirrorClients()) {
               this.broadcastPhoneMirror(data);
             }
-            this.sendFrameBackToIphone(data.subarray(1));
+            if (!this.usingH264Return && data.length > 2) {
+              this.sendFrameBackToIphone(data.subarray(1));
+            }
           } else if (opcode === 0x04 && data.length >= 29) {
             // Opcode 0x04: Visual/Gyro 6DoF Pose from GPU Engine -> Forward to Unity UDP 23457
             this.udpSock.send(data.subarray(1, 29), UNITY_UDP_PORT, "127.0.0.1");
@@ -571,7 +605,7 @@ class StarkNativeXRServer {
 
     httpServer.listen(HTTP_PORT, "127.0.0.1", () => {
       console.log("=========================================================================");
-      console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.4.01 PRO (ZERO PYTHON)");
+      console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.5.00 PRO (ZERO PYTHON)");
       console.log(`  [+] Local RTX 4060 GPU Engine : http://127.0.0.1:${HTTP_PORT}`);
     });
 
@@ -601,7 +635,7 @@ class StarkNativeXRServer {
             }
           }
           console.log("=========================================================================");
-          console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.4.01 PRO (ZERO PYTHON)");
+          console.log("  STARK CARDBOARDXR // NATIVE GPU ENGINE v10.5.00 PRO (ZERO PYTHON)");
           console.log(`  [+] Local RTX 4060 GPU Engine    : http://127.0.0.1:${HTTP_PORT}`);
           console.log(`  [+] iPhone Fullscreen 60FPS Mirror: https://${lanIp}:${HTTPS_PORT}/phone`);
           console.log(`  [+] iPhone Safari Native WebXR   : https://${lanIp}:${HTTPS_PORT}`);
